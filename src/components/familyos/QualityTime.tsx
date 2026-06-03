@@ -1,0 +1,194 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Calendar, CheckCircle2, Sparkles, Trash2, Timer, X } from 'lucide-react';
+import { KEYS, DEFAULT_PILLARS, ACTIVITY_TEMPLATES, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate } from '@/lib/familyos';
+import AlertModal from './AlertModal';
+
+interface Activity {
+  id: string;
+  name: string;
+  person: string;
+  duration: number;
+  scheduledAt: number;
+  completed: boolean;
+}
+
+const PILLAR_COLORS: Record<string, string> = {
+  pink: 'from-pink-900/40 to-slate-800 border-pink-500/30',
+  purple: 'from-purple-900/40 to-slate-800 border-purple-500/30',
+  blue: 'from-blue-900/40 to-slate-800 border-blue-500/30',
+  green: 'from-emerald-900/40 to-slate-800 border-emerald-500/30',
+};
+
+const QualityTime: React.FC = () => {
+  const [pillars, setPillars] = useState<any[]>(() => loadJSON(KEYS.pillars, DEFAULT_PILLARS));
+  const [activities, setActivities] = useState<Activity[]>(() => loadJSON(KEYS.activities, []));
+  const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
+  const [transition, setTransition] = useState<{ open: boolean; secondsLeft: number; activityName: string }>({ open: false, secondsLeft: 0, activityName: '' });
+
+  useEffect(() => saveJSON(KEYS.pillars, pillars), [pillars]);
+  useEffect(() => saveJSON(KEYS.activities, activities), [activities]);
+
+  // transition timer countdown
+  useEffect(() => {
+    if (!transition.open || transition.secondsLeft <= 0) return;
+    const t = setInterval(() => {
+      setTransition((prev) => ({ ...prev, secondsLeft: Math.max(0, prev.secondsLeft - 1) }));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [transition.open, transition.secondsLeft]);
+
+  const promises = loadJSON<any[]>(KEYS.promises, []);
+  const promiseCount = (person: string) => promises.filter((p) => !p.completed && p.person === person).length;
+
+  const scheduleFromTemplate = (tpl: any) => {
+    const when = prompt(`Schedule "${tpl.name}" for when? (e.g. "Tonight 7pm" or leave blank = now)`);
+    const scheduledAt = when ? Date.parse(when) || Date.now() + 3600000 : Date.now() + 3600000;
+    const a: Activity = { id: uid(), name: tpl.name, person: tpl.person, duration: tpl.duration, scheduledAt, completed: false };
+    setActivities([a, ...activities]);
+  };
+
+  const completeActivity = (id: string) => {
+    const act = activities.find((a) => a.id === id);
+    setActivities(activities.map((a) => (a.id === id ? { ...a, completed: true } : a)));
+    if (act) {
+      const personId = act.person.toLowerCase();
+      setPillars(pillars.map((p) => (p.id === personId || (p.id === 'home' && act.person === 'Family') ? { ...p, lastQualityTime: Date.now() } : p)));
+    }
+  };
+
+  const deleteActivity = (id: string) => setActivities(activities.filter((a) => a.id !== id));
+
+  const startTransition = (activity: Activity) => {
+    const minutesUntil = Math.max(1, Math.floor((activity.scheduledAt - Date.now()) / 60000));
+    setTransition({ open: true, secondsLeft: Math.min(minutesUntil, 10) * 60, activityName: activity.name });
+  };
+
+  const aiSuggest = async () => {
+    setModal({ open: true, title: 'Scheduling Suggestions', body: '', loading: true });
+    const summary = pillars.map((p) => `${p.name}: last ${relativeDate(p.lastQualityTime)}, interests: ${p.interests}`).join('\n');
+    const prompt = `Suggest 3 quality-time activities for this week based on:\n${summary}\n\nKeep it warm, specific, and actionable. 1-2 sentences each.`;
+    const { text } = await callClaude(prompt);
+    setModal({ open: true, title: 'Scheduling Suggestions', body: text, loading: false });
+  };
+
+  const weeklyPlan = async () => {
+    setModal({ open: true, title: 'Weekly Quality Time Plan', body: '', loading: true });
+    const prompt = `It's Sunday. Help Daddy plan quality time this week.\nFamily: Mommy, Abriana, Julia, Lucy (dog).\nLast contact:\n${pillars.map((p) => `${p.name}: ${relativeDate(p.lastQualityTime)}`).join('\n')}\n\nSuggest a 7-day plan with one focus per day.`;
+    const { text } = await callClaude(prompt);
+    setModal({ open: true, title: 'Weekly Quality Time Plan', body: text, loading: false });
+  };
+
+  const upcoming = activities.filter((a) => !a.completed).sort((a, b) => a.scheduledAt - b.scheduledAt);
+  const weekStart = Date.now() - 7 * 86400000;
+  const weeklyCount = activities.filter((a) => a.completed && a.scheduledAt > weekStart).length;
+
+  const fmtTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+
+  return (
+    <div className="space-y-5">
+      <AlertModal {...modal} accent="indigo" onClose={() => setModal({ ...modal, open: false })} />
+
+      {/* Transition mode fullscreen */}
+      {transition.open && (
+        <div className="fixed inset-0 z-50 bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 flex flex-col items-center justify-center p-6 text-center">
+          <button onClick={() => setTransition({ ...transition, open: false })} className="absolute top-6 right-6 text-slate-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
+          <div className="text-indigo-300 text-sm uppercase tracking-widest mb-4">Transition Mode</div>
+          <div className="text-7xl md:text-9xl font-bold text-white tabular-nums mb-6">{fmtTime(transition.secondsLeft)}</div>
+          <div className="text-2xl md:text-3xl text-white font-light mb-8">Until {transition.activityName}</div>
+          <div className="text-slate-300 space-y-2 text-lg">
+            <div>Close work tabs</div>
+            <div>Clear your mind</div>
+            <div className="text-indigo-300 font-semibold">Be present</div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Quality Time Architect</h2>
+          <p className="text-sm text-slate-400">{weeklyCount} activities completed this week</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={aiSuggest} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> Suggest
+          </button>
+          <button onClick={weeklyPlan} className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> Plan
+          </button>
+        </div>
+      </div>
+
+      {/* Four pillars */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {pillars.map((p) => (
+          <div key={p.id} className={`bg-gradient-to-br ${PILLAR_COLORS[p.color]} border rounded-2xl p-4`}>
+            <div className="flex items-center justify-between">
+              <div className="text-white font-bold text-lg">{p.name}</div>
+              <div className="text-xs text-slate-300">Last: {relativeDate(p.lastQualityTime)}</div>
+            </div>
+            <div className="text-xs text-slate-300 mt-2 line-clamp-2">{p.interests}</div>
+            {p.id !== 'home' && (
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Open promises</span>
+                <span className="bg-blue-900/40 border border-blue-500/30 text-blue-200 px-2 py-0.5 rounded-full">{promiseCount(p.name)}</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Templates */}
+      <div>
+        <div className="text-sm text-slate-400 mb-2">Activity Templates</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {ACTIVITY_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => scheduleFromTemplate(tpl)}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg p-3 text-left transition group"
+            >
+              <div className="text-white text-sm font-semibold">{tpl.name}</div>
+              <div className="text-xs text-slate-400 mt-1">{tpl.person} · {tpl.duration}m</div>
+              <div className="text-xs text-indigo-400 mt-2 opacity-0 group-hover:opacity-100 transition">+ Schedule</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Upcoming */}
+      <div>
+        <div className="text-sm text-slate-400 mb-2">Upcoming Activities</div>
+        {upcoming.length === 0 ? (
+          <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-6 text-center text-slate-400 text-sm">
+            Nothing scheduled. Pick a template above.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {upcoming.map((a) => (
+              <div key={a.id} className="bg-slate-800 border border-slate-700 rounded-lg p-3 flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-indigo-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-sm font-medium">{a.name}</div>
+                  <div className="text-xs text-slate-400">{a.person} · {a.duration}m · {formatDate(a.scheduledAt)} {new Date(a.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
+                </div>
+                <button onClick={() => startTransition(a)} className="text-indigo-400 hover:text-indigo-300 p-1.5" title="Transition mode">
+                  <Timer className="w-4 h-4" />
+                </button>
+                <button onClick={() => completeActivity(a.id)} className="text-emerald-400 hover:text-emerald-300 p-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => deleteActivity(a.id)} className="text-slate-500 hover:text-rose-400 p-1.5">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default QualityTime;
