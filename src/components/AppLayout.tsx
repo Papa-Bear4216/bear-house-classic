@@ -23,6 +23,7 @@ import KidsHub from '@/components/familyos/sections/KidsHub';
 import HealthHub from '@/components/familyos/sections/HealthHub';
 import FamilyHub from '@/components/familyos/sections/FamilyHub';
 import FinanceHub from '@/components/familyos/sections/FinanceHub';
+import QuickCapture from '@/components/familyos/QuickCapture';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars';
@@ -406,6 +407,7 @@ const AppLayout: React.FC = () => {
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />
+      <QuickCapture />
     </div>
   );
 };
