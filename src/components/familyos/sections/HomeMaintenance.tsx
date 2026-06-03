@@ -79,17 +79,33 @@ const HomeMaintenance: React.FC = () => {
   const filtered = filterCat === 'All' ? active : active.filter(i => i.category === filterCat);
   const deleted = items.filter(i => !!i.deletedAt);
 
+  // Auto-assign chore to family member based on type keywords
+  const autoAssign = (chore: string): string => {
+    const c = chore.toLowerCase();
+    if (/lawn|yard|mow|trim|outdoor|gutter|fence|driveway|garage/.test(c)) return 'Daddy';
+    if (/dish|laundry|vacuum|sweep|mop|clean|dust|wipe|bathroom|kitchen|cook/.test(c)) return 'Mommy';
+    if (/litter|feed|walk|pet|lucy/.test(c)) return 'Julia';
+    if (/trash|garbage|recycl/.test(c)) return 'Abriana';
+    return 'Daddy'; // default
+  };
+
   const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>) => {
-    const newItems: HomeItem[] = detected.map(d => ({
+    // Save scanned chores as Tasks (household_tasks), NOT as home maintenance items
+    const existingTasks = loadJSON<any[]>('household_tasks', []);
+    const newTasks = detected.map(d => ({
       id: uid(),
-      item: d.chore,
-      category: 'Other' as Category,
-      lastDone: '',
-      nextDue: '',
-      notes: d.detail,
+      text: d.chore,
+      person: autoAssign(d.chore),
+      priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
+      category: 'Maintenance',
+      dueEstimate: 'Today',
+      dueDate: null,
+      completed: false,
       createdAt: d.addedAt,
+      notes: d.detail,
+      source: 'chore_scanner',
     }));
-    save([...newItems, ...items]);
+    saveJSON('household_tasks', [...newTasks, ...existingTasks]);
   };
 
   return (
