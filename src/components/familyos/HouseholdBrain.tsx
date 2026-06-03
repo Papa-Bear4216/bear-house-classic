@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine } from 'lucide-react';
+import ChoreScanner from '@/components/familyos/ChoreScanner';
 import {
   KEYS,
   PERSONS,
@@ -69,6 +70,32 @@ const HouseholdBrain: React.FC = () => {
   const [recurType, setRecurType] = useState<'none' | 'daily' | 'weekly' | 'monthly' | 'custom'>('none');
   const [customDays, setCustomDays] = useState<number[]>([]);
   const [showRecur, setShowRecur] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
+  const autoAssign = (chore: string): string => {
+    const c = chore.toLowerCase();
+    if (/lawn|yard|mow|trim|outdoor|gutter|fence|driveway|garage/.test(c)) return 'Daddy';
+    if (/dish|laundry|vacuum|sweep|mop|clean|dust|wipe|bathroom|kitchen/.test(c)) return 'Mommy';
+    if (/litter|feed.*pet|walk.*dog|lucy/.test(c)) return 'Julia';
+    if (/trash|garbage|recycl/.test(c)) return 'Abriana';
+    return 'Daddy';
+  };
+
+  const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>) => {
+    const newTasks: Task[] = detected.map(d => ({
+      id: uid(),
+      text: d.chore,
+      person: autoAssign(d.chore),
+      priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
+      category: 'Maintenance',
+      dueEstimate: 'Today',
+      dueDate: null,
+      completed: false,
+      createdAt: d.addedAt,
+      source: 'chore_scanner',
+    } as Task));
+    setTasks(prev => [...newTasks, ...prev]);
+  };
 
   const [presentToday, setPresentToday] = useState<{ yes: number; no: number }>(() => {
     const log = loadJSON<any[]>(KEYS.presenceLog, []);
@@ -246,11 +273,21 @@ const HouseholdBrain: React.FC = () => {
     <div className="space-y-5">
       <AlertModal {...modal} accent="orange" onClose={() => setModal({ ...modal, open: false })} />
 
+      {showScanner && (
+        <ChoreScanner
+          onClose={() => setShowScanner(false)}
+          onSave={(chores) => { handleScanSave(chores); setShowScanner(false); }}
+        />
+      )}
+
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <h2 className="text-2xl font-bold text-white">Household Brain</h2>
           <p className="text-sm text-slate-400">Capture, categorize, and clear what's on your plate.</p>
         </div>
+        <button onClick={() => setShowScanner(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+          <ScanLine className="w-4 h-4" /> Scan Room
+        </button>
         <button onClick={morningBrief} className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> Brief
         </button>
