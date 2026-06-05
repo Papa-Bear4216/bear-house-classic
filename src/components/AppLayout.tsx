@@ -25,6 +25,7 @@ import FamilyHub from '@/components/familyos/sections/FamilyHub';
 import FinanceHub from '@/components/familyos/sections/FinanceHub';
 import QuickCapture from '@/components/familyos/QuickCapture';
 import HermesChat from '@/components/familyos/HermesChat';
+import MagicTrail from '@/components/familyos/MagicTrail';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars';
@@ -410,6 +411,7 @@ const AppLayout: React.FC = () => {
       <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />
       <QuickCapture />
       <HermesChat />
+      <MagicTrail />
     </div>
   );
 };
