@@ -23,6 +23,7 @@ interface Pillar {
 
 // Tailwind fallback gradients (used when no favoriteColors chosen)
 const PILLAR_COLORS: Record<string, string> = {
+  indigo: 'from-indigo-900/40 to-slate-800 border-indigo-500/30',
   pink:   'from-pink-900/40 to-slate-800 border-pink-500/30',
   purple: 'from-purple-900/40 to-slate-800 border-purple-500/30',
   blue:   'from-blue-900/40 to-slate-800 border-blue-500/30',

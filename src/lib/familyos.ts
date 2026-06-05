@@ -62,6 +62,7 @@ export const DEFAULT_PRESENCE_ZONES = [
 ];
 
 export const DEFAULT_PILLARS = [
+  { id: 'daddy', name: 'Daddy', color: 'indigo', interests: 'Coding, woodworking, gaming, coffee, being the best dad', lastQualityTime: null },
   { id: 'gwen', name: 'Mommy', color: 'pink', interests: 'Wine, hiking, true crime podcasts', lastQualityTime: null },
   { id: 'abriana', name: 'Abriana', color: 'purple', interests: 'Metalcore, drawing, gaming', lastQualityTime: null },
   { id: 'julia', name: 'Julia', color: 'blue', interests: 'Reading, baking, soccer', lastQualityTime: null },
