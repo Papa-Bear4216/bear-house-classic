@@ -180,36 +180,20 @@ export function relativeDate(ts: number | null) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-export const DEFAULT_API_KEY = 'sk-ant-placeholder-key';
-
-// Claude API call helper
-export async function callClaude(prompt: string): Promise<{ ok: boolean; text: string }> {
-  const apiKey = localStorage.getItem(KEYS.apiKey) || DEFAULT_API_KEY;
-  if (!apiKey) {
-    return { ok: false, text: 'No API key set. Add your Anthropic key in Settings.' };
-  }
+// Claude API call helper — proxied through /api/chat so the key never leaves the server
+export async function callClaude(prompt: string, maxTokens = 1000): Promise<{ ok: boolean; text: string }> {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, maxTokens }),
     });
     if (!res.ok) {
-      const errText = await res.text();
-      return { ok: false, text: `API error: ${res.status} ${errText.slice(0, 200)}` };
+      const errData = await res.json().catch(() => ({ error: res.statusText }));
+      return { ok: false, text: `API ${res.status}: ${errData.error || res.statusText}` };
     }
     const data = await res.json();
-    const text = data?.content?.[0]?.text || '';
-    return { ok: true, text };
+    return { ok: true, text: data?.text || '' };
   } catch (e: any) {
     return { ok: false, text: e?.message || 'Network error' };
   }

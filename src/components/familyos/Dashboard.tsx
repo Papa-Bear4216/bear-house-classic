@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard } from 'lucide-react';
 import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, DEFAULT_PILLARS } from '@/lib/familyos';
+import { getGoogleToken } from '@/lib/auth';
 
 import AlertModal from './AlertModal';
 import Trends from './Trends';
@@ -71,21 +72,133 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
       </div>
     );
   };
-
   const dailySummary = async () => {
     setModal({ open: true, title: 'Daily Family Summary', body: '', loading: true });
-    const prompt = `Give a holistic daily family status for Daddy. Be warm, specific, 5-7 sentences.
 
+    // Fetch live Google data if an OAuth token is available
+    let calendarSection = '';
+    let gmailSection = '';
+    const googleToken = getGoogleToken();
+    if (googleToken) {
+      try {
+        const now = new Date().toISOString();
+        const tomorrow = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+        const calRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${tomorrow}&singleEvents=true&orderBy=startTime&maxResults=10`,
+          { headers: { Authorization: `Bearer ${googleToken}` } }
+        );
+        if (calRes.ok) {
+          const calData = await calRes.json();
+          const events: any[] = calData.items || [];
+          if (events.length) {
+            calendarSection = `\nUpcoming calendar (next 48h): ${events
+              .map((e) => {
+                const start = e.start?.dateTime || e.start?.date;
+                const time = start ? new Date(start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+                return `${e.summary || 'Untitled'}${time ? ` @ ${time}` : ''}`;
+              })
+              .join('; ')}`;
+          }
+        }
+      } catch {
+        // non-fatal — summary continues without calendar data
+      }
+
+      try {
+        const gmailRes = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread is:important&maxResults=5',
+          { headers: { Authorization: `Bearer ${googleToken}` } }
+        );
+        if (gmailRes.ok) {
+          const gmailData = await gmailRes.json();
+          const msgs: any[] = gmailData.messages || [];
+          if (msgs.length) {
+            // Fetch subject lines for the first 3
+            const subjects = await Promise.all(
+              msgs.slice(0, 3).map(async (m) => {
+                const r = await fetch(
+                  `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,
+                  { headers: { Authorization: `Bearer ${googleToken}` } }
+                );
+                if (!r.ok) return null;
+                const d = await r.json();
+                const subject = d.payload?.headers?.find((h: any) => h.name === 'Subject')?.value || '(no subject)';
+                const from = d.payload?.headers?.find((h: any) => h.name === 'From')?.value || '';
+                return `"${subject}" from ${from}`;
+              })
+            );
+            const validSubjects = subjects.filter(Boolean);
+            if (validSubjects.length) {
+              gmailSection = `\nUnread important emails (${msgs.length} total): ${validSubjects.join('; ')}`;
+            }
+          }
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
+    // Structured prompt to ensure JSON output for UI parsing
+    const prompt = `Act as the "Family OS" secretary. Return ONLY a valid JSON object with this structure:
+{
+  "recommendation": "One high-impact, actionable thing for Daddy today.",
+  "news": ["Brief summary item 1", "Brief summary item 2"],
+  "alerts": ["Any urgent items or overdue tasks"],
+  "outlook": "A warm, 1-2 sentence grounding statement for the family."
+}
+
+Use this live data:
+Today: ${new Date().toLocaleDateString()}
 Today's priority tasks: ${stats.todayTasks}
 Open promises: ${stats.openPromises} (${stats.overduePromises} overdue)
-Upcoming activity: ${stats.upcoming ? `${stats.upcoming.name} with ${stats.upcoming.person}` : 'none scheduled'}
+Upcoming activity: ${stats.upcoming ? `${stats.upcoming.name} with ${stats.upcoming.person}` : 'none'}
 Weekly presence: ${stats.presencePct}%
 Recent emotions logged: ${emotions.slice(0, 5).map((e) => `${e.person}: ${e.feeling}`).join('; ') || 'none'}
-Last quality time: ${pillars.map((p) => `${p.name}: ${relativeDate(p.lastQualityTime)}`).join(', ')}
+Last quality time: ${pillars.map((p) => `${p.name}: ${relativeDate(p.lastQualityTime)}`).join(', ')}${calendarSection}${gmailSection}
 
-Give one focused recommendation for today.`;
+Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear actions).`;
+
     const { text } = await callClaude(prompt);
-    setModal({ open: true, title: 'Daily Family Summary', body: text, loading: false });
+    
+    // Parse the JSON for the modal
+    let parsedBody;
+    try {
+      const cleaned = text.replace(/^```json?\s*/i, '').replace(/```$/i, '').trim();
+      parsedBody = JSON.parse(cleaned);
+    } catch (e) {
+      parsedBody = { recommendation: "Summary generation failed to parse.", news: [], alerts: [], outlook: text };
+    }
+
+    const formattedBody = (
+      <div className="space-y-4">
+        <div className="bg-indigo-950/30 p-3 rounded-lg border border-indigo-500/30">
+          <h4 className="text-indigo-300 text-xs font-bold uppercase mb-1">Focus For Today</h4>
+          <p className="text-white text-sm">{parsedBody.recommendation}</p>
+        </div>
+        
+        {parsedBody.news.length > 0 && (
+          <div>
+            <h4 className="text-slate-400 text-xs font-bold uppercase mb-2">Family News</h4>
+            <ul className="list-disc list-inside text-slate-300 text-sm space-y-1">
+              {parsedBody.news.map((n: string, i: number) => <li key={i}>{n}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {parsedBody.alerts.length > 0 && (
+          <div className="bg-rose-950/20 p-3 rounded-lg border border-rose-500/20">
+            <h4 className="text-rose-400 text-xs font-bold uppercase mb-1">Safety Net Alerts</h4>
+            <ul className="list-disc list-inside text-rose-200 text-sm space-y-1">
+              {parsedBody.alerts.map((a: string, i: number) => <li key={i}>{a}</li>)}
+            </ul>
+          </div>
+        )}
+
+        <p className="text-slate-500 italic text-xs pt-2 border-t border-slate-700">{parsedBody.outlook}</p>
+      </div>
+    );
+
+    setModal({ open: true, title: 'Family Sync', body: formattedBody as any, loading: false });
   };
 
   return (

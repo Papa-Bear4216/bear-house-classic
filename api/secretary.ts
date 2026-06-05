@@ -1,122 +1,95 @@
 /**
- * Hermes — Bear House Family Secretary
- *
- * Sits in front of every incoming data write (webhook, quick capture, IFTTT, Tasker).
- * Enriches, deduplicates, assigns, and proactively flags patterns.
- * Uses Claude Haiku for fast, cheap classification + enrichment.
+ * Hermes — Bear House Family Secretary (Edge Runtime)
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://pbiffzdcythkwtwxtqlu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
+import { dbGet } from './_db.js';
+
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 const FAMILY = ['Daddy', 'Mommy', 'Abriana', 'Julia', 'Lucy', 'Family', 'General'];
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
-async function callHaiku(prompt: string): Promise<string> {
+async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
   });
-  const data = await res.json();
+  const data = await res.json() as any;
   return data?.content?.[0]?.text || '';
 }
 
-async function getRecentTasks(supabase: ReturnType<typeof createClient>, limit = 20) {
-  const { data } = await supabase.from('family_data').select('value').eq('key', 'household_tasks').single();
-  if (!data?.value || !Array.isArray(data.value)) return [];
-  return (data.value as any[]).filter(t => !t.completed).slice(0, limit);
+async function getRecentTasks(limit = 20) {
+  const value = await dbGet('household_tasks');
+  if (!value || !Array.isArray(value)) return [];
+  return (value as any[]).filter((t: any) => !t.completed).slice(0, limit);
 }
 
 function isDuplicate(incoming: string, existing: any[]): boolean {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const a = norm(incoming);
-  return existing.some(t => {
-    const b = norm(t.text || t.name || '');
-    // Simple similarity: one contains the other, or they share 80%+ chars
-    return a === b || a.includes(b) || b.includes(a);
-  });
+  return existing.some(t => { const b = norm(t.text || t.name || ''); return a === b || a.includes(b) || b.includes(a); });
 }
 
 const ENRICH_PROMPT = (item: object, existingTasks: any[]) => `
-You are Hermes, the Bear House family secretary. Your job is to enrich and validate an incoming item before saving it.
+You are Hermes, the Bear House family secretary. Enrich and validate this incoming item before saving.
 
 INCOMING ITEM:
 ${JSON.stringify(item, null, 2)}
 
-EXISTING OPEN TASKS (for dedup check):
-${existingTasks.map(t => `- [${t.person}] ${t.text}`).join('\n') || 'none'}
+EXISTING OPEN TASKS (dedup check):
+${existingTasks.map((t: any) => `- [${t.person}] ${t.text}`).join('\n') || 'none'}
 
 FAMILY MEMBERS: ${FAMILY.join(', ')}
 CATEGORIES: ${CATEGORIES.join(', ')}
 
-Return ONLY valid JSON with this exact shape (no markdown):
+Return ONLY valid JSON (no markdown):
 {
   "action": "save" | "skip",
-  "reason": "why skip if skipping (duplicate/irrelevant)",
+  "reason": "why skip if skipping",
   "enriched": {
     "text": "cleaner, more actionable phrasing",
-    "person": "best family member to assign this to",
+    "person": "best family member",
     "priority": "High" | "Medium" | "Low",
-    "category": "one of the categories above",
+    "category": "one of the categories",
     "dueEstimate": "Today" | "This Week" | "This Month" | "No Deadline",
-    "secretaryNote": "optional short note for the family (e.g. 'Car hasn\\'t been serviced in 3 months')"
+    "secretaryNote": "optional short context note or empty string"
   }
 }
 
-Rules:
-- If very similar task already exists in the open list: action = "skip"
-- Assign "Daddy" for home maintenance/car, "Mommy" for scheduling/appointments by default
-- Be concise but keep all meaning
-- secretaryNote only when genuinely useful context, otherwise empty string
+Rules: skip if very similar task exists. Assign Daddy for maintenance/car, Mommy for scheduling by default.
 `.trim();
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') return res.status(200).json({ ok: true, agent: 'Hermes', status: 'ready' });
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'GET') return j({ ok: true, agent: 'Hermes', status: 'ready' });
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const token = (req.headers['x-webhook-token'] as string) || req.body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
-  const { item, type } = req.body;
-  if (!item || !type) return res.status(400).json({ error: 'Missing item or type' });
+  const body = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || body?.token;
+  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
+
+  const { item, type } = body;
+  if (!item || !type) return j({ error: 'Missing item or type' }, 400);
 
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const existingTasks = await getRecentTasks(supabase);
+    const existingTasks = await getRecentTasks();
 
-    // Quick local dedup before calling Claude
     const text = item.text || item.name || '';
-    if (isDuplicate(text, existingTasks)) {
-      return res.status(200).json({ action: 'skip', reason: 'Duplicate detected locally', item });
-    }
+    if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
-    const raw = await callHaiku(ENRICH_PROMPT(item, existingTasks));
+    const raw = await callHaiku(ENRICH_PROMPT(item, existingTasks), ANTHROPIC_API_KEY);
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const result = JSON.parse(clean);
 
-    if (result.action === 'skip') {
-      return res.status(200).json({ action: 'skip', reason: result.reason, item });
-    }
+    if (result.action === 'skip') return j({ action: 'skip', reason: result.reason, item });
 
-    // Merge enriched fields back into original item
     const enriched = { ...item, ...result.enriched, secretaryNote: result.enriched?.secretaryNote || '' };
-    return res.status(200).json({ action: 'save', item: enriched });
-
+    return j({ action: 'save', item: enriched });
   } catch (e: any) {
-    // If secretary fails, pass through original item unchanged
-    return res.status(200).json({ action: 'save', item, secretaryError: e?.message });
+    return j({ action: 'save', item, secretaryError: e?.message });
   }
 }

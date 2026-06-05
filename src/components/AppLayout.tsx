@@ -5,7 +5,7 @@ import {
   ShoppingCart, Utensils, Receipt, Car, Wrench, Baby
 } from 'lucide-react';
 
-import { KEYS, DEFAULT_API_KEY, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
+import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import HouseholdBrain from '@/components/familyos/HouseholdBrain';
 import QualityTime from '@/components/familyos/QualityTime';
@@ -24,6 +24,7 @@ import HealthHub from '@/components/familyos/sections/HealthHub';
 import FamilyHub from '@/components/familyos/sections/FamilyHub';
 import FinanceHub from '@/components/familyos/sections/FinanceHub';
 import QuickCapture from '@/components/familyos/QuickCapture';
+import HermesChat from '@/components/familyos/HermesChat';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars';
@@ -82,7 +83,7 @@ const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setHasApiKey(!!(localStorage.getItem(KEYS.apiKey) || DEFAULT_API_KEY));
+    setHasApiKey(true); // API calls now proxy through /api/chat — no client key needed
   }, [settingsOpen]);
 
   useEffect(() => setTick((t) => t + 1), [active, settingsOpen]);
@@ -408,6 +409,7 @@ const AppLayout: React.FC = () => {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />
       <QuickCapture />
+      <HermesChat />
     </div>
   );
 };

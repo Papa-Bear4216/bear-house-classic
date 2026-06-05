@@ -1,27 +1,11 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://pbiffzdcythkwtwxtqlu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+import { dbGet, dbSet } from './_db.js';
+
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-async function getSupabaseKey(supabase: ReturnType<typeof createClient>, key: string) {
-  const { data, error } = await supabase.from('family_data').select('value').eq('key', key).single();
-  if (error || !data) return null;
-  return data.value;
-}
-
-async function setSupabaseKey(supabase: ReturnType<typeof createClient>, key: string, value: unknown) {
-  await supabase.from('family_data').upsert(
-    { key, value, updated_at: new Date().toISOString() },
-    { onConflict: 'key' }
-  );
 }
 
 // Map Google Calendar event to bear-house appointment
@@ -51,35 +35,27 @@ async function fetchCalendarEvents(accessToken: string, calendarId = 'primary') 
   return data.items || [];
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, message: 'Bear House calendar sync endpoint.' });
-  }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'GET') return j({ ok: true, message: 'Bear House calendar sync endpoint.' });
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const token = (req.headers['x-webhook-token'] as string) || req.body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const person = req.body?.person || 'Daddy';
+  const body = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || body?.token;
+  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
-  // Expect client to pass a short-lived Google access token
-  // (obtained via OAuth in the browser and POSTed here)
-  const { accessToken, calendarId } = req.body;
-  if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
+  const { accessToken, person = 'Daddy', calendarId } = body;
+  if (!accessToken) return j({ error: 'accessToken required' }, 400);
 
   try {
     const events = await fetchCalendarEvents(accessToken, calendarId);
-
-    // Load existing appointments, filter out old gcal ones, merge new
-    const existing: any[] = (await getSupabaseKey(supabase, 'familyos_appointments')) || [];
+    const existing: any[] = (await dbGet('familyos_appointments')) || [];
     const nonGcal = existing.filter((a: any) => a.source !== 'google_calendar');
     const newAppointments = events.map((e: any) => googleEventToAppointment(e, person));
-    const merged = [...newAppointments, ...nonGcal];
-
-    await setSupabaseKey(supabase, 'familyos_appointments', merged);
-    return res.status(200).json({ ok: true, synced: newAppointments.length });
+    await dbSet('familyos_appointments', [...newAppointments, ...nonGcal]);
+    return j({ ok: true, synced: newAppointments.length });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Sync failed' });
+    return j({ error: e?.message || 'Sync failed' }, 500);
   }
 }

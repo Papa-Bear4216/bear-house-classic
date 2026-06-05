@@ -1,122 +1,89 @@
 /**
- * /api/ha-webhook
- * Home Assistant → Bear House bridge.
- *
- * Set up in HA as a REST command or automation action:
- *   service: rest_command.bearhouse_event
- *   data:
- *     event: person_arrived | person_left | motion_detected | door_opened | package_delivered
- *     person: Daddy | Mommy | Abriana | Julia
- *     area: front_door | kitchen | living_room | etc
- *     device: sensor name
- *
- * POST /api/ha-webhook  { token, event, person, area, device }
+ * /api/ha-webhook — Home Assistant → Bear House bridge (Edge Runtime)
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://pbiffzdcythkwtwxtqlu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
+import { dbGet, dbSet } from './_db.js';
+
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
 async function appendTask(task: object) {
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const { data } = await sb.from('family_data').select('value').eq('key', 'household_tasks').single();
-  const existing = Array.isArray(data?.value) ? data.value : [];
-  // Don't duplicate — check if same task text already open
+  const existing: any[] = (await dbGet('household_tasks')) ?? [];
   const text = (task as any).text;
-  const alreadyOpen = existing.some((t: any) => !t.completed && t.text?.toLowerCase() === text?.toLowerCase());
-  if (alreadyOpen) return { skipped: true };
-  await sb.from('family_data').upsert(
-    { key: 'household_tasks', value: [task, ...existing], updated_at: new Date().toISOString() },
-    { onConflict: 'key' }
-  );
+  if (existing.some((t: any) => !t.completed && t.text?.toLowerCase() === text?.toLowerCase())) return { skipped: true };
+  await dbSet('household_tasks', [task, ...existing]);
   return { saved: true };
 }
 
 async function logPresence(entry: object) {
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const { data } = await sb.from('family_data').select('value').eq('key', 'presence_log').single();
-  const existing = Array.isArray(data?.value) ? data.value : [];
-  await sb.from('family_data').upsert(
-    { key: 'presence_log', value: [entry, ...existing.slice(0, 199)], updated_at: new Date().toISOString() },
-    { onConflict: 'key' }
-  );
+  const existing: any[] = (await dbGet('presence_log')) ?? [];
+  await dbSet('presence_log', [entry, ...existing.slice(0, 199)]);
 }
 
-const EVENT_HANDLERS: Record<string, (body: Record<string, string>) => Promise<{ action: string; task?: object }>> = {
-  person_arrived: async (body) => {
-    await logPresence({ ts: Date.now(), person: body.person, event: 'arrived', area: body.area });
-    return { action: 'presence_logged' };
-  },
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'GET') return j({ ok: true, supported_events: ['person_arrived','person_left','package_delivered','door_left_open','low_battery','motion_detected','wyze_alert','custom'] });
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  person_left: async (body) => {
-    await logPresence({ ts: Date.now(), person: body.person, event: 'left', area: body.area });
-    return { action: 'presence_logged' };
-  },
+  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
-  package_delivered: async (_body) => {
-    const task = { id: uid(), text: 'Bring in package from front door', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today', dueDate: null, completed: false, createdAt: Date.now(), source: 'home_assistant' };
-    const result = await appendTask(task);
-    return { action: result.skipped ? 'duplicate_skipped' : 'task_created', task };
-  },
+  const body = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || body?.token;
+  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
-  door_left_open: async (body) => {
-    const task = { id: uid(), text: `Close ${body.area || 'door'} — left open`, person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today', dueDate: null, completed: false, createdAt: Date.now(), source: 'home_assistant' };
-    const result = await appendTask(task);
-    return { action: result.skipped ? 'duplicate_skipped' : 'task_created', task };
-  },
-
-  low_battery: async (body) => {
-    const task = { id: uid(), text: `Replace battery in ${body.device || 'sensor'}`, person: 'Daddy', priority: 'Low', category: 'Maintenance', dueEstimate: 'This Week', dueDate: null, completed: false, createdAt: Date.now(), source: 'home_assistant' };
-    const result = await appendTask(task);
-    return { action: result.skipped ? 'duplicate_skipped' : 'task_created', task };
-  },
-
-  motion_detected: async (body) => {
-    // Only log motion for now — don't create tasks for every motion event
-    await logPresence({ ts: Date.now(), event: 'motion', area: body.area, device: body.device });
-    return { action: 'motion_logged' };
-  },
-
-  wyze_alert: async (body) => {
-    // Wyze cam alert → task if it's a meaningful alert (package, person, vehicle)
-    const alertType = (body.alert_type || '').toLowerCase();
-    if (alertType.includes('package') || alertType.includes('delivery')) {
-      const task = { id: uid(), text: 'Package delivered — bring inside', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today', dueDate: null, completed: false, createdAt: Date.now(), source: 'wyze' };
-      const result = await appendTask(task);
-      return { action: result.skipped ? 'duplicate_skipped' : 'task_created', task };
-    }
-    return { action: 'alert_logged' };
-  },
-
-  custom: async (body) => {
-    if (!body.text) return { action: 'error: missing text for custom event' };
-    const task = { id: uid(), text: body.text, person: body.person || 'Daddy', priority: body.priority || 'Medium', category: body.category || 'General', dueEstimate: body.dueEstimate || 'Today', dueDate: null, completed: false, createdAt: Date.now(), source: 'home_assistant' };
-    const result = await appendTask(task);
-    return { action: result.skipped ? 'duplicate_skipped' : 'task_created', task };
-  },
-};
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') return res.status(200).json({ ok: true, supported_events: Object.keys(EVENT_HANDLERS) });
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const token = (req.headers['x-webhook-token'] as string) || req.body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
-
-  const event: string = req.body?.event;
-  if (!event) return res.status(400).json({ error: 'Missing event type' });
-
-  const handler_fn = EVENT_HANDLERS[event];
-  if (!handler_fn) return res.status(400).json({ error: `Unknown event. Supported: ${Object.keys(EVENT_HANDLERS).join(', ')}` });
+  const { event, person, area, device, text: customText, priority, category, dueEstimate, alert_type } = body;
+  if (!event) return j({ error: 'Missing event type' }, 400);
 
   try {
-    const result = await handler_fn(req.body);
-    return res.status(200).json({ ok: true, event, ...result });
+    let result: any;
+    const base = { id: uid(), completed: false, createdAt: Date.now(), source: 'home_assistant', dueDate: null };
+
+    if (event === 'person_arrived' || event === 'person_left') {
+      await logPresence({ ts: Date.now(), person, event: event === 'person_arrived' ? 'arrived' : 'left', area });
+      result = { action: 'presence_logged' };
+
+    } else if (event === 'package_delivered') {
+      const task = { ...base, text: 'Bring in package from front door', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
+      const r = await appendTask(task);
+      result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
+
+    } else if (event === 'door_left_open') {
+      const task = { ...base, text: `Close ${area || 'door'} — left open`, person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
+      const r = await appendTask(task);
+      result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
+
+    } else if (event === 'low_battery') {
+      const task = { ...base, text: `Replace battery in ${device || 'sensor'}`, person: 'Daddy', priority: 'Low', category: 'Maintenance', dueEstimate: 'This Week' };
+      const r = await appendTask(task);
+      result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
+
+    } else if (event === 'motion_detected') {
+      await logPresence({ ts: Date.now(), event: 'motion', area, device });
+      result = { action: 'motion_logged' };
+
+    } else if (event === 'wyze_alert') {
+      const at = (alert_type || '').toLowerCase();
+      if (at.includes('package') || at.includes('delivery')) {
+        const task = { ...base, text: 'Package delivered — bring inside', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today', source: 'wyze' };
+        const r = await appendTask(task);
+        result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
+      } else {
+        result = { action: 'alert_logged' };
+      }
+
+    } else if (event === 'custom') {
+      if (!customText) return j({ error: 'Missing text for custom event' }, 400);
+      const task = { ...base, text: customText, person: person || 'Daddy', priority: priority || 'Medium', category: category || 'General', dueEstimate: dueEstimate || 'Today' };
+      const r = await appendTask(task);
+      result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
+
+    } else {
+      return j({ error: `Unknown event: ${event}` }, 400);
+    }
+
+    return j({ ok: true, event, ...result });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message });
+    return j({ error: e?.message }, 500);
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, DollarSign, TrendingUp } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { Plus, Trash2, DollarSign, TrendingUp, Users, User } from 'lucide-react';
+import { loadJSON, saveJSON, uid, canDelete, isAdmin } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
@@ -18,6 +18,7 @@ interface Expense {
   amount: number;
   category: string;
   paidBy: string;
+  owner?: string; // user id who logged it
   date: string;
   notes: string;
   createdAt: number;
@@ -27,23 +28,44 @@ interface Expense {
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
 const FinanceHub: React.FC = () => {
-  const { currentRole } = useAppContext();
+  const { currentUser, currentRole } = useAppContext();
   const [tab, setTab] = useState<'budget' | 'expenses'>('budget');
-  const isAdm = currentRole && canDelete(currentRole);
+  const [viewMode, setViewMode] = useState<'mine' | 'combined'>('combined');
 
+  const isAdm = currentRole && isAdmin(currentRole);
+
+  // Kids cannot see finance at all
   if (!isAdm) {
     return (
       <div className="text-center py-16">
         <DollarSign className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <div className="text-slate-500 text-lg font-medium">Finance is admin only</div>
-        <div className="text-slate-600 text-sm mt-1">Ask a parent to access this section.</div>
+        <div className="text-slate-500 text-lg font-medium">Finance is parents only</div>
+        <div className="text-slate-600 text-sm mt-1">Ask Daddy or Mommy to access this section.</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Finance Hub</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Finance Hub</h2>
+        {/* My / Combined toggle */}
+        <div className="flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('mine')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${viewMode === 'mine' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            <User className="w-3 h-3" /> Mine
+          </button>
+          <button
+            onClick={() => setViewMode('combined')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${viewMode === 'combined' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            <Users className="w-3 h-3" /> Combined
+          </button>
+        </div>
+      </div>
+
       <div className="flex gap-1">
         {([
           { id: 'budget' as const, label: 'Budget', icon: TrendingUp },
@@ -58,13 +80,21 @@ const FinanceHub: React.FC = () => {
           );
         })}
       </div>
-      {tab === 'budget' && <BudgetTab />}
-      {tab === 'expenses' && <ExpensesTab />}
+
+      {tab === 'budget' && <BudgetTab viewMode={viewMode} currentUser={currentUser} />}
+      {tab === 'expenses' && <ExpensesTab viewMode={viewMode} currentUser={currentUser} />}
     </div>
   );
 };
 
-const BudgetTab: React.FC = () => {
+// ── Budget Tab ────────────────────────────────────────────────────────────────
+
+interface TabProps {
+  viewMode: 'mine' | 'combined';
+  currentUser: any;
+}
+
+const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const [cats, setCats] = useState<BudgetCategory[]>(() => loadJSON('familyos_budget', []));
   const [expenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm] = useState(false);
@@ -86,7 +116,13 @@ const BudgetTab: React.FC = () => {
   const del = (id: string) => save(cats.filter(c => c.id !== id));
 
   const monthCats = cats.filter(c => c.month === month);
-  const monthExpenses = expenses.filter(e => !e.deletedAt && e.date.startsWith(month));
+  const allMonthExp = expenses.filter(e => !e.deletedAt && e.date.startsWith(month));
+
+  // In "mine" mode, filter expenses to the current user's name
+  const myName = currentUser?.name;
+  const monthExpenses = viewMode === 'mine'
+    ? allMonthExp.filter(e => e.paidBy === myName || e.owner === currentUser?.id)
+    : allMonthExp;
 
   const totalBudgeted = monthCats.reduce((s, c) => s + c.budgeted, 0);
   const totalSpent = monthExpenses.reduce((s, e) => s + e.amount, 0);
@@ -96,6 +132,11 @@ const BudgetTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {viewMode === 'mine' && (
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl px-3 py-2 text-xs text-slate-400">
+          Showing {myName}'s expenses only
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 text-center">
           <div className="text-slate-400 text-xs">Budgeted</div>
@@ -160,12 +201,14 @@ const BudgetTab: React.FC = () => {
   );
 };
 
-const ExpensesTab: React.FC = () => {
+// ── Expenses Tab ──────────────────────────────────────────────────────────────
+
+const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(BUDGET_CATEGORIES[0]);
-  const [paidBy, setPaidBy] = useState(EXPENSE_PAYERS[0]);
+  const [paidBy, setPaidBy] = useState<string>(currentUser?.name || EXPENSE_PAYERS[0]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [filterMonth, setFilterMonth] = useState(currentMonth());
@@ -173,23 +216,61 @@ const ExpensesTab: React.FC = () => {
   const save = (next: Expense[]) => { setExpenses(next); saveJSON('familyos_expenses', next); };
   const add = () => {
     if (!amount) return;
-    save([{ id: uid(), amount: parseFloat(amount), category, paidBy, date, notes, createdAt: Date.now() }, ...expenses]);
-    setAmount(''); setNotes(''); setShowForm(false);
+    save([{
+      id: uid(),
+      amount: parseFloat(amount),
+      category,
+      paidBy,
+      owner: currentUser?.id,
+      date,
+      notes,
+      createdAt: Date.now(),
+    }, ...expenses]);
+    setAmount(''); setNotes(''); setPaidBy(currentUser?.name || EXPENSE_PAYERS[0]); setShowForm(false);
   };
   const del = (id: string) => save(expenses.map(e => e.id === id ? { ...e, deletedAt: Date.now() } : e));
 
-  const active = expenses.filter(e => !e.deletedAt && e.date.startsWith(filterMonth)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const allActive = expenses.filter(e => !e.deletedAt && e.date.startsWith(filterMonth));
+  const myName = currentUser?.name;
+
+  // "Mine" = expenses this user logged OR paidBy their name
+  const active = viewMode === 'mine'
+    ? allActive.filter(e => e.owner === currentUser?.id || e.paidBy === myName)
+    : allActive;
+
+  const sorted = active.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const total = active.reduce((s, e) => s + e.amount, 0);
+
+  // Per-person breakdown for combined view
+  const byPerson = viewMode === 'combined' ? EXPENSE_PAYERS.map(p => ({
+    name: p,
+    total: allActive.filter(e => e.paidBy === p).reduce((s, e) => s + e.amount, 0),
+  })).filter(p => p.total > 0) : [];
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs outline-none" />
-          <span className="text-slate-400 text-sm">Total: <span className="text-white font-semibold">${total.toFixed(2)}</span></span>
+          <span className="text-slate-400 text-sm">
+            {viewMode === 'mine' ? `${myName}: ` : ''}
+            <span className="text-white font-semibold">${total.toFixed(2)}</span>
+          </span>
         </div>
         <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Add</button>
       </div>
+
+      {/* Combined per-person breakdown */}
+      {viewMode === 'combined' && byPerson.length > 0 && (
+        <div className="flex gap-2">
+          {byPerson.map(p => (
+            <div key={p.name} className="flex-1 bg-slate-800/40 border border-slate-700 rounded-lg p-2 text-center">
+              <div className="text-slate-400 text-xs">{p.name}</div>
+              <div className="text-white text-sm font-semibold">${p.total.toFixed(0)}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
@@ -226,15 +307,15 @@ const ExpensesTab: React.FC = () => {
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No expenses for this month.</div>}
+      {sorted.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No expenses for this period.</div>}
 
       <div className="space-y-2">
-        {active.map(e => (
+        {sorted.map(e => (
           <div key={e.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-white text-sm">{e.category}</span>
-                <span className="text-slate-500 text-xs">{e.paidBy}</span>
+                {viewMode === 'combined' && <span className="text-slate-500 text-xs">{e.paidBy}</span>}
               </div>
               <div className="text-slate-500 text-xs">{e.date}{e.notes ? ` · ${e.notes}` : ''}</div>
             </div>
