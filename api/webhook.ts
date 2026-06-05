@@ -1,18 +1,26 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://pbiffzdcythkwtwxtqlu.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
-const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bearhouseos.vercel.app';
+import { dbGet, dbSet, dbPrepend } from './_db.js';
+
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bearhouse-os.vercel.app';
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
-type ItemType = 'task' | 'bill' | 'shopping' | 'appointment' | 'reminder';
+type ItemType = 'task' | 'bill' | 'shopping' | 'appointment' | 'reminder' | 'nfc';
 
 const KEY_MAP: Record<ItemType, string> = {
   task: 'household_tasks', bill: 'familyos_bills',
-  shopping: 'familyos_shopping', appointment: 'familyos_appointments', reminder: 'household_tasks',
+  shopping: 'familyos_shopping', appointment: 'familyos_appointments',
+  reminder: 'household_tasks', nfc: 'nfc_completion_log',
+};
+
+// NFC tag → default chore text
+const NFC_TAG_DEFAULTS: Record<string, string> = {
+  kitchen_sink: 'Dishes done', trash_can: 'Trash taken out',
+  laundry: 'Laundry moved / started', medicine: 'Medication taken',
+  front_door: 'Checked in at front door', dog_bowl: 'Fed Lucy',
+  vacuum: 'Vacuumed', dishwasher: 'Unloaded dishwasher',
 };
 
 function buildItem(type: ItemType, body: Record<string, any>) {
@@ -38,29 +46,41 @@ async function runThroughSecretary(item: object, type: string, token: string): P
   }
 }
 
-async function appendToKey(supabase: ReturnType<typeof createClient>, key: string, item: object) {
-  const { data } = await supabase.from('family_data').select('value').eq('key', key).single();
-  const existing: object[] = Array.isArray(data?.value) ? data.value : [];
-  await supabase.from('family_data').upsert({ key, value: [item, ...existing], updated_at: new Date().toISOString() }, { onConflict: 'key' });
+async function appendToKey(key: string, item: object) {
+  await dbPrepend(key, item);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') return res.status(200).json({ ok: true, message: 'Bear House webhook + Hermes is live.' });
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'GET') return j({ ok: true, message: 'Bear House webhook + Hermes is live.' });
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const token = (req.headers['x-webhook-token'] as string) || req.body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
-  const type: ItemType = req.body?.type;
-  if (!type || !KEY_MAP[type]) return res.status(400).json({ error: 'Invalid type. Use: task|bill|shopping|appointment|reminder' });
+  const body = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || body?.token;
+  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
-  const raw = buildItem(type, req.body);
+  const type: ItemType = body?.type;
+  if (!type || !KEY_MAP[type]) return j({ error: 'Invalid type. Use: task|bill|shopping|appointment|reminder|nfc' }, 400);
 
-  // Route through Hermes secretary
+  if (type === 'nfc') {
+    const { action: nfcAction = 'log', taskId, tagName, person = 'Family', text: nfcText } = body;
+    const logText = nfcText || (tagName ? NFC_TAG_DEFAULTS[tagName] : null) || `NFC tap: ${tagName || 'unknown'}`;
+
+    if (nfcAction === 'complete' && taskId) {
+      const tasks: any[] = (await dbGet('household_tasks')) ?? [];
+      const updated = tasks.map((t: any) => t.id === taskId ? { ...t, completed: true, completedAt: Date.now(), completedBy: person } : t);
+      await dbSet('household_tasks', updated);
+    }
+
+    await appendToKey('nfc_completion_log', { id: uid(), text: logText, person, tagName: tagName || null, ts: Date.now(), nfcAction });
+    return j({ ok: true, action: 'logged', text: logText, person });
+  }
+
+  const raw = buildItem(type, body);
   const { action, item } = await runThroughSecretary(raw, type, token);
-  if (action === 'skip') return res.status(200).json({ ok: true, action: 'skip', reason: (item as any).reason || 'duplicate' });
+  if (action === 'skip') return j({ ok: true, action: 'skip', reason: (item as any).reason || 'duplicate' });
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  await appendToKey(supabase, KEY_MAP[type], item);
-  return res.status(200).json({ ok: true, action: 'saved', type, item });
+  await appendToKey(KEY_MAP[type], item);
+  return j({ ok: true, action: 'saved', type, item });
 }

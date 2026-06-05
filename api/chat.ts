@@ -1,32 +1,33 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+export const config = { runtime: 'edge' };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'API key not configured.' });
+  if (!apiKey) return j({ error: 'API key not configured.' }, 500);
 
-  const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+  const body = await req.json().catch(() => ({})) as any;
+  // Support both single-prompt mode and multi-turn messages array
+  const { prompt, messages: msgArray, system, maxTokens, model } = body;
+  if (!prompt && !msgArray) return j({ error: 'Missing prompt or messages' }, 400);
+
+  const messages = msgArray || [{ role: 'user', content: prompt }];
+  const chosenModel = model || (maxTokens && maxTokens > 512 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001');
+  const apiBody: any = { model: chosenModel, max_tokens: maxTokens || 512, messages };
+  if (system) apiBody.system = system;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 512,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(apiBody),
     });
-    if (!response.ok) return res.status(response.status).json({ error: await response.text() });
-    const data = await response.json();
-    return res.status(200).json({ text: data?.content?.[0]?.text || '' });
+    if (!response.ok) return j({ error: await response.text() }, response.status);
+    const data = await response.json() as any;
+    return j({ text: data?.content?.[0]?.text || '' });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Network error' });
+    return j({ error: e?.message || 'Network error' }, 500);
   }
 }

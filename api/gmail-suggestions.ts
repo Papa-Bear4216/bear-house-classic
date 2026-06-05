@@ -4,8 +4,9 @@
  * bills, appointments, school notices, Amazon orders, etc.
  * Returns structured suggestions for the user to approve.
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+export const config = { runtime: 'edge' };
 
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
 async function fetchGmailMessages(accessToken: string, query: string, maxResults = 10) {
@@ -76,11 +77,12 @@ async function callHaiku(prompt: string): Promise<string> {
   return data?.content?.[0]?.text || '[]';
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const { accessToken, person } = req.body;
-  if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
+  const body = await req.json().catch(() => ({})) as any;
+  const { accessToken, person } = body;
+  if (!accessToken) return j({ error: 'accessToken required' }, 400);
 
   const GMAIL_QUERIES = [
     'subject:(payment due OR bill due OR invoice OR amount due) newer_than:14d',
@@ -95,17 +97,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       allEmails.push(...msgs);
     }
 
-    if (allEmails.length === 0) return res.status(200).json({ suggestions: [] });
+    if (allEmails.length === 0) return j({ suggestions: [] });
 
-    // Deduplicate by id
-    const unique = Array.from(new Map(allEmails.map(e => [e.id, e])).values());
+    const unique = Array.from(new Map(allEmails.map((e: any) => [e.id, e])).values());
     const raw = await callHaiku(PARSE_PROMPT(unique, person || 'Daddy'));
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const arrMatch = clean.match(/\[[\s\S]*\]/);
     const suggestions = arrMatch ? JSON.parse(arrMatch[0]) : [];
 
-    return res.status(200).json({ suggestions, emailsScanned: unique.length });
+    return j({ suggestions, emailsScanned: unique.length });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || 'Gmail scan failed' });
+    return j({ error: e?.message || 'Gmail scan failed' }, 500);
   }
 }
