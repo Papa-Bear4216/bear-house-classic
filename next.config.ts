@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     ],
   },
   output: process.env.VERCEL ? undefined : 'export',
-  transpilePackages: ['motion'],
+  transpilePackages: ['motion', 'firebase-admin', 'jwks-rsa', 'jose'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
