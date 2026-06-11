@@ -32,7 +32,10 @@ export default function LoginPage() {
   ];
 
   useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 6000);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      clearTimeout(timeout);
       if (user) {
         if (!ALLOWED_EMAILS.includes(user.email ?? '')) {
           await signOut(auth);
@@ -54,7 +57,10 @@ export default function LoginPage() {
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [router]);
 
   const handleGoogleSignIn = async () => {
