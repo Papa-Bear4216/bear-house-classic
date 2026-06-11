@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Simple ID Hardening
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 10. Temporal Integrity (assuming we might add these)
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(request.resource.data);
+      allow update: if isSignedIn() && isValidUser(request.resource.data) && (
+        // Only allow updating points, avatarUrl, name, color, etc.
+        // But prevent role changing if they aren't admin (though we don't have a formal admin collection yet)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'avatarUrl', 'name', 'color', 'role', 'meetLink', 'isExempt'])
+      );
+      allow delete: if false; // Prevention of accidental family deletion
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'color', 'role', 'points'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.color is string && data.color.size() <= 50
+        && data.role in ['superadmin', 'admin', 'child']
+        && data.points is number
+        && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1000000))
+        && (!('meetLink' in data) || (data.meetLink is string && data.meetLink.size() <= 500))
+        && (!('isExempt' in data) || data.isExempt is bool);
+    }
+
+    // --- Tasks ---
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(taskId) && isValidTask(request.resource.data);
+      allow update: if isSignedIn() && isValidTask(request.resource.data) && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'assigneeId', 'date', 'completed', 'status', 'pointsValue'])
+      );
+      allow delete: if isSignedIn();
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['id', 'title', 'assigneeId', 'date', 'pointsValue'])
+        && data.id is string
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.assigneeId is string
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.pointsValue is number && data.pointsValue >= 0 && data.pointsValue <= 1000
+        && (!('completed' in data) || data.completed is bool)
+        && (!('status' in data) || data.status in ['todo', 'pending', 'done']);
+    }
+
+    // --- Events ---
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(eventId) && isValidEvent(request.resource.data);
+      allow update: if isSignedIn() && isValidEvent(request.resource.data) && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'userId', 'date', 'startTime', 'endTime'])
+      );
+      allow delete: if isSignedIn();
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['id', 'title', 'userId', 'date'])
+        && data.id is string
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.userId is string
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && (!('startTime' in data) || (data.startTime is string && data.startTime.size() <= 10))
+        && (!('endTime' in data) || (data.endTime is string && data.endTime.size() <= 10));
+    }
+  }
+}
