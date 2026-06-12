@@ -6,13 +6,15 @@ import { signOut } from 'firebase/auth';
 import { useAuth } from './FirebaseProvider';
 import { auth, ALLOWED_EMAILS } from '@/lib/firebase';
 
+const PUBLIC_PATHS = ['/login', '/about', '/privacy', '/terms'];
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (loading || pathname === '/login') return;
+    if (loading || PUBLIC_PATHS.includes(pathname)) return;
     if (!user) { router.replace('/login'); return; }
     if (user.email && !ALLOWED_EMAILS.includes(user.email)) {
       signOut(auth).then(() => router.replace('/login'));
@@ -25,7 +27,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (pathname === '/login') return <>{children}</>;
+  if (PUBLIC_PATHS.includes(pathname)) return <>{children}</>;
   if (!user) return null;
   if (user.email && !ALLOWED_EMAILS.includes(user.email)) return null;
 
