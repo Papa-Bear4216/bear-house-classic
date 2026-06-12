@@ -20,6 +20,9 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: 'Bear House — Family OS',
   description: 'Bear House family dashboard. Calendar, tasks, meals, budget, and more.',
+  verification: {
+    google: 'rqdEeLLkxZkxAb74XlMFCeE5U3r2NOnSqM7EqlDs9x8',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
