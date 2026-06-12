@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   title: 'Bear House — Family OS',
   description: 'Bear House family dashboard. Calendar, tasks, meals, budget, and more.',
   verification: {
-    google: 'rqdEeLLkxZkxAb74XlMFCeE5U3r2NOnSqM7EqlDs9x8',
+    google: ['rqdEeLLkxZkxAb74XlMFCeE5U3r2NOnSqM7EqlDs9x8', 'Vt_wzlUsTorUdKDbCyDcphS21pxARncO_ZnCKqJs1zM'],
   },
 };
 
