@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only these 4 Gmail accounts may access any data
+    function isAllowed() {
+      return request.auth != null &&
+        request.auth.token.email in [
+          'michael711hebert@gmail.com',
+          'littlebear8991@gmail.com',
+          'jchebert2010@gmail.com',
+          'hpfanatic009@gmail.com'
+        ];
+    }
+
+    // 0. Default Deny
+    match /{document=**} { allow read, write: if false; }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow update: if isAllowed();
+      allow delete: if isAllowed();
+    }
+
+    // --- Tasks ---
+    match /tasks/{taskId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow update: if isAllowed();
+      allow delete: if isAllowed();
+    }
+
+    // --- Events ---
+    match /events/{eventId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow update: if isAllowed();
+      allow delete: if isAllowed();
+    }
+
+    // --- Meal Plans ---
+    match /mealPlans/{docId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow update: if isAllowed();
+      allow delete: if isAllowed();
+    }
+
+    // --- Households (shopping, Hermes memory, Plaid, dashboard config) ---
+    match /households/{uid}/{document=**} {
+      allow read:   if isAllowed();
+      allow write:  if isAllowed();
+    }
+
+    // --- Family Messages ---
+    match /familyMessages/{familyCode}/messages/{messageId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow delete: if isAllowed() && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Posts ---
+    match /posts/{postId} {
+      allow read:   if isAllowed();
+      allow create: if isAllowed();
+      allow update: if isAllowed();
+      allow delete: if isAllowed();
+    }
+  }
+}

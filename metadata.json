@@ -1,0 +1,9 @@
+{
+  "name": "Bear House Family OS",
+  "description": "Family chore chart and OS with calendar view, custom user tracking for Mike, Gwen, Julia, and Abriana.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}

@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A family member in the system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "color": { "type": "string" },
+        "role": { "type": "string", "enum": ["superadmin", "admin", "child"] },
+        "avatarUrl": { "type": "string" },
+        "points": { "type": "number" },
+        "meetLink": { "type": "string" },
+        "isExempt": { "type": "boolean" }
+      },
+      "required": ["id", "name", "color", "role", "points"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a family member.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "assigneeId": { "type": "string" },
+        "date": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["todo", "pending", "done"] },
+        "pointsValue": { "type": "number" }
+      },
+      "required": ["id", "title", "assigneeId", "date", "pointsValue"]
+    },
+    "CalendarEvent": {
+      "title": "CalendarEvent",
+      "description": "An event on the family calendar.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" }
+      },
+      "required": ["id", "title", "userId", "date"]
+    },
+    "BoardPost": {
+      "title": "BoardPost",
+      "description": "A post on the bulletin board.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["note", "shopping", "alert"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "authorId", "content", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of family members."
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of family tasks."
+    },
+    "/events/{eventId}": {
+      "schema": "CalendarEvent",
+      "description": "Collection of family calendar events."
+    },
+    "/posts/{postId}": {
+      "schema": "BoardPost",
+      "description": "Collection of bulletin board posts."
+    }
+  }
+}
