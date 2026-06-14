@@ -178,7 +178,7 @@ export default function FamilyMap() {
   // ─── Map screen ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="w-full h-full min-h-[600px] flex gap-4">
+    <div className="w-full min-h-[600px] flex flex-col lg:flex-row gap-4">
 
       {/* Side panel */}
       <div className="w-64 flex-shrink-0 flex flex-col gap-3">
@@ -258,7 +258,7 @@ export default function FamilyMap() {
       </div>
 
       {/* Map */}
-      <div className="flex-1 rounded-2xl overflow-hidden border border-slate-700 relative">
+      <div className="flex-1 rounded-2xl overflow-hidden border border-slate-700 relative min-h-[420px] lg:min-h-0">
         <MapContainer
           crs={L.CRS.Simple}
           bounds={imgBounds as L.LatLngBoundsExpression}

@@ -66,6 +66,11 @@ export default function AssistantPage() {
   useEffect(() => { trackUsage('assistant'); }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const resetHistory = () => {
+    setHistory([]);
+    setInput('');
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history]);
@@ -190,6 +195,13 @@ export default function AssistantPage() {
           <h1 className="text-lg font-bold text-white leading-none">Hermes</h1>
           <p className="text-xs text-slate-500 mt-0.5">Full control — tasks, events, shopping, messages, and more</p>
         </div>
+        <button
+          type="button"
+          onClick={resetHistory}
+          className="ml-auto px-3 py-2 text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-full hover:bg-slate-700 transition-colors"
+        >
+          Clear chat
+        </button>
       </header>
 
       {/* Messages */}
@@ -238,6 +250,23 @@ export default function AssistantPage() {
           </div>
         )}
         <div ref={messagesEndRef} />
+      </div>
+
+      <div className="px-6 pb-4 border-t border-slate-800">
+        <div className="mb-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Quick prompts</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {QUICK_PROMPTS.map(prompt => (
+              <button
+                key={prompt}
+                onClick={() => handleSend(prompt)}
+                className="px-3 py-2 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs hover:bg-violet-950 transition-colors"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Input */}

@@ -15,6 +15,6 @@ View your app in AI Studio: https://ai.studio/apps/5a6aeb79-f287-4f57-8c65-c96c8
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set the `GEMINI_API_KEY` or `NEXT_PUBLIC_GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key. Use `NEXT_PUBLIC_GEMINI_API_KEY` if you want browser-side features like receipt scanning to work.
 3. Run the app:
    `npm run dev`

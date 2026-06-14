@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subDays, isWithinInterval } from 'date-fns';
+import type { Task } from '@/lib/familyos';
 import {
   Sparkles, RefreshCw, CheckCircle2, Circle, CalendarDays,
   UtensilsCrossed, Wallet, ShoppingCart, Star, Zap, Users,
@@ -54,7 +55,7 @@ function MetricCard({ icon, label, value, sub, color }: {
 
 // ─── AI Summary card ─────────────────────────────────────────────────────────
 
-function HermesCard() {
+function HermesCard({ refreshTrigger }: { refreshTrigger?: number }) {
   const { users } = useFamilyMembers();
   const { tasks } = useTasks();
   const { events } = useEvents();
@@ -85,6 +86,12 @@ function HermesCard() {
   useEffect(() => {
     if (!fetched && currentUser) fetchBrief();
   }, [currentUser, fetched, fetchBrief]);
+
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      fetchBrief();
+    }
+  }, [refreshTrigger, fetchBrief]);
 
   return (
     <Card className="p-5">
@@ -389,7 +396,96 @@ function SnapshotRow() {
   );
 }
 
-// ─── Overview / Trends tabs ───────────────────────────────────────────────────
+function TrendsSection({ tasks, events, openShopping }: { tasks: Task[]; events: Array<{ date?: string }>; openShopping: number; }) {
+  const today = new Date();
+  const weekStart = subDays(today, 6);
+
+  const tasksThisWeek = useMemo(() => tasks.filter(task => {
+    if (!task.date) return false;
+    const date = parseISO(task.date);
+    return isWithinInterval(date, { start: weekStart, end: today });
+  }), [tasks, weekStart, today]);
+
+  const tasksCompletedThisWeek = useMemo(
+    () => tasksThisWeek.filter(task => task.status === 'done').length,
+    [tasksThisWeek]
+  );
+
+  const tasksPendingThisWeek = useMemo(
+    () => tasksThisWeek.filter(task => task.status !== 'done').length,
+    [tasksThisWeek]
+  );
+
+  const eventsThisWeek = useMemo(
+    () => events.filter(event => {
+      if (!event.date) return false;
+      const date = parseISO(event.date);
+      return isWithinInterval(date, { start: weekStart, end: today });
+    }).length,
+    [events, weekStart, today]
+  );
+
+  const taskCompletionRate = tasksThisWeek.length > 0
+    ? Math.round((tasksCompletedThisWeek / tasksThisWeek.length) * 100)
+    : 0;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-semibold text-white">Weekly trends</span>
+            </div>
+            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-500">7 days</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-900/60 rounded-xl p-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Tasks completed</p>
+              <p className="text-3xl font-black text-white">{tasksCompletedThisWeek}</p>
+              <p className="text-xs text-slate-500 mt-1">{taskCompletionRate}% completion</p>
+            </div>
+            <div className="bg-slate-900/60 rounded-xl p-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Open tasks</p>
+              <p className="text-3xl font-black text-white">{tasksPendingThisWeek}</p>
+              <p className="text-xs text-slate-500 mt-1">Due this week</p>
+            </div>
+            <div className="bg-slate-900/60 rounded-xl p-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Events</p>
+              <p className="text-3xl font-black text-white">{eventsThisWeek}</p>
+              <p className="text-xs text-slate-500 mt-1">This week</p>
+            </div>
+            <div className="bg-slate-900/60 rounded-xl p-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Shopping</p>
+              <p className="text-3xl font-black text-white">{openShopping}</p>
+              <p className="text-xs text-slate-500 mt-1">Items still needed</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+      <Card className="p-5">
+        <p className="text-sm text-slate-400 mb-3">Based on tasks and events from the last 7 days.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-slate-900/60 rounded-xl p-4">
+            <p className="text-xs text-slate-500 uppercase mb-1">Avg done per day</p>
+            <p className="text-2xl font-black text-white">{Math.round(tasksCompletedThisWeek / 7)}</p>
+          </div>
+          <div className="bg-slate-900/60 rounded-xl p-4">
+            <p className="text-xs text-slate-500 uppercase mb-1">Completion streak</p>
+            <p className="text-2xl font-black text-white">{taskCompletionRate >= 80 ? 'Strong' : taskCompletionRate >= 50 ? 'Improving' : 'Needs focus'}</p>
+          </div>
+          <div className="bg-slate-900/60 rounded-xl p-4">
+            <p className="text-xs text-slate-500 uppercase mb-1">Next step</p>
+            <p className="text-2xl font-black text-white">{tasksPendingThisWeek > 0 ? 'Finish more tasks' : 'Great job!'}</p>
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ─── Overview / Trends tabs ───────────────────────────────────────────────────────────
 
 type DashView = 'overview' | 'trends';
 
@@ -401,6 +497,7 @@ export default function Home() {
   const { events } = useEvents();
   const { items } = useShopping();
   const [view, setView] = useState<DashView>('overview');
+  const [refreshHermes, setRefreshHermes] = useState(0);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayTasks = tasks.filter(t => t.date === today && t.status !== 'done').length;
@@ -409,6 +506,8 @@ export default function Home() {
   const myPoints = currentUser?.points ?? 0;
 
   useEffect(() => { trackUsage('home'); }, []);
+
+  const refreshHermesSummary = () => setRefreshHermes(prev => prev + 1);
 
   return (
     <div className="px-6 py-6 max-w-6xl mx-auto space-y-6">
@@ -420,10 +519,10 @@ export default function Home() {
           <p className="text-sm text-slate-500 mt-0.5">One view of everything that matters.</p>
         </div>
         <button
-          onClick={() => {}}
+          onClick={refreshHermesSummary}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold text-white transition-colors"
         >
-          <Sparkles className="w-4 h-4" /> AI Summary
+          <Sparkles className="w-4 h-4" /> Refresh AI Summary
         </button>
       </div>
 
@@ -453,7 +552,7 @@ export default function Home() {
           </div>
 
           {/* AI brief */}
-          <HermesCard />
+          <HermesCard refreshTrigger={refreshHermes} />
 
           {/* Action buttons */}
           <ActionButtons />
@@ -472,12 +571,7 @@ export default function Home() {
 
         </motion.div>
       ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Card className="p-8 text-center">
-            <TrendingUp className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-500 text-sm">Trends coming soon</p>
-          </Card>
-        </motion.div>
+        <TrendsSection tasks={tasks} events={events} openShopping={openShopping} />
       )}
 
     </div>

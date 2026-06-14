@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bearhouse.app/house.schema.json",
+  "title": "BearHouse",
+  "type": "object",
+  "required": ["houseId", "name", "version", "floors", "rooms"],
+  "properties": {
+    "houseId": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "capturedBy": { "type": "string" },
+    "floors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "rooms": { "type": "array", "items": { "$ref": "#/definitions/room" } }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "room": {
+      "type": "object",
+      "required": ["id", "floorId", "name", "zones"],
+      "properties": {
+        "id": { "type": "string" },
+        "floorId": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "owner": { "type": ["string", "null"] },
+        "baselineImage": { "type": "string" },
+        "anchors": { "type": "array", "items": { "$ref": "#/definitions/anchor" } },
+        "zones": { "type": "array", "items": { "$ref": "#/definitions/zone" } }
+      },
+      "additionalProperties": false
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["id", "type", "embedding"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["window", "appliance", "door", "fixture", "other"] },
+        "label": { "type": "string" },
+        "embedding": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "zone": {
+      "type": "object",
+      "required": ["id", "type", "label", "chores"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["countertop", "sink", "stovetop", "floor", "bed", "desk", "dresser", "trash", "table", "shelf", "mirror", "other"]
+        },
+        "label": { "type": "string" },
+        "cleanBaseline": { "type": "object" },
+        "chores": { "type": "array", "items": { "$ref": "#/definitions/chore" } }
+      },
+      "additionalProperties": false
+    },
+    "chore": {
+      "type": "object",
+      "required": ["id", "name", "points", "frequency", "steps"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "emoji": { "type": "string" },
+        "points": { "type": "integer", "minimum": 0 },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "asNeeded"] },
+        "ageMin": { "type": "integer", "minimum": 0 },
+        "triggerWhen": { "type": "object" },
+        "steps": { "type": "array", "items": { "$ref": "#/definitions/step" } }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "required": ["id", "text", "verify"],
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "verify": { "type": "string", "enum": ["tap", "photo", "sink_empty", "counter_clear", "floor_clear", "trash_empty"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

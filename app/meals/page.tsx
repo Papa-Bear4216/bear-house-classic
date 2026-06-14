@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChefHat, Plus, Trash2, Sparkles, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChefHat, Plus, Trash2, Sparkles, ShoppingCart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, addDays, parseISO } from 'date-fns';
 import { useMeals, getWeekStart, shiftDate, type MealSlot } from '@/hooks/use-meals';
 import { useShopping } from '@/hooks/use-shopping';
-import { BUILT_IN_RECIPES, CATEGORY_LABELS, searchRecipes, getRecipeById, type Recipe } from '@/lib/recipes';
+import { BUILT_IN_RECIPES, CATEGORY_LABELS, searchRecipes, getRecipeById, getAllRecipesSearchUrl, type Recipe } from '@/lib/recipes';
 import { useFamilyMembers } from '@/hooks/use-family';
 import { useEvents } from '@/hooks/use-events';
 import { askHermes } from '@/lib/hermes';
@@ -22,6 +22,7 @@ export default function MealsPage() {
   const { events } = useEvents();
 
   const [picking, setPicking] = useState<{ date: string; slot: MealSlot } | null>(null);
+  const [selectedMeal, setSelectedMeal] = useState<{ date: string; slot: MealSlot; recipe: Recipe } | null>(null);
   const [search, setSearch] = useState('');
   const [hermesLoading, setHermesLoading] = useState(false);
   const [hermesSuggestion, setHermesSuggestion] = useState('');
@@ -35,6 +36,7 @@ export default function MealsPage() {
     meals.find(m => m.date === date && m.slot === slot);
 
   const filteredRecipes = search.trim() ? searchRecipes(search) : BUILT_IN_RECIPES;
+  const allrecipesSearchUrl = search.trim() ? getAllRecipesSearchUrl(search.trim()) : getAllRecipesSearchUrl('family meals');
 
   async function handlePickRecipe(recipe: Recipe) {
     if (!picking) return;
@@ -172,13 +174,14 @@ export default function MealsPage() {
                             <motion.div
                               initial={{ scale: 0.9, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              className="bg-white border-2 border-black rounded-xl p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] relative group"
+                              className="bg-white border-2 border-black rounded-xl p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] relative group cursor-pointer"
+                              onClick={() => setSelectedMeal({ date, slot, recipe })}
                             >
                               <span className="text-lg">{recipe.emoji}</span>
                               <p className="text-xs font-bold text-slate-800 leading-tight mt-0.5">{recipe.name}</p>
                               <p className="text-[10px] text-slate-400">{recipe.prepMinutes + recipe.cookMinutes}min</p>
                               <button
-                                onClick={() => handleRemove(date, slot)}
+                                onClick={(e) => { e.stopPropagation(); handleRemove(date, slot); }}
                                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-red-500"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -238,6 +241,16 @@ export default function MealsPage() {
                 />
               </div>
               <div className="overflow-y-auto p-3 grid grid-cols-2 gap-2">
+                <div className="col-span-2 flex flex-col gap-2">
+                  <a
+                    href={allrecipesSearchUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 hover:bg-orange-100 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" /> Search Allrecipes 4★ recipes for “{search || 'family meals'}”
+                  </a>
+                </div>
                 {filteredRecipes.map(recipe => (
                   <button
                     key={recipe.id}
@@ -252,6 +265,74 @@ export default function MealsPage() {
                 {filteredRecipes.length === 0 && (
                   <div className="col-span-2 py-8 text-center text-slate-400 text-sm">No recipes found for &quot;{search}&quot;</div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMeal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setSelectedMeal(null); }}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              className="bg-white border-2 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-lg max-h-[80vh] overflow-y-auto"
+            >
+              <div className="p-5 border-b border-slate-200 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">{format(parseISO(selectedMeal.date), 'EEEE, MMM d')} · {selectedMeal.slot}</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-3xl">{selectedMeal.recipe.emoji}</span>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">{selectedMeal.recipe.name}</h2>
+                      <p className="text-xs text-slate-500">{CATEGORY_LABELS[selectedMeal.recipe.category]} · {selectedMeal.recipe.servings} servings</p>
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedMeal(null)} className="text-slate-500 hover:text-slate-900">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+                  <div className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-xs uppercase text-slate-400">Prep</p>
+                    <p className="font-semibold text-slate-900">{selectedMeal.recipe.prepMinutes} min</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-xs uppercase text-slate-400">Cook</p>
+                    <p className="font-semibold text-slate-900">{selectedMeal.recipe.cookMinutes} min</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-400 mb-2">Ingredients</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {selectedMeal.recipe.ingredients.map((ingredient, index) => (
+                      <div key={index} className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+                        {ingredient.quantity} {ingredient.unit} {ingredient.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-900">
+                  Looking for more ideas?{' '}
+                  <a
+                    href={getAllRecipesSearchUrl(selectedMeal.recipe.name)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold underline"
+                  >
+                    Search Allrecipes 4★ for “{selectedMeal.recipe.name}”
+                  </a>
+                </div>
               </div>
             </motion.div>
           </motion.div>

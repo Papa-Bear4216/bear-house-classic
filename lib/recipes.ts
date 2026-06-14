@@ -316,6 +316,10 @@ export function searchRecipes(query: string): Recipe[] {
   );
 }
 
+export function getAllRecipesSearchUrl(query: string): string {
+  return `https://www.allrecipes.com/search/results/?wt=${encodeURIComponent(query)}&sort=re&rating=4`;
+}
+
 export const CATEGORY_LABELS: Record<Recipe['category'], string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',

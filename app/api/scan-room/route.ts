@@ -103,10 +103,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid image' }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY not set on server' },
+        { error: 'GEMINI_API_KEY or NEXT_PUBLIC_GEMINI_API_KEY not set on server' },
         { status: 500 }
       );
     }

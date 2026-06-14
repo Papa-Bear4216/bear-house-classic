@@ -132,12 +132,17 @@ export default function ScannerPage() {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const width = Math.max(1920, Math.min(3840, video.videoWidth));
+    const height = Math.max(1080, Math.min(2160, video.videoHeight));
+    const scale = Math.min(width / video.videoWidth, height / video.videoHeight);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    setFrameBase64(canvas.toDataURL('image/jpeg', 0.8));
+    setFrameBase64(canvas.toDataURL('image/jpeg', 0.9));
     setError(null);
   }, []);
 

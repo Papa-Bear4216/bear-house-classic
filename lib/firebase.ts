@@ -108,6 +108,16 @@ async function testConnection() {
   }
 }
 
-if (typeof window !== 'undefined') {
+const isLocalHost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === ''
+);
+
+// Avoid running a live connection check on local dev to prevent unauthorized-domain
+// errors from cluttering the console when developers don't have Firebase configured.
+if (typeof window !== 'undefined' && !isLocalHost) {
   testConnection();
+} else if (typeof window !== 'undefined' && isLocalHost) {
+  console.log('Bear House OS: Skipping Firebase runtime connection check in local development.');
 }

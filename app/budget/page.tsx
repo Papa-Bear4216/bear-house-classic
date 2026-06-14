@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Wallet, Plus, RefreshCw, Sparkles, Trash2, TrendingDown, TrendingUp,
-  CreditCard, Landmark, X, AlertCircle, RotateCcw, CalendarClock,
+  CreditCard, Landmark, X, AlertCircle, RotateCcw, CalendarClock, Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlaidLink } from 'react-plaid-link';
@@ -90,12 +90,31 @@ export default function BudgetPage() {
 
   const [hermesLoading, setHermesLoading] = useState(false);
   const [hermesInsight, setHermesInsight] = useState('');
+  const [autoCategorizing, setAutoCategorizing] = useState(false);
+  const [categorizationMessage, setCategorizationMessage] = useState('');
+  const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [cancelTarget, setCancelTarget] = useState<Subscription | null>(null);
 
   const subscriptions = detectSubscriptions(transactions);
   const monthlySubCost = totalMonthlySubscriptionCost(subscriptions);
-  const sortedCategories = Object.entries(spendingByCategory).sort((a, b) => b[1] - a[1]);
+  const categorizedTransactions = transactions.map(tx => {
+    const override = categoryOverrides[tx.transaction_id];
+    return {
+      ...tx,
+      displayCategory: override ?? tx.category?.[0] ?? 'Other',
+      isOverride: override !== undefined,
+    };
+  });
+  const uncategorizedCount = transactions.filter(tx => !tx.category?.[0] || tx.category?.[0] === 'Other').length;
+  const displaySpendingByCategory = categorizedTransactions
+    .filter(tx => tx.amount > 0 && !tx.pending)
+    .reduce<Record<string, number>>((acc, tx) => {
+      const cat = tx.displayCategory || 'Other';
+      acc[cat] = (acc[cat] ?? 0) + tx.amount;
+      return acc;
+    }, {});
+  const sortedCategories = Object.entries(displaySpendingByCategory).sort((a, b) => b[1] - a[1]);
 
   async function handleLinkSuccess(publicToken: string, metadata: unknown) {
     await exchangeAndSave(publicToken, (metadata as { institution?: { name?: string } })?.institution?.name);
@@ -105,7 +124,7 @@ export default function BudgetPage() {
     setHermesLoading(true);
     setHermesInsight('');
     try {
-      const topCategories = Object.entries(spendingByCategory)
+      const topCategories = Object.entries(displaySpendingByCategory)
         .sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([cat, amt]) => `${cat}: $${amt.toFixed(2)}`);
       const { content } = await askHermes(
@@ -115,6 +134,42 @@ export default function BudgetPage() {
       setHermesInsight(content);
     } catch { setHermesInsight('Could not reach Hermes. Check ANTHROPIC_API_KEY in Vercel env vars.'); }
     finally { setHermesLoading(false); }
+  }
+
+  async function autoCategorizeTransactions() {
+    if (uncategorizedCount === 0) {
+      setCategorizationMessage('All transactions already have clear categories.');
+      return;
+    }
+
+    setAutoCategorizing(true);
+    setCategorizationMessage('');
+    try {
+      const examples = transactions
+        .filter(tx => !tx.category?.[0] || tx.category?.[0] === 'Other')
+        .slice(0, 8)
+        .map(tx => `- id: ${tx.transaction_id}\n  merchant: ${tx.merchant_name ?? tx.name}\n  amount: $${tx.amount.toFixed(2)}\n  date: ${format(parseISO(tx.date), 'MMM d')}`)
+        .join('\n');
+
+      const { content } = await askHermes(
+        [{ role: 'user', content: `Assign top-level categories to these transactions. Use only one of: Food and Drink, Shops, Travel, Recreation, Service, Healthcare, Transfer, Payment, Subscription, Other. Return ONLY valid JSON in the form {"transaction_id":"category"}.\n\n${examples}` }],
+        { users },
+      );
+
+      const match = content.match(/```json\s*([\s\S]*?)```/) ?? content.match(/(\{[\s\S]*\})/);
+      if (!match) throw new Error('Could not parse Hermes response.');
+      const parsed = JSON.parse(match[1]);
+      const overrides: Record<string, string> = {};
+      Object.entries(parsed).forEach(([id, category]) => {
+        if (typeof category === 'string') overrides[id] = category;
+      });
+      setCategoryOverrides(prev => ({ ...prev, ...overrides }));
+      setCategorizationMessage(`Hermes categorized ${Object.keys(overrides).length} transaction(s).`);
+    } catch (error: any) {
+      setCategorizationMessage(`Categorization failed: ${error?.message ?? 'unknown error'}`);
+    } finally {
+      setAutoCategorizing(false);
+    }
   }
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
@@ -160,6 +215,12 @@ export default function BudgetPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 {hermesLoading ? 'Thinking…' : 'AI Insights'}
               </button>
+              <button onClick={autoCategorizeTransactions} disabled={autoCategorizing || transactions.length === 0}
+                className="flex items-center gap-1.5 bg-slate-700/20 hover:bg-slate-700/30 border border-slate-600 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+              >
+                <Search className="w-3.5 h-3.5" />
+                {autoCategorizing ? 'Categorizing…' : `Auto categorize${uncategorizedCount ? ` (${uncategorizedCount})` : ''}`}
+              </button>
             </>
           )}
           <PlaidLinkButton onSuccess={handleLinkSuccess}>
@@ -191,6 +252,13 @@ export default function BudgetPage() {
         <>
           {/* Hermes insight */}
           <AnimatePresence>
+            {categorizationMessage && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <Card className="p-4 border-slate-500/30 bg-slate-900/80">
+                  <p className="text-sm text-slate-200">{categorizationMessage}</p>
+                </Card>
+              </motion.div>
+            )}
             {hermesInsight && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <Card className="p-4 border-violet-500/30">
@@ -303,16 +371,44 @@ export default function BudgetPage() {
               ) : transactions.length === 0 ? (
                 <p className="text-sm text-slate-500 py-8 text-center">No transactions found</p>
               ) : (
-                transactions.slice(0, 50).map(tx => (
-                  <Card key={tx.transaction_id} className={`px-3 py-2.5 flex items-center gap-3 ${tx.pending ? 'opacity-50' : ''}`}>
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${CATEGORY_COLORS[tx.category?.[0] ?? 'Other'] ?? 'bg-slate-500'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-white truncate">{tx.merchant_name ?? tx.name}</p>
-                      <p className="text-[10px] text-slate-500">{format(parseISO(tx.date), 'MMM d')} · {tx.category?.[0] ?? 'Other'}{tx.pending ? ' · pending' : ''}</p>
+                categorizedTransactions.slice(0, 50).map(tx => (
+                  <Card key={tx.transaction_id} className={`px-3 py-2.5 flex flex-col gap-3 ${tx.pending ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${CATEGORY_COLORS[tx.displayCategory] ?? 'bg-slate-500'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-white truncate">{tx.merchant_name ?? tx.name}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {format(parseISO(tx.date), 'MMM d')} · {tx.displayCategory}{tx.isOverride ? ' · overridden' : ''}{tx.pending ? ' · pending' : ''}
+                        </p>
+                      </div>
+                      <p className={`font-bold text-sm flex-shrink-0 ${tx.amount < 0 ? 'text-emerald-400' : 'text-white'}`}>
+                        {tx.amount < 0 ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
+                      </p>
                     </div>
-                    <p className={`font-bold text-sm flex-shrink-0 ${tx.amount < 0 ? 'text-emerald-400' : 'text-white'}`}>
-                      {tx.amount < 0 ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
-                    </p>
+                    <div className="flex flex-wrap gap-2 items-center text-xs text-slate-400">
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(tx.merchant_name ?? tx.name ?? '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-slate-300 hover:text-white"
+                      >
+                        <Search className="w-3 h-3" />
+                        Search merchant
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selected = window.prompt('Override category to one of: Food and Drink, Shops, Travel, Recreation, Service, Healthcare, Transfer, Payment, Subscription, Other', tx.displayCategory);
+                          if (selected) {
+                            setCategoryOverrides(prev => ({ ...prev, [tx.transaction_id]: selected }));
+                            setCategorizationMessage(`Transaction updated to ${selected}.`);
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-800/70 border border-slate-700 rounded-full hover:bg-slate-700 transition-colors"
+                      >
+                        Override category
+                      </button>
+                    </div>
                   </Card>
                 ))
               )}
@@ -377,7 +473,7 @@ export default function BudgetPage() {
 
                   {subscriptions.map(sub => (
                     <Card key={sub.id} className="p-4 hover:border-violet-500/40 transition-colors">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-white">{sub.merchantName}</p>
                           <p className="text-xs text-slate-500 mt-0.5">
@@ -396,6 +492,9 @@ export default function BudgetPage() {
                             Cancel
                           </button>
                         </div>
+                      </div>
+                      <div className="mt-3 text-xs text-slate-400">
+                        Canceling this subscription saves <strong>${(sub.monthlyEquivalent * 12).toFixed(0)}</strong> per year.
                       </div>
                     </Card>
                   ))}

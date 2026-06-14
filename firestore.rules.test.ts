@@ -1,4 +1,4 @@
-import { test, describe, before, after, beforeEach } from 'node:test';
+import { describe, test, beforeAll, afterAll, beforeEach } from 'vitest';
 import * as fs from 'fs';
 import {
   initializeTestEnvironment,
@@ -10,26 +10,24 @@ import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 describe('Firestore Security Rules', () => {
   let testEnv: RulesTestEnvironment;
 
-  before(async () => {
+  beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: 'prime-mechanic-463314-m8',
       firestore: {
-        rules: fs.readFileSync('firestore.rules', 'utf8'),
-        host: '127.0.0.1',
-        port: 8080,
+        rules: fs.readFileSync('firestore.rules', 'utf8')
       },
     });
   });
 
-  after(async () => {
-    await testEnv.cleanup();
+  afterAll(async () => {
+    if (testEnv) await testEnv.cleanup();
   });
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
     
     // Set up default users in the database using admin context (rules disabled)
-    await testEnv.withSecurityRulesDisabled(async (context) => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
       const db = context.firestore();
       
       // Admin
@@ -97,7 +95,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('2. Update task status: done where assigneeId is NOT the current user and not admin should FAIL', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
       await context.firestore().collection('tasks').doc('task-1').set({
         id: 'task-1',
         title: 'Clean Room',
@@ -116,7 +114,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('2b. Update task status: done where assigneeId IS the current user should SUCCEED', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
       await context.firestore().collection('tasks').doc('task-1').set({
         id: 'task-1',
         title: 'Clean Room',
@@ -135,7 +133,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('3. Update task pointsValue to 999999 (Exceeds limit) should FAIL', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
       await context.firestore().collection('tasks').doc('task-1').set({
         id: 'task-1',
         title: 'Clean Room',
@@ -199,7 +197,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('8. Update task with a Ghost Field isPaid: true should FAIL', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
       await context.firestore().collection('tasks').doc('task-1').set({
         id: 'task-1',
         title: 'Clean Room',
