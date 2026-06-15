@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth, unauthorized } from '@/lib/server-auth';
+import { gatewayChat } from '@/lib/ai-gateway';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { doc as adminDoc, getDoc as adminGetDoc, setDoc as adminSetDoc } from 'firebase-admin/firestore';
+
+export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 const BEAR_HOUSE_SYSTEM = `You are Hermes, the intelligent AI backbone of Bear House Family OS — an ADHD safety net designed to combat executive dysfunction and serve as the family's central hub.
 
@@ -16,9 +21,10 @@ When you want to remember an important family fact for future personalization, o
 You get richer over time as you learn how and when this family uses the app. Use those patterns to give more relevant, timely help.`;
 
 export async function POST(req: NextRequest) {
+  if (!(await verifyAuth(req))) return unauthorized();
+
   const { messages, context, systemOverride } = await req.json();
 
-  // Build context block — includes usage memory if present
   const contextParts: string[] = [];
   if (context?.date) contextParts.push(`Current time: ${context.date}`);
   if (context?.currentUser) contextParts.push(`Active user: ${JSON.stringify(context.currentUser)}`);
@@ -28,88 +34,70 @@ export async function POST(req: NextRequest) {
   if (context?.meals?.length) contextParts.push(`Meal plan: ${JSON.stringify(context.meals)}`);
   if (context?.shopping?.length) contextParts.push(`Shopping: ${JSON.stringify(context.shopping)}`);
   if (context?.budgetSummary) contextParts.push(`Budget: ${context.budgetSummary}`);
-
-  // Usage memory — what Hermes has learned about this family's habits
-  if (context?.usageMemory) {
-    contextParts.push(`\nLearned usage patterns (use to personalize responses):\n${context.usageMemory}`);
-  }
+  if (context?.usageMemory) contextParts.push(`\nLearned usage patterns:\n${context.usageMemory}`);
   if (context?.persistentMemory?.length) {
     contextParts.push(`\nSaved family memory (use to personalize responses):\n${JSON.stringify(context.persistentMemory)}`);
   }
 
-  const systemContent = `${systemOverride ?? BEAR_HOUSE_SYSTEM}
+  const systemContent = `${systemOverride ?? BEAR_HOUSE_SYSTEM}\n\n${contextParts.join('\n')}`;
 
-${contextParts.join('\n')}`;
+  const gatewayMessages = [
+    { role: 'system' as const, content: systemContent },
+    ...messages.map((m: { role: string; content: string }) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
+  ];
 
-  // Primary: Claude (Anthropic)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey) {
-    try {
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const client = new Anthropic({ apiKey: anthropicKey });
-
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: systemContent,
-        messages: messages.map((m: { role: string; content: string }) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        })),
-      });
-
-      const content = response.content[0].type === 'text' ? response.content[0].text : '';
-      await persistMemoryFromResponse(context, content);
-      return NextResponse.json({ content, model: 'claude-haiku' });
-    } catch (e) {
-      console.error('Claude error:', e);
-    }
+  // Primary: Claude Haiku via gateway
+  try {
+    const content = await gatewayChat({
+      model: 'anthropic/claude-haiku-4-5-20251001',
+      messages: gatewayMessages,
+      maxTokens: 1024,
+      temperature: 0.7,
+    });
+    await persistMemoryFromResponse(context, content);
+    return NextResponse.json({ content, model: 'claude-haiku' });
+  } catch (e) {
+    console.error('Claude via gateway error:', e);
   }
 
-  // Fallback: Gemini
-  const geminiKey = process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (geminiKey) {
-    try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
-      const fullPrompt = [
-        systemContent,
-        ...messages.map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`),
-      ].join('\n\n');
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: fullPrompt,
-      });
-      const content = response.text ?? '';
-      await persistMemoryFromResponse(context, content);
-      return NextResponse.json({ content, model: 'gemini-2.0-flash' });
-    } catch (e) {
-      console.error('Gemini fallback error:', e);
-    }
+  // Fallback: Gemini Flash via gateway
+  try {
+    const content = await gatewayChat({
+      model: 'google/gemini-2.5-flash',
+      messages: gatewayMessages,
+      maxTokens: 1024,
+      temperature: 0.7,
+    });
+    await persistMemoryFromResponse(context, content);
+    return NextResponse.json({ content, model: 'gemini-2.5-flash' });
+  } catch (e) {
+    console.error('Gemini fallback via gateway error:', e);
+    return NextResponse.json(
+      { error: 'All AI providers failed. Check AI_GATEWAY_KEY and provider vault config.' },
+      { status: 503 }
+    );
   }
-
-  return NextResponse.json(
-    { error: 'No AI provider configured. Set ANTHROPIC_API_KEY or GEMINI_API_KEY.' },
-    { status: 503 },
-  );
 }
 
-async function persistMemoryFromResponse(context: any, content: string) {
-  const userId = context?.currentUser?.id ?? context?.currentUser?.uid;
+async function persistMemoryFromResponse(context: Record<string, unknown>, content: string) {
+  const userId = (context?.currentUser as Record<string, unknown>)?.id ?? (context?.currentUser as Record<string, unknown>)?.uid;
   if (!content || !userId) return;
+
   const matches = content
     .split(/\r?\n/)
     .map(line => line.match(/^ADD TO MEMORY:\s*(.+)$/i))
     .filter(Boolean)
     .map(match => match?.[1].trim())
-    .filter(Boolean);
+    .filter(Boolean) as string[];
 
   if (!matches.length) return;
 
   try {
     const firestore = getAdminFirestore();
-    const ref = adminDoc(firestore, 'households', context.currentUser.uid, 'hermesMemory', 'hermesMemory');
+    const ref = adminDoc(firestore, 'households', userId as string, 'hermesMemory', 'hermesMemory');
     const snap = await adminGetDoc(ref);
     const existing = snap.exists() ? (snap.data() as { persistentNotes?: string[] }) : { persistentNotes: [] };
     const persistentNotes = Array.isArray(existing.persistentNotes) ? existing.persistentNotes : [];

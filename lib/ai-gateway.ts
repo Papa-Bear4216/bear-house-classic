@@ -1,0 +1,101 @@
+// Single entry point for all AI calls — routes through Vercel AI Gateway (BYOK).
+// Set AI_GATEWAY_KEY in Vercel env vars (Project Settings → Environment Variables).
+// Provider keys (Google, Anthropic, OpenAI) live in the Vercel AI vault, not here.
+
+const GATEWAY = 'https://ai-gateway.vercel.sh/v1';
+
+function key(): string {
+  const k = process.env.AI_GATEWAY_KEY;
+  if (!k) throw new Error('AI_GATEWAY_KEY is not configured');
+  return k;
+}
+
+export type TextPart = { type: 'text'; text: string };
+export type ImagePart = { type: 'image_url'; image_url: { url: string } };
+export type ContentPart = TextPart | ImagePart;
+
+export type GatewayMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string | ContentPart[];
+};
+
+export interface ChatOptions {
+  model: string;
+  messages: GatewayMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  jsonMode?: boolean;
+}
+
+export async function gatewayChat(opts: ChatOptions): Promise<string> {
+  const body: Record<string, unknown> = {
+    model: opts.model,
+    messages: opts.messages,
+    temperature: opts.temperature ?? 0.7,
+    max_tokens: opts.maxTokens ?? 2048,
+  };
+
+  if (opts.jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const res = await fetch(`${GATEWAY}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key()}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`AI Gateway ${res.status}: ${text.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (content == null) throw new Error('AI Gateway returned empty content');
+  return content as string;
+}
+
+// Extracts valid JSON from a model response, tolerating markdown code fences.
+export function extractJson(raw: string): unknown {
+  const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  return JSON.parse(stripped);
+}
+
+// Convenience: build an image+text content part for vision requests.
+export function visionContent(base64DataUrl: string, prompt: string): ContentPart[] {
+  return [
+    { type: 'image_url', image_url: { url: base64DataUrl } },
+    { type: 'text', text: prompt },
+  ];
+}
+
+export async function gatewayImage(prompt: string): Promise<string> {
+  const res = await fetch(`${GATEWAY}/images/generations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key()}`,
+    },
+    body: JSON.stringify({
+      model: 'dall-e-3',
+      prompt,
+      n: 1,
+      size: '1024x1024',
+      response_format: 'b64_json',
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`AI Gateway image ${res.status}: ${text.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const b64 = data.data?.[0]?.b64_json as string | undefined;
+  if (!b64) throw new Error('AI Gateway returned no image data');
+  return b64;
+}
