@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import { gatewayChat } from '@/lib/ai-gateway';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { doc as adminDoc, getDoc as adminGetDoc, setDoc as adminSetDoc } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -97,12 +96,14 @@ async function persistMemoryFromResponse(context: Record<string, unknown>, conte
 
   try {
     const firestore = getAdminFirestore();
-    const ref = adminDoc(firestore, 'households', userId as string, 'hermesMemory', 'hermesMemory');
-    const snap = await adminGetDoc(ref);
-    const existing = snap.exists() ? (snap.data() as { persistentNotes?: string[] }) : { persistentNotes: [] };
+    const ref = firestore
+      .collection('households').doc(userId as string)
+      .collection('hermesMemory').doc('hermesMemory');
+    const snap = await ref.get();
+    const existing = snap.exists ? (snap.data() as { persistentNotes?: string[] }) : { persistentNotes: [] };
     const persistentNotes = Array.isArray(existing.persistentNotes) ? existing.persistentNotes : [];
     const updatedNotes = [...matches, ...persistentNotes].slice(0, 20);
-    await adminSetDoc(ref, { persistentNotes: updatedNotes, lastUpdated: new Date().toISOString() }, { merge: true });
+    await ref.set({ persistentNotes: updatedNotes, lastUpdated: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.error('Failed to save Hermes memory note:', err);
   }
