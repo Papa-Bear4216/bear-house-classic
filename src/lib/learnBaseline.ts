@@ -36,7 +36,7 @@ export function getBaselineStats(zone: Zone): BaselineStats {
   return {
     clutterScore: typeof baseline.clutterScore === 'number' ? baseline.clutterScore : 0,
     fillLevel: typeof baseline.fillLevel === 'number' ? baseline.fillLevel : 0,
-    lastUpdated: baseline.lastUpdated ?? 'never',
+    lastUpdated: typeof baseline.lastUpdated === 'string' ? baseline.lastUpdated : 'never',
     sampleCount: typeof baseline.sampleCount === 'number' ? baseline.sampleCount : 0
   };
 }
