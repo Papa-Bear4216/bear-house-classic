@@ -10,7 +10,6 @@ describe('house.schema.json', () => {
     const validate = ajv.compile(schema as any);
     const ok = validate(sampleHouse as any);
     if (!ok) {
-      // eslint-disable-next-line no-console
       console.error('Validation errors', validate.errors);
     }
     if (!ok) throw new Error('sampleHouse does not validate against house.schema.json');

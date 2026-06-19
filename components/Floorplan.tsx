@@ -61,7 +61,6 @@ export function Floorplan({ rooms, selectedRoomId, choreCounts = {}, editMode, o
     } else {
       setDrag({ type: 'draw', x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode, localRooms]);
 
   const onSvgMouseMove = useCallback((e: React.MouseEvent) => {
@@ -102,7 +101,6 @@ export function Floorplan({ rooms, selectedRoomId, choreCounts = {}, editMode, o
       }
       setLocalRooms(prev => prev.map(r => r.id === drag.id ? { ...r, x, y, w, h } : r));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag]);
 
   const onSvgMouseUp = useCallback(() => {
@@ -123,7 +121,6 @@ export function Floorplan({ rooms, selectedRoomId, choreCounts = {}, editMode, o
       if (room) onUpdateRoom(drag.id, { x: room.x, y: room.y, w: room.w, h: room.h });
     }
     setDrag({ type: 'idle' });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag, localRooms, onUpdateRoom]);
 
   const startResize = (e: React.MouseEvent, room: FloorplanRoom, corner: Corner) => {

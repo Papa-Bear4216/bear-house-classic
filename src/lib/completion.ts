@@ -35,4 +35,5 @@ export function runCompletion(chore: Chore, verifySequence: Array<boolean>): Com
   };
 }
 
-export default { runCompletion };
+const completion = { runCompletion };
+export default completion;

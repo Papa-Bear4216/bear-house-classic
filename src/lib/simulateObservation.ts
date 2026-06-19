@@ -15,4 +15,5 @@ export function simulateObservationForRoom(room: Room, noise = 0.05): Observatio
   return { anchors, zoneMeasures };
 }
 
-export default { simulateObservationForRoom };
+const simulateObservation = { simulateObservationForRoom };
+export default simulateObservation;

@@ -8,8 +8,6 @@ export function useIsMobile() {
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
     
-    // Set initial value without triggering cascading render during initial paint
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMobile(mql.matches)
     
     const onChange = (e: MediaQueryListEvent) => {

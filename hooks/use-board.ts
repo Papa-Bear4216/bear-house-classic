@@ -23,7 +23,6 @@ export function useBoard() {
   useEffect(() => {
     if (!user && !isPlaceholder) return;
     if (isPlaceholder) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoaded(true);
       return;
     }

@@ -41,4 +41,5 @@ export function getBaselineStats(zone: Zone): BaselineStats {
   };
 }
 
-export default { updateBaseline, getBaselineStats };
+const learnBaseline = { updateBaseline, getBaselineStats };
+export default learnBaseline;

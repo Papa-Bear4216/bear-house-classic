@@ -14,4 +14,5 @@ export function addRoom(house: House, room: Room): House {
   return { ...house, rooms: [...house.rooms, room] };
 }
 
-export default { buildEmptyHouse, addRoom };
+const buildHouse = { buildEmptyHouse, addRoom };
+export default buildHouse;

@@ -25,7 +25,6 @@ export function WhatsHappening() {
       const todayTasks = tasks.filter(t => t.date === todayStr);
       const todayEvents = events.filter(e => e.date === todayStr);
       
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsOpen(true);
       sessionStorage.setItem('hasSeenBriefing', 'true');
     }

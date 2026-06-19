@@ -405,7 +405,7 @@ function SnapshotRow() {
 }
 
 function TrendsSection({ tasks, events, openShopping }: { tasks: Task[]; events: Array<{ date?: string }>; openShopping: number; }) {
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const weekStart = subDays(today, 6);
 
   const tasksThisWeek = useMemo(() => tasks.filter(task => {

@@ -31,7 +31,6 @@ export function useFamilyMembers() {
       const stored = localStorage.getItem(STORAGE_KEYS.POINTS);
       if (stored) {
         try {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setUsers(JSON.parse(stored));
         } catch (e) {
            

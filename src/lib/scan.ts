@@ -49,4 +49,5 @@ export function diffZones(observation: Observation, room: Room, userAge = 30) {
   return results;
 }
 
-export default { localizeRoom, diffZones };
+const scan = { localizeRoom, diffZones };
+export default scan;

@@ -18,7 +18,6 @@ export default function SyncPage() {
 
   useEffect(() => {
     generate();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const copyCode = async () => {
