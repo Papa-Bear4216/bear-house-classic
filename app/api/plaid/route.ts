@@ -64,15 +64,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ accounts: response.data.accounts });
     }
 
-    // Get transactions
+    // Refresh transactions (triggers Plaid to sync — call after exchange)
+    if (['refresh_transactions', 'refreshTransactions'].includes(action)) {
+      const access_token = body.access_token ?? body.accessToken;
+      await client.transactionsRefresh({ access_token });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Get transactions via sync API (modern, works immediately after connection)
     if (['get_transactions', 'getTransactions', 'transactions'].includes(action)) {
       const access_token = body.access_token ?? body.accessToken;
-      const response = await client.transactionsGet({
-        access_token,
-        start_date: body.start_date ?? new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
-        end_date: body.end_date ?? new Date().toISOString().split('T')[0],
-      });
-      return NextResponse.json({ transactions: response.data.transactions, accounts: response.data.accounts });
+      const cutoff = body.start_date ?? new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+      try {
+        const added: unknown[] = [];
+        let cursor: string | undefined = undefined;
+        let hasMore = true;
+        while (hasMore) {
+          const r = await client.transactionsSync({ access_token, cursor });
+          added.push(...r.data.added);
+          hasMore = r.data.has_more;
+          cursor = r.data.next_cursor;
+        }
+        const recent = (added as Array<{ date: string }>).filter(tx => tx.date >= cutoff);
+        return NextResponse.json({ transactions: recent });
+      } catch {
+        // Fall back to legacy transactionsGet
+        const response = await client.transactionsGet({
+          access_token,
+          start_date: cutoff,
+          end_date: body.end_date ?? new Date().toISOString().split('T')[0],
+        });
+        return NextResponse.json({ transactions: response.data.transactions });
+      }
     }
 
     // If body has a public_token field, assume exchange
@@ -94,7 +118,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Unhandled action: "${action}"`, body }, { status: 400 });
   } catch (error: any) {
     const plaidError = error.response?.data;
-    console.error('Plaid error:', JSON.stringify(plaidError ?? error.message));
+    console.error('Plaid error full:', JSON.stringify({ action, plaidError, msg: error.message }));
     return NextResponse.json(
       {
         error: plaidError?.error_message ?? error.message,

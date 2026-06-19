@@ -98,6 +98,14 @@ export function usePlaid() {
     const existing: LinkedBank[] = snap.exists() ? (snap.data().banks ?? []) : [];
     const updated = [...existing.filter(b => b.itemId !== newBank.itemId), newBank];
     await setDoc(ref, { banks: updated });
+
+    // Trigger Plaid initial sync (fire and forget — may not complete immediately)
+    fetch('/api/plaid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'refresh_transactions', access_token: data.access_token }),
+    }).catch(() => {});
+
     await fetchAll(updated);
   }
 
@@ -125,6 +133,23 @@ export function usePlaid() {
         ]);
         const accData = await accRes.json();
         const txData = await txRes.json();
+
+        if (!accRes.ok) {
+          const code = accData.error_code ?? accData.error_type ?? 'UNKNOWN';
+          const msg = accData.error ?? accData.display_message ?? 'Failed to load accounts';
+          throw new Error(`[${code}] ${msg}`);
+        }
+        if (!txRes.ok) {
+          const code = txData.error_code ?? txData.error_type ?? 'UNKNOWN';
+          const msg = txData.error ?? txData.display_message ?? 'Failed to load transactions';
+          // PRODUCTS_NOT_READY means Plaid is still syncing — not fatal
+          if (txData.error_code === 'PRODUCTS_NOT_READY') {
+            setError('Bank connected — transactions are syncing. Refresh in a minute.');
+          } else {
+            throw new Error(`[${code}] ${msg}`);
+          }
+        }
+
         if (accData.accounts) allAccounts.push(...accData.accounts);
         if (txData.transactions) allTransactions.push(...txData.transactions);
       }
