@@ -134,20 +134,25 @@ export function usePlaid() {
         const accData = await accRes.json();
         const txData = await txRes.json();
 
-        if (!accRes.ok) {
-          const code = accData.error_code ?? accData.error_type ?? 'UNKNOWN';
-          const msg = accData.error ?? accData.display_message ?? 'Failed to load accounts';
-          throw new Error(`[${code}] ${msg}`);
-        }
-        if (!txRes.ok) {
-          const code = txData.error_code ?? txData.error_type ?? 'UNKNOWN';
-          const msg = txData.error ?? txData.display_message ?? 'Failed to load transactions';
-          // PRODUCTS_NOT_READY means Plaid is still syncing — not fatal
-          if (txData.error_code === 'PRODUCTS_NOT_READY') {
-            setError('Bank connected — transactions are syncing. Refresh in a minute.');
-          } else {
-            throw new Error(`[${code}] ${msg}`);
+        if (!accRes.ok || !txRes.ok) {
+          const errData = !accRes.ok ? accData : txData;
+          const code = errData.error_code ?? errData.error_type ?? 'UNKNOWN';
+          const msg = errData.error ?? errData.display_message ?? 'Failed to load bank data';
+
+          if (code === 'INVALID_ACCESS_TOKEN' || code === 'INVALID_ITEM_ID' || code === 'ITEM_LOGIN_REQUIRED') {
+            // Token is stale — remove from Firestore and ask user to re-link
+            const ref = doc(db!, 'households', uid(), 'plaid', 'banks');
+            const cleaned = list.filter(b => b.itemId !== bank.itemId);
+            await setDoc(ref, { banks: cleaned });
+            setLinkedBanks(cleaned);
+            setError(`Bank connection expired for "${bank.institutionName ?? 'your bank'}". Please re-link it.`);
+            continue;
           }
+          if (code === 'PRODUCTS_NOT_READY') {
+            setError('Bank connected — transactions are still syncing. Refresh in a minute.');
+            continue;
+          }
+          throw new Error(`[${code}] ${msg}`);
         }
 
         if (accData.accounts) allAccounts.push(...accData.accounts);
