@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, isPlaceholder, auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getMyFamilyId } from '../lib/family-id';
@@ -15,7 +15,28 @@ export interface FloorplanRoom {
 }
 
 const LS_KEY = 'bear-house-floorplan';
+const LS_SEEDED = 'bear-house-floorplan-seeded';
 const COLORS = ['#dbeafe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#e0f2fe', '#d1fae5'];
+
+// Pre-populated rooms matching the family's actual house layout (1000×580 viewBox)
+const SEED_ROOMS: Omit<FloorplanRoom, 'id'>[] = [
+  { name: 'Kitchen',          x: 20,  y: 20,  w: 315, h: 118, color: '#dbeafe' },
+  { name: 'Laundry',          x: 20,  y: 138, w: 186, h: 112, color: '#e0f2fe' },
+  { name: 'Bar',              x: 206, y: 138, w: 149, h: 168, color: '#fef3c7' },
+  { name: 'Storage',          x: 20,  y: 306, w: 82,  h: 254, color: '#f1f5f9' },
+  { name: 'Dining Area',      x: 102, y: 306, w: 233, h: 254, color: '#dcfce7' },
+  { name: 'Living Room',      x: 355, y: 20,  w: 248, h: 378, color: '#ede9fe' },
+  { name: 'Foyer',            x: 355, y: 398, w: 88,  h: 162, color: '#fce7f3' },
+  { name: 'Primary Bath',     x: 603, y: 20,  w: 88,  h: 73,  color: '#e0f2fe' },
+  { name: 'W.I.C.',           x: 603, y: 93,  w: 88,  h: 58,  color: '#f1f5f9' },
+  { name: 'Hall Bath',        x: 603, y: 151, w: 88,  h: 147, color: '#e0f2fe' },
+  { name: 'Hall',             x: 691, y: 235, w: 148, h: 163, color: '#f8fafc' },
+  { name: 'Primary Bedroom',  x: 691, y: 20,  w: 289, h: 215, color: '#ffedd5' },
+  { name: 'Bedroom 2',        x: 839, y: 235, w: 141, h: 163, color: '#ffedd5' },
+  { name: 'Bedroom 3',        x: 443, y: 398, w: 200, h: 162, color: '#ffedd5' },
+  { name: 'Bedroom 4',        x: 691, y: 398, w: 189, h: 162, color: '#ffedd5' },
+  { name: 'Bedroom 5',        x: 839, y: 398, w: 141, h: 162, color: '#ffedd5' },
+];
 
 export function useFloorplan() {
   const [rooms, setRooms] = useState<FloorplanRoom[]>([]);
@@ -38,9 +59,25 @@ export function useFloorplan() {
   useEffect(() => {
     if (!familyId) return;
     const col = collection(db, 'households', familyId, 'floorplan');
-    return onSnapshot(col, snap => {
-      setRooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as FloorplanRoom)));
+    return onSnapshot(col, async snap => {
+      const loaded = snap.docs.map(d => ({ id: d.id, ...d.data() } as FloorplanRoom));
+      setRooms(loaded);
       setIsLoaded(true);
+
+      // Auto-seed the house layout on first load if no rooms exist
+      if (loaded.length === 0 && !localStorage.getItem(LS_SEEDED)) {
+        localStorage.setItem(LS_SEEDED, '1');
+        try {
+          const batch = writeBatch(db);
+          SEED_ROOMS.forEach(room => {
+            const ref = doc(col);
+            batch.set(ref, { ...room, createdAt: serverTimestamp() });
+          });
+          await batch.commit();
+        } catch {
+          localStorage.removeItem(LS_SEEDED);
+        }
+      }
     });
   }, [familyId]);
 
