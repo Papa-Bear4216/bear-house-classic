@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { doc as adminDoc, getDoc as adminGetDoc, setDoc as adminSetDoc } from 'firebase-admin/firestore';
 import { 
   EnhancedHermes, 
   makeDecisionFor, 
@@ -145,8 +144,8 @@ async function handleBrainState(operation: 'save' | 'restore', userId: string, d
   if (operation === 'save') {
     // Save to Firestore for persistence
     const firestore = getAdminFirestore();
-    const ref = adminDoc(firestore, 'users', userId, 'brainStates', data.taskId);
-    await adminSetDoc(ref, {
+    const ref = firestore.collection('users').doc(userId).collection('brainStates').doc(data.taskId);
+    await ref.set({
       ...data,
       savedAt: new Date().toISOString()
     });
@@ -154,9 +153,9 @@ async function handleBrainState(operation: 'save' | 'restore', userId: string, d
   } else {
     // Restore from Firestore
     const firestore = getAdminFirestore();
-    const ref = adminDoc(firestore, 'users', userId, 'brainStates', data.taskId);
-    const snap = await adminGetDoc(ref);
-    return NextResponse.json({ state: snap.exists() ? snap.data() : null });
+    const ref = firestore.collection('users').doc(userId).collection('brainStates').doc(data.taskId);
+    const snap = await ref.get();
+    return NextResponse.json({ state: snap.exists ? snap.data() : null });
   }
 }
 
@@ -181,8 +180,8 @@ async function handleChaosPrediction(context: any) {
   const highSeverity = predictions.filter(p => p.severity === 'high');
   if (highSeverity.length > 0 && context.currentUser?.id) {
     const firestore = getAdminFirestore();
-    const ref = adminDoc(firestore, 'users', context.currentUser.id, 'alerts', 'chaos');
-    await adminSetDoc(ref, {
+    const ref = firestore.collection('users').doc(context.currentUser.id).collection('alerts').doc('chaos');
+    await ref.set({
       predictions: highSeverity,
       createdAt: new Date().toISOString()
     });
@@ -199,8 +198,8 @@ async function handleEmergency(type: string, userId: string) {
 
   // Log emergency activation
   const firestore = getAdminFirestore();
-  const ref = adminDoc(firestore, 'emergencies', `${userId}-${Date.now()}`);
-  await adminSetDoc(ref, {
+  const ref = firestore.collection('emergencies').doc(`${userId}-${Date.now()}`);
+  await ref.set({
     type,
     userId,
     activatedAt: new Date().toISOString(),
@@ -339,7 +338,15 @@ async function handleFullOrchestration(userId: string, context: any) {
     integrations.weather?.getActivitySuggestions(),
   ]);
 
-  const orchestration = {
+  const orchestration: {
+    chaos: any;
+    anticipations: any;
+    weather: any;
+    financialAlerts: any;
+    activities: any;
+    timestamp: string;
+    emergencyProtocols?: any[];
+  } = {
     chaos: results[0].status === 'fulfilled' ? results[0].value : [],
     anticipations: results[1].status === 'fulfilled' ? results[1].value : {},
     weather: results[2].status === 'fulfilled' ? results[2].value : null,
@@ -367,8 +374,8 @@ async function handleFullOrchestration(userId: string, context: any) {
 
   // Save orchestration results for the dashboard
   const firestore = getAdminFirestore();
-  const ref = adminDoc(firestore, 'users', userId, 'orchestration', 'latest');
-  await adminSetDoc(ref, orchestration);
+  const ref = firestore.collection('users').doc(userId).collection('orchestration').doc('latest');
+  await ref.set(orchestration);
 
   return NextResponse.json(orchestration);
 }

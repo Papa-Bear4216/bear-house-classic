@@ -1,9 +1,21 @@
 {
+  "enabledMcpjsonServers": ["firebase"],
   "permissions": {
     "allow": [
       "mcp__plugin_vercel_vercel__get_runtime_logs",
       "mcp__plugin_vercel_vercel__list_deployments",
-      "mcp__plugin_vercel_vercel__get_deployment"
+      "mcp__plugin_vercel_vercel__get_deployment",
+      "Bash(npm run build)",
+      "Bash(npm run test)",
+      "Bash(npm run lint)",
+      "Bash(npm run dev)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)"
     ]
   }
 }

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     })),
   ];
 
-  // Primary: Claude Haiku via gateway
+  // Primary: Hermes 4 70B via OpenRouter gateway
   try {
     const content = await gatewayChat({
       model: 'nousresearch/hermes-4-70b',

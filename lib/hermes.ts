@@ -15,6 +15,7 @@ export interface FamilyContext {
   budgetSummary?: string;
   usageMemory?: string;
   persistentMemory?: string[];
+  [key: string]: unknown;
 }
 
 export async function askHermes(

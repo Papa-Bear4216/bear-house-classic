@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Only these 4 Gmail accounts may access any data
     function isAllowed() {
       return request.auth != null &&
         request.auth.token.email in [
@@ -13,60 +12,23 @@ service cloud.firestore {
         ];
     }
 
-    // 0. Default Deny
+    // Default deny
     match /{document=**} { allow read, write: if false; }
 
-    // --- Users ---
-    match /users/{userId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow update: if isAllowed();
-      allow delete: if isAllowed();
-    }
+    // Full access for all whitelisted family members
+    match /users/{userId}              { allow read, write: if isAllowed(); }
+    match /users/{userId}/{sub=**}     { allow read, write: if isAllowed(); }
+    match /tasks/{taskId}              { allow read, write: if isAllowed(); }
+    match /events/{eventId}            { allow read, write: if isAllowed(); }
+    match /mealPlans/{docId}           { allow read, write: if isAllowed(); }
+    match /games/{gameId}              { allow read, write: if isAllowed(); }
+    match /emergencies/{docId}         { allow read, write: if isAllowed(); }
+    match /households/{uid}/{sub=**}   { allow read, write: if isAllowed(); }
 
-    // --- Tasks ---
-    match /tasks/{taskId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow update: if isAllowed();
-      allow delete: if isAllowed();
-    }
-
-    // --- Events ---
-    match /events/{eventId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow update: if isAllowed();
-      allow delete: if isAllowed();
-    }
-
-    // --- Meal Plans ---
-    match /mealPlans/{docId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow update: if isAllowed();
-      allow delete: if isAllowed();
-    }
-
-    // --- Households (shopping, Hermes memory, Plaid, dashboard config) ---
-    match /households/{uid}/{document=**} {
-      allow read:   if isAllowed();
-      allow write:  if isAllowed();
-    }
-
-    // --- Family Messages ---
+    // Family messages: only the sender may delete their own message
     match /familyMessages/{familyCode}/messages/{messageId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow delete: if isAllowed() && request.auth.uid == resource.data.userId;
-    }
-
-    // --- Posts ---
-    match /posts/{postId} {
-      allow read:   if isAllowed();
-      allow create: if isAllowed();
-      allow update: if isAllowed();
-      allow delete: if isAllowed();
+      allow read, create: if isAllowed();
+      allow delete:       if isAllowed() && request.auth.uid == resource.data.userId;
     }
   }
 }
