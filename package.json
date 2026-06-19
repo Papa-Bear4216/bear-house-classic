@@ -12,7 +12,6 @@
     "clean": "next clean"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.55.0",
     "@capacitor/android": "^8.3.1",
     "@capacitor/core": "^8.3.1",
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

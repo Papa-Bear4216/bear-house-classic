@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore, getAdminMessaging } from '@/lib/firebase-admin';
+import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  if (!(await verifyAuth(req))) return unauthorized();
+
   try {
     const { uid, title, body, data, url } = await req.json();
 
@@ -75,6 +78,8 @@ export async function POST(req: NextRequest) {
 
 // Broadcast to all family members
 export async function PUT(req: NextRequest) {
+  if (!(await verifyAuth(req))) return unauthorized();
+
   try {
     const { uids, title, body, data, url } = await req.json();
     if (!uids?.length || !title) return NextResponse.json({ error: 'uids[] and title required' }, { status: 400 });
