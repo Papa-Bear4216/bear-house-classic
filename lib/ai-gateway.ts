@@ -2,7 +2,7 @@
 // Set AI_GATEWAY_KEY in Vercel env vars (Project Settings → Environment Variables).
 // Provider keys (Google, Anthropic, OpenAI) live in the Vercel AI vault, not here.
 
-const GATEWAY = 'https://ai-gateway.vercel.sh/v1';
+const GATEWAY = 'https://openrouter.ai/api/v1';
 
 function key(): string {
   const k = process.env.AI_GATEWAY_KEY;

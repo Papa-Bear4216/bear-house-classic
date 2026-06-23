@@ -86,7 +86,7 @@ function HermesCard({ refreshTrigger }: { refreshTrigger?: number }) {
       setBrief(content);
       setFetched(true);
     } catch {
-      setBrief('Hermes is offline. Set ANTHROPIC_API_KEY to activate.');
+      setBrief('Hermes is offline. Set AI_GATEWAY_KEY to activate.');
       setFetched(true);
     } finally { setLoading(false); }
   }, [currentUser, users, tasks, events]);

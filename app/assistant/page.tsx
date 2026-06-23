@@ -178,7 +178,7 @@ export default function AssistantPage() {
       console.error(err);
       setHistory(prev => [...prev, {
         role: 'assistant',
-        text: "I'm having trouble connecting right now. Make sure ANTHROPIC_API_KEY or GEMINI_API_KEY is set in your Vercel env vars.",
+        text: "I'm having trouble connecting right now. Make sure AI_GATEWAY_KEY is set in your Vercel env vars.",
       }]);
     } finally {
       setIsLoading(false);

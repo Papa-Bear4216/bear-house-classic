@@ -76,7 +76,7 @@ export default function MealsPage() {
       );
       setHermesSuggestion(content);
     } catch {
-      setHermesSuggestion('Could not reach Hermes right now. Set OPENROUTER_API_KEY in Vercel env vars.');
+      setHermesSuggestion('Could not reach Hermes right now. Set AI_GATEWAY_KEY in Vercel env vars.');
     } finally {
       setHermesLoading(false);
     }
