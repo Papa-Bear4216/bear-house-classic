@@ -22,9 +22,14 @@ export async function askHermes(
   context: FamilyContext = {},
   systemOverride?: string
 ): Promise<{ content: string; model: string }> {
+  const { auth } = await import('./firebase');
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
   const res = await fetch('/api/hermes', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ messages, context, systemOverride }),
   });
 
