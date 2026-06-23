@@ -51,13 +51,13 @@ export async function POST(req: NextRequest) {
   // Primary: Claude Haiku via gateway
   try {
     const content = await gatewayChat({
-      model: 'anthropic/claude-haiku-4-5-20251001',
+      model: 'nousresearch/hermes-4-70b',
       messages: gatewayMessages,
       maxTokens: 1024,
       temperature: 0.7,
     });
     await persistMemoryFromResponse(context, content);
-    return NextResponse.json({ content, model: 'claude-haiku' });
+    return NextResponse.json({ content, model: 'hermes-4-70b' });
   } catch (e) {
     console.error('Claude via gateway error:', e);
   }

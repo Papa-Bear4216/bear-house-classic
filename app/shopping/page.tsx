@@ -53,7 +53,7 @@ export default function ShoppingPage() {
       );
       setHermesTip(content);
     } catch {
-      setHermesTip('Set OPENROUTER_API_KEY to enable Hermes suggestions.');
+      setHermesTip('Set AI_GATEWAY_KEY to enable Hermes suggestions.');
     } finally {
       setHermesLoading(false);
     }

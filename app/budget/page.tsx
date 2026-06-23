@@ -132,7 +132,7 @@ export default function BudgetPage() {
         { users, shopping: topCategories },
       );
       setHermesInsight(content);
-    } catch { setHermesInsight('Could not reach Hermes. Check ANTHROPIC_API_KEY in Vercel env vars.'); }
+    } catch { setHermesInsight('Could not reach Hermes. Check AI_GATEWAY_KEY in Vercel env vars.'); }
     finally { setHermesLoading(false); }
   }
 
