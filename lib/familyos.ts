@@ -32,6 +32,7 @@ export type Task = {
   properStorage?: string;
   mapX?: number;
   mapY?: number;
+  roomId?: string;
   createdAt?: any;
   updatedAt?: any;
 };

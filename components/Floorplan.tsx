@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize2, Layers } from 'lucide-react';
 import type { FloorplanRoom } from '@/hooks/use-floorplan';
 import type { ChorePin } from '@/hooks/use-chore-pins';
 
@@ -41,6 +41,7 @@ interface Props {
   pins?: ChorePin[];
   canMovePin?: boolean;
   onMovePin?: (id: string, x: number, y: number) => void;
+  drifts?: Record<string, any>;
 }
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
@@ -48,7 +49,7 @@ function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min
 export function Floorplan({
   rooms, selectedRoomId, choreCounts = {}, editMode,
   onSelectRoom, onAddRoom, onUpdateRoom, onDeleteRoom,
-  pins = [], canMovePin = false, onMovePin,
+  pins = [], canMovePin = false, onMovePin, drifts = {},
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<Drag>({ type: 'idle' });
@@ -59,6 +60,10 @@ export function Floorplan({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hoveredPin, setHoveredPin] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
+
+  const currentViewMode = editMode ? '2d' : viewMode;
+  const finalCanMovePin = canMovePin && currentViewMode === '2d';
 
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
@@ -71,6 +76,17 @@ export function Floorplan({
   const vbW = VB_W / zoom;
   const vbH = VB_H / zoom;
   const viewBox = `${pan.x} ${pan.y} ${vbW} ${vbH}`;
+
+  // Isometric projection helper
+  const toIso = (x: number, y: number) => {
+    const cx = VB_W / 2;
+    const cy = VB_H / 6;
+    const scale = 0.65;
+    return {
+      x: cx + (x - y) * 0.866 * scale,
+      y: cy + (x + y) * 0.5 * scale,
+    };
+  };
 
   function toVB(e: React.MouseEvent | MouseEvent): { x: number; y: number } {
     const svg = svgRef.current;
@@ -112,7 +128,7 @@ export function Floorplan({
     e.preventDefault();
     const pt = toVB(e);
 
-    if (!editMode && canMovePin) {
+    if (!editMode && finalCanMovePin) {
       const hitPin = [...localPins].reverse().find(p => Math.hypot(p.x - pt.x, p.y - pt.y) <= 12);
       if (hitPin) { setDrag({ type: 'pin', pinId: hitPin.id }); return; }
     }
@@ -129,7 +145,7 @@ export function Floorplan({
     } else {
       setDrag({ type: 'pan', startSX: e.clientX, startSY: e.clientY, origPan: { ...panRef.current } });
     }
-  }, [editMode, localRooms, localPins, canMovePin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editMode, localRooms, localPins, finalCanMovePin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSvgMouseMove = useCallback((e: React.MouseEvent) => {
     if (drag.type === 'idle') return;
@@ -221,8 +237,21 @@ export function Floorplan({
 
   return (
     <div className="relative select-none h-full flex flex-col">
-      {/* Zoom controls */}
+      {/* Zoom and view toggle controls */}
       <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+        {!editMode && (
+          <button
+            onClick={() => setViewMode(v => v === '2d' ? '3d' : '2d')}
+            className={`w-8 h-8 rounded-lg shadow-sm flex items-center justify-center border transition-colors ${
+              viewMode === '3d'
+                ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
+                : 'bg-white/90 border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+            title={viewMode === '3d' ? 'Switch to 2D Blueprint' : 'Switch to 3D Dollhouse'}
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+        )}
         <button
           onClick={zoomIn}
           className="w-8 h-8 bg-white/90 backdrop-blur border border-slate-200 rounded-lg shadow-sm flex items-center justify-center hover:bg-slate-50 transition-colors"
@@ -278,73 +307,202 @@ export function Floorplan({
         onMouseUp={onSvgMouseUp}
         onMouseLeave={onSvgMouseUp}
       >
+        <style>
+          {`
+            @keyframes bounce3d {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-8px); }
+            }
+            @keyframes floatCloud {
+              0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+              50% { transform: translateY(-4px) scale(1.08); opacity: 0.85; }
+            }
+            .bounce-pin {
+              animation: bounce3d 2s infinite ease-in-out;
+              transform-origin: center;
+            }
+            .float-cloud {
+              animation: floatCloud 3s infinite ease-in-out;
+              transform-origin: center;
+            }
+          `}
+        </style>
         <defs>
           <pattern id="fp-grid" width="50" height="50" patternUnits="userSpaceOnUse">
             <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e2e8f0" strokeWidth="0.5" />
           </pattern>
         </defs>
-        <rect width={VB_W} height={VB_H} fill="url(#fp-grid)" />
+        {currentViewMode === '2d' && <rect width={VB_W} height={VB_H} fill="url(#fp-grid)" />}
+        {currentViewMode === '3d' && <rect width={VB_W} height={VB_H} fill="#f8fafc" />}
 
         {/* Rooms */}
         {localRooms.map(room => {
           const isSelected = room.id === selectedRoomId;
           const count = choreCounts[room.id] ?? 0;
-          const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.65)), 20, Math.floor(room.h / 4));
-          return (
-            <g
-              key={room.id}
-              onClick={(e) => { e.stopPropagation(); if (!editMode || drag.type === 'idle') onSelectRoom(room); }}
-              style={{ cursor: editMode ? 'move' : 'pointer' }}
-            >
-              <rect
-                x={room.x} y={room.y} width={room.w} height={room.h}
-                fill={room.color}
-                stroke={isSelected ? '#2563eb' : '#94a3b8'}
-                strokeWidth={isSelected ? 2.5 : 1.5}
-                rx={6}
-              />
-              <text
-                x={room.x + room.w / 2} y={room.y + room.h / 2}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize={Math.max(fontSize, 10)}
-                fill="#1e293b" fontWeight="600"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
+          const drift = drifts[room.id] || { cleanliness: 100, driftScore: 0, status: 'clean', forecastMessage: 'All clear' };
+
+          if (currentViewMode === '3d') {
+            const p0 = toIso(room.x, room.y);
+            const p1 = toIso(room.x + room.w, room.y);
+            const p2 = toIso(room.x + room.w, room.y + room.h);
+            const p3 = toIso(room.x, room.y + room.h);
+            const wallH = 26;
+
+            const textX = (p0.x + p2.x) / 2;
+            const textY = (p0.y + p2.y) / 2;
+            const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.5)), 14, Math.floor(room.h / 5));
+
+            // Shading overlays
+            const leftWallColor = '#000000';
+            const rightWallColor = '#000000';
+
+            return (
+              <g
+                key={room.id}
+                onClick={(e) => { e.stopPropagation(); if (drag.type === 'idle') onSelectRoom(room); }}
+                style={{ cursor: 'pointer' }}
               >
-                {room.name}
-              </text>
-              {count > 0 && (
-                <g style={{ pointerEvents: 'none' }}>
-                  <circle cx={room.x + room.w - 14} cy={room.y + 14} r={12} fill="#ef4444" />
-                  <text
-                    x={room.x + room.w - 14} y={room.y + 14}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fontSize={9} fill="white" fontWeight="bold"
-                    style={{ userSelect: 'none' }}
-                  >
-                    {count > 9 ? '9+' : count}
-                  </text>
-                </g>
-              )}
-              {editMode && isSelected && (
-                <>
-                  {(['tl', 'tr', 'bl', 'br'] as Corner[]).map(corner => {
-                    const cx = corner.endsWith('l') ? room.x : room.x + room.w;
-                    const cy = corner.startsWith('t') ? room.y : room.y + room.h;
-                    return (
-                      <rect
-                        key={corner}
-                        x={cx - HANDLE_R} y={cy - HANDLE_R}
-                        width={HANDLE_R * 2} height={HANDLE_R * 2}
-                        fill="white" stroke="#2563eb" strokeWidth={1.5} rx={2}
-                        style={{ cursor: corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize' }}
-                        onMouseDown={e => startResize(e, room, corner)}
-                      />
-                    );
-                  })}
-                </>
-              )}
-            </g>
-          );
+                {/* 3D Right Wall Face */}
+                <polygon
+                  points={`${p2.x},${p2.y} ${p1.x},${p1.y} ${p1.x},${p1.y + wallH} ${p2.x},${p2.y + wallH}`}
+                  fill={room.color}
+                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                  strokeWidth={0.5}
+                />
+                <polygon
+                  points={`${p2.x},${p2.y} ${p1.x},${p1.y} ${p1.x},${p1.y + wallH} ${p2.x},${p2.y + wallH}`}
+                  fill={rightWallColor}
+                  fillOpacity={0.24}
+                  style={{ pointerEvents: 'none' }}
+                />
+
+                {/* 3D Left Wall Face */}
+                <polygon
+                  points={`${p3.x},${p3.y} ${p2.x},${p2.y} ${p2.x},${p2.y + wallH} ${p3.x},${p3.y + wallH}`}
+                  fill={room.color}
+                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                  strokeWidth={0.5}
+                />
+                <polygon
+                  points={`${p3.x},${p3.y} ${p2.x},${p2.y} ${p2.x},${p2.y + wallH} ${p3.x},${p3.y + wallH}`}
+                  fill={leftWallColor}
+                  fillOpacity={0.12}
+                  style={{ pointerEvents: 'none' }}
+                />
+
+                {/* 3D Top Floor Face */}
+                <polygon
+                  points={`${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`}
+                  fill={room.color}
+                  fillOpacity={0.88}
+                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                  strokeWidth={isSelected ? 2.5 : 1}
+                />
+
+                {/* Text name floating on floor */}
+                <text
+                  x={textX} y={textY}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.max(fontSize, 9)}
+                  fill="#1e293b" fontWeight="600"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {room.name}
+                </text>
+
+                {/* Animated Dust Cloud if room is cluttered */}
+                {drift.status === 'messy' && (
+                  <g className="float-cloud" style={{ pointerEvents: 'none' }}>
+                    <path
+                      d={`M ${textX - 12} ${textY - 20} 
+                          a 8 8 0 0 1 12 -6 
+                          a 10 10 0 0 1 14 2 
+                          a 8 8 0 0 1 2 12 
+                          a 6 6 0 0 1 -8 6 
+                          l -16 0 
+                          a 6 6 0 0 1 -4 -14 z`}
+                      fill="#94a3b8"
+                      fillOpacity={0.6}
+                    />
+                    <circle cx={textX - 10} cy={textY - 24} r={1.5} fill="#475569" fillOpacity={0.5} />
+                    <circle cx={textX + 12} cy={textY - 26} r={2} fill="#475569" fillOpacity={0.5} />
+                  </g>
+                )}
+
+                {/* Chore notifications badge */}
+                {count > 0 && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={p1.x - 14} cy={p1.y + 14} r={10} fill="#ef4444" />
+                    <text
+                      x={p1.x - 14} y={p1.y + 14}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize={8} fill="white" fontWeight="bold"
+                      style={{ userSelect: 'none' }}
+                    >
+                      {count > 9 ? '9+' : count}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          } else {
+            const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.65)), 20, Math.floor(room.h / 4));
+            return (
+              <g
+                key={room.id}
+                onClick={(e) => { e.stopPropagation(); if (!editMode || drag.type === 'idle') onSelectRoom(room); }}
+                style={{ cursor: editMode ? 'move' : 'pointer' }}
+              >
+                <rect
+                  x={room.x} y={room.y} width={room.w} height={room.h}
+                  fill={room.color}
+                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  rx={6}
+                />
+                <text
+                  x={room.x + room.w / 2} y={room.y + room.h / 2}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize={Math.max(fontSize, 10)}
+                  fill="#1e293b" fontWeight="600"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {room.name}
+                </text>
+                {count > 0 && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={room.x + room.w - 14} cy={room.y + 14} r={12} fill="#ef4444" />
+                    <text
+                      x={room.x + room.w - 14} y={room.y + 14}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize={9} fill="white" fontWeight="bold"
+                      style={{ userSelect: 'none' }}
+                    >
+                      {count > 9 ? '9+' : count}
+                    </text>
+                  </g>
+                )}
+                {editMode && isSelected && (
+                  <>
+                    {(['tl', 'tr', 'bl', 'br'] as Corner[]).map(corner => {
+                      const cx = corner.endsWith('l') ? room.x : room.x + room.w;
+                      const cy = corner.startsWith('t') ? room.y : room.y + room.h;
+                      return (
+                        <rect
+                          key={corner}
+                          x={cx - HANDLE_R} y={cy - HANDLE_R}
+                          width={HANDLE_R * 2} height={HANDLE_R * 2}
+                          fill="white" stroke="#2563eb" strokeWidth={1.5} rx={2}
+                          style={{ cursor: corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize' }}
+                          onMouseDown={e => startResize(e, room, corner)}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+              </g>
+            );
+          }
         })}
 
         {/* Chore pins */}
@@ -353,38 +511,74 @@ export function Floorplan({
           const isHovered = hoveredPin === pin.id;
           const label = pin.choreTitle.length > 22 ? pin.choreTitle.slice(0, 20) + '…' : pin.choreTitle;
           const labelW = label.length * 6.5 + 16;
-          return (
-            <g
-              key={pin.id}
-              style={{ cursor: canMovePin ? 'grab' : 'default' }}
-              onMouseEnter={() => setHoveredPin(pin.id)}
-              onMouseLeave={() => setHoveredPin(null)}
-              onMouseDown={e => {
-                if (!canMovePin) return;
-                e.stopPropagation();
-                setDrag({ type: 'pin', pinId: pin.id });
-              }}
-            >
-              <circle cx={pin.x + 1} cy={pin.y + 2} r={9} fill="rgba(0,0,0,0.15)" />
-              <circle cx={pin.x} cy={pin.y} r={9} fill={color} stroke="white" strokeWidth={2} />
-              <text
-                x={pin.x} y={pin.y}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize={8} fill="white" fontWeight="bold"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
+
+          if (currentViewMode === '3d') {
+            const pos = toIso(pin.x, pin.y);
+            const px = pos.x;
+            const py = pos.y - 12;
+
+            return (
+              <g
+                key={pin.id}
+                className="bounce-pin"
+                onMouseEnter={() => setHoveredPin(pin.id)}
+                onMouseLeave={() => setHoveredPin(null)}
+                style={{ cursor: 'default' }}
               >
-                {pin.priority === 'high' ? '!' : pin.priority === 'medium' ? '~' : '✓'}
-              </text>
-              {isHovered && (
-                <g style={{ pointerEvents: 'none' }}>
-                  <rect x={pin.x - labelW / 2} y={pin.y - 32} width={labelW} height={20} rx={4} fill="rgba(15,23,42,0.85)" />
-                  <text x={pin.x} y={pin.y - 20} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="white" style={{ userSelect: 'none' }}>
-                    {label}
-                  </text>
-                </g>
-              )}
-            </g>
-          );
+                <circle cx={px + 1} cy={py + 2} r={9} fill="rgba(0,0,0,0.15)" />
+                <circle cx={px} cy={py} r={9} fill={color} stroke="white" strokeWidth={2} />
+                <text
+                  x={px} y={py}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize={8} fill="white" fontWeight="bold"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {pin.priority === 'high' ? '!' : pin.priority === 'medium' ? '~' : '✓'}
+                </text>
+                {isHovered && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <rect x={px - labelW / 2} y={py - 32} width={labelW} height={20} rx={4} fill="rgba(15,23,42,0.85)" />
+                    <text x={px} y={py - 20} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="white" style={{ userSelect: 'none' }}>
+                      {label}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          } else {
+            return (
+              <g
+                key={pin.id}
+                style={{ cursor: finalCanMovePin ? 'grab' : 'default' }}
+                onMouseEnter={() => setHoveredPin(pin.id)}
+                onMouseLeave={() => setHoveredPin(null)}
+                onMouseDown={e => {
+                  if (!finalCanMovePin) return;
+                  e.stopPropagation();
+                  setDrag({ type: 'pin', pinId: pin.id });
+                }}
+              >
+                <circle cx={pin.x + 1} cy={pin.y + 2} r={9} fill="rgba(0,0,0,0.15)" />
+                <circle cx={pin.x} cy={pin.y} r={9} fill={color} stroke="white" strokeWidth={2} />
+                <text
+                  x={pin.x} y={pin.y}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fontSize={8} fill="white" fontWeight="bold"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {pin.priority === 'high' ? '!' : pin.priority === 'medium' ? '~' : '✓'}
+                </text>
+                {isHovered && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <rect x={pin.x - labelW / 2} y={pin.y - 32} width={labelW} height={20} rx={4} fill="rgba(15,23,42,0.85)" />
+                    <text x={pin.x} y={pin.y - 20} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="white" style={{ userSelect: 'none' }}>
+                      {label}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          }
         })}
 
         {/* Draw preview */}

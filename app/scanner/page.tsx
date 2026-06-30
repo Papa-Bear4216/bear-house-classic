@@ -21,6 +21,7 @@ import type { FloorplanRoom } from '@/hooks/use-floorplan';
 import type { HermesResult } from '@/hooks/use-scans';
 import type { ChorePin } from '@/hooks/use-chore-pins';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useRoomDrift } from '@/hooks/use-room-drift';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
@@ -87,6 +88,7 @@ export default function ScannerPage() {
   const { rooms, addRoom, updateRoom, deleteRoom } = useFloorplan();
   const { scans, saveScan } = useScans();
   const { pins, addPins, updatePinPosition, clearRoomPins } = useChorePins();
+  const drifts = useRoomDrift(rooms);
   const [editMode, setEditMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<FloorplanRoom | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -305,6 +307,7 @@ export default function ScannerPage() {
         completed: false,
         status: 'todo',
         properStorage: chore.properStorage,
+        roomId: selectedRoom?.id,
       });
     });
     setAssignedMissions(prev => new Set(prev).add(mission.missionId));
@@ -349,9 +352,9 @@ export default function ScannerPage() {
         </div>
       </header>
 
-      {/* Floorplan — fills remaining space, no scroll */}
-      <div className="flex-1 min-h-0 p-2">
-        <div className="h-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2">
+      {/* Floorplan & Drift Panel — side-by-side on desktop */}
+      <div className="flex-1 min-h-0 p-2 flex flex-col md:flex-row gap-2">
+        <div className="flex-1 min-h-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2">
           <Floorplan
             rooms={rooms}
             selectedRoomId={selectedRoom?.id}
@@ -364,8 +367,72 @@ export default function ScannerPage() {
             pins={pins}
             canMovePin={isAdmin && !editMode}
             onMovePin={handleMovePin}
+            drifts={drifts}
           />
         </div>
+
+        {/* Drift & Forecasting Panel */}
+        {!editMode && rooms.length > 0 && (
+          <div className="w-full md:w-80 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-y-auto p-4 flex flex-col gap-3 max-h-[30vh] md:max-h-none">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                <Brain className="w-4 h-4 text-blue-600 animate-pulse" />
+                Drift & Forecasting
+              </h2>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">
+                1.5x Streak 🔥
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {rooms.map(room => {
+                const drift = drifts[room.id] || { cleanliness: 100, driftScore: 0, status: 'clean', forecastMessage: 'All clear' };
+                const isSelected = room.id === selectedRoom?.id;
+                
+                const barColor = 
+                  drift.status === 'clean' ? 'bg-emerald-500' :
+                  drift.status === 'drifting' ? 'bg-amber-500' : 'bg-red-500';
+
+                const statusText = 
+                  drift.status === 'clean' ? 'Spic & Span' :
+                  drift.status === 'drifting' ? 'Drifting' : 'Cluttered';
+
+                const badgeStyle = 
+                  drift.status === 'clean' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  drift.status === 'drifting' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200';
+
+                return (
+                  <div 
+                    key={room.id}
+                    onClick={() => selectRoom(room)}
+                    className={cn(
+                      "p-2.5 rounded-xl border transition-all cursor-pointer hover:border-blue-300 hover:bg-slate-50",
+                      isSelected ? "border-blue-500 bg-blue-50/30" : "border-slate-100 bg-white"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="font-medium text-slate-800 text-xs truncate">{room.name}</span>
+                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded-md font-semibold border", badgeStyle)}>
+                        {statusText} ({drift.driftScore}%)
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all duration-500", barColor)} style={{ width: `${drift.driftScore}%` }} />
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Forecast:</span>
+                      <span className={cn("font-medium", drift.status === 'messy' ? 'text-red-500' : 'text-slate-500')}>
+                        {drift.forecastMessage}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {editMode && (
