@@ -2,8 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // === COMMON HELPERS ===
+
     function isAllowed() {
       return request.auth != null &&
+        'email' in request.auth.token &&
         request.auth.token.email in [
           'michael711hebert@gmail.com',
           'littlebear8991@gmail.com',
@@ -12,23 +15,122 @@ service cloud.firestore {
         ];
     }
 
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAllowed() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role in ['admin', 'superadmin'];
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     // Default deny
-    match /{document=**} { allow read, write: if false; }
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-    // Full access for all whitelisted family members
-    match /users/{userId}              { allow read, write: if isAllowed(); }
-    match /users/{userId}/{sub=**}     { allow read, write: if isAllowed(); }
-    match /tasks/{taskId}              { allow read, write: if isAllowed(); }
-    match /events/{eventId}            { allow read, write: if isAllowed(); }
-    match /mealPlans/{docId}           { allow read, write: if isAllowed(); }
-    match /games/{gameId}              { allow read, write: if isAllowed(); }
-    match /emergencies/{docId}         { allow read, write: if isAllowed(); }
-    match /households/{uid}/{sub=**}   { allow read, write: if isAllowed(); }
+    // === USER DATA (owner-only write or admin write, family read) ===
+    match /users/{userId} {
+      allow read: if isAllowed();
+      allow create: if isAllowed() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'child';
+      allow update: if isAllowed() && (
+        isAdmin() ||
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role)
+      );
+      allow delete: if false; // Prevention of accidental family deletion
+    }
 
-    // Family messages: only the sender may delete their own message
+    match /users/{userId}/{subcollection}/{document=**} {
+      allow read: if isAllowed();
+      allow write: if isAllowed() && (isAdmin() || isOwner(userId));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'color', 'role', 'points'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.color is string && data.color.size() <= 50
+        && data.role in ['superadmin', 'admin', 'child']
+        && data.points is number
+        && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 1000000))
+        && (!('meetLink' in data) || (data.meetLink is string && data.meetLink.size() <= 500))
+        && (!('isExempt' in data) || data.isExempt is bool);
+    }
+
+    // === TASKS (family-shared, but owner/assignee controls) ===
+    match /tasks/{taskId} {
+      allow read: if isAllowed();
+      allow create: if isAllowed() && isValidId(taskId) && isValidTask(request.resource.data);
+      allow update: if isAllowed() && (
+        (isAdmin() && isValidTask(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'assigneeId', 'date', 'completed', 'status', 'pointsValue'])) ||
+        (request.auth.uid == resource.data.assigneeId && isValidTask(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
+      allow delete: if isAllowed() && (isAdmin() || request.auth.uid == resource.data.assigneeId);
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['id', 'title', 'assigneeId', 'date', 'pointsValue'])
+        && data.id is string
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.assigneeId is string
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.pointsValue is number && data.pointsValue >= 0 && data.pointsValue <= 1000
+        && (!('completed' in data) || data.completed is bool)
+        && (!('status' in data) || data.status in ['todo', 'pending', 'done']);
+    }
+
+    // === EVENTS (family shared) ===
+    match /events/{eventId} {
+      allow read: if isAllowed();
+      allow create: if isAllowed() && isValidId(eventId) && isValidEvent(request.resource.data);
+      allow update: if isAllowed() && isValidEvent(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'userId', 'date', 'startTime', 'endTime']);
+      allow delete: if isAllowed();
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['id', 'title', 'userId', 'date'])
+        && data.id is string
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.userId is string
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && (!('startTime' in data) || (data.startTime is string && data.startTime.size() <= 10))
+        && (!('endTime' in data) || (data.endTime is string && data.endTime.size() <= 10));
+    }
+
+    // === MEAL PLANS ===
+    match /mealPlans/{docId} {
+      allow read, write: if isAllowed();
+    }
+
+    // === GAMES ===
+    match /games/{gameId} {
+      allow read, write: if isAllowed();
+    }
+
+    // === EMERGENCIES ===
+    match /emergencies/{docId} {
+      allow read, write: if isAllowed();
+    }
+
+    // === HOUSEHOLD DATA (per-user private + family-shared) ===
+    match /households/{uid}/{document=**} {
+      allow read: if isAllowed();
+      allow write: if isAllowed() && isOwner(uid);
+    }
+
+    // === FAMILY MESSAGES ===
     match /familyMessages/{familyCode}/messages/{messageId} {
       allow read, create: if isAllowed();
-      allow delete:       if isAllowed() && request.auth.uid == resource.data.userId;
+      allow delete: if isAllowed() && request.auth.uid == resource.data.userId;
     }
   }
 }

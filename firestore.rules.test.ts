@@ -10,6 +10,17 @@ import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 describe('Firestore Security Rules', () => {
   let testEnv: RulesTestEnvironment;
 
+  const getAuthContext = (uid: string) => {
+    const emails: Record<string, string> = {
+      'admin-id': 'michael711hebert@gmail.com',
+      'superadmin-id': 'hpfanatic009@gmail.com',
+      'child-id': 'littlebear8991@gmail.com',
+      'other-child-id': 'jchebert2010@gmail.com',
+      'new-user-id': 'hpfanatic009@gmail.com'
+    };
+    return testEnv.authenticatedContext(uid, { email: emails[uid] || 'littlebear8991@gmail.com' });
+  };
+
   beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: 'prime-mechanic-463314-m8',
@@ -69,7 +80,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('1. Create user with role: superadmin as a new user should FAIL', async () => {
-    const newContext = testEnv.authenticatedContext('new-user-id');
+    const newContext = getAuthContext('new-user-id');
     const db = newContext.firestore();
     const promise = db.collection('users').doc('new-user-id').set({
       id: 'new-user-id',
@@ -82,7 +93,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('1b. Create user with role: child as a new user should SUCCEED', async () => {
-    const newContext = testEnv.authenticatedContext('new-user-id');
+    const newContext = getAuthContext('new-user-id');
     const db = newContext.firestore();
     const promise = db.collection('users').doc('new-user-id').set({
       id: 'new-user-id',
@@ -106,7 +117,7 @@ describe('Firestore Security Rules', () => {
       });
     });
 
-    const childContext = testEnv.authenticatedContext('child-id');
+    const childContext = getAuthContext('child-id');
     const promise = childContext.firestore().collection('tasks').doc('task-1').update({
       status: 'done'
     });
@@ -125,7 +136,7 @@ describe('Firestore Security Rules', () => {
       });
     });
 
-    const childContext = testEnv.authenticatedContext('child-id');
+    const childContext = getAuthContext('child-id');
     const promise = childContext.firestore().collection('tasks').doc('task-1').update({
       status: 'done'
     });
@@ -144,7 +155,7 @@ describe('Firestore Security Rules', () => {
       });
     });
 
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const promise = adminContext.firestore().collection('tasks').doc('task-1').update({
       pointsValue: 999999
     });
@@ -152,7 +163,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('4. Update user role (to upgrade self to admin) should FAIL', async () => {
-    const childContext = testEnv.authenticatedContext('child-id');
+    const childContext = getAuthContext('child-id');
     const promise = childContext.firestore().collection('users').doc('child-id').update({
       role: 'admin'
     });
@@ -160,7 +171,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('5. Read/list events should succeed for authenticated users', async () => {
-    const childContext = testEnv.authenticatedContext('child-id');
+    const childContext = getAuthContext('child-id');
     const promise = childContext.firestore().collection('events').get();
     await assertSucceeds(promise);
   });
@@ -172,7 +183,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('6. Create event with startTime string too long (exceeds 10 chars) should FAIL', async () => {
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const promise = adminContext.firestore().collection('events').doc('event-1').set({
       id: 'event-1',
       title: 'Family Dinner',
@@ -185,7 +196,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('7. Create event with missing title field should FAIL', async () => {
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const promise = adminContext.firestore().collection('events').doc('event-1').set({
       id: 'event-1',
       userId: 'child-id',
@@ -208,7 +219,7 @@ describe('Firestore Security Rules', () => {
       });
     });
 
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const promise = adminContext.firestore().collection('tasks').doc('task-1').update({
       isPaid: true
     } as any);
@@ -216,7 +227,7 @@ describe('Firestore Security Rules', () => {
   });
 
   test('9. Create event with ID > 128 chars should FAIL', async () => {
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const longId = 'a'.repeat(129);
     const promise = adminContext.firestore().collection('events').doc(longId).set({
       id: longId,
@@ -228,13 +239,13 @@ describe('Firestore Security Rules', () => {
   });
 
   test('10. Get user profile should succeed when signed in', async () => {
-    const childContext = testEnv.authenticatedContext('child-id');
+    const childContext = getAuthContext('child-id');
     const promise = childContext.firestore().collection('users').doc('admin-id').get();
     await assertSucceeds(promise);
   });
 
   test('11. Create task with pointsValue < 0 should FAIL', async () => {
-    const adminContext = testEnv.authenticatedContext('admin-id');
+    const adminContext = getAuthContext('admin-id');
     const promise = adminContext.firestore().collection('tasks').doc('task-negative').set({
       id: 'task-negative',
       title: 'Invalid Task',

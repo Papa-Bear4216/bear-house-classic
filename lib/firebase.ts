@@ -4,12 +4,26 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Google OAuth provider with calendar scope
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+
+// Allowed emails from environment (comma-separated in Vercel)
+const allowedEmailsEnv = process.env.NEXT_PUBLIC_ALLOWED_EMAILS || '';
+export const ALLOWED_EMAILS = allowedEmailsEnv
+  ? allowedEmailsEnv.split(',').map(e => e.trim())
+  : [
+      'michael711hebert@gmail.com',
+      'littlebear8991@gmail.com',
+      'jchebert2010@gmail.com',
+      'hpfanatic009@gmail.com',
+    ];
 
 export enum OperationType {
   CREATE = 'create',
@@ -34,7 +48,7 @@ interface FirestoreErrorInfo {
       providerId?: string | null;
       email?: string | null;
     }[];
-  }
+  };
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -56,7 +70,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
+  };
   
   if (isQuotaError) {
     console.error('Firestore Quota Exceeded. The daily free tier limit has been reached. It will reset tomorrow. Details:', JSON.stringify(errInfo));
@@ -66,13 +80,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   
   throw new Error(JSON.stringify(errInfo));
 }
-
-export const ALLOWED_EMAILS = [
-  'michael711hebert@gmail.com',
-  'littlebear8991@gmail.com',
-  'jchebert2010@gmail.com',
-  'hpfanatic009@gmail.com',
-];
 
 export const signInWithGoogle = async () => {
   try {
