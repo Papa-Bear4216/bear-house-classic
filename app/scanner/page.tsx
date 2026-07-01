@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Camera, RefreshCw, Plus, Loader2, Sparkles, CheckSquare, Map,
   Clock, ShieldAlert, Zap, Info, AlertTriangle, Pencil, Check,
-  History, ChevronDown, ChevronUp, Brain, ChevronRight, X,
+  History, ChevronDown, ChevronUp, Brain, ChevronRight, X, Wifi,
 } from 'lucide-react';
 import { authFetch } from '@/lib/api-client';
 import { useTasks } from '@/hooks/use-tasks';
@@ -87,7 +87,7 @@ function pinPosition(index: number, total: number, room: FloorplanRoom): { x: nu
 export default function ScannerPage() {
   const { rooms, addRoom, updateRoom, deleteRoom } = useFloorplan();
   const { scans, saveScan } = useScans();
-  const { pins, addPins, updatePinPosition, clearRoomPins } = useChorePins();
+  const { pins, addPins, updatePinPosition, deletePin, clearRoomPins } = useChorePins();
   const drifts = useRoomDrift(rooms);
   const [editMode, setEditMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<FloorplanRoom | null>(null);
@@ -98,6 +98,7 @@ export default function ScannerPage() {
   const [frameBase64, setFrameBase64] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  const [isFetchingWyze, setIsFetchingWyze] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [hermesResult, setHermesResult] = useState<HermesResult | null>(null);
@@ -153,6 +154,25 @@ export default function ScannerPage() {
     setFrameBase64(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
     setError(null);
   }, []);
+
+  const captureFromWyze = useCallback(async (entity: string) => {
+    setIsFetchingWyze(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/api/wyze/snapshot?entity=${encodeURIComponent(entity)}`);
+      if (!res.ok) {
+        const { error: msg } = await res.json();
+        throw new Error(msg ?? `Snapshot failed (${res.status})`);
+      }
+      const { image } = await res.json();
+      setFrameBase64(image);
+      if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch Wyze snapshot');
+    } finally {
+      setIsFetchingWyze(false);
+    }
+  }, [stream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const retake = () => {
     setFrameBase64(null);
@@ -309,6 +329,12 @@ export default function ScannerPage() {
         properStorage: chore.properStorage,
         roomId: selectedRoom?.id,
       });
+      // Remove matching pin from the map
+      const match = pins.find(p =>
+        p.roomId === selectedRoom?.id &&
+        p.choreTitle.toLowerCase() === chore.choreTitle.toLowerCase()
+      );
+      if (match) deletePin(match.id);
     });
     setAssignedMissions(prev => new Set(prev).add(mission.missionId));
   };
@@ -469,6 +495,23 @@ export default function ScannerPage() {
               <X className="w-4 h-4 text-slate-500" />
             </button>
           </div>
+          {isAdmin && selectedRoom && (
+            <div className="mt-2 flex items-center gap-2">
+              <Wifi className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+              <input
+                type="text"
+                placeholder="Wyze entity (e.g. camera.kitchen_wyze)"
+                defaultValue={selectedRoom.cameraEntity ?? ''}
+                onBlur={e => {
+                  const val = e.target.value.trim();
+                  if (val !== (selectedRoom.cameraEntity ?? '')) {
+                    updateRoom(selectedRoom.id, { cameraEntity: val || undefined });
+                  }
+                }}
+                className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-700 placeholder-slate-400"
+              />
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-4 pb-8">
@@ -487,7 +530,17 @@ export default function ScannerPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="absolute bottom-6 left-0 right-0 flex justify-center z-10">
+                  <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-4 z-10">
+                    {selectedRoom?.cameraEntity && (
+                      <button
+                        onClick={() => captureFromWyze(selectedRoom.cameraEntity!)}
+                        disabled={isFetchingWyze}
+                        className="px-3 py-2 bg-cyan-500/80 hover:bg-cyan-500 backdrop-blur-md rounded-full text-white text-xs font-medium flex items-center gap-1.5 shadow-lg disabled:opacity-50 transition-colors"
+                      >
+                        {isFetchingWyze ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wifi className="w-3.5 h-3.5" />}
+                        Wyze
+                      </button>
+                    )}
                     <button
                       onClick={captureFrame}
                       className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full border-4 border-white flex items-center justify-center hover:scale-105 transition-transform shadow-xl active:scale-95"
@@ -552,9 +605,19 @@ export default function ScannerPage() {
                     <strong>{roomPins.length} pins</strong> placed on floorplan.
                     {isAdmin && ' Drag them to reposition.'}
                   </span>
-                  <button onClick={closeDrawer} className="ml-auto flex items-center gap-1 text-blue-600 font-medium text-xs hover:text-blue-800 shrink-0">
-                    View map <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="ml-auto flex items-center gap-2 shrink-0">
+                    {isAdmin && (
+                      <button
+                        onClick={() => selectedRoom && clearRoomPins(selectedRoom.id)}
+                        className="flex items-center gap-1 text-red-500 font-medium text-xs hover:text-red-700"
+                      >
+                        <X className="w-3 h-3" /> Clear
+                      </button>
+                    )}
+                    <button onClick={closeDrawer} className="flex items-center gap-1 text-blue-600 font-medium text-xs hover:text-blue-800">
+                      View map <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
 

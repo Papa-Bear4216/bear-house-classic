@@ -12,6 +12,7 @@ export interface FloorplanRoom {
   w: number;
   h: number;
   color: string;
+  cameraEntity?: string; // e.g. "camera.kitchen_wyze"
 }
 
 const LS_KEY = 'bear-house-floorplan';

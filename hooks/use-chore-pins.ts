@@ -59,6 +59,11 @@ export function useChorePins() {
     });
   };
 
+  const deletePin = async (id: string) => {
+    if (isPlaceholder || !familyId) return;
+    await deleteDoc(doc(db, 'households', familyId!, 'chorePins', id));
+  };
+
   const clearRoomPins = async (roomId: string) => {
     if (isPlaceholder || !familyId) return;
     const snap = await getDocs(
@@ -70,5 +75,5 @@ export function useChorePins() {
     await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
   };
 
-  return { pins, addPins, updatePinPosition, clearRoomPins };
+  return { pins, addPins, updatePinPosition, deletePin, clearRoomPins };
 }
