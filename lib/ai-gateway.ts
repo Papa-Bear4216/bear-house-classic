@@ -42,10 +42,10 @@ export async function gatewayChat(opts: ChatOptions): Promise<string> {
   const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key()}`,
-    },
-    body: JSON.stringify(body),
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key()}`,
+      },
+      body: JSON.stringify(body),
   });
 
   if (!res.ok) {
