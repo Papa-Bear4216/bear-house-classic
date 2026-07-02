@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Camera, RefreshCw, Plus, Loader2, Sparkles, CheckSquare, Map,
   Clock, ShieldAlert, Zap, Info, AlertTriangle, Pencil, Check,
@@ -22,6 +22,8 @@ import type { HermesResult } from '@/hooks/use-scans';
 import type { ChorePin } from '@/hooks/use-chore-pins';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useRoomDrift } from '@/hooks/use-room-drift';
+import { useWyzeCameras } from '@/hooks/use-wyze-cameras';
+import { suggestCameraForRoom } from '@/lib/camera-match';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
@@ -114,6 +116,7 @@ export default function ScannerPage() {
   const { addTask } = useTasks();
   const { users } = useFamilyMembers();
   const { currentUser } = useCurrentUser();
+  const { cameras, loading: camerasLoading, error: camerasError } = useWyzeCameras();
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const childrenFilter = users.filter((u: { role: string; isExempt?: boolean }) => u.role === 'child' && !u.isExempt);
@@ -140,6 +143,19 @@ export default function ScannerPage() {
     if (selectedRoom && drawerOpen) startCamera();
     return () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
   }, [selectedRoom, drawerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the selected room in sync with live floorplan data (e.g. after
+  // picking a camera from the dropdown) instead of the stale click-time snapshot.
+  useEffect(() => {
+    if (!selectedRoom) return;
+    const fresh = rooms.find(r => r.id === selectedRoom.id);
+    if (fresh && fresh.cameraEntity !== selectedRoom.cameraEntity) setSelectedRoom(fresh);
+  }, [rooms]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const suggestedCamera = useMemo(() => {
+    if (!selectedRoom || selectedRoom.cameraEntity || cameras.length === 0) return null;
+    return suggestCameraForRoom(selectedRoom.name, cameras);
+  }, [selectedRoom, cameras]);
 
   const captureFrame = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -498,18 +514,46 @@ export default function ScannerPage() {
           {isAdmin && selectedRoom && (
             <div className="mt-2 flex items-center gap-2">
               <Wifi className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-              <input
-                type="text"
-                placeholder="Wyze entity (e.g. camera.kitchen_wyze)"
-                defaultValue={selectedRoom.cameraEntity ?? ''}
-                onBlur={e => {
-                  const val = e.target.value.trim();
-                  if (val !== (selectedRoom.cameraEntity ?? '')) {
-                    updateRoom(selectedRoom.id, { cameraEntity: val || undefined });
-                  }
-                }}
-                className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-700 placeholder-slate-400"
-              />
+              {camerasLoading ? (
+                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Loading cameras…
+                </span>
+              ) : camerasError ? (
+                <input
+                  type="text"
+                  placeholder="Wyze entity (e.g. camera.kitchen_wyze)"
+                  defaultValue={selectedRoom.cameraEntity ?? ''}
+                  onBlur={e => {
+                    const val = e.target.value.trim();
+                    if (val !== (selectedRoom.cameraEntity ?? '')) {
+                      updateRoom(selectedRoom.id, { cameraEntity: val || undefined });
+                    }
+                  }}
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-700 placeholder-slate-400"
+                />
+              ) : (
+                <>
+                  <select
+                    value={selectedRoom.cameraEntity ?? ''}
+                    onChange={e => updateRoom(selectedRoom.id, { cameraEntity: e.target.value || undefined })}
+                    className="flex-1 text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 text-slate-700 bg-white"
+                  >
+                    <option value="">No camera linked</option>
+                    {cameras.map(cam => (
+                      <option key={cam.entityId} value={cam.entityId}>{cam.name}</option>
+                    ))}
+                  </select>
+                  {suggestedCamera && (
+                    <button
+                      type="button"
+                      onClick={() => updateRoom(selectedRoom.id, { cameraEntity: suggestedCamera.entityId })}
+                      className="shrink-0 text-xs px-2 py-1.5 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-100 font-medium whitespace-nowrap"
+                    >
+                      Use {suggestedCamera.name}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
