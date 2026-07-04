@@ -23,6 +23,13 @@ const CAMERA_MAP = {
   "Abriana's Room": 'camera.wyze_cam_manas_room_snapshot',
 };
 
+const HALL_POLYGON = [
+  { x: 682, y: 272 }, { x: 731, y: 272 }, { x: 731, y: 433 },
+  { x: 691, y: 433 }, { x: 691, y: 567 }, { x: 651, y: 567 },
+  { x: 651, y: 433 }, { x: 603, y: 433 }, { x: 603, y: 331 },
+  { x: 682, y: 331 },
+];
+
 const SEED_ROOMS = [
   { name: 'Kitchen',         x: 20,  y: 20,  w: 315, h: 118, color: '#dbeafe' },
   { name: 'Laundry',         x: 20,  y: 138, w: 186, h: 112, color: '#e0f2fe' },
@@ -31,15 +38,17 @@ const SEED_ROOMS = [
   { name: 'Dining Area',     x: 102, y: 306, w: 233, h: 254, color: '#dcfce7' },
   { name: 'Living Room',     x: 355, y: 20,  w: 248, h: 378, color: '#ede9fe' },
   { name: 'Foyer',           x: 355, y: 398, w: 88,  h: 162, color: '#fce7f3' },
-  { name: 'Hall Bath',       x: 603, y: 20,  w: 88,  h: 73,  color: '#e0f2fe' },
-  { name: 'Master Walk-In Closet', x: 603, y: 93,  w: 88,  h: 58,  color: '#f1f5f9' },
-  { name: 'Primary Bath',    x: 603, y: 151, w: 88,  h: 147, color: '#e0f2fe' },
-  { name: 'Hall',            x: 691, y: 235, w: 148, h: 163, color: '#f8fafc' },
-  { name: 'Master Bedroom',  x: 691, y: 20,  w: 289, h: 215, color: '#ffedd5' },
-  { name: "Abriana's Room",  x: 839, y: 235, w: 141, h: 163, color: '#ffedd5' },
-  { name: "Julia's Room",    x: 443, y: 398, w: 200, h: 162, color: '#ffedd5' },
-  { name: 'Guest Room',      x: 691, y: 398, w: 189, h: 162, color: '#ffedd5' },
-  { name: 'Bedroom 5',       x: 839, y: 398, w: 141, h: 162, color: '#ffedd5' },
+  { name: 'Foyer Closet',    x: 443, y: 398, w: 40,  h: 90,  color: '#f1f5f9' },
+  { name: 'Hall Bath',       x: 603, y: 20,  w: 79,  h: 81,  color: '#e0f2fe' },
+  { name: 'Master Walk-In Closet', x: 603, y: 101, w: 79, h: 66, color: '#f1f5f9' },
+  { name: 'Primary Bath',    x: 603, y: 167, w: 79,  h: 164, color: '#e0f2fe' },
+  { name: 'Master Bedroom',  x: 682, y: 20,  w: 252, h: 252, color: '#ffedd5' },
+  { name: 'Hall',            x: 603, y: 272, w: 128, h: 295, color: '#f8fafc', points: HALL_POLYGON },
+  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 161, color: '#ffedd5' },
+  { name: "Julia's Room",    x: 483, y: 433, w: 168, h: 134, color: '#ffedd5' },
+  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 67,  color: '#f1f5f9' },
+  { name: 'Hall Closet 2',   x: 691, y: 500, w: 40,  h: 67,  color: '#f1f5f9' },
+  { name: 'Guest Room',      x: 731, y: 433, w: 203, h: 134, color: '#ffedd5' },
 ];
 
 async function patchHousehold(householdId) {

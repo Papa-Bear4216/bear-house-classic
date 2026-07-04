@@ -29,13 +29,16 @@ const DECAY_RATES: Record<string, number> = {
   "Abriana's Room": 7,
   "Julia's Room": 7,
   'Guest Room': 7,
-  'Bedroom 5': 7,
   Laundry: 5,
   Bar: 5,
   Storage: 5,
   Foyer: 5,
   Hall: 5,
   'Dining Area': 5,
+  'Master Walk-In Closet': 3,
+  'Foyer Closet': 3,
+  'Hall Closet 1': 3,
+  'Hall Closet 2': 3,
 };
 
 function getRoomDecayRate(name: string): number {
