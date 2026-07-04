@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize2, Layers } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize2, Layers, Lock } from 'lucide-react';
 import type { FloorplanRoom } from '@/hooks/use-floorplan';
 import type { ChorePin } from '@/hooks/use-chore-pins';
 
@@ -24,7 +24,7 @@ type Corner = 'tl' | 'tr' | 'bl' | 'br';
 type Drag =
   | { type: 'idle' }
   | { type: 'draw'; x0: number; y0: number; x1: number; y1: number }
-  | { type: 'move'; id: string; startX: number; startY: number; origX: number; origY: number }
+  | { type: 'move'; id: string; startX: number; startY: number; origX: number; origY: number; origPoints?: { x: number; y: number }[] }
   | { type: 'resize'; id: string; corner: Corner; startX: number; startY: number; orig: FloorplanRoom }
   | { type: 'pan'; startSX: number; startSY: number; origPan: { x: number; y: number } }
   | { type: 'pin'; pinId: string };
@@ -42,14 +42,45 @@ interface Props {
   canMovePin?: boolean;
   onMovePin?: (id: string, x: number, y: number) => void;
   drifts?: Record<string, any>;
+  // "Mind palace" gate: whether the current viewer (an admin/superadmin
+  // "parent") can open rooms marked `restrictedToAdults`. Gated rooms still
+  // render (visible-but-blocked) for everyone else, dimmed with a lock badge.
+  restrictedUnlocked?: boolean;
 }
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+function pointInPolygon(px: number, py: number, points: { x: number; y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].x, yi = points[i].y;
+    const xj = points[j].x, yj = points[j].y;
+    const intersects = (yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function roomContainsPoint(room: FloorplanRoom, px: number, py: number): boolean {
+  if (room.points && room.points.length >= 3) return pointInPolygon(px, py, room.points);
+  return px >= room.x && px <= room.x + room.w && py >= room.y && py <= room.y + room.h;
+}
+
+function roomLabelAnchor(room: FloorplanRoom): { x: number; y: number } {
+  if (room.points && room.points.length >= 3) {
+    const n = room.points.length;
+    const cx = room.points.reduce((s, p) => s + p.x, 0) / n;
+    const cy = room.points.reduce((s, p) => s + p.y, 0) / n;
+    return { x: cx, y: cy };
+  }
+  return { x: room.x + room.w / 2, y: room.y + room.h / 2 };
+}
 
 export function Floorplan({
   rooms, selectedRoomId, choreCounts = {}, editMode,
   onSelectRoom, onAddRoom, onUpdateRoom, onDeleteRoom,
   pins = [], canMovePin = false, onMovePin, drifts = {},
+  restrictedUnlocked = false,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<Drag>({ type: 'idle' });
@@ -134,11 +165,9 @@ export function Floorplan({
     }
 
     if (editMode) {
-      const hit = [...localRooms].reverse().find(r =>
-        pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h
-      );
+      const hit = [...localRooms].reverse().find(r => roomContainsPoint(r, pt.x, pt.y));
       if (hit) {
-        setDrag({ type: 'move', id: hit.id, startX: pt.x, startY: pt.y, origX: hit.x, origY: hit.y });
+        setDrag({ type: 'move', id: hit.id, startX: pt.x, startY: pt.y, origX: hit.x, origY: hit.y, origPoints: hit.points });
       } else {
         setDrag({ type: 'draw', x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y });
       }
@@ -159,7 +188,13 @@ export function Floorplan({
       const dy = pt.y - drag.startY;
       setLocalRooms(prev => prev.map(r => {
         if (r.id !== drag.id) return r;
-        return { ...r, x: clamp(drag.origX + dx, 0, VB_W - r.w), y: clamp(drag.origY + dy, 0, VB_H - r.h) };
+        const newX = clamp(drag.origX + dx, 0, VB_W - r.w);
+        const newY = clamp(drag.origY + dy, 0, VB_H - r.h);
+        const points = drag.origPoints?.map(p => ({
+          x: p.x + (newX - drag.origX),
+          y: p.y + (newY - drag.origY),
+        }));
+        return { ...r, x: newX, y: newY, ...(points ? { points } : {}) };
       }));
     } else if (drag.type === 'resize') {
       const { orig, corner } = drag;
@@ -205,7 +240,7 @@ export function Floorplan({
       if (w >= MIN_SIZE && h >= MIN_SIZE) { setNaming({ x, y, w, h }); setNameInput(''); }
     } else if (drag.type === 'move') {
       const room = localRooms.find(r => r.id === drag.id);
-      if (room) onUpdateRoom(drag.id, { x: room.x, y: room.y });
+      if (room) onUpdateRoom(drag.id, { x: room.x, y: room.y, ...(room.points ? { points: room.points } : {}) });
     } else if (drag.type === 'resize') {
       const room = localRooms.find(r => r.id === drag.id);
       if (room) onUpdateRoom(drag.id, { x: room.x, y: room.y, w: room.w, h: room.h });
@@ -340,59 +375,56 @@ export function Floorplan({
           const isSelected = room.id === selectedRoomId;
           const count = choreCounts[room.id] ?? 0;
           const drift = drifts[room.id] || { cleanliness: 100, driftScore: 0, status: 'clean', forecastMessage: 'All clear' };
+          const isLocked = !!room.restrictedToAdults && !restrictedUnlocked;
 
           if (currentViewMode === '3d') {
-            const p0 = toIso(room.x, room.y);
-            const p1 = toIso(room.x + room.w, room.y);
-            const p2 = toIso(room.x + room.w, room.y + room.h);
-            const p3 = toIso(room.x, room.y + room.h);
+            // Non-rectangular rooms (e.g. an L-shaped hall) render from their
+            // polygon outline; everything else synthesizes a 4-corner box.
+            const vbPoints = room.points && room.points.length >= 3
+              ? room.points
+              : [
+                  { x: room.x, y: room.y },
+                  { x: room.x + room.w, y: room.y },
+                  { x: room.x + room.w, y: room.y + room.h },
+                  { x: room.x, y: room.y + room.h },
+                ];
+            const iso = vbPoints.map(p => toIso(p.x, p.y));
             const wallH = 26;
+            const topRight = toIso(room.x + room.w, room.y);
 
-            const textX = (p0.x + p2.x) / 2;
-            const textY = (p0.y + p2.y) / 2;
+            const anchor = roomLabelAnchor(room);
+            const { x: textX, y: textY } = toIso(anchor.x, anchor.y);
             const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.5)), 14, Math.floor(room.h / 5));
 
-            // Shading overlays
-            const leftWallColor = '#000000';
-            const rightWallColor = '#000000';
+            const floorPoints = iso.map(p => `${p.x},${p.y}`).join(' ');
 
             return (
               <g
                 key={room.id}
                 onClick={(e) => { e.stopPropagation(); if (drag.type === 'idle') onSelectRoom(room); }}
                 style={{ cursor: 'pointer' }}
+                opacity={isLocked ? 0.55 : 1}
               >
-                {/* 3D Right Wall Face */}
-                <polygon
-                  points={`${p2.x},${p2.y} ${p1.x},${p1.y} ${p1.x},${p1.y + wallH} ${p2.x},${p2.y + wallH}`}
-                  fill={room.color}
-                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
-                  strokeWidth={0.5}
-                />
-                <polygon
-                  points={`${p2.x},${p2.y} ${p1.x},${p1.y} ${p1.x},${p1.y + wallH} ${p2.x},${p2.y + wallH}`}
-                  fill={rightWallColor}
-                  fillOpacity={0.24}
-                  style={{ pointerEvents: 'none' }}
-                />
-
-                {/* 3D Left Wall Face */}
-                <polygon
-                  points={`${p3.x},${p3.y} ${p2.x},${p2.y} ${p2.x},${p2.y + wallH} ${p3.x},${p3.y + wallH}`}
-                  fill={room.color}
-                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
-                  strokeWidth={0.5}
-                />
-                <polygon
-                  points={`${p3.x},${p3.y} ${p2.x},${p2.y} ${p2.x},${p2.y + wallH} ${p3.x},${p3.y + wallH}`}
-                  fill={leftWallColor}
-                  fillOpacity={0.12}
-                  style={{ pointerEvents: 'none' }}
-                />
+                {/* Extruded wall face per polygon edge */}
+                {iso.map((p, i) => {
+                  const next = iso[(i + 1) % iso.length];
+                  const wallPoints = `${p.x},${p.y} ${next.x},${next.y} ${next.x},${next.y + wallH} ${p.x},${p.y + wallH}`;
+                  return (
+                    <g key={i}>
+                      <polygon
+                        points={wallPoints}
+                        fill={room.color}
+                        stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                        strokeWidth={0.5}
+                      />
+                      <polygon points={wallPoints} fill="#000000" fillOpacity={0.18} style={{ pointerEvents: 'none' }} />
+                    </g>
+                  );
+                })}
 
                 {/* 3D Top Floor Face */}
                 <polygon
-                  points={`${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`}
+                  points={floorPoints}
                   fill={room.color}
                   fillOpacity={0.88}
                   stroke={isSelected ? '#2563eb' : '#94a3b8'}
@@ -410,16 +442,25 @@ export function Floorplan({
                   {room.name}
                 </text>
 
+                {/* Mind-palace lock badge for adults-only rooms */}
+                {isLocked && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={textX} cy={textY - 18} r={9} fill="#1e293b" fillOpacity={0.85} />
+                    <rect x={textX - 3} y={textY - 19} width={6} height={5} rx={1} fill="white" />
+                    <path d={`M ${textX - 2} ${textY - 19} v-2 a2 2 0 0 1 4 0 v2`} stroke="white" strokeWidth={1.2} fill="none" />
+                  </g>
+                )}
+
                 {/* Animated Dust Cloud if room is cluttered */}
                 {drift.status === 'messy' && (
                   <g className="float-cloud" style={{ pointerEvents: 'none' }}>
                     <path
-                      d={`M ${textX - 12} ${textY - 20} 
-                          a 8 8 0 0 1 12 -6 
-                          a 10 10 0 0 1 14 2 
-                          a 8 8 0 0 1 2 12 
-                          a 6 6 0 0 1 -8 6 
-                          l -16 0 
+                      d={`M ${textX - 12} ${textY - 20}
+                          a 8 8 0 0 1 12 -6
+                          a 10 10 0 0 1 14 2
+                          a 8 8 0 0 1 2 12
+                          a 6 6 0 0 1 -8 6
+                          l -16 0
                           a 6 6 0 0 1 -4 -14 z`}
                       fill="#94a3b8"
                       fillOpacity={0.6}
@@ -432,9 +473,9 @@ export function Floorplan({
                 {/* Chore notifications badge */}
                 {count > 0 && (
                   <g style={{ pointerEvents: 'none' }}>
-                    <circle cx={p1.x - 14} cy={p1.y + 14} r={10} fill="#ef4444" />
+                    <circle cx={topRight.x - 14} cy={topRight.y + 14} r={10} fill="#ef4444" />
                     <text
-                      x={p1.x - 14} y={p1.y + 14}
+                      x={topRight.x - 14} y={topRight.y + 14}
                       textAnchor="middle" dominantBaseline="middle"
                       fontSize={8} fill="white" fontWeight="bold"
                       style={{ userSelect: 'none' }}
@@ -447,21 +488,32 @@ export function Floorplan({
             );
           } else {
             const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.65)), 20, Math.floor(room.h / 4));
+            const labelAnchor = roomLabelAnchor(room);
             return (
               <g
                 key={room.id}
                 onClick={(e) => { e.stopPropagation(); if (!editMode || drag.type === 'idle') onSelectRoom(room); }}
                 style={{ cursor: editMode ? 'move' : 'pointer' }}
+                opacity={isLocked ? 0.55 : 1}
               >
-                <rect
-                  x={room.x} y={room.y} width={room.w} height={room.h}
-                  fill={room.color}
-                  stroke={isSelected ? '#2563eb' : '#94a3b8'}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
-                  rx={6}
-                />
+                {room.points && room.points.length >= 3 ? (
+                  <polygon
+                    points={room.points.map(p => `${p.x},${p.y}`).join(' ')}
+                    fill={room.color}
+                    stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                    strokeWidth={isSelected ? 2.5 : 1.5}
+                  />
+                ) : (
+                  <rect
+                    x={room.x} y={room.y} width={room.w} height={room.h}
+                    fill={room.color}
+                    stroke={isSelected ? '#2563eb' : '#94a3b8'}
+                    strokeWidth={isSelected ? 2.5 : 1.5}
+                    rx={6}
+                  />
+                )}
                 <text
-                  x={room.x + room.w / 2} y={room.y + room.h / 2}
+                  x={labelAnchor.x} y={labelAnchor.y}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize={Math.max(fontSize, 10)}
                   fill="#1e293b" fontWeight="600"
@@ -469,6 +521,13 @@ export function Floorplan({
                 >
                   {room.name}
                 </text>
+                {isLocked && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={labelAnchor.x} cy={labelAnchor.y - 16} r={9} fill="#1e293b" fillOpacity={0.85} />
+                    <rect x={labelAnchor.x - 3} y={labelAnchor.y - 17} width={6} height={5} rx={1} fill="white" />
+                    <path d={`M ${labelAnchor.x - 2} ${labelAnchor.y - 17} v-2 a2 2 0 0 1 4 0 v2`} stroke="white" strokeWidth={1.2} fill="none" />
+                  </g>
+                )}
                 {count > 0 && (
                   <g style={{ pointerEvents: 'none' }}>
                     <circle cx={room.x + room.w - 14} cy={room.y + 14} r={12} fill="#ef4444" />
@@ -482,7 +541,7 @@ export function Floorplan({
                     </text>
                   </g>
                 )}
-                {editMode && isSelected && (
+                {editMode && isSelected && !room.points && (
                   <>
                     {(['tl', 'tr', 'bl', 'br'] as Corner[]).map(corner => {
                       const cx = corner.endsWith('l') ? room.x : room.x + room.w;

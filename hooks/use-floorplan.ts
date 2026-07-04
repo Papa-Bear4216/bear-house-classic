@@ -13,13 +13,28 @@ export interface FloorplanRoom {
   h: number;
   color: string;
   cameraEntity?: string; // e.g. "camera.kitchen_wyze"
+  // Optional polygon outline (absolute coordinates) for non-rectangular rooms,
+  // e.g. an L-shaped hallway. x/y/w/h still hold the bounding box, used for
+  // hit-test fallback, pin clamping, and drift/decay lookups. When present,
+  // `points` is what actually gets rendered.
+  points?: { x: number; y: number }[];
+  // "Mind palace" access gate: rooms marked true are visible-but-blocked to
+  // `child`-role viewers (they can see the room, not open it). admin/superadmin
+  // ("parents") always have unrestricted access to every room.
+  restrictedToAdults?: boolean;
+  // Optional app route this room deep-links to when opened by someone who can
+  // access it (e.g. the Master Walk-In Closet opens Budget & Banking) — a
+  // "secondary gate" nested behind the room's own restriction.
+  linkedFeature?: string;
 }
 
 const LS_KEY = 'bear-house-floorplan';
 const LS_SEEDED = 'bear-house-floorplan-seeded';
 const COLORS = ['#dbeafe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#e0f2fe', '#d1fae5'];
 
-// Pre-populated rooms matching the family's actual house layout (1000×580 viewBox)
+// Pre-populated rooms matching the family's actual house layout (1000×580 viewBox).
+// Right-side pod (bath column, bedrooms, hall, closets) is scaled 1:1.3 units/inch
+// from the family's CubiCasa floorplan scan; the rest of the house is unchanged.
 const SEED_ROOMS: Omit<FloorplanRoom, 'id'>[] = [
   { name: 'Kitchen',          x: 20,  y: 20,  w: 315, h: 118, color: '#dbeafe', cameraEntity: 'camera.wyze_cam_kitchen_cam_snapshot' },
   { name: 'Laundry',          x: 20,  y: 138, w: 186, h: 112, color: '#e0f2fe', cameraEntity: 'camera.wyze_cam_laundry_room_snapshot' },
@@ -28,15 +43,37 @@ const SEED_ROOMS: Omit<FloorplanRoom, 'id'>[] = [
   { name: 'Dining Area',      x: 102, y: 306, w: 233, h: 254, color: '#dcfce7' },
   { name: 'Living Room',      x: 355, y: 20,  w: 248, h: 378, color: '#ede9fe', cameraEntity: 'camera.wyze_cam_bar_cam_snapshot' },
   { name: 'Foyer',            x: 355, y: 398, w: 88,  h: 162, color: '#fce7f3', cameraEntity: 'camera.wyze_cam_front_door_cam_snapshot' },
-  { name: 'Primary Bath',     x: 603, y: 20,  w: 88,  h: 73,  color: '#e0f2fe' },
-  { name: 'W.I.C.',           x: 603, y: 93,  w: 88,  h: 58,  color: '#f1f5f9' },
-  { name: 'Hall Bath',        x: 603, y: 151, w: 88,  h: 147, color: '#e0f2fe' },
-  { name: 'Hall',             x: 691, y: 235, w: 148, h: 163, color: '#f8fafc', cameraEntity: 'camera.wyze_cam_traffic_cam_snapshot' },
-  { name: 'Primary Bedroom',  x: 691, y: 20,  w: 289, h: 215, color: '#ffedd5' },
-  { name: 'Bedroom 2',        x: 839, y: 235, w: 141, h: 163, color: '#ffedd5', cameraEntity: 'camera.wyze_cam_manas_room_snapshot' },
-  { name: 'Bedroom 3',        x: 443, y: 398, w: 200, h: 162, color: '#ffedd5' },
-  { name: 'Bedroom 4',        x: 691, y: 398, w: 189, h: 162, color: '#ffedd5' },
-  { name: 'Bedroom 5',        x: 839, y: 398, w: 141, h: 162, color: '#ffedd5' },
+  { name: 'Foyer Closet',     x: 443, y: 398, w: 40,  h: 90,  color: '#f1f5f9' },
+
+  // Bath column (Hall Bath / Master W.I.C. / Primary Bath), stacked
+  { name: 'Hall Bath',        x: 603, y: 20,  w: 79,  h: 81,  color: '#e0f2fe' },
+  {
+    name: 'Master Walk-In Closet', x: 603, y: 101, w: 79, h: 66, color: '#f1f5f9',
+    restrictedToAdults: true, linkedFeature: '/budget',
+  },
+  { name: 'Primary Bath',     x: 603, y: 167, w: 79,  h: 164, color: '#e0f2fe' },
+
+  { name: 'Master Bedroom',   x: 682, y: 20,  w: 252, h: 252, color: '#ffedd5', restrictedToAdults: true },
+
+  // L-shaped hallway connecting the bath column, Master Bedroom, Abriana's
+  // Room, the hall closets, and Julia's/Guest room — see docs/floorplan-vision.md
+  // and the family's floorplan scan for the real (non-rectangular) shape.
+  {
+    name: 'Hall', x: 603, y: 272, w: 128, h: 295, color: '#f8fafc',
+    cameraEntity: 'camera.wyze_cam_traffic_cam_snapshot',
+    points: [
+      { x: 682, y: 272 }, { x: 731, y: 272 }, { x: 731, y: 433 },
+      { x: 691, y: 433 }, { x: 691, y: 567 }, { x: 651, y: 567 },
+      { x: 651, y: 433 }, { x: 603, y: 433 }, { x: 603, y: 331 },
+      { x: 682, y: 331 },
+    ],
+  },
+
+  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 161, color: '#ffedd5', cameraEntity: 'camera.wyze_cam_manas_room_snapshot' },
+  { name: "Julia's Room",    x: 483, y: 433, w: 168, h: 134, color: '#ffedd5' },
+  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 67,  color: '#f1f5f9' },
+  { name: 'Hall Closet 2',   x: 691, y: 500, w: 40,  h: 67,  color: '#f1f5f9' },
+  { name: 'Guest Room',      x: 731, y: 433, w: 203, h: 134, color: '#ffedd5' },
 ];
 
 export function useFloorplan() {
