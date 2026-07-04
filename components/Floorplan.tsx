@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize2, Layers } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize2, Layers, Lock } from 'lucide-react';
 import type { FloorplanRoom } from '@/hooks/use-floorplan';
 import type { ChorePin } from '@/hooks/use-chore-pins';
 
@@ -42,6 +42,10 @@ interface Props {
   canMovePin?: boolean;
   onMovePin?: (id: string, x: number, y: number) => void;
   drifts?: Record<string, any>;
+  // "Mind palace" gate: whether the current viewer (an admin/superadmin
+  // "parent") can open rooms marked `restrictedToAdults`. Gated rooms still
+  // render (visible-but-blocked) for everyone else, dimmed with a lock badge.
+  restrictedUnlocked?: boolean;
 }
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
@@ -76,6 +80,7 @@ export function Floorplan({
   rooms, selectedRoomId, choreCounts = {}, editMode,
   onSelectRoom, onAddRoom, onUpdateRoom, onDeleteRoom,
   pins = [], canMovePin = false, onMovePin, drifts = {},
+  restrictedUnlocked = false,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<Drag>({ type: 'idle' });
@@ -370,6 +375,7 @@ export function Floorplan({
           const isSelected = room.id === selectedRoomId;
           const count = choreCounts[room.id] ?? 0;
           const drift = drifts[room.id] || { cleanliness: 100, driftScore: 0, status: 'clean', forecastMessage: 'All clear' };
+          const isLocked = !!room.restrictedToAdults && !restrictedUnlocked;
 
           if (currentViewMode === '3d') {
             // Non-rectangular rooms (e.g. an L-shaped hall) render from their
@@ -397,6 +403,7 @@ export function Floorplan({
                 key={room.id}
                 onClick={(e) => { e.stopPropagation(); if (drag.type === 'idle') onSelectRoom(room); }}
                 style={{ cursor: 'pointer' }}
+                opacity={isLocked ? 0.55 : 1}
               >
                 {/* Extruded wall face per polygon edge */}
                 {iso.map((p, i) => {
@@ -435,6 +442,15 @@ export function Floorplan({
                   {room.name}
                 </text>
 
+                {/* Mind-palace lock badge for adults-only rooms */}
+                {isLocked && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={textX} cy={textY - 18} r={9} fill="#1e293b" fillOpacity={0.85} />
+                    <rect x={textX - 3} y={textY - 19} width={6} height={5} rx={1} fill="white" />
+                    <path d={`M ${textX - 2} ${textY - 19} v-2 a2 2 0 0 1 4 0 v2`} stroke="white" strokeWidth={1.2} fill="none" />
+                  </g>
+                )}
+
                 {/* Animated Dust Cloud if room is cluttered */}
                 {drift.status === 'messy' && (
                   <g className="float-cloud" style={{ pointerEvents: 'none' }}>
@@ -472,11 +488,13 @@ export function Floorplan({
             );
           } else {
             const fontSize = Math.min(Math.floor(room.w / (room.name.length * 0.65)), 20, Math.floor(room.h / 4));
+            const labelAnchor = roomLabelAnchor(room);
             return (
               <g
                 key={room.id}
                 onClick={(e) => { e.stopPropagation(); if (!editMode || drag.type === 'idle') onSelectRoom(room); }}
                 style={{ cursor: editMode ? 'move' : 'pointer' }}
+                opacity={isLocked ? 0.55 : 1}
               >
                 {room.points && room.points.length >= 3 ? (
                   <polygon
@@ -495,7 +513,7 @@ export function Floorplan({
                   />
                 )}
                 <text
-                  x={roomLabelAnchor(room).x} y={roomLabelAnchor(room).y}
+                  x={labelAnchor.x} y={labelAnchor.y}
                   textAnchor="middle" dominantBaseline="middle"
                   fontSize={Math.max(fontSize, 10)}
                   fill="#1e293b" fontWeight="600"
@@ -503,6 +521,13 @@ export function Floorplan({
                 >
                   {room.name}
                 </text>
+                {isLocked && (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <circle cx={labelAnchor.x} cy={labelAnchor.y - 16} r={9} fill="#1e293b" fillOpacity={0.85} />
+                    <rect x={labelAnchor.x - 3} y={labelAnchor.y - 17} width={6} height={5} rx={1} fill="white" />
+                    <path d={`M ${labelAnchor.x - 2} ${labelAnchor.y - 17} v-2 a2 2 0 0 1 4 0 v2`} stroke="white" strokeWidth={1.2} fill="none" />
+                  </g>
+                )}
                 {count > 0 && (
                   <g style={{ pointerEvents: 'none' }}>
                     <circle cx={room.x + room.w - 14} cy={room.y + 14} r={12} fill="#ef4444" />

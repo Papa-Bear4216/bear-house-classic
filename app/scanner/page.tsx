@@ -5,13 +5,16 @@ import {
   Camera, RefreshCw, Plus, Loader2, Sparkles, CheckSquare, Map,
   Clock, ShieldAlert, Zap, Info, AlertTriangle, Pencil, Check,
   History, ChevronDown, ChevronUp, Brain, ChevronRight, X, Wifi,
+  Lock, Wallet, BrainCircuit,
 } from 'lucide-react';
+import Link from 'next/link';
 import { authFetch } from '@/lib/api-client';
 import { useTasks } from '@/hooks/use-tasks';
 import { useFamilyMembers } from '@/hooks/use-family';
 import { useFloorplan } from '@/hooks/use-floorplan';
 import { useScans } from '@/hooks/use-scans';
 import { useChorePins } from '@/hooks/use-chore-pins';
+import { useRoomMemories } from '@/hooks/use-room-memories';
 import { askHermes } from '@/lib/hermes';
 import { Floorplan } from '@/components/Floorplan';
 import { format } from 'date-fns';
@@ -90,11 +93,15 @@ export default function ScannerPage() {
   const { rooms, addRoom, updateRoom, deleteRoom } = useFloorplan();
   const { scans, saveScan } = useScans();
   const { pins, addPins, updatePinPosition, deletePin, clearRoomPins } = useChorePins();
+  const { memories, setMemory } = useRoomMemories();
   const drifts = useRoomDrift(rooms);
   const [editMode, setEditMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<FloorplanRoom | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [lockedRoomMessage, setLockedRoomMessage] = useState<string | null>(null);
+  const [memoryDraft, setMemoryDraft] = useState('');
+  const [memorySaved, setMemorySaved] = useState(false);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [frameBase64, setFrameBase64] = useState<string | null>(null);
@@ -202,10 +209,25 @@ export default function ScannerPage() {
 
   const selectRoom = (room: FloorplanRoom) => {
     if (editMode) return;
+    if (room.restrictedToAdults && !isAdmin) {
+      setLockedRoomMessage(`${room.name} is a parents-only room — ask a parent to open it for you.`);
+      setTimeout(() => setLockedRoomMessage(null), 3500);
+      return;
+    }
+    setLockedRoomMessage(null);
     setSelectedRoom(room);
+    setMemoryDraft(memories[room.id]?.note ?? '');
+    setMemorySaved(false);
     retake();
     setShowHistory(false);
     setDrawerOpen(true);
+  };
+
+  const saveMemory = async () => {
+    if (!selectedRoom) return;
+    await setMemory(selectedRoom.id, memoryDraft, currentUser?.name);
+    setMemorySaved(true);
+    setTimeout(() => setMemorySaved(false), 2000);
   };
 
   const closeDrawer = () => {
@@ -396,7 +418,7 @@ export default function ScannerPage() {
 
       {/* Floorplan & Drift Panel — side-by-side on desktop */}
       <div className="flex-1 min-h-0 p-2 flex flex-col md:flex-row gap-2">
-        <div className="flex-1 min-h-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2">
+        <div className="relative flex-1 min-h-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2">
           <Floorplan
             rooms={rooms}
             selectedRoomId={selectedRoom?.id}
@@ -410,7 +432,13 @@ export default function ScannerPage() {
             canMovePin={isAdmin && !editMode}
             onMovePin={handleMovePin}
             drifts={drifts}
+            restrictedUnlocked={isAdmin}
           />
+          {lockedRoomMessage && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-3 py-2 rounded-full flex items-center gap-1.5 shadow-lg z-20 animate-in fade-in slide-in-from-bottom-2">
+              <Lock className="w-3.5 h-3.5 text-amber-400" /> {lockedRoomMessage}
+            </div>
+          )}
         </div>
 
         {/* Drift & Forecasting Panel */}
@@ -559,6 +587,45 @@ export default function ScannerPage() {
         </div>
 
         <div className="p-4 space-y-4 pb-8">
+          {/* Linked feature deep-link (e.g. Master Walk-In Closet -> Budget & Banking) */}
+          {selectedRoom?.linkedFeature && isAdmin && (
+            <Link
+              href={selectedRoom.linkedFeature}
+              className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 text-emerald-800 text-sm font-medium hover:bg-emerald-100 transition-colors"
+            >
+              <Wallet className="w-4 h-4 shrink-0" />
+              Open Budget & Banking
+              <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+            </Link>
+          )}
+
+          {/* Memory notes — personal notes tied to this room ("mind palace") */}
+          {selectedRoom && selectedRoom.color === '#ffedd5' && (
+            <section className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+              <h2 className="text-sm font-semibold text-purple-900 flex items-center gap-2 mb-2">
+                <BrainCircuit className="w-4 h-4 text-purple-500" /> Memory Notes
+              </h2>
+              <textarea
+                value={memoryDraft}
+                onChange={e => setMemoryDraft(e.target.value)}
+                placeholder="Personal notes, preferences, reminders for whoever's room this is…"
+                rows={3}
+                className="w-full text-sm px-3 py-2 border border-purple-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+              />
+              <div className="mt-2 flex items-center justify-between">
+                {memories[selectedRoom.id]?.updatedBy && (
+                  <span className="text-[11px] text-purple-500">Last updated by {memories[selectedRoom.id]!.updatedBy}</span>
+                )}
+                <button
+                  onClick={saveMemory}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl transition-colors"
+                >
+                  {memorySaved ? <><Check className="w-3.5 h-3.5" /> Saved</> : 'Save'}
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* Camera / captured frame */}
           <div className="bg-black rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-slate-900/10">
             {!frameBase64 ? (

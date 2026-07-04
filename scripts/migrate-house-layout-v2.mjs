@@ -11,6 +11,8 @@
 //   3. Renames/repositions 'Bedroom 5' into the real Guest Room position.
 //   4. Updates 'Hall' to the corrected L-shaped polygon.
 //   5. Adds the 3 missing closets: Foyer Closet, Hall Closet 1, Hall Closet 2.
+//   6. Gates Master Bedroom + Master Walk-In Closet as parents-only ("mind
+//      palace" access gate), and links the Closet to Budget & Banking.
 //
 // NOTE: edit SERVICE_ACCOUNT_PATH below to point at your local Firebase service
 // account JSON (the same file used by the other migrate-*.mjs scripts).
@@ -61,6 +63,13 @@ async function patchHousehold(householdId) {
   const batch = db.batch();
   let writes = 0;
 
+  // "Mind palace" access gate: Master Bedroom and its Closet are parents-only;
+  // the Closet also deep-links to Budget & Banking as a secondary gate behind it.
+  const GATE_FIELDS = {
+    'Master Bedroom': { restrictedToAdults: true },
+    'Master Walk-In Closet': { restrictedToAdults: true, linkedFeature: '/budget' },
+  };
+
   for (const docSnap of existing.docs) {
     const oldName = originalNames.get(docSnap.id);
 
@@ -77,28 +86,18 @@ async function patchHousehold(householdId) {
       continue;
     }
 
-    if (oldName === 'Bedroom 5') {
-      batch.update(docSnap.ref, {
-        name: 'Guest Room', x: 731, y: 433, w: 203, h: 134,
-      });
-      console.log('    Bedroom 5 -> Guest Room (repositioned)');
-      writes++;
-      continue;
-    }
+    const finalName = oldName === 'Bedroom 5' ? 'Guest Room' : (RENAME_MAP[oldName] ?? oldName);
+    const patch = {};
 
-    if (oldName === 'Hall') {
-      batch.update(docSnap.ref, {
-        x: 603, y: 272, w: 128, h: 295, points: HALL_POLYGON,
-      });
-      console.log('    Hall -> corrected L-shaped polygon');
-      writes++;
-      continue;
-    }
+    if (oldName === 'Bedroom 5') Object.assign(patch, { name: 'Guest Room', x: 731, y: 433, w: 203, h: 134 });
+    else if (oldName === 'Hall') Object.assign(patch, { x: 603, y: 272, w: 128, h: 295, points: HALL_POLYGON });
+    else if (RENAME_MAP[oldName]) Object.assign(patch, { name: RENAME_MAP[oldName] });
 
-    const newName = RENAME_MAP[oldName];
-    if (newName) {
-      batch.update(docSnap.ref, { name: newName });
-      console.log(`    ${oldName} -> ${newName}`);
+    if (GATE_FIELDS[finalName]) Object.assign(patch, GATE_FIELDS[finalName]);
+
+    if (Object.keys(patch).length > 0) {
+      batch.update(docSnap.ref, patch);
+      console.log(`    ${oldName} -> ${JSON.stringify(patch)}`);
       writes++;
     }
   }
