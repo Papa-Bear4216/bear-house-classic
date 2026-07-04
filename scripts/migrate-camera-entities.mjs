@@ -20,7 +20,7 @@ const CAMERA_MAP = {
   'Living Room':  'camera.wyze_cam_bar_cam_snapshot',
   'Foyer':        'camera.wyze_cam_front_door_cam_snapshot',
   'Hall':         'camera.wyze_cam_traffic_cam_snapshot',
-  'Bedroom 2':    'camera.wyze_cam_manas_room_snapshot',
+  "Abriana's Room": 'camera.wyze_cam_manas_room_snapshot',
 };
 
 const SEED_ROOMS = [
@@ -31,14 +31,14 @@ const SEED_ROOMS = [
   { name: 'Dining Area',     x: 102, y: 306, w: 233, h: 254, color: '#dcfce7' },
   { name: 'Living Room',     x: 355, y: 20,  w: 248, h: 378, color: '#ede9fe' },
   { name: 'Foyer',           x: 355, y: 398, w: 88,  h: 162, color: '#fce7f3' },
-  { name: 'Primary Bath',    x: 603, y: 20,  w: 88,  h: 73,  color: '#e0f2fe' },
-  { name: 'W.I.C.',          x: 603, y: 93,  w: 88,  h: 58,  color: '#f1f5f9' },
-  { name: 'Hall Bath',       x: 603, y: 151, w: 88,  h: 147, color: '#e0f2fe' },
+  { name: 'Hall Bath',       x: 603, y: 20,  w: 88,  h: 73,  color: '#e0f2fe' },
+  { name: 'Master Walk-In Closet', x: 603, y: 93,  w: 88,  h: 58,  color: '#f1f5f9' },
+  { name: 'Primary Bath',    x: 603, y: 151, w: 88,  h: 147, color: '#e0f2fe' },
   { name: 'Hall',            x: 691, y: 235, w: 148, h: 163, color: '#f8fafc' },
-  { name: 'Primary Bedroom', x: 691, y: 20,  w: 289, h: 215, color: '#ffedd5' },
-  { name: 'Bedroom 2',       x: 839, y: 235, w: 141, h: 163, color: '#ffedd5' },
-  { name: 'Bedroom 3',       x: 443, y: 398, w: 200, h: 162, color: '#ffedd5' },
-  { name: 'Bedroom 4',       x: 691, y: 398, w: 189, h: 162, color: '#ffedd5' },
+  { name: 'Master Bedroom',  x: 691, y: 20,  w: 289, h: 215, color: '#ffedd5' },
+  { name: "Abriana's Room",  x: 839, y: 235, w: 141, h: 163, color: '#ffedd5' },
+  { name: "Julia's Room",    x: 443, y: 398, w: 200, h: 162, color: '#ffedd5' },
+  { name: 'Guest Room',      x: 691, y: 398, w: 189, h: 162, color: '#ffedd5' },
   { name: 'Bedroom 5',       x: 839, y: 398, w: 141, h: 162, color: '#ffedd5' },
 ];
 
