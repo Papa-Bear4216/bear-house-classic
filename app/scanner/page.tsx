@@ -103,7 +103,7 @@ export default function ScannerPage() {
   const [memoryDraft, setMemoryDraft] = useState('');
   const [memorySaved, setMemorySaved] = useState(false);
   const [migrating, setMigrating] = useState(false);
-  const [migrateMessage, setMigrateMessage] = useState<string | null>(null);
+  const [migrateMessage, setMigrateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [frameBase64, setFrameBase64] = useState<string | null>(null);
@@ -239,11 +239,12 @@ export default function ScannerPage() {
       const res = await authFetch('/api/admin/migrate-house-layout', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Migration failed');
-      setMigrateMessage(
-        data.changes?.length ? `Updated ${data.changes.length} room(s) to the corrected layout.` : (data.message ?? 'Already up to date.')
-      );
+      setMigrateMessage({
+        type: 'success',
+        text: data.changes?.length ? `Updated ${data.changes.length} room(s) to the corrected layout.` : (data.message ?? 'Already up to date.'),
+      });
     } catch (e: unknown) {
-      setMigrateMessage(e instanceof Error ? e.message : 'Migration failed');
+      setMigrateMessage({ type: 'error', text: e instanceof Error ? e.message : 'Migration failed' });
     } finally {
       setMigrating(false);
       setTimeout(() => setMigrateMessage(null), 6000);
@@ -447,8 +448,12 @@ export default function ScannerPage() {
         </div>
       </header>
       {migrateMessage && (
-        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 text-emerald-800 text-xs flex items-center gap-1.5">
-          <Check className="w-3.5 h-3.5" /> {migrateMessage}
+        <div className={cn(
+          'px-4 py-2 border-b text-xs flex items-center gap-1.5',
+          migrateMessage.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-700'
+        )}>
+          {migrateMessage.type === 'success' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+          {migrateMessage.text}
         </div>
       )}
 
