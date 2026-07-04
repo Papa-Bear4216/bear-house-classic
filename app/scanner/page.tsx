@@ -102,6 +102,8 @@ export default function ScannerPage() {
   const [lockedRoomMessage, setLockedRoomMessage] = useState<string | null>(null);
   const [memoryDraft, setMemoryDraft] = useState('');
   const [memorySaved, setMemorySaved] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateMessage, setMigrateMessage] = useState<string | null>(null);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [frameBase64, setFrameBase64] = useState<string | null>(null);
@@ -228,6 +230,24 @@ export default function ScannerPage() {
     await setMemory(selectedRoom.id, memoryDraft, currentUser?.name);
     setMemorySaved(true);
     setTimeout(() => setMemorySaved(false), 2000);
+  };
+
+  const runLayoutMigration = async () => {
+    setMigrating(true);
+    setMigrateMessage(null);
+    try {
+      const res = await authFetch('/api/admin/migrate-house-layout', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Migration failed');
+      setMigrateMessage(
+        data.changes?.length ? `Updated ${data.changes.length} room(s) to the corrected layout.` : (data.message ?? 'Already up to date.')
+      );
+    } catch (e: unknown) {
+      setMigrateMessage(e instanceof Error ? e.message : 'Migration failed');
+    } finally {
+      setMigrating(false);
+      setTimeout(() => setMigrateMessage(null), 6000);
+    }
   };
 
   const closeDrawer = () => {
@@ -402,6 +422,17 @@ export default function ScannerPage() {
               <Camera className="w-3.5 h-3.5" /> Scan
             </button>
           )}
+          {isAdmin && !editMode && (
+            <button
+              onClick={runLayoutMigration}
+              disabled={migrating}
+              title="Apply the corrected room names/layout to this household's existing floorplan data"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
+            >
+              {migrating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              Sync Room Layout
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => { setEditMode(e => !e); setSelectedRoom(null); setDrawerOpen(false); }}
@@ -415,6 +446,11 @@ export default function ScannerPage() {
           )}
         </div>
       </header>
+      {migrateMessage && (
+        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 text-emerald-800 text-xs flex items-center gap-1.5">
+          <Check className="w-3.5 h-3.5" /> {migrateMessage}
+        </div>
+      )}
 
       {/* Floorplan & Drift Panel — side-by-side on desktop */}
       <div className="flex-1 min-h-0 p-2 flex flex-col md:flex-row gap-2">
