@@ -105,6 +105,26 @@ export default function ScannerPage() {
   const [migrating, setMigrating] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Real floorplan photo/scan, shared with the Map tab's localStorage key, so
+  // rooms can be traced/aligned against the actual house in edit mode instead
+  // of being drawn from a guessed description.
+  const [traceImage, setTraceImage] = useState('');
+  const [showTrace, setShowTrace] = useState(true);
+  useEffect(() => {
+    try { setTraceImage(localStorage.getItem('bearhouse_floorplan') ?? ''); } catch {}
+  }, []);
+  const handleTraceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setTraceImage(dataUrl);
+      try { localStorage.setItem('bearhouse_floorplan', dataUrl); } catch {}
+    };
+    reader.readAsDataURL(file);
+  };
+
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [frameBase64, setFrameBase64] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -474,7 +494,25 @@ export default function ScannerPage() {
             onMovePin={handleMovePin}
             drifts={drifts}
             restrictedUnlocked={isAdmin}
+            traceImage={editMode && showTrace ? traceImage : undefined}
           />
+          {editMode && (
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-white/90 backdrop-blur border border-slate-200 rounded-lg px-2 py-1.5 shadow-sm">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer">
+                <Camera className="w-3.5 h-3.5" />
+                {traceImage ? 'Replace floorplan photo' : 'Upload floorplan photo to trace'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleTraceUpload} />
+              </label>
+              {traceImage && (
+                <button
+                  onClick={() => setShowTrace(v => !v)}
+                  className="text-xs px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600"
+                >
+                  {showTrace ? 'Hide' : 'Show'}
+                </button>
+              )}
+            </div>
+          )}
           {lockedRoomMessage && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-3 py-2 rounded-full flex items-center gap-1.5 shadow-lg z-20 animate-in fade-in slide-in-from-bottom-2">
               <Lock className="w-3.5 h-3.5 text-amber-400" /> {lockedRoomMessage}
