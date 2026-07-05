@@ -44,11 +44,13 @@ const SEED_ROOMS = [
   { name: 'Primary Bath',    x: 603, y: 167, w: 79,  h: 164, color: '#e0f2fe' },
   { name: 'Master Bedroom',  x: 682, y: 20,  w: 252, h: 252, color: '#ffedd5', restrictedToAdults: true },
   { name: 'Hall',            x: 603, y: 272, w: 128, h: 295, color: '#f8fafc', points: HALL_POLYGON },
-  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 161, color: '#ffedd5' },
+  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 148, color: '#ffedd5' },
   { name: "Julia's Room",    x: 483, y: 433, w: 168, h: 134, color: '#ffedd5' },
-  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 67,  color: '#f1f5f9' },
-  { name: 'Hall Closet 2',   x: 691, y: 500, w: 40,  h: 67,  color: '#f1f5f9' },
-  { name: 'Guest Room',      x: 731, y: 433, w: 203, h: 134, color: '#ffedd5' },
+  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 134, color: '#f1f5f9' },
+  { name: 'Hall Closet 2',   x: 731, y: 420, w: 68,  h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 3',   x: 799, y: 420, w: 68,  h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 4',   x: 867, y: 420, w: 67,  h: 26,  color: '#f1f5f9' },
+  { name: 'Guest Room',      x: 731, y: 446, w: 203, h: 121, color: '#ffedd5' },
 ];
 
 async function patchHousehold(householdId) {

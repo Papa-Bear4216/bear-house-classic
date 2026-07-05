@@ -1,16 +1,19 @@
-// One-time migration: bring an already-seeded household's floorplan up to the
+// Idempotent migration: bring an already-seeded household's floorplan up to the
 // corrected 4-bedroom / 1.5-bath layout (see hooks/use-floorplan.ts SEED_ROOMS).
 // Run with: node scripts/migrate-house-layout-v2.mjs <HOUSEHOLD_ID>
 // Or omit the argument to patch all households that already have floorplan docs.
+// Safe to run repeatedly — every step is keyed by the room's *current* name.
 //
 // What this does, per household:
-//   1. Renames rooms per migrate-room-names.mjs's RENAME_MAP (bath swap, W.I.C.,
-//      Master Bedroom, Abriana's/Julia's Room) if not already applied.
+//   1. Renames rooms per RENAME_MAP (bath swap, W.I.C., Master Bedroom,
+//      Abriana's/Julia's Room) if not already applied.
 //   2. Deletes the phantom 'Bedroom 4' room (it doesn't exist in the real house)
 //      and abandons any chore pins pointing at it, per the family's direction.
 //   3. Renames/repositions 'Bedroom 5' into the real Guest Room position.
 //   4. Updates 'Hall' to the corrected L-shaped polygon.
-//   5. Adds the 3 missing closets: Foyer Closet, Hall Closet 1, Hall Closet 2.
+//   5. Adds/corrects the closets: Foyer Closet, one tall Hall Closet 1 (between
+//      Hall and Julia's/Guest Room), and the row of 3 (Hall Closet 2/3/4)
+//      between Abriana's Room and Guest Room.
 //   6. Gates Master Bedroom + Master Walk-In Closet as parents-only ("mind
 //      palace" access gate), and links the Closet to Budget & Banking.
 //
@@ -18,7 +21,7 @@
 // account JSON (the same file used by the other migrate-*.mjs scripts).
 
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { readFileSync } from 'fs';
 
 const SERVICE_ACCOUNT_PATH = 'C:/Users/micha/Downloads/prime-mechanic-463314-m8-firebase-adminsdk-fbsvc-fe090352d6.json';
@@ -43,10 +46,27 @@ const HALL_POLYGON = [
   { x: 682, y: 331 },
 ];
 
+// Exact geometry/flags to force onto these rooms, keyed by final name —
+// applied unconditionally so re-running fixes drift from earlier versions
+// of this migration (e.g. the closet-row correction).
+const FIXED_FIELDS = {
+  'Master Bedroom': { restrictedToAdults: true },
+  'Master Walk-In Closet': { restrictedToAdults: true, linkedFeature: '/budget' },
+  'Hall': { x: 603, y: 272, w: 128, h: 295, points: HALL_POLYGON },
+  "Abriana's Room": { x: 731, y: 272, w: 203, h: 148 },
+  'Guest Room': { x: 731, y: 446, w: 203, h: 121 },
+  'Hall Closet 1': { x: 691, y: 433, w: 40, h: 134 },
+  'Hall Closet 2': { x: 731, y: 420, w: 68, h: 26 },
+  'Hall Closet 3': { x: 799, y: 420, w: 68, h: 26 },
+  'Hall Closet 4': { x: 867, y: 420, w: 67, h: 26 },
+};
+
 const NEW_ROOMS = [
-  { name: 'Foyer Closet',   x: 443, y: 398, w: 40, h: 90,  color: '#f1f5f9' },
-  { name: 'Hall Closet 1',  x: 691, y: 433, w: 40, h: 67,  color: '#f1f5f9' },
-  { name: 'Hall Closet 2',  x: 691, y: 500, w: 40, h: 67,  color: '#f1f5f9' },
+  { name: 'Foyer Closet',  x: 443, y: 398, w: 40, h: 90,  color: '#f1f5f9' },
+  { name: 'Hall Closet 1', x: 691, y: 433, w: 40, h: 134, color: '#f1f5f9' },
+  { name: 'Hall Closet 2', x: 731, y: 420, w: 68, h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 3', x: 799, y: 420, w: 68, h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 4', x: 867, y: 420, w: 67, h: 26,  color: '#f1f5f9' },
 ];
 
 async function patchHousehold(householdId) {
@@ -62,13 +82,6 @@ async function patchHousehold(householdId) {
   const originalNames = new Map(existing.docs.map(d => [d.id, d.data().name]));
   const batch = db.batch();
   let writes = 0;
-
-  // "Mind palace" access gate: Master Bedroom and its Closet are parents-only;
-  // the Closet also deep-links to Budget & Banking as a secondary gate behind it.
-  const GATE_FIELDS = {
-    'Master Bedroom': { restrictedToAdults: true },
-    'Master Walk-In Closet': { restrictedToAdults: true, linkedFeature: '/budget' },
-  };
 
   for (const docSnap of existing.docs) {
     const oldName = originalNames.get(docSnap.id);
@@ -89,11 +102,10 @@ async function patchHousehold(householdId) {
     const finalName = oldName === 'Bedroom 5' ? 'Guest Room' : (RENAME_MAP[oldName] ?? oldName);
     const patch = {};
 
-    if (oldName === 'Bedroom 5') Object.assign(patch, { name: 'Guest Room', x: 731, y: 433, w: 203, h: 134 });
-    else if (oldName === 'Hall') Object.assign(patch, { x: 603, y: 272, w: 128, h: 295, points: HALL_POLYGON });
-    else if (RENAME_MAP[oldName]) Object.assign(patch, { name: RENAME_MAP[oldName] });
+    if (oldName === 'Bedroom 5') patch.name = 'Guest Room';
+    else if (RENAME_MAP[oldName]) patch.name = RENAME_MAP[oldName];
 
-    if (GATE_FIELDS[finalName]) Object.assign(patch, GATE_FIELDS[finalName]);
+    if (FIXED_FIELDS[finalName]) Object.assign(patch, FIXED_FIELDS[finalName]);
 
     if (Object.keys(patch).length > 0) {
       batch.update(docSnap.ref, patch);
@@ -106,7 +118,7 @@ async function patchHousehold(householdId) {
   for (const room of NEW_ROOMS) {
     if (haveNames.has(room.name)) continue;
     const ref = floorplanCol.doc();
-    batch.set(ref, { ...room, createdAt: new Date() });
+    batch.set(ref, { ...room, createdAt: FieldValue.serverTimestamp() });
     console.log(`    + ${room.name}`);
     writes++;
   }

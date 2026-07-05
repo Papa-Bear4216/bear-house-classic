@@ -69,11 +69,16 @@ const SEED_ROOMS: Omit<FloorplanRoom, 'id'>[] = [
     ],
   },
 
-  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 161, color: '#ffedd5', cameraEntity: 'camera.wyze_cam_manas_room_snapshot' },
+  { name: "Abriana's Room",  x: 731, y: 272, w: 203, h: 148, color: '#ffedd5', cameraEntity: 'camera.wyze_cam_manas_room_snapshot' },
   { name: "Julia's Room",    x: 483, y: 433, w: 168, h: 134, color: '#ffedd5' },
-  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 67,  color: '#f1f5f9' },
-  { name: 'Hall Closet 2',   x: 691, y: 500, w: 40,  h: 67,  color: '#f1f5f9' },
-  { name: 'Guest Room',      x: 731, y: 433, w: 203, h: 134, color: '#ffedd5' },
+  // One tall closet between the Hall and Julia's/Guest Room (single compartment,
+  // bifold door opening up into the Hall — not two stacked closets).
+  { name: 'Hall Closet 1',   x: 691, y: 433, w: 40,  h: 134, color: '#f1f5f9' },
+  // Row of 3 closets recessed between Abriana's Room and Guest Room.
+  { name: 'Hall Closet 2',   x: 731, y: 420, w: 68,  h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 3',   x: 799, y: 420, w: 68,  h: 26,  color: '#f1f5f9' },
+  { name: 'Hall Closet 4',   x: 867, y: 420, w: 67,  h: 26,  color: '#f1f5f9' },
+  { name: 'Guest Room',      x: 731, y: 446, w: 203, h: 121, color: '#ffedd5' },
 ];
 
 export function useFloorplan() {
