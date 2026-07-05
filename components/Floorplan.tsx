@@ -46,6 +46,11 @@ interface Props {
   // "parent") can open rooms marked `restrictedToAdults`. Gated rooms still
   // render (visible-but-blocked) for everyone else, dimmed with a lock badge.
   restrictedUnlocked?: boolean;
+  // Real floorplan photo/scan (data URL) shown faintly behind the 2D grid in
+  // edit mode so rooms can be traced/aligned against the actual house instead
+  // of guessed from a description.
+  traceImage?: string;
+  traceOpacity?: number;
 }
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
@@ -81,6 +86,7 @@ export function Floorplan({
   onSelectRoom, onAddRoom, onUpdateRoom, onDeleteRoom,
   pins = [], canMovePin = false, onMovePin, drifts = {},
   restrictedUnlocked = false,
+  traceImage, traceOpacity = 0.5,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<Drag>({ type: 'idle' });
@@ -369,6 +375,18 @@ export function Floorplan({
         </defs>
         {currentViewMode === '2d' && <rect width={VB_W} height={VB_H} fill="url(#fp-grid)" />}
         {currentViewMode === '3d' && <rect width={VB_W} height={VB_H} fill="#f8fafc" />}
+
+        {/* Real floorplan photo/scan, traced against in edit mode — draw/move/
+            resize rooms directly over this instead of guessing coordinates. */}
+        {currentViewMode === '2d' && traceImage && (
+          <image
+            href={traceImage}
+            x={0} y={0} width={VB_W} height={VB_H}
+            preserveAspectRatio="xMidYMid meet"
+            opacity={traceOpacity}
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
 
         {/* Rooms */}
         {localRooms.map(room => {
