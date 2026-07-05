@@ -528,11 +528,12 @@ export function Floorplan({
                 {/* Furniture silhouettes */}
                 {getFurnitureShapes(room).map((shape, i) => (
                   'circle' in shape ? (
-                    <circle
+                    <ellipse
                       key={i}
                       cx={toIso(shape.circle.cx, shape.circle.cy).x}
                       cy={toIso(shape.circle.cx, shape.circle.cy).y}
-                      r={shape.circle.r}
+                      rx={shape.circle.r * 0.866 * 0.65}
+                      ry={shape.circle.r * 0.5 * 0.65}
                       fill={shape.fill}
                       style={{ pointerEvents: 'none' }}
                     />
