@@ -39,6 +39,8 @@ const DECAY_RATES: Record<string, number> = {
   'Foyer Closet': 3,
   'Hall Closet 1': 3,
   'Hall Closet 2': 3,
+  'Hall Closet 3': 3,
+  'Hall Closet 4': 3,
 };
 
 function getRoomDecayRate(name: string): number {
@@ -105,7 +107,16 @@ export function useRoomDrift(rooms: FloorplanRoom[]) {
       const lastScan = roomScans[0]; // ordered desc by timestamp
       
       let initialCleanliness = 100;
-      let lastScanTime = new Date((room as any).createdAt || now.getTime() - 24 * 3600 * 1000); // default to 1 day ago
+      // room.createdAt may be a Firestore Timestamp (has .toDate()), a plain
+      // number/string, or absent — `new Date(Timestamp)` silently produces an
+      // Invalid Date (NaN) that poisons every calculation below.
+      const createdAtRaw = (room as any).createdAt;
+      const createdAtDate = createdAtRaw?.toDate
+        ? createdAtRaw.toDate()
+        : createdAtRaw ? new Date(createdAtRaw) : null;
+      let lastScanTime = createdAtDate && !isNaN(createdAtDate.getTime())
+        ? createdAtDate
+        : new Date(now.getTime() - 24 * 3600 * 1000); // default to 1 day ago
 
       if (lastScan) {
         lastScanTime = new Date(lastScan.timestamp);
