@@ -71,6 +71,82 @@ function roomContainsPoint(room: FloorplanRoom, px: number, py: number): boolean
   return px >= room.x && px <= room.x + room.w && py >= room.y && py <= room.y + room.h;
 }
 
+type FurnitureShape = { points: { x: number; y: number }[]; fill: string } | { circle: { cx: number; cy: number; r: number }; fill: string };
+
+// Simple flat furniture silhouettes, drawn on the floor plane and projected
+// through the same isometric transform as the room itself — a lightweight
+// "Sims build-mode" touch rather than full 3D models.
+function getFurnitureShapes(room: FloorplanRoom): FurnitureShape[] {
+  const { x, y, w, h, name } = room;
+  const rect = (rx: number, ry: number, rw: number, rh: number, fill: string): FurnitureShape => ({
+    points: [
+      { x: x + w * rx, y: y + h * ry },
+      { x: x + w * (rx + rw), y: y + h * ry },
+      { x: x + w * (rx + rw), y: y + h * (ry + rh) },
+      { x: x + w * rx, y: y + h * (ry + rh) },
+    ],
+    fill,
+  });
+  const circle = (cx: number, cy: number, r: number, fill: string): FurnitureShape => ({
+    circle: { cx: x + w * cx, cy: y + h * cy, r: Math.min(w, h) * r },
+    fill,
+  });
+
+  if (Math.min(w, h) < 45) return []; // too small to bother (closets etc.)
+
+  if (/bedroom|'s room|guest room/i.test(name)) {
+    return [
+      rect(0.06, 0.1, 0.5, 0.55, '#c8a27a'),   // mattress
+      rect(0.06, 0.1, 0.5, 0.12, '#a97f56'),    // headboard strip
+      rect(0.1, 0.14, 0.14, 0.12, '#e9dcc9'),   // pillow
+      rect(0.28, 0.14, 0.14, 0.12, '#e9dcc9'),  // pillow
+      rect(0.62, 0.12, 0.14, 0.18, '#8a6a4a'),  // nightstand
+    ];
+  }
+  if (/bath/i.test(name)) {
+    return [
+      circle(0.22, 0.7, 0.32, '#bcd6e0'),        // toilet bowl
+      rect(0.1, 0.32, 0.24, 0.18, '#bcd6e0'),    // toilet tank
+      rect(0.55, 0.6, 0.32, 0.28, '#cfe3ea'),    // sink counter
+    ];
+  }
+  if (/kitchen/i.test(name)) {
+    return [
+      rect(0.03, 0.03, 0.94, 0.16, '#d8cbb8'),   // counter run
+      rect(0.1, 0.05, 0.1, 0.1, '#8a8a8a'),      // burner
+      rect(0.24, 0.05, 0.1, 0.1, '#8a8a8a'),     // burner
+    ];
+  }
+  if (/laundry/i.test(name)) {
+    return [
+      circle(0.28, 0.35, 0.22, '#cfd8e0'),
+      circle(0.65, 0.35, 0.22, '#cfd8e0'),
+    ];
+  }
+  if (/closet/i.test(name)) {
+    return [rect(0.1, 0.08, 0.8, 0.06, '#8a8a8a')]; // closet rod
+  }
+  if (/living room/i.test(name)) {
+    return [
+      rect(0.08, 0.55, 0.55, 0.28, '#9a8267'),   // sofa
+      rect(0.2, 0.25, 0.25, 0.16, '#c9b79a'),    // coffee table
+    ];
+  }
+  if (/dining/i.test(name)) {
+    return [
+      circle(0.5, 0.5, 0.22, '#c9b79a'),
+    ];
+  }
+  if (/storage/i.test(name)) {
+    return [
+      rect(0.15, 0.1, 0.3, 0.22, '#c9b79a'),
+      rect(0.55, 0.15, 0.3, 0.2, '#b8a688'),
+      rect(0.2, 0.4, 0.3, 0.22, '#c9b79a'),
+    ];
+  }
+  return [];
+}
+
 function roomLabelAnchor(room: FloorplanRoom): { x: number; y: number } {
   if (room.points && room.points.length >= 3) {
     const n = room.points.length;
@@ -448,6 +524,27 @@ export function Floorplan({
                   stroke={isSelected ? '#2563eb' : '#94a3b8'}
                   strokeWidth={isSelected ? 2.5 : 1}
                 />
+
+                {/* Furniture silhouettes */}
+                {getFurnitureShapes(room).map((shape, i) => (
+                  'circle' in shape ? (
+                    <circle
+                      key={i}
+                      cx={toIso(shape.circle.cx, shape.circle.cy).x}
+                      cy={toIso(shape.circle.cx, shape.circle.cy).y}
+                      r={shape.circle.r}
+                      fill={shape.fill}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  ) : (
+                    <polygon
+                      key={i}
+                      points={shape.points.map(p => { const iso = toIso(p.x, p.y); return `${iso.x},${iso.y}`; }).join(' ')}
+                      fill={shape.fill}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )
+                ))}
 
                 {/* Text name floating on floor */}
                 <text
