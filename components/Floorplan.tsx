@@ -206,21 +206,26 @@ export function Floorplan({
       const { orig, corner } = drag;
       const dx = pt.x - drag.startX;
       const dy = pt.y - drag.startY;
+      // Rooms smaller than MIN_SIZE already exist (e.g. closets) — clamping
+      // to the flat MIN_SIZE would snap them larger the instant they're
+      // touched, instead of letting them resize from their actual size.
+      const minW = Math.min(MIN_SIZE, orig.w);
+      const minH = Math.min(MIN_SIZE, orig.h);
       let { x, y, w, h } = orig;
       if (corner === 'tl') {
-        x = clamp(orig.x + dx, 0, orig.x + orig.w - MIN_SIZE);
-        y = clamp(orig.y + dy, 0, orig.y + orig.h - MIN_SIZE);
+        x = clamp(orig.x + dx, 0, orig.x + orig.w - minW);
+        y = clamp(orig.y + dy, 0, orig.y + orig.h - minH);
         w = orig.w + (orig.x - x); h = orig.h + (orig.y - y);
       } else if (corner === 'tr') {
-        w = clamp(orig.w + dx, MIN_SIZE, VB_W - orig.x);
-        y = clamp(orig.y + dy, 0, orig.y + orig.h - MIN_SIZE);
+        w = clamp(orig.w + dx, minW, VB_W - orig.x);
+        y = clamp(orig.y + dy, 0, orig.y + orig.h - minH);
         h = orig.h + (orig.y - y);
       } else if (corner === 'bl') {
-        x = clamp(orig.x + dx, 0, orig.x + orig.w - MIN_SIZE);
-        w = orig.w + (orig.x - x); h = clamp(orig.h + dy, MIN_SIZE, VB_H - orig.y);
+        x = clamp(orig.x + dx, 0, orig.x + orig.w - minW);
+        w = orig.w + (orig.x - x); h = clamp(orig.h + dy, minH, VB_H - orig.y);
       } else {
-        w = clamp(orig.w + dx, MIN_SIZE, VB_W - orig.x);
-        h = clamp(orig.h + dy, MIN_SIZE, VB_H - orig.y);
+        w = clamp(orig.w + dx, minW, VB_W - orig.x);
+        h = clamp(orig.h + dy, minH, VB_H - orig.y);
       }
       setLocalRooms(prev => prev.map(r => r.id === drag.id ? { ...r, x, y, w, h } : r));
     } else if (drag.type === 'pan') {
