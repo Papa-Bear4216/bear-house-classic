@@ -59,8 +59,11 @@ export async function POST(req: NextRequest) {
     const content = await gatewayChat({
       model: 'nousresearch/hermes-4-70b',
       messages: gatewayMessages,
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.7,
+      // Hermes 4 is a hybrid reasoning model; leaving reasoning on drains the token
+      // budget and returns empty content. Keep the whole budget for the reply.
+      reasoning: { enabled: false },
     });
     await persistMemoryFromResponse(context, content);
     return NextResponse.json({ content, model: 'hermes-4-70b' });
@@ -73,8 +76,10 @@ export async function POST(req: NextRequest) {
     const content = await gatewayChat({
       model: 'google/gemini-2.5-flash',
       messages: gatewayMessages,
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.7,
+      // Gemini 2.5 Flash thinks by default; disable it so the reply isn't truncated to empty.
+      reasoning: { enabled: false },
     });
     await persistMemoryFromResponse(context, content);
     return NextResponse.json({ content, model: 'gemini-2.5-flash' });

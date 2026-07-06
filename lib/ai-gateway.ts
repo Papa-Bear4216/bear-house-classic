@@ -1,6 +1,6 @@
-// Single entry point for all AI calls — routes through Vercel AI Gateway (BYOK).
-// Set AI_GATEWAY_KEY in Vercel env vars (Project Settings → Environment Variables).
-// Provider keys (Google, Anthropic, OpenAI) live in the Vercel AI vault, not here.
+// Single entry point for all AI calls — routes through the OpenRouter gateway (BYOK).
+// Set AI_GATEWAY_KEY (an OpenRouter API key) in Vercel env vars (Project Settings → Environment Variables).
+// Model IDs must be OpenRouter slugs, i.e. `provider/model-version` (e.g. `google/gemini-2.0-flash-001`).
 
 const GATEWAY = 'https://openrouter.ai/api/v1';
 
@@ -19,12 +19,23 @@ export type GatewayMessage = {
   content: string | ContentPart[];
 };
 
+// OpenRouter unified reasoning controls. For hybrid reasoning models (e.g. Hermes 4,
+// Gemini 2.5) `{ enabled: false }` keeps the model from spending the token budget on
+// reasoning, which otherwise leaves `message.content` empty on tight `max_tokens`.
+export interface ReasoningOptions {
+  enabled?: boolean;
+  effort?: 'low' | 'medium' | 'high';
+  max_tokens?: number;
+  exclude?: boolean;
+}
+
 export interface ChatOptions {
   model: string;
   messages: GatewayMessage[];
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  reasoning?: ReasoningOptions;
 }
 
 export async function gatewayChat(opts: ChatOptions): Promise<string> {
@@ -37,6 +48,10 @@ export async function gatewayChat(opts: ChatOptions): Promise<string> {
 
   if (opts.jsonMode) {
     body.response_format = { type: 'json_object' };
+  }
+
+  if (opts.reasoning) {
+    body.reasoning = opts.reasoning;
   }
 
   const res = await fetch(`${GATEWAY}/chat/completions`, {

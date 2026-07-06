@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const raw = await gatewayChat({
-      model: 'gemini-2.0-flash',
+      model: 'google/gemini-2.0-flash-001',
       messages: [
         { role: 'system', content: SCAN_INSTRUCTION },
         {
