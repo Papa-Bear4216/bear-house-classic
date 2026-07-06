@@ -87,30 +87,3 @@ export function visionContent(base64DataUrl: string, prompt: string): ContentPar
     { type: 'text', text: prompt },
   ];
 }
-
-export async function gatewayImage(prompt: string): Promise<string> {
-  const res = await fetch(`${GATEWAY}/images/generations`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key()}`,
-    },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt,
-      n: 1,
-      size: '1024x1024',
-      response_format: 'b64_json',
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`AI Gateway image ${res.status}: ${text.slice(0, 300)}`);
-  }
-
-  const data = await res.json();
-  const b64 = data.data?.[0]?.b64_json as string | undefined;
-  if (!b64) throw new Error('AI Gateway returned no image data');
-  return b64;
-}
