@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import { gatewayChat } from '@/lib/ai-gateway';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { routeToRooms, recallMemories, storeMemory, ROOM_LABELS } from '@/lib/palace';
+import { logEvent, errText } from '@/lib/hermes-events';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -44,6 +45,23 @@ export async function POST(req: NextRequest) {
     contextParts.push(`\nSaved family memory (use to personalize responses):\n${JSON.stringify(context.persistentMemory)}`);
   }
 
+  // Mind palace: recall only the memories in the rooms relevant to the latest user turn,
+  // instead of dumping every saved note. See docs/hermes-mind-palace-plan.md.
+  const userId = (context?.currentUser?.id ?? context?.currentUser?.uid) as string | undefined;
+  if (userId) {
+    const lastUser = [...(messages ?? [])].reverse().find((m: { role: string }) => m.role === 'user');
+    const rooms = routeToRooms(typeof lastUser?.content === 'string' ? lastUser.content : '');
+    try {
+      const recalled = await recallMemories(userId, rooms);
+      if (recalled.length) {
+        const roomNames = Array.from(new Set(rooms.map(r => ROOM_LABELS[r]))).join(', ');
+        contextParts.push(`\nRelevant memory (${roomNames}):\n${recalled.map(m => `- ${m.text}`).join('\n')}`);
+      }
+    } catch (err) {
+      console.error('Palace recall failed:', err);
+    }
+  }
+
   const systemContent = `${systemOverride ?? BEAR_HOUSE_SYSTEM}\n\n${contextParts.join('\n')}`;
 
   const gatewayMessages = [
@@ -55,31 +73,58 @@ export async function POST(req: NextRequest) {
   ];
 
   // Primary: Hermes 4 70B via OpenRouter gateway
+  const primaryStart = Date.now();
   try {
     const content = await gatewayChat({
       model: 'nousresearch/hermes-4-70b',
       messages: gatewayMessages,
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.7,
+      // Hermes 4 is a hybrid reasoning model; leaving reasoning on drains the token
+      // budget and returns empty content. Keep the whole budget for the reply.
+      reasoning: { enabled: false },
     });
     await persistMemoryFromResponse(context, content);
+    await logEvent({
+      event_type: 'ai.chat', status: 'ok', route: '/api/hermes',
+      model: 'hermes-4-70b', latencyMs: Date.now() - primaryStart, userId,
+      summary: 'Hermes reply served by primary',
+    });
     return NextResponse.json({ content, model: 'hermes-4-70b' });
   } catch (e) {
-    console.error('Claude via gateway error:', e);
+    console.error('Hermes primary via gateway error:', e);
+    await logEvent({
+      event_type: 'ai.chat.primary_failed', status: 'error', route: '/api/hermes',
+      model: 'nousresearch/hermes-4-70b', latencyMs: Date.now() - primaryStart, userId,
+      summary: 'Primary model failed; falling back to Gemini', error: errText(e),
+    });
   }
 
   // Fallback: Gemini Flash via gateway
+  const fallbackStart = Date.now();
   try {
     const content = await gatewayChat({
       model: 'google/gemini-2.5-flash',
       messages: gatewayMessages,
-      maxTokens: 1024,
+      maxTokens: 2048,
       temperature: 0.7,
+      // Gemini 2.5 Flash thinks by default; disable it so the reply isn't truncated to empty.
+      reasoning: { enabled: false },
     });
     await persistMemoryFromResponse(context, content);
+    await logEvent({
+      event_type: 'ai.chat', status: 'ok', route: '/api/hermes',
+      model: 'gemini-2.5-flash', latencyMs: Date.now() - fallbackStart, userId,
+      summary: 'Hermes reply served by fallback',
+    });
     return NextResponse.json({ content, model: 'gemini-2.5-flash' });
   } catch (e) {
     console.error('Gemini fallback via gateway error:', e);
+    await logEvent({
+      event_type: 'ai.chat.failed', status: 'error', route: '/api/hermes',
+      model: 'google/gemini-2.5-flash', latencyMs: Date.now() - fallbackStart, userId,
+      summary: 'All AI providers failed', error: errText(e),
+    });
     return NextResponse.json(
       { error: 'All AI providers failed. Check AI_GATEWAY_KEY and provider vault config.' },
       { status: 503 }
@@ -100,17 +145,24 @@ async function persistMemoryFromResponse(context: Record<string, unknown>, conte
 
   if (!matches.length) return;
 
-  try {
-    const firestore = getAdminFirestore();
-    const ref = firestore
-      .collection('households').doc(userId as string)
-      .collection('hermesMemory').doc('hermesMemory');
-    const snap = await ref.get();
-    const existing = snap.exists ? (snap.data() as { persistentNotes?: string[] }) : { persistentNotes: [] };
-    const persistentNotes = Array.isArray(existing.persistentNotes) ? existing.persistentNotes : [];
-    const updatedNotes = [...matches, ...persistentNotes].slice(0, 20);
-    await ref.set({ persistentNotes: updatedNotes, lastUpdated: new Date().toISOString() }, { merge: true });
-  } catch (err) {
-    console.error('Failed to save Hermes memory note:', err);
+  // Route each note to its room in the mind palace. See docs/hermes-mind-palace-plan.md.
+  let stored = 0;
+  for (const note of matches) {
+    try {
+      await storeMemory(userId as string, note);
+      stored++;
+    } catch (err) {
+      console.error('Failed to save Hermes memory note:', err);
+      await logEvent({
+        event_type: 'memory.store', status: 'error', route: '/api/hermes',
+        userId: userId as string, summary: 'Failed to store memory note', error: errText(err),
+      });
+    }
+  }
+  if (stored > 0) {
+    await logEvent({
+      event_type: 'memory.store', status: 'ok', route: '/api/hermes',
+      userId: userId as string, summary: `Stored ${stored} memory note(s) in the palace`,
+    });
   }
 }
