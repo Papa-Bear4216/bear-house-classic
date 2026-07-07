@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import { generateImage } from '@/lib/google-image';
+import { logEvent } from '@/lib/hermes-events';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -22,12 +23,22 @@ export async function POST(req: NextRequest) {
 
     const prompt = `A cute 3D claymorphism-style character avatar icon for a person named "${name}". The character should have a soft, matte clay texture with smooth rounded shapes. Dominant color: ${colorLabel}. Composition: centered, isolated on a simple clean background, studio lighting, high resolution, 3D render, Pixar-style aesthetic, professional profile icon.`;
 
+    const start = Date.now();
     const b64 = await generateImage(prompt);
+    await logEvent({
+      event_type: 'ai.avatar', status: 'ok', route: '/api/avatar',
+      model: 'gemini-2.5-flash-image', latencyMs: Date.now() - start,
+      summary: `Generated avatar for "${name}"`,
+    });
     return NextResponse.json({ avatarUrl: `data:image/png;base64,${b64}` });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     const isQuota = message.includes('429') || message.includes('quota') || message.includes('rate');
     console.error('avatar error:', message);
+    await logEvent({
+      event_type: 'ai.avatar', status: 'error', route: '/api/avatar',
+      model: 'gemini-2.5-flash-image', summary: 'Avatar generation failed', error: message,
+    });
     return NextResponse.json({ error: message }, { status: isQuota ? 429 : 500 });
   }
 }

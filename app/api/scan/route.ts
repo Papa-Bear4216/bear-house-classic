@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import { gatewayChat, visionContent, extractJson } from '@/lib/ai-gateway';
+import { logEvent, errText } from '@/lib/hermes-events';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'image is required' }, { status: 400 });
   }
 
+  const start = Date.now();
   try {
     const raw = await gatewayChat({
       model: 'google/gemini-2.0-flash-001',
@@ -40,9 +42,20 @@ export async function POST(req: NextRequest) {
       jsonMode: true,
     });
 
-    return NextResponse.json(extractJson(raw));
+    const parsed = extractJson(raw);
+    await logEvent({
+      event_type: 'ai.scan', status: 'ok', route: '/api/scan',
+      model: 'gemini-2.0-flash-001', latencyMs: Date.now() - start,
+      summary: room ? `Scanned room: ${room}` : 'Scanned room',
+    });
+    return NextResponse.json(parsed);
   } catch (err: unknown) {
     console.error('[scan]', err);
+    await logEvent({
+      event_type: 'ai.scan', status: 'error', route: '/api/scan',
+      model: 'gemini-2.0-flash-001', latencyMs: Date.now() - start,
+      summary: 'Room scan failed', error: errText(err),
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Scan failed' },
       { status: 500 },
