@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, unauthorized } from '@/lib/server-auth';
 import { gatewayChat } from '@/lib/ai-gateway';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { routeToRooms, recallMemories, storeMemory, ROOM_LABELS } from '@/lib/palace';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -42,6 +42,23 @@ export async function POST(req: NextRequest) {
   if (context?.usageMemory) contextParts.push(`\nLearned usage patterns:\n${context.usageMemory}`);
   if (context?.persistentMemory?.length) {
     contextParts.push(`\nSaved family memory (use to personalize responses):\n${JSON.stringify(context.persistentMemory)}`);
+  }
+
+  // Mind palace: recall only the memories in the rooms relevant to the latest user turn,
+  // instead of dumping every saved note. See docs/hermes-mind-palace-plan.md.
+  const userId = (context?.currentUser?.id ?? context?.currentUser?.uid) as string | undefined;
+  if (userId) {
+    const lastUser = [...(messages ?? [])].reverse().find((m: { role: string }) => m.role === 'user');
+    const rooms = routeToRooms(typeof lastUser?.content === 'string' ? lastUser.content : '');
+    try {
+      const recalled = await recallMemories(userId, rooms);
+      if (recalled.length) {
+        const roomNames = Array.from(new Set(rooms.map(r => ROOM_LABELS[r]))).join(', ');
+        contextParts.push(`\nRelevant memory (${roomNames}):\n${recalled.map(m => `- ${m.text}`).join('\n')}`);
+      }
+    } catch (err) {
+      console.error('Palace recall failed:', err);
+    }
   }
 
   const systemContent = `${systemOverride ?? BEAR_HOUSE_SYSTEM}\n\n${contextParts.join('\n')}`;
@@ -105,17 +122,12 @@ async function persistMemoryFromResponse(context: Record<string, unknown>, conte
 
   if (!matches.length) return;
 
-  try {
-    const firestore = getAdminFirestore();
-    const ref = firestore
-      .collection('households').doc(userId as string)
-      .collection('hermesMemory').doc('hermesMemory');
-    const snap = await ref.get();
-    const existing = snap.exists ? (snap.data() as { persistentNotes?: string[] }) : { persistentNotes: [] };
-    const persistentNotes = Array.isArray(existing.persistentNotes) ? existing.persistentNotes : [];
-    const updatedNotes = [...matches, ...persistentNotes].slice(0, 20);
-    await ref.set({ persistentNotes: updatedNotes, lastUpdated: new Date().toISOString() }, { merge: true });
-  } catch (err) {
-    console.error('Failed to save Hermes memory note:', err);
+  // Route each note to its room in the mind palace. See docs/hermes-mind-palace-plan.md.
+  for (const note of matches) {
+    try {
+      await storeMemory(userId as string, note);
+    } catch (err) {
+      console.error('Failed to save Hermes memory note:', err);
+    }
   }
 }
