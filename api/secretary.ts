@@ -17,7 +17,41 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
     body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json() as any;
+  if (!res.ok) throw new Error(data?.error?.message || `Claude API ${res.status}`);
   return data?.content?.[0]?.text || '';
+}
+
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 512 },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 150)}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+  if (anthropicKey) {
+    try {
+      return await callHaiku(prompt, anthropicKey);
+    } catch (e: any) {
+      if (!geminiKey) throw e;
+      console.warn('Claude failed, trying Gemini:', e.message);
+    }
+  }
+  if (geminiKey) return await callGemini(prompt, geminiKey);
+  throw new Error('No working AI model configurations found.');
 }
 
 async function getRecentTasks(limit = 20) {
@@ -66,7 +100,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
 
   const body = await req.json().catch(() => ({})) as any;
   const token = req.headers.get('x-webhook-token') || body?.token;
@@ -81,7 +116,7 @@ export default async function handler(req: Request): Promise<Response> {
     const text = item.text || item.name || '';
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
-    const raw = await callHaiku(ENRICH_PROMPT(item, existingTasks), ANTHROPIC_API_KEY);
+    const raw = await callAI(ENRICH_PROMPT(item, existingTasks), anthropicKey, geminiKey);
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const result = JSON.parse(clean);
 
