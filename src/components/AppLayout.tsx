@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Home, Calendar, Handshake, Heart, LayoutDashboard, Settings as SettingsIcon,
   Search, History, Users, DollarSign, ChevronUp, ChevronDown, LogOut,
@@ -25,6 +25,8 @@ import FamilyHub from '@/components/familyos/sections/FamilyHub';
 import FinanceHub from '@/components/familyos/sections/FinanceHub';
 import QuickCapture from '@/components/familyos/QuickCapture';
 import HermesChat from '@/components/familyos/HermesChat';
+import WelcomeBackModal from '@/components/familyos/WelcomeBackModal';
+import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import MagicTrail from '@/components/familyos/MagicTrail';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
@@ -77,6 +79,8 @@ const AppLayout: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState(true);
   const [tick, setTick] = useState(0);
   const [showMore, setShowMore] = useState(false);
+  const [autobrief, setAutobrief] = useState<{ days: number; reason: 'offline' | 'location'; miles?: number } | null>(null);
+  const presenceChecked = useRef(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -84,8 +88,33 @@ const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setHasApiKey(true); // API calls now proxy through /api/chat — no client key needed
+    setHasApiKey(true);
   }, [settingsOpen]);
+
+  // Presence tracking — runs once on mount
+  useEffect(() => {
+    if (presenceChecked.current) return;
+    presenceChecked.current = true;
+
+    // Check before recording so we capture "was away" state
+    const homeLat = parseFloat(localStorage.getItem('home_lat') || '30.45');
+    const homeLon = parseFloat(localStorage.getItem('home_lon') || '-91.15');
+    const result = checkAutobrief(homeLat, homeLon);
+    if (result.should) {
+      setAutobrief({ days: result.days, reason: result.reason as 'offline' | 'location', miles: result.miles });
+    }
+
+    // Now record this visit
+    recordVisit();
+
+    // Try to get geolocation for away detection
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => recordLocation(pos.coords.latitude, pos.coords.longitude),
+        () => {} // silently ignore if denied
+      );
+    }
+  }, []);
 
   useEffect(() => setTick((t) => t + 1), [active, settingsOpen]);
 
@@ -411,6 +440,14 @@ const AppLayout: React.FC = () => {
       <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />
       <QuickCapture />
       <HermesChat />
+      {autobrief && (
+        <WelcomeBackModal
+          days={autobrief.days}
+          reason={autobrief.reason}
+          miles={autobrief.miles}
+          onClose={() => setAutobrief(null)}
+        />
+      )}
       <MagicTrail />
     </div>
   );
