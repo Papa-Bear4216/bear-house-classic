@@ -66,8 +66,10 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const [tab, setTab] = useState<Tab>('general');
   const [apiKey, setApiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [cameraToken, setCameraToken] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showCameraToken, setShowCameraToken] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [zones, setZones] = useState<any[]>(DEFAULT_PRESENCE_ZONES);
   const [newZone, setNewZone] = useState({ name: '', startHour: 18, endHour: 21, days: '1,2,3,4,5' });
@@ -84,6 +86,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (open) {
       setApiKey(localStorage.getItem(KEYS.apiKey) || '');
       setGeminiKey(localStorage.getItem(KEYS.geminiApiKey) || '');
+      setCameraToken(localStorage.getItem(KEYS.cameraToken) || '');
       setSettings(loadJSON(KEYS.settings, DEFAULT_SETTINGS));
       setZones(loadJSON(KEYS.presenceZones, DEFAULT_PRESENCE_ZONES));
       setHomeLat(localStorage.getItem('home_lat') || '30.45');
@@ -96,6 +99,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (isAdmin) {
       localStorage.setItem(KEYS.apiKey, apiKey);
       localStorage.setItem(KEYS.geminiApiKey, geminiKey);
+      localStorage.setItem(KEYS.cameraToken, cameraToken);
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
       saveJSON('nfc_tag_map', nfcTags);
@@ -177,6 +181,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   <div className="divide-y divide-slate-700/50">
                     <KeyRow label="Claude" placeholder="sk-ant-..." value={apiKey} onChange={setApiKey} show={showKey} onToggleShow={() => setShowKey(!showKey)} accentClass="focus:border-amber-500" />
                     <KeyRow label="Gemini" placeholder="AIza..." value={geminiKey} onChange={setGeminiKey} show={showGeminiKey} onToggleShow={() => setShowGeminiKey(!showGeminiKey)} accentClass="focus:border-emerald-500" note="camera scanner" />
+                    <KeyRow label="Camera Access" placeholder="match CAMERA_ACCESS_TOKEN in Vercel" value={cameraToken} onChange={setCameraToken} show={showCameraToken} onToggleShow={() => setShowCameraToken(!showCameraToken)} accentClass="focus:border-orange-500" note="Home Assistant cameras" />
                   </div>
                 </div>
               )}

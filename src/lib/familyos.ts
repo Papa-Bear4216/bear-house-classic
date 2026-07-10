@@ -48,6 +48,7 @@ export const KEYS = {
   promisesAI: 'promise_keeper_ai_failsafe',
   apiKey: 'anthropic_api_key',
   settings: 'familyos_settings',
+  cameraToken: 'camera_access_token',
 };
 
 export const DEFAULT_SETTINGS = {

@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, dbPrepend } from './_db.js';
+import { notifyIFTTT } from './_notify.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bearhouse-os.vercel.app';
@@ -82,5 +83,6 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'skip') return j({ ok: true, action: 'skip', reason: (item as any).reason || 'duplicate' });
 
   await appendToKey(KEY_MAP[type], item);
+  if (body?.notify) await notifyIFTTT(`bearhouse_${type}`, (item as any).text || (item as any).name || 'New item', (item as any).person || '');
   return j({ ok: true, action: 'saved', type, item });
 }

@@ -3,6 +3,7 @@ import { Plus, Trash2, RotateCcw, AlertTriangle, Home, ScanLine } from 'lucide-r
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
+import CameraViewer from '@/components/familyos/CameraViewer';
 
 const STORAGE_KEY = 'familyos_home_maintenance';
 const CATEGORIES = ['HVAC', 'Plumbing', 'Electrical', 'Appliances', 'Yard', 'Other'] as const;
@@ -127,6 +128,8 @@ const HomeMaintenance: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <CameraViewer />
 
       {/* Category filter */}
       <div className="flex gap-1 overflow-x-auto pb-1">
