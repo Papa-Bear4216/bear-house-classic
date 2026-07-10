@@ -5,6 +5,7 @@ import { getGoogleToken } from '@/lib/auth';
 
 import AlertModal from './AlertModal';
 import Trends from './Trends';
+import WeatherWidget from './WeatherWidget';
 
 interface DashboardProps {
   onNav: (m: string) => void;
@@ -214,6 +215,8 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
           <Sparkles className="w-4 h-4" /> AI Summary
         </button>
       </div>
+
+      <WeatherWidget />
 
       {/* Tabs */}
       <div className="inline-flex bg-slate-800 border border-slate-700 rounded-lg p-1 gap-1">

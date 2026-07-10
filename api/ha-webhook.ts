@@ -4,6 +4,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet } from './_db.js';
+import { notifyIFTTT } from './_notify.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -46,11 +47,13 @@ export default async function handler(req: Request): Promise<Response> {
     } else if (event === 'package_delivered') {
       const task = { ...base, text: 'Bring in package from front door', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
       const r = await appendTask(task);
+      if (!r.skipped) await notifyIFTTT('bearhouse_package', 'Package delivered', 'Front door');
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'door_left_open') {
       const task = { ...base, text: `Close ${area || 'door'} — left open`, person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
       const r = await appendTask(task);
+      if (!r.skipped) await notifyIFTTT('bearhouse_door_open', area || 'A door', 'left open');
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'low_battery') {
