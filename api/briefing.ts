@@ -11,7 +11,6 @@ export const config = { runtime: 'edge' };
 
 import { dbGet } from './_db.js';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
 async function getKey(key: string) {
@@ -41,14 +40,56 @@ function isTomorrow(ts: number | null | undefined): boolean {
   return d.getFullYear() === tomorrow.getFullYear() && d.getMonth() === tomorrow.getMonth() && d.getDate() === tomorrow.getDate();
 }
 
-async function callHaiku(prompt: string): Promise<string> {
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 600 },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 150)}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-3-5-haiku-latest', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Claude API ${res.status}`);
+  }
   return data?.content?.[0]?.text || '';
+}
+
+async function generateBriefing(prompt: string): Promise<string> {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (geminiKey) {
+    try {
+      return await callGemini(prompt, geminiKey);
+    } catch (e: any) {
+      console.warn('Gemini briefing failed, trying Claude:', e.message);
+    }
+  }
+
+  if (anthropicKey) {
+    return await callHaiku(prompt, anthropicKey);
+  }
+
+  throw new Error('No working AI model configurations found.');
 }
 
 const BRIEF_PROMPT = (person: string, data: Record<string, any>, dayName: string) => `
@@ -161,9 +202,9 @@ export default async function handler(req: Request): Promise<Response> {
         tomorrowAppts: myAppts.filter((a: any) => isTomorrow(a.date)).slice(0, 2).map((a: any) => ({ type: a.type, notes: a.notes })),
         moodFlags: moodFlags.slice(0, 2).map((e: any) => ({ person: e.person, category: e.category })),
       };
-      briefing = await callHaiku(EVENING_PROMPT(person, eveningData, tomorrowName));
+      briefing = await generateBriefing(EVENING_PROMPT(person, eveningData, tomorrowName));
     } else {
-      briefing = await callHaiku(BRIEF_PROMPT(person, data, dayName));
+      briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName));
     }
 
     return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });

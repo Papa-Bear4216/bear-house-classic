@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Key, Bell, Clock, Users, Trash2, Plus, Download, Eye, EyeOff,
   Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home, BookOpen,
-  ShoppingCart, ExternalLink,
+  ShoppingCart, ExternalLink, Github,
 } from 'lucide-react';
 import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
@@ -66,8 +66,10 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const [tab, setTab] = useState<Tab>('general');
   const [apiKey, setApiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [githubToken, setGithubToken] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showGithubToken, setShowGithubToken] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [zones, setZones] = useState<any[]>(DEFAULT_PRESENCE_ZONES);
   const [newZone, setNewZone] = useState({ name: '', startHour: 18, endHour: 21, days: '1,2,3,4,5' });
@@ -84,6 +86,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (open) {
       setApiKey(localStorage.getItem(KEYS.apiKey) || '');
       setGeminiKey(localStorage.getItem(KEYS.geminiApiKey) || '');
+      setGithubToken(localStorage.getItem('github_token') || '');
       setSettings(loadJSON(KEYS.settings, DEFAULT_SETTINGS));
       setZones(loadJSON(KEYS.presenceZones, DEFAULT_PRESENCE_ZONES));
       setHomeLat(localStorage.getItem('home_lat') || '30.45');
@@ -96,6 +99,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (isAdmin) {
       localStorage.setItem(KEYS.apiKey, apiKey);
       localStorage.setItem(KEYS.geminiApiKey, geminiKey);
+      if (currentRole === 'superadmin') {
+        localStorage.setItem('github_token', githubToken);
+      }
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
       saveJSON('nfc_tag_map', nfcTags);
@@ -129,7 +135,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
-    ...(isAdmin ? [{ id: 'integrations' as Tab, label: 'Integrations' }] : []),
+    ...(currentRole === 'superadmin' ? [{ id: 'integrations' as Tab, label: 'Integrations' }] : []),
     { id: 'family', label: 'Family' },
   ];
 
@@ -177,6 +183,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   <div className="divide-y divide-slate-700/50">
                     <KeyRow label="Claude" placeholder="sk-ant-..." value={apiKey} onChange={setApiKey} show={showKey} onToggleShow={() => setShowKey(!showKey)} accentClass="focus:border-amber-500" />
                     <KeyRow label="Gemini" placeholder="AIza..." value={geminiKey} onChange={setGeminiKey} show={showGeminiKey} onToggleShow={() => setShowGeminiKey(!showGeminiKey)} accentClass="focus:border-emerald-500" note="camera scanner" />
+                    {currentRole === 'superadmin' && (
+                      <KeyRow label="GitHub" placeholder="ghp_..." value={githubToken} onChange={setGithubToken} show={showGithubToken} onToggleShow={() => setShowGithubToken(!showGithubToken)} accentClass="focus:border-indigo-500" note="bearhouse-classic monitor" />
+                    )}
                   </div>
                 </div>
               )}
@@ -258,7 +267,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
           )}
 
           {/* ── INTEGRATIONS TAB ── */}
-          {tab === 'integrations' && isAdmin && (
+          {tab === 'integrations' && currentRole === 'superadmin' && (
             <div className="space-y-3">
               <p className="text-xs text-slate-400">
                 Server-side env vars are set via terminal (<code className="bg-slate-900 px-1 rounded">npx vercel env add NAME</code>) from your project folder.
@@ -434,6 +443,21 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 <p className="text-xs text-slate-400 mb-2">No separate setup needed — the Classroom API uses the same Google OAuth token as sign-in. Make sure the Google account you sign in with has access to the girls' Classroom.</p>
                 <CodeRow label="Sync endpoint" value={`${BASE_URL}/api/classroom`} />
                 <p className="text-xs text-slate-500 mt-2">POST with <code className="bg-slate-950 px-1 rounded font-mono">{"{ accessToken, person: \"Abriana\" }"}</code> to pull assignments.</p>
+              </IntegrationCard>
+
+              {/* GitHub */}
+              <IntegrationCard
+                icon={<Github className="w-4 h-4 text-indigo-400" />}
+                title="GitHub — bearhouse-classic"
+                badge={githubToken ? "Connected" : "No PAT"}
+                badgeColor={githubToken ? "emerald" : "amber"}
+                description="Monitor commits and Action workflow runs for the bearhouse-classic repository."
+                expanded={expandedIntegration === 'github'}
+                onToggle={() => toggleIntegration('github')}
+              >
+                <p className="text-xs text-slate-400 mb-2">Configure your GitHub Personal Access Token (PAT) in the general tab to pull live repository status.</p>
+                <CodeRow label="Repository" value="aaddrick/bearhouse-classic" />
+                <CodeRow label="API Status" value={githubToken ? "Authenticated" : "Unauthorized"} />
               </IntegrationCard>
 
               {/* Walmart */}

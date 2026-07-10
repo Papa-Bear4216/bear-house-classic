@@ -1,7 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard,
+  Github, GitCommit, RefreshCw, CheckCircle2, XCircle
+} from 'lucide-react';
 import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, DEFAULT_PILLARS } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
+import { useAppContext } from '@/contexts/AppContext';
 
 import AlertModal from './AlertModal';
 import Trends from './Trends';
@@ -13,8 +17,52 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
-
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
+
+  const { currentRole } = useAppContext();
+  const githubToken = localStorage.getItem('github_token') || '';
+
+  const [githubData, setGithubData] = useState<{
+    commits: any[];
+    runs: any[];
+    loading: boolean;
+    error: string | null;
+  }>({ commits: [], runs: [], loading: false, error: null });
+
+  const fetchGitHub = async () => {
+    if (!githubToken) return;
+    setGithubData((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const headers = {
+        Authorization: `token ${githubToken}`,
+        Accept: 'application/vnd.github.v3+json',
+      };
+      
+      const [commitsRes, runsRes] = await Promise.all([
+        fetch('https://api.github.com/repos/aaddrick/bearhouse-classic/commits?per_page=4', { headers }),
+        fetch('https://api.github.com/repos/aaddrick/bearhouse-classic/actions/runs?per_page=3', { headers }),
+      ]);
+
+      if (!commitsRes.ok) throw new Error(`Commits fetch failed: ${commitsRes.status}`);
+      const commits = await commitsRes.json();
+
+      let runs = [];
+      if (runsRes.ok) {
+        const runsData = await runsRes.json();
+        runs = runsData.workflow_runs || [];
+      }
+
+      setGithubData({ commits, runs, loading: false, error: null });
+    } catch (err: any) {
+      setGithubData((prev) => ({ ...prev, loading: false, error: err.message }));
+    }
+  };
+
+  useEffect(() => {
+    if (currentRole === 'superadmin' && githubToken) {
+      fetchGitHub();
+    }
+  }, [currentRole, githubToken]);
 
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const promises = loadJSON<any[]>(KEYS.promises, []);
@@ -282,6 +330,108 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
               {personCard('Julia', 'blue')}
             </div>
           </div>
+
+          {/* GitHub Monitor — superadmin only */}
+          {currentRole === 'superadmin' && githubToken && (
+            <div className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-white font-bold">
+                  <Github className="w-5 h-5 text-indigo-400" />
+                  <span>GitHub Monitor</span>
+                  <span className="text-xs font-normal text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded">bearhouse-classic</span>
+                </div>
+                <button
+                  onClick={fetchGitHub}
+                  disabled={githubData.loading}
+                  className="text-slate-400 hover:text-white transition disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${githubData.loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              {githubData.loading && !githubData.commits.length ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : githubData.error ? (
+                <div className="bg-rose-950/20 border border-rose-500/20 text-rose-300 rounded-lg p-3 text-xs flex items-center gap-2">
+                  <XCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{githubData.error}</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Commits */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <GitCommit className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Recent Commits</span>
+                    </div>
+                    <div className="divide-y divide-slate-800 bg-slate-950/40 rounded-xl border border-slate-800 overflow-hidden">
+                      {githubData.commits.map((c) => (
+                        <div key={c.sha} className="p-3 text-xs flex flex-col gap-1 hover:bg-slate-800/20 transition">
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-slate-300 font-medium truncate flex-1">{c.commit?.message?.split('\n')[0]}</span>
+                            <a
+                              href={c.html_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-indigo-400 hover:underline font-mono"
+                            >
+                              {c.sha?.substring(0, 7)}
+                            </a>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            by <span className="text-slate-400">{c.commit?.author?.name}</span> · {new Date(c.commit?.author?.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Workflows */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Workflow Runs</span>
+                    </div>
+                    <div className="divide-y divide-slate-800 bg-slate-950/40 rounded-xl border border-slate-800 overflow-hidden">
+                      {githubData.runs.length ? (
+                        githubData.runs.map((run) => (
+                          <div key={run.id} className="p-3 text-xs flex justify-between items-center gap-3 hover:bg-slate-800/20 transition">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-slate-300 font-medium truncate">{run.name || 'CI/CD'}</div>
+                              <div className="text-[10px] text-slate-500 truncate">
+                                #{run.run_number} · {run.event} · {new Date(run.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {run.status === 'completed' ? (
+                                run.conclusion === 'success' ? (
+                                  <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[10px] font-semibold">
+                                    <CheckCircle2 className="w-3 h-3" /> Success
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-rose-500/10 text-rose-400 border border-rose-500/25 px-2 py-0.5 rounded text-[10px] font-semibold">
+                                    <XCircle className="w-3 h-3" /> Failed
+                                  </span>
+                                )
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 px-2 py-0.5 rounded text-[10px] font-semibold animate-pulse">
+                                  Running
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 text-xs text-slate-500 text-center">No runs found</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
