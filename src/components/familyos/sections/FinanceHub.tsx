@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2 } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, isAdmin } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
@@ -24,7 +24,8 @@ interface Expense {
   createdAt: number;
   deletedAt?: number;
   plaidId?: string;
-  source?: 'plaid' | 'manual';
+  extId?: string;
+  source?: 'plaid' | 'simplefin' | 'manual';
   institutionName?: string;
 }
 
@@ -103,6 +104,81 @@ interface TabProps {
   currentUser: any;
 }
 
+const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any[]) => void }> = ({ currentUser, onSync }) => {
+  const [accounts, setAccounts] = useState<PlaidAccount[]>([]);
+  const [token, setToken] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState<'ok'|'err'|''>('');
+  const flash = (t: string, ty: 'ok'|'err'='ok') => { setMsg(t); setMsgType(ty); setTimeout(() => setMsg(''), 5000); };
+
+  const loadAccounts = useCallback(async () => {
+    try {
+      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accounts' }) });
+      const d = await r.json(); if (d.accounts) setAccounts(d.accounts);
+    } catch {}
+  }, []);
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
+
+  const connect = async () => {
+    if (!token.trim()) { flash('Paste your SimpleFIN setup token first', 'err'); return; }
+    setConnecting(true);
+    try {
+      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'connect', setupToken: token.trim(), person: currentUser?.name || 'Daddy' }) });
+      const d = await r.json();
+      if (d.ok) { flash(`✓ Connected: ${(d.institutions||[]).join(', ')}`); setToken(''); loadAccounts(); }
+      else flash(d.error || 'Connect failed', 'err');
+    } catch (e: any) { flash(e.message, 'err'); } finally { setConnecting(false); }
+  };
+
+  const sync = async () => {
+    setSyncing(true); flash('Pulling transactions…');
+    try {
+      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync', days: 30 }) });
+      const d = await r.json(); if (d.error) throw new Error(d.error);
+      onSync(d.transactions || [], d.recurringBills || []);
+      flash(`✓ ${d.synced ?? 0} imported${d.recurringBills?.length ? `, ${d.recurringBills.length} subscriptions` : ''}`);
+    } catch (e: any) { flash(e.message || 'Sync failed', 'err'); } finally { setSyncing(false); }
+  };
+
+  return (
+    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Landmark className="w-4 h-4 text-emerald-400" />
+        <span className="text-white text-sm font-semibold">Linked Bank Accounts (SimpleFIN)</span>
+        {accounts.length > 0 && <span className="bg-emerald-900/50 border border-emerald-600/30 text-emerald-300 text-xs px-1.5 py-0.5 rounded-full">{accounts.length}</span>}
+      </div>
+      {msg && <div className={`text-xs px-3 py-2 rounded-lg ${msgType === 'err' ? 'bg-rose-950/40 text-rose-300' : 'bg-emerald-950/40 text-emerald-300'}`}>{msg}</div>}
+      {accounts.length > 0 ? (
+        <div className="space-y-2">{accounts.map(a => (
+          <div key={a.itemId} className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5">
+            <Building2 className="w-4 h-4 text-slate-400" />
+            <div className="flex-1 min-w-0"><div className="text-white text-sm truncate">{a.institutionName}</div>
+            <div className="text-slate-500 text-xs">{a.person} · {new Date(a.connectedAt).toLocaleDateString()}</div></div>
+            <span className="text-emerald-400 text-xs">Active</span>
+          </div>))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-slate-500 text-xs">Get a setup token at beta-bridge.simplefin.org, then paste it here.</p>
+          <input value={token} onChange={e => setToken(e.target.value)} placeholder="SimpleFIN setup token"
+            className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+          {connecting ? 'Connecting…' : 'Connect'}
+        </button>
+        {accounts.length > 0 && (
+          <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync 30 days'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm]   = useState(false);
@@ -117,8 +193,8 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   const handleBankSync = useCallback((transactions: Expense[], recurringBills: any[]) => {
     setExpenses(prev => {
-      const existingPlaidIds = new Set(prev.filter(e => e.plaidId).map(e => e.plaidId));
-      const fresh = transactions.filter(t => !existingPlaidIds.has(t.plaidId));
+      const existingIds = new Set(prev.filter(e => e.extId).map(e => e.extId));
+      const fresh = transactions.filter(t => !existingIds.has(t.extId));
       const merged = [...fresh, ...prev];
       merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       saveJSON('familyos_expenses', merged);
@@ -128,7 +204,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
     if (recurringBills.length > 0) {
       const existingBills: any[] = loadJSON('familyos_bills', []);
       const existingNames = new Set(
-        existingBills.filter((b: any) => b.source === 'plaid').map((b: any) => b.name.toLowerCase()),
+        existingBills.filter((b: any) => b.source === 'simplefin').map((b: any) => b.name.toLowerCase()),
       );
       const freshBills = recurringBills
         .filter(b => !existingNames.has(b.merchant))
@@ -140,7 +216,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
           paid: false,
           recurring: true,
           createdAt: Date.now(),
-          source: 'plaid',
+          source: 'simplefin',
         }));
       if (freshBills.length > 0) {
         saveJSON('familyos_bills', [...existingBills, ...freshBills]);
@@ -173,7 +249,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   return (
     <div className="space-y-3">
-      {/* SimpleFIN connect panel mounts here (Task 6) */}
+      <SimpleFinPanel currentUser={currentUser} onSync={handleBankSync} />
 
       {/* Month + total + add */}
       <div className="flex items-center justify-between">
@@ -265,7 +341,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-white text-sm">{e.category}</span>
                 {viewMode === 'combined' && <span className="text-slate-500 text-xs">{e.paidBy}</span>}
-                {e.source === 'plaid' && (
+                {(e.source === 'simplefin' || e.source === 'plaid') && (
                   <span className="flex items-center gap-0.5 bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 text-[10px] px-1.5 py-0.5 rounded-full">
                     <Landmark className="w-2.5 h-2.5" /> {e.institutionName || 'Bank'}
                   </span>
