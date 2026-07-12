@@ -691,7 +691,11 @@ git commit -m "feat(reliability): add in-app System Health panel with Fix It"
 - **Spec coverage:** §2 graceful-degradation/staleness → Task 5 (honest per-integration rendering + timestamp). §3 health-check → Task 3; ha-fix tiers → Task 2; integrationFixMap → Task 1; pre-emptive cron → Task 4; System Health panel → Task 5; actionable IFTTT alert → Task 3 Step 1 (`notifyIFTTT('bearhouse_health', …)`). All covered.
 - **Deferred to a follow-up (documented, not silently dropped):** Tier-2 "paste-one-secret" from the app (a Settings field that POSTs `{integration, key}` to `api/ha-fix`) is stubbed in `runFix` but has no dedicated UI task — the panel currently opens the key URL for Tier-2/3. Add a Settings key-paste field when wiring the real Google-AI flow. Flagged here so it isn't mistaken for complete.
 - **Assumptions surfaced:** exact wyze addon slug (Task 1 Step 3 verifies live), `loadJSON`/`isAdmin` helper names (Task 5 Step 1 verifies against `FinanceHub.tsx`), and the adult-entered `webhook_token` localStorage key (mirrors the existing camera-token pattern — confirm the actual key name when wiring Settings).
-- **Cadences:** 30-min health-check, monthly pre-empt, 6-h alert cooldown — all tunable in one place (`vercel.json` + `ALERT_COOLDOWN_MS`).
+- **Cadences:** health-check, monthly pre-empt, 6-h alert cooldown — all tunable in one place (`vercel.json` + `ALERT_COOLDOWN_MS`).
+
+## Deployment note (2026-07-12): Vercel Hobby cron cap
+
+The Vercel project is on the **Hobby** plan, which limits Cron Jobs to **at most once per day**. The original `*/30 * * * *` health-check failed to deploy. Changed to **daily `0 7 * * *`**. Tradeoff: the app catches a dead HA integration (and fires the actionable alert / auto-heal) once per day instead of every 30 min — acceptable given HA token rot is slow-moving (monthly), but the 30-min cadence is strictly better. **To restore 30-min: upgrade the Vercel project to Pro, then set the schedule back to `*/30 * * * *`.** `preempt-refresh` (monthly) and `finance-sync` (daily) are within the Hobby limit and unchanged.
 
 ## Opus 4.8 Verification (2026-07-12)
 
