@@ -385,6 +385,20 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   };
   const del = (id: string) => save(cats.filter(c => c.id !== id));
 
+  const suggestBudget = (catName: string): number => {
+    const now = new Date();
+    const months = [0, 1, 2].map(i => {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      return d.toISOString().slice(0, 7);
+    });
+    const totals = months.map(m =>
+      expenses.filter(e => !e.deletedAt && e.category === catName && e.date.startsWith(m))
+        .reduce((s, e) => s + e.amount, 0)
+    ).filter(t => t > 0);
+    if (!totals.length) return 0;
+    return Math.round(totals.reduce((s, t) => s + t, 0) / totals.length);
+  };
+
   const monthCats = cats.filter(c => c.month === month);
   const allMonthExp = expenses.filter(e => !e.deletedAt && e.date.startsWith(month));
   const myName = currentUser?.name;
@@ -439,6 +453,12 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
               <input type="number" value={budgeted} onChange={e => setBudgeted(e.target.value)} placeholder="0.00"
                 className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" autoFocus />
             </div>
+          </div>
+          <div className="flex justify-end">
+            <button type="button" onClick={() => setBudgeted(String(suggestBudget(name)))}
+              className="text-xs text-emerald-400 hover:text-emerald-300 whitespace-nowrap">
+              Suggest ({`$${suggestBudget(name)}`})
+            </button>
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
