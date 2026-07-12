@@ -298,26 +298,21 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 <p className="text-xs text-slate-500 mt-2">Default is Baton Rouge, LA. Find your coords at <a href="https://www.latlong.net" target="_blank" className="text-sky-400 underline">latlong.net</a>.</p>
               </IntegrationCard>
 
-              {/* Plaid */}
+              {/* SimpleFIN */}
               <IntegrationCard
                 icon={<CreditCard className="w-4 h-4 text-violet-400" />}
-                title="Plaid — Expense Tracking"
+                title="SimpleFIN — Bank Sync"
                 badge="Needs Setup"
                 badgeColor="amber"
-                description="Sync real bank transactions. Requires free Plaid developer account."
-                expanded={expandedIntegration === 'plaid'}
-                onToggle={() => toggleIntegration('plaid')}
+                description="Sync real bank transactions read-only. $15/yr, no developer approval."
+                expanded={expandedIntegration === 'simplefin'}
+                onToggle={() => toggleIntegration('simplefin')}
               >
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-400">1. Create free account at <a href="https://dashboard.plaid.com/signup" target="_blank" className="text-violet-400 underline inline-flex items-center gap-1">dashboard.plaid.com <ExternalLink className="w-3 h-3" /></a></p>
-                  <p className="text-xs text-slate-400">2. Go to Team Settings → Keys → copy Sandbox Client ID and Secret</p>
-                  <p className="text-xs text-slate-400">3. Run these in your <code className="bg-slate-950 px-1 rounded">~/bear-house</code> folder:</p>
-                  <div className="space-y-1">
-                    <EnvRow name="PLAID_CLIENT_ID" placeholder="from Plaid dashboard → Keys" />
-                    <EnvRow name="PLAID_SECRET" placeholder="Sandbox secret from Plaid dashboard" />
-                    <EnvRow name="PLAID_ENV" placeholder="sandbox  (change to production later)" />
-                  </div>
-                  <p className="text-xs text-slate-400">4. Redeploy: <code className="bg-slate-950 px-1 rounded font-mono text-emerald-300">npx vercel --prod --yes</code></p>
+                  <p className="text-xs text-slate-400">1. Sign up and connect your bank at <a href="https://beta-bridge.simplefin.org" target="_blank" className="text-violet-400 underline inline-flex items-center gap-1">beta-bridge.simplefin.org <ExternalLink className="w-3 h-3" /></a></p>
+                  <p className="text-xs text-slate-400">2. Generate a <strong>setup token</strong> (a long Base64 string).</p>
+                  <p className="text-xs text-slate-400">3. Open Finance Hub → Expenses → the "Linked Bank Accounts (SimpleFIN)" panel, paste the token, and click <strong>Connect</strong>.</p>
+                  <p className="text-xs text-slate-400">4. Hit <strong>Sync</strong> to import transactions. A daily cron keeps them fresh automatically.</p>
                 </div>
               </IntegrationCard>
 
