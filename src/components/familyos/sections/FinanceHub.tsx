@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Building2, RefreshCw, Link2, Landmark, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, isAdmin } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
@@ -36,19 +36,6 @@ interface PlaidAccount {
 }
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
-
-// Load Plaid Link.js on demand
-function loadPlaidLink(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).Plaid) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load Plaid Link'));
-    document.head.appendChild(s);
-  });
-}
 
 // ── Main ────────────────────────────────────────────────────────────────────────
 
@@ -109,207 +96,6 @@ const FinanceHub: React.FC = () => {
   );
 };
 
-// ── Plaid Panel ─────────────────────────────────────────────────────────────────
-
-interface PlaidPanelProps {
-  currentUser: any;
-  onSync: (transactions: Expense[], recurringBills: any[]) => void;
-}
-
-const PlaidPanel: React.FC<PlaidPanelProps> = ({ currentUser, onSync }) => {
-  const [accounts, setAccounts]   = useState<PlaidAccount[]>([]);
-  const [connecting, setConnecting] = useState(false);
-  const [syncing, setSyncing]       = useState(false);
-  const [msg, setMsg]               = useState('');
-  const [msgType, setMsgType]       = useState<'ok' | 'err' | ''>('');
-  const [lastSync, setLastSync]     = useState<number | null>(() => loadJSON('plaid_last_sync', null));
-  const [expanded, setExpanded]     = useState(true);
-
-  const flash = (text: string, type: 'ok' | 'err' = 'ok') => {
-    setMsg(text); setMsgType(type);
-    setTimeout(() => setMsg(''), 5000);
-  };
-
-  const loadAccounts = useCallback(async () => {
-    try {
-      const res = await fetch('/api/plaid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accounts' }),
-      });
-      const data = await res.json();
-      if (data.accounts) setAccounts(data.accounts);
-    } catch { /* server may not have Plaid configured */ }
-  }, []);
-
-  useEffect(() => { loadAccounts(); }, [loadAccounts]);
-
-  const connectBank = async () => {
-    setConnecting(true);
-    try {
-      const res = await fetch('/api/plaid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'link',
-          userId: currentUser?.id || 'daddy',
-          person: currentUser?.name || 'Daddy',
-        }),
-      });
-      const { link_token, error } = await res.json();
-      if (!link_token) throw new Error(error || 'Could not create link token. Check Plaid env vars.');
-
-      await loadPlaidLink();
-
-      const handler = (window as any).Plaid.create({
-        token: link_token,
-        onSuccess: async (publicToken: string, metadata: any) => {
-          const institution = metadata?.institution?.name || 'Bank';
-          const r = await fetch('/api/plaid', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'exchange',
-              publicToken,
-              userId: currentUser?.id || 'daddy',
-              person: currentUser?.name || 'Daddy',
-              institutionName: institution,
-            }),
-          });
-          const result = await r.json();
-          if (result.success) {
-            flash(`✓ ${institution} connected! Hit Sync to import transactions.`);
-            loadAccounts();
-          } else {
-            flash(result.error || 'Exchange failed', 'err');
-          }
-          setConnecting(false);
-        },
-        onExit: (err: any) => {
-          if (err) flash(err.display_message || err.error_message || 'Plaid closed', 'err');
-          setConnecting(false);
-        },
-      });
-      handler.open();
-    } catch (e: any) {
-      flash(e.message, 'err');
-      setConnecting(false);
-    }
-  };
-
-  const syncTransactions = async () => {
-    setSyncing(true);
-    flash('Pulling transactions from Plaid…');
-    try {
-      const res = await fetch('/api/plaid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync', days: 30 }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      onSync(data.transactions || [], data.recurringBills || []);
-
-      const now = Date.now();
-      saveJSON('plaid_last_sync', now);
-      setLastSync(now);
-
-      const txnCount  = data.synced ?? 0;
-      const billCount = data.recurringBills?.length ?? 0;
-      flash(
-        `✓ ${txnCount} transaction${txnCount !== 1 ? 's' : ''} imported` +
-        (billCount > 0 ? `, ${billCount} recurring bill${billCount !== 1 ? 's' : ''} detected` : ''),
-      );
-    } catch (e: any) {
-      flash(e.message || 'Sync failed', 'err');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const lastSyncStr = lastSync
-    ? new Date(lastSync).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : null;
-
-  return (
-    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/20 transition"
-      >
-        <div className="flex items-center gap-2">
-          <Landmark className="w-4 h-4 text-emerald-400" />
-          <span className="text-white text-sm font-semibold">Linked Bank Accounts</span>
-          {accounts.length > 0 && (
-            <span className="bg-emerald-900/50 border border-emerald-600/30 text-emerald-300 text-xs px-1.5 py-0.5 rounded-full">
-              {accounts.length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {lastSyncStr && <span className="text-slate-500 text-xs hidden sm:block">Synced {lastSyncStr}</span>}
-          <span className="text-slate-400 text-xs">{expanded ? '▲' : '▼'}</span>
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-4 space-y-3">
-          {/* Status message */}
-          {msg && (
-            <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${msgType === 'err' ? 'bg-rose-950/40 border border-rose-500/30 text-rose-300' : 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300'}`}>
-              {msgType === 'err' ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> : <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />}
-              {msg}
-            </div>
-          )}
-
-          {/* Connected accounts */}
-          {accounts.length > 0 ? (
-            <div className="space-y-2">
-              {accounts.map(a => (
-                <div key={a.itemId} className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5">
-                  <Building2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white text-sm font-medium truncate">{a.institutionName}</div>
-                    <div className="text-slate-500 text-xs">{a.person} · Connected {new Date(a.connectedAt).toLocaleDateString()}</div>
-                  </div>
-                  <span className="text-emerald-400 text-xs">Active</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-500 text-xs">No banks connected yet. Click "Connect Bank" to link your accounts.</p>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={connectBank}
-              disabled={connecting}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg transition"
-            >
-              <Link2 className="w-3.5 h-3.5" />
-              {connecting ? 'Opening Plaid…' : 'Connect Bank'}
-            </button>
-
-            {accounts.length > 0 && (
-              <button
-                onClick={syncTransactions}
-                disabled={syncing}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg transition"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing…' : 'Sync 30 days'}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 // ── Expenses Tab ──────────────────────────────────────────────────────────────
 
 interface TabProps {
@@ -329,7 +115,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   const persistExpenses = (next: Expense[]) => { setExpenses(next); saveJSON('familyos_expenses', next); };
 
-  const handlePlaidSync = useCallback((transactions: Expense[], recurringBills: any[]) => {
+  const handleBankSync = useCallback((transactions: Expense[], recurringBills: any[]) => {
     setExpenses(prev => {
       const existingPlaidIds = new Set(prev.filter(e => e.plaidId).map(e => e.plaidId));
       const fresh = transactions.filter(t => !existingPlaidIds.has(t.plaidId));
@@ -387,8 +173,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   return (
     <div className="space-y-3">
-      {/* Plaid panel */}
-      <PlaidPanel currentUser={currentUser} onSync={handlePlaidSync} />
+      {/* SimpleFIN connect panel mounts here (Task 6) */}
 
       {/* Month + total + add */}
       <div className="flex items-center justify-between">
