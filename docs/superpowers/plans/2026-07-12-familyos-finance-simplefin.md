@@ -150,9 +150,14 @@ export async function fetchAccounts(accessUrl: string, startDate: Date, endDate:
 Run: `npx tsc --noEmit -p tsconfig.node.json 2>&1 | grep _simplefin || echo "clean"`
 Expected: `clean`
 
-- [ ] **Step 3: Verify claim + fetch against a real setup token (requires a SimpleFIN account)**
+- [ ] **Step 3: Verify claim + fetch against a real setup token (requires a SimpleFIN account) — GO/NO-GO GATE**
 
-Get a setup token from https://beta-bridge.simplefin.org (connect a bank, generate token). Then, in a scratch node/ts context or via the `connect` route in Task 3, confirm `claimAccessUrl` returns a `https://user:pass@...` URL and `fetchAccounts` returns at least one account with transactions. **This is the go/no-go gate for the whole migration** — if SimpleFIN can't reach your bank, stop and reconsider before proceeding. Since Plaid is already removed (Task 1), if this fails, the fallback is manual entry until resolved.
+Get a setup token from https://beta-bridge.simplefin.org (connect a bank, generate token). Verify via the `connect` route (Task 3) once it exists, or a scratch check. Confirm all three:
+1. `claimAccessUrl` returns a URL matching `https://<user>:<pass>@<host>/<path>` — **note the path segment** (SimpleFIN Bridge access URLs end in a base path like `/simplefin`, not just the host). The `fetchAccounts` code preserves that path via `u.toString()` before appending `/accounts`, so `${base}/accounts` becomes `https://host/simplefin/accounts`. Eyeball the constructed request URL in a log to confirm it's `.../accounts`, not a doubled or truncated path.
+2. `fetchAccounts` returns ≥1 account with a non-empty `transactions` array over a 30-day window.
+3. Transaction `amount` is a signed string and `posted` is epoch **seconds** (a 10-digit number, not 13). If `posted` looks like milliseconds (13 digits), drop the `* 1000` in Task 3 — but SimpleFIN spec is seconds.
+
+**This is the go/no-go gate for the whole migration.** If SimpleFIN can't reach your bank, stop. Since Plaid is already removed (Task 1), the documented fallback is manual entry until resolved.
 
 - [ ] **Step 4: Commit**
 
@@ -196,6 +201,7 @@ function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
   const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || '';
+  const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const body = (await req.json().catch(() => ({}))) as any;
   const { action, ...params } = body;
 
@@ -260,8 +266,8 @@ export default async function handler(req: Request): Promise<Response> {
         }
       }
 
-      // Categorize (uses cache; only new merchants hit the model).
-      const categorized = await categorize(raw, cache);
+      // Categorize (uses cache; only new merchants hit the model via /api/chat).
+      const categorized = await categorize(baseUrl, raw, cache);
       await dbSet('merchant_category_cache', cache); // categorize mutates cache in place
 
       const transactions = categorized.map((t) => ({
@@ -455,51 +461,47 @@ git commit -m "feat(finance): add cadence-based subscription detection"
 - Consumes: the Claude call pattern from `api/chat.ts` (same `ANTHROPIC_API_KEY`, same model id, same fallback if any).
 - Produces: `async function categorize(txns: Array<{ notes: string } & T>, cache: Record<string,string>): Promise<Array<T & { category: string }>>` — mutates `cache` in place (merchant→category); only uncached merchants are sent to the model in one batched call. Categories constrained to the FinanceHub set.
 
-- [ ] **Step 1: Read the existing Claude pattern to copy verbatim**
+- [ ] **Step 1: Confirm the existing AI route contract (verified during planning)**
 
-Run:
+`api/chat.ts` is the canonical AI route. Verified facts (do NOT re-guess):
+- Endpoint `https://api.anthropic.com/v1/messages`; headers `x-api-key` + `anthropic-version: 2023-06-01`.
+- Env vars: **`ANTHROPIC_API_KEY`** (primary) and **`GEMINI_API_KEY`** (fallback). The route falls back to Gemini (`gemini-2.0-flash`) if Anthropic is missing/errors.
+- Model id: **`claude-haiku-4-5-20251001`** for `maxTokens <= 512` (the small/cheap tier — correct for categorization). NOT `claude-3-5-haiku-latest`.
+- Response shape: `{ text: string }` (the route wraps `data.content[0].text`).
+
+**Do not re-implement the Anthropic/Gemini call.** Instead, `api/_categorize.ts` calls the existing `/api/chat` route internally (self-call) so it inherits the Gemini fallback for free. Confirm the route responds:
 ```bash
-grep -n "anthropic\|ANTHROPIC\|model\|claude-\|x-api-key\|messages" api/chat.ts | head -30
+curl -s -X POST "$BASE_URL/api/chat" -H "Content-Type: application/json" -d '{"prompt":"reply with the word ok","maxTokens":16}'
 ```
-Expected: shows the exact endpoint (`https://api.anthropic.com/v1/messages`), header (`x-api-key`, `anthropic-version`), env var name, and model id string. **Use these exact values** in Step 2 — do not guess the model id.
+Expected: `{"text":"...ok..."}`.
 
-- [ ] **Step 2: Write the categorizer**
+- [ ] **Step 2: Write the categorizer (delegates to /api/chat for the AI call + fallback)**
 
 ```ts
 // api/_categorize.ts
-// AI transaction categorization via Claude, with a merchant→category cache.
-// Copy the endpoint/header/model from api/chat.ts (verified in Step 1).
+// AI transaction categorization with a merchant→category cache.
+// Delegates the model call to /api/chat so it inherits the Claude→Gemini fallback.
 
 import { normalizeMerchant } from './_subscriptions.js';
 
 const CATEGORIES = ['Housing','Food','Transportation','Utilities','Insurance','Entertainment','Clothing','Healthcare','Savings','Kids','Pets','Other'];
 
-async function classifyBatch(merchants: string[]): Promise<Record<string, string>> {
-  const key = process.env.ANTHROPIC_API_KEY; // confirm exact name matches api/chat.ts
-  if (!key || merchants.length === 0) {
-    return Object.fromEntries(merchants.map((m) => [m, 'Other']));
-  }
+async function classifyBatch(baseUrl: string, merchants: string[]): Promise<Record<string, string>> {
+  if (merchants.length === 0) return {};
   const prompt = `Categorize each merchant into exactly one of: ${CATEGORIES.join(', ')}.
 Return ONLY a JSON object mapping the merchant string to its category. Merchants:
 ${merchants.map((m) => `- ${m}`).join('\n')}`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-latest', // MUST match the model id used in api/chat.ts — replace if different
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      // maxTokens<=512 picks the cheap haiku tier in api/chat.ts; enough for a JSON map.
+      body: JSON.stringify({ prompt, maxTokens: 512 }),
     });
-    if (!res.ok) throw new Error(`Claude ${res.status}`);
+    if (!res.ok) throw new Error(`chat ${res.status}`);
     const data = (await res.json()) as any;
-    const text = data?.content?.[0]?.text ?? '{}';
+    const text = data?.text ?? '{}';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
     const out: Record<string, string> = {};
@@ -514,24 +516,23 @@ ${merchants.map((m) => `- ${m}`).join('\n')}`;
 }
 
 export async function categorize<T extends { notes: string }>(
+  baseUrl: string,
   txns: T[],
   cache: Record<string, string>,
 ): Promise<Array<T & { category: string }>> {
   const keyed = txns.map((t) => ({ t, key: normalizeMerchant(t.notes) }));
   const uncached = [...new Set(keyed.map((k) => k.key).filter((k) => k && !(k in cache)))];
   if (uncached.length) {
-    const results = await classifyBatch(uncached);
+    const results = await classifyBatch(baseUrl, uncached);
     for (const [m, c] of Object.entries(results)) cache[m] = c;
   }
   return keyed.map(({ t, key }) => ({ ...t, category: cache[key] || 'Other' }));
 }
 ```
 
-- [ ] **Step 3: Reconcile model id + env var with `api/chat.ts`**
+`baseUrl` is the deployment origin (e.g. `new URL(req.url).origin` in a route). Callers pass it so the self-call to `/api/chat` resolves in every environment.
 
-Compare the `model` string and `ANTHROPIC_API_KEY` name against Step 1's output. If `api/chat.ts` uses a different model id or a Gemini fallback, mirror it here (at minimum, match the model id and key name). Edit `api/_categorize.ts` accordingly.
-
-- [ ] **Step 4: Verify categorization end-to-end (via sync)**
+- [ ] **Step 3: Verify categorization end-to-end (via sync)**
 
 Reuses Task 3 Step 4. Confirm each returned transaction has a `category` from the allowed set, and that a re-run is faster / makes no new model call for already-seen merchants (check `merchant_category_cache` grew):
 ```bash
@@ -741,7 +742,8 @@ const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, 
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
 // Server-side daily sync — same logic as finance.ts sync/webhook branch, no token needed (cron is trusted).
-export default async function handler(_req: Request): Promise<Response> {
+export default async function handler(req: Request): Promise<Response> {
+  const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const conn: any = await dbGet('simplefin_access');
   if (!conn?.accessUrl) return j({ synced: 0, message: 'No linked accounts' });
   try {
@@ -756,7 +758,7 @@ export default async function handler(_req: Request): Promise<Response> {
       if (amt >= 0 || t.pending) continue;
       raw.push({ extId: t.id, amount: Math.abs(amt), date: new Date(t.posted * 1000).toISOString().slice(0, 10), notes: t.description, institutionName: acct.org.name || acct.name });
     }
-    const categorized = await categorize(raw, cache);
+    const categorized = await categorize(baseUrl, raw, cache);
     await dbSet('merchant_category_cache', cache);
 
     const txns = categorized.map((t) => ({ id: makeId(), amount: t.amount, category: t.category, paidBy: conn.person, date: t.date, notes: t.notes, createdAt: Date.now(), extId: t.extId, source: 'simplefin', institutionName: t.institutionName }));
@@ -818,3 +820,11 @@ git commit -m "feat(finance): add daily SimpleFIN auto-sync cron"
 - **Duplication flagged:** Task 3's `sync` webhook branch and Task 8's cron share ~90% logic. This is intentional to keep the cron token-free and self-contained; if it drifts, extract a shared `_financeSync.ts`. Noted, not prematurely abstracted (YAGNI until it bites).
 - **Go/no-go gate:** Task 2 Step 3 is the explicit checkpoint that SimpleFIN reaches the real bank. Since Plaid is deleted up front (user's choice), the documented fallback if it fails is manual entry until resolved.
 - **Assumptions surfaced:** exact Claude model id + env var name (Task 5 Step 1 verifies against `api/chat.ts` before use); SimpleFIN transaction sign convention (money-out negative — validated at Task 3 Step 4).
+
+## Opus 4.8 Verification (2026-07-12)
+
+Reviewed against the live codebase. Defects found and **fixed inline**:
+- **Categorizer used a stale model id and no fallback.** `api/chat.ts` actually uses `claude-haiku-4-5-20251001` (≤512 tokens) with a Gemini fallback. Fixed: `_categorize.ts` now delegates to `/api/chat` (self-call), inheriting the fallback; `categorize()` gained a `baseUrl` param, threaded through both callers (Tasks 3 + 8).
+- **SimpleFIN access-URL path handling** hardened with an explicit path/epoch-seconds verify (Task 2 Step 3).
+
+Confirmed-good: `dbGet`/`dbSet` reuse, `WEBHOOK_TOKEN` guard pattern, `extId` dedupe consistency, FinanceHub `Expense` shape compatibility.

@@ -166,15 +166,20 @@ async function restartAddon(slug: string) {
 }
 
 // Find the config_entry_id for a given integration domain, so we can reload it.
+// NOTE: /api/config/config_entries/entry is exposed on the REST API for admin long-lived
+// tokens on current HA, but has been websocket-only on some older versions. If the GET 404s,
+// we fall back to the service call WITHOUT entry_id targeting is not possible, so we surface a
+// clear error and let the caller (health-check) fall through to an alert instead of silently
+// "succeeding". Task 2 Step 5 verifies this endpoint against the live box before relying on it.
 async function reloadByDomain(domain: string) {
   const HA_URL = process.env.HOME_ASSISTANT_URL!;
   const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN!;
-  // reload_config_entry accepts entry_id; HA also supports reloading by config entry via the
-  // homeassistant.reload_config_entry service with target entity/device, but domain reload is
-  // simplest via the config_entries API listing.
   const listRes = await fetch(`${HA_URL}/api/config/config_entries/entry`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
   });
+  if (listRes.status === 404) {
+    throw new Error('config_entries endpoint not exposed on this HA (websocket-only) — reload unavailable via REST');
+  }
   if (!listRes.ok) throw new Error(`Config entries list failed: ${listRes.status}`);
   const entries = (await listRes.json()) as any[];
   const entry = entries.find((e) => e.domain === domain);
@@ -268,7 +273,16 @@ curl -s -X POST "$BASE_URL/api/ha-fix" -H "Content-Type: application/json" \
 ```
 Expected: `{"ok":true,"tier":1,"action":"restart_addon",...}`. If the addon slug is wrong you'll get `{"ok":false,"tier":1,"error":"Addon restart ... failed: 404"}` — fix `addonSlug` in `api/_integrationFixMap.ts` and re-run.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify the config-entries reload endpoint is exposed over REST (Tier-2 gate)**
+
+`reloadByDomain` (used by google_ai Tier-2 reload) depends on `/api/config/config_entries/entry` being available to a long-lived token. Confirm before relying on it:
+```bash
+curl -s -o /dev/null -w "%{http_code}" "$HOME_ASSISTANT_URL/api/config/config_entries/entry" \
+  -H "Authorization: Bearer $HOME_ASSISTANT_TOKEN"
+```
+Expected: `200`. If `404`, this HA build gates config-entries behind websocket only — the google_ai Tier-2 auto-reload will report a clear error and fall through to an alert (already handled in `reloadByDomain`). In that case leave google_ai effectively Tier-3 (assisted) — the alert + deep-link still works; only the hands-off reload is unavailable. Note the result inline in the plan.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add api/ha-fix.ts
@@ -304,10 +318,14 @@ const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 // Which entity_id prefixes / substrings map to each logical integration id.
+// Match on entity_id substrings specific to each integration. Keep these TIGHT —
+// a broad matcher (e.g. all 'media_player.') would fold unrelated devices (Cast, Sonos, TVs)
+// into the integration's health and trigger false alerts/auto-heals.
 const MATCHERS: Record<string, (entityId: string) => boolean> = {
   wyze_bridge: (e) => e.includes('wyze'),
   google_ai: (e) => e.includes('google_ai') || e.includes('google_generative'),
-  alexa: (e) => e.includes('alexa') || e.includes('_echo') || e.includes('media_player.'),
+  // Alexa Media Player entities carry 'alexa' in the id; do NOT match bare 'media_player.'.
+  alexa: (e) => e.includes('alexa'),
 };
 
 const ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // don't re-alert same integration within 6h
@@ -500,13 +518,20 @@ git commit -m "feat(reliability): add monthly pre-emptive token refresh cron"
 - Consumes: the `system_health` Supabase snapshot via the existing frontend sync (localStorage key `system_health`, kept fresh by `pullFromCloud`/realtime in `src/lib/sync.ts`), and `POST /api/ha-fix` for the "Fix It" buttons.
 - Reuses role gating from the existing pattern in `FinanceHub.tsx` (`isAdmin(currentRole)` from `@/lib/familyos`) and `useAppContext`.
 
-- [ ] **Step 1: Confirm how the frontend reads Supabase keys + role gating**
+- [ ] **Step 1: Confirm frontend helper names + token storage (verified during planning)**
 
-Run:
+Verified facts (already checked against the codebase — do NOT re-guess):
+- `@/lib/familyos` exports `loadJSON`, `isAdmin(role)`, and `KEYS` (with `KEYS.settings = 'familyos_settings'`). No `webhook_token` key exists.
+- `useAppContext()` exposes `currentRole` and `currentUser`.
+- The superadmin-entered secrets live in the settings object under `KEYS.settings` (same place `SettingsModal.tsx` writes the GitHub PAT / camera token). The panel reads `settings.webhookToken` from there.
+
+**Security note:** `WEBHOOK_TOKEN` is a server env var. Storing a copy in client settings so the panel can authenticate to `/api/ha-fix` means it ships in the browser for adults. Acceptable under the "family-trust" posture AND because the Settings/Integrations tab is already superadmin-gated out of the DOM for other roles (per the existing SettingsModal role restrictions). Confirm the settings field is added under that same superadmin gate when wiring it. If you prefer zero client exposure, make the "Fix It" button call a thin authenticated-by-session route instead — deferred; not required for v1.
+
+Run to confirm the settings key name:
 ```bash
-grep -n "loadJSON\|isAdmin\|useAppContext" src/components/familyos/sections/FinanceHub.tsx | head
+grep -n "familyos_settings\|KEYS.settings\|webhookToken" src/lib/familyos.ts src/components/familyos/*.tsx | head
 ```
-Expected: shows `loadJSON` (from `@/lib/familyos`), `isAdmin`, and `useAppContext` usage. Use the same imports in the new panel. If `loadJSON` is not the helper name, use whatever `FinanceHub.tsx` actually imports.
+Expected: `KEYS.settings` resolves to `'familyos_settings'`. Add a `webhookToken` field to the settings shape/UI under the existing superadmin gate.
 
 - [ ] **Step 2: Write the panel component**
 
@@ -514,7 +539,7 @@ Expected: shows `loadJSON` (from `@/lib/familyos`), `isAdmin`, and `useAppContex
 // src/components/familyos/SystemHealth.tsx
 import React, { useEffect, useState } from 'react';
 import { Activity, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { loadJSON, isAdmin } from '@/lib/familyos';
+import { loadJSON, isAdmin, KEYS } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
 type IntegrationHealth = {
@@ -550,7 +575,11 @@ const SystemHealth: React.FC = () => {
   const fixIt = async (integration: string) => {
     setFixing(integration); setMsg('');
     try {
-      const token = loadJSON('webhook_token', ''); // adult-entered token, same pattern as camera token
+      // WEBHOOK_TOKEN is a server env var, NOT stored client-side. The panel must not hold it.
+      // Instead, ha-fix accepts the adult session as sufficient here is NOT possible (edge route
+      // has no session). So: read the webhook token from the settings object the superadmin enters.
+      const settings = loadJSON<Record<string, any>>(KEYS.settings, {});
+      const token = settings.webhookToken || '';
       const res = await fetch('/api/ha-fix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -663,3 +692,12 @@ git commit -m "feat(reliability): add in-app System Health panel with Fix It"
 - **Deferred to a follow-up (documented, not silently dropped):** Tier-2 "paste-one-secret" from the app (a Settings field that POSTs `{integration, key}` to `api/ha-fix`) is stubbed in `runFix` but has no dedicated UI task — the panel currently opens the key URL for Tier-2/3. Add a Settings key-paste field when wiring the real Google-AI flow. Flagged here so it isn't mistaken for complete.
 - **Assumptions surfaced:** exact wyze addon slug (Task 1 Step 3 verifies live), `loadJSON`/`isAdmin` helper names (Task 5 Step 1 verifies against `FinanceHub.tsx`), and the adult-entered `webhook_token` localStorage key (mirrors the existing camera-token pattern — confirm the actual key name when wiring Settings).
 - **Cadences:** 30-min health-check, monthly pre-empt, 6-h alert cooldown — all tunable in one place (`vercel.json` + `ALERT_COOLDOWN_MS`).
+
+## Opus 4.8 Verification (2026-07-12)
+
+Reviewed against the live codebase. Defects found and **fixed inline**:
+- **Panel read a non-existent `webhook_token` localStorage key** → every Fix-It call would 401. Fixed: reads `settings.webhookToken` from `KEYS.settings` (`familyos_settings`), imported `KEYS`, added a security note that the field must sit under the existing superadmin DOM gate.
+- **Alexa matcher over-matched** every `media_player.` entity (Cast/Sonos/TVs) → false alerts. Tightened to `includes('alexa')`.
+- **`reloadByDomain` REST endpoint may be websocket-only** on some HA builds → added a 404 guard + a verify step (Task 2 Step 5); google_ai gracefully degrades to Tier-3 assisted if unavailable.
+
+Confirmed-good: `HOME_ASSISTANT_TOKEN`/`HOME_ASSISTANT_URL` reuse (from `ha-cameras.ts`), `notifyIFTTT` signature, `dbGet`/`dbSet` snapshot persistence, `isAdmin`/`useAppContext`/`currentRole` frontend gating.
