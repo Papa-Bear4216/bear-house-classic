@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/health-check", "schedule": "*/30 * * * *" }
+    { "path": "/api/health-check", "schedule": "*/30 * * * *" },
+    { "path": "/api/preempt-refresh", "schedule": "0 4 1 * *" }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
