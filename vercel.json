@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/health-check", "schedule": "*/30 * * * *" },
+    { "path": "/api/health-check", "schedule": "0 7 * * *" },
     { "path": "/api/preempt-refresh", "schedule": "0 4 1 * *" },
     { "path": "/api/finance-sync", "schedule": "0 6 * * *" }
   ],
