@@ -6,6 +6,7 @@ import { getGoogleToken } from '@/lib/auth';
 import AlertModal from './AlertModal';
 import Trends from './Trends';
 import WeatherWidget from './WeatherWidget';
+import SystemHealth from './SystemHealth';
 
 interface DashboardProps {
   onNav: (m: string) => void;
@@ -217,6 +218,8 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       </div>
 
       <WeatherWidget />
+
+      <SystemHealth />
 
       {/* Tabs */}
       <div className="inline-flex bg-slate-800 border border-slate-700 rounded-lg p-1 gap-1">
