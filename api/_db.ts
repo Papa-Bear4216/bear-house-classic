@@ -2,7 +2,7 @@
  * Supabase REST helpers — no SDK, pure fetch, works in Edge Functions.
  * Underscore prefix means Vercel won't expose this as a route.
  */
-const SUPABASE_URL = 'https://pbiffzdcythkwtwxtqlu.supabase.co';
+const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
 function headers(anonKey: string) {
   return {
