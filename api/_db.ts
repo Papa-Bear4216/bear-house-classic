@@ -27,11 +27,15 @@ export async function dbGet(key: string): Promise<any> {
 /** Upsert a value by key into family_data table */
 export async function dbSet(key: string, value: any): Promise<void> {
   const anonKey = process.env.SUPABASE_ANON_KEY!;
-  await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
     method: 'POST',
     headers: { ...headers(anonKey), 'Prefer': 'resolution=merge-duplicates' },
     body: JSON.stringify({ key, value }),
   });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSet(${key}) failed: ${res.status} ${detail}`);
+  }
 }
 
 /** Prepend one item to an array stored at key (read-modify-write) */
