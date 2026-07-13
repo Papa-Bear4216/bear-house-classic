@@ -22,15 +22,14 @@ export default async function handler(req: Request): Promise<Response> {
     const { setupToken, person = 'Daddy' } = params;
     if (!setupToken) return j({ error: 'Missing setupToken' }, 400);
     try {
+      // Claim only — the account probe below can be slow (bank-dependent) and risks
+      // exceeding Edge's 25s cap, so institutions are resolved lazily on next 'accounts' call.
       const accessUrl = await claimAccessUrl(setupToken);
-      // Probe once to list institutions (last 1 day is enough for account metadata).
-      const now = new Date();
-      const accts = await fetchAccounts(accessUrl, new Date(now.getTime() - 86400000), now);
       await dbSet('simplefin_access', {
         accessUrl, person, connectedAt: Date.now(),
-        institutions: accts.map((a) => ({ id: a.id, name: a.org.name || a.name })),
+        institutions: [] as { id: string; name: string }[],
       });
-      return j({ ok: true, institutions: accts.map((a) => a.org.name || a.name) });
+      return j({ ok: true, institutions: [] });
     } catch (e: any) {
       return j({ error: e?.message || 'connect failed' }, 500);
     }
@@ -39,6 +38,17 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'accounts') {
     const conn: any = await dbGet('simplefin_access');
     if (!conn) return j({ accounts: [] });
+    if (!conn.institutions?.length) {
+      // First load after connect: probe institutions now (last 1 day is enough for metadata).
+      try {
+        const now = new Date();
+        const accts = await fetchAccounts(conn.accessUrl, new Date(now.getTime() - 86400000), now);
+        conn.institutions = accts.map((a) => ({ id: a.id, name: a.org.name || a.name }));
+        await dbSet('simplefin_access', conn);
+      } catch {
+        // Bank may still be provisioning; leave institutions empty and let the UI retry later.
+      }
+    }
     return j({ accounts: (conn.institutions || []).map((i: any) => ({
       person: conn.person, institutionName: i.name, connectedAt: conn.connectedAt, itemId: i.id,
     })) });
