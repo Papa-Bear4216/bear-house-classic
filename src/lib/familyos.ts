@@ -8,7 +8,7 @@ export const USERS = [
   { id: 'julia', name: 'Julia', email: 'jchebert2010@gmail.com', role: 'child' as const, color: 'blue' },
 ];
 
-export type UserRole = 'superadmin' | 'admin' | 'child';
+export type UserRole = 'superadmin' | 'admin' | 'child' | 'pet';
 export type User = typeof USERS[number];
 
 export function canDelete(role: UserRole) { return role === 'superadmin' || role === 'admin'; }
