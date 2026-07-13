@@ -32,16 +32,31 @@ export async function pullFromCloud(): Promise<void> {
   }
 }
 
-// Push a single key to Supabase
-export async function pushToCloud(key: string, value: unknown): Promise<void> {
-  if (!syncEnabled) return;
+// Push a single key to Supabase via the server-side write endpoint.
+// Writes no longer go direct from the browser: the anon key can't write once
+// RLS is enabled, and the powerful service_role key lives only on the server
+// (api/data-write.ts). See docs/fix-family-data-rls.sql.
+const WRITE_SECRET = import.meta.env.VITE_DATA_WRITE_SECRET || '';
+
+export async function pushToCloud(key: string, value: unknown): Promise<boolean> {
+  if (!syncEnabled) return false;
   try {
-    await supabase.from('family_data').upsert(
-      { key, value, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
+    const res = await fetch('/api/data-write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-write-secret': WRITE_SECRET },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) {
+      // Actually surface failures — the old direct-upsert path swallowed them,
+      // so multi-device sync could rot invisibly.
+      const detail = await res.json().catch(() => ({ error: res.statusText }));
+      console.warn(`Sync push failed for "${key}": ${res.status} ${detail.error || ''}`);
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('Sync push failed for', key);
+    console.warn(`Sync push failed for "${key}" (network):`, e);
+    return false;
   }
 }
 

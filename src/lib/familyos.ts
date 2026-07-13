@@ -182,13 +182,28 @@ export function relativeDate(ts: number | null) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-// Claude API call helper — proxied through /api/chat so the key never leaves the server
-export async function callClaude(prompt: string, maxTokens = 1000): Promise<{ ok: boolean; text: string }> {
+// Claude API call helper — proxied through /api/chat so the key never leaves the server.
+// Household memory (the "Household Brain") is injected as the system prompt so every
+// AI surface that routes through here is home-aware. Pass includeMemory=false to opt out
+// (e.g. calls where household context is irrelevant or would waste tokens).
+export async function callClaude(
+  prompt: string,
+  maxTokens = 1000,
+  includeMemory = true
+): Promise<{ ok: boolean; text: string }> {
   try {
+    // Lazy import avoids a circular dependency (householdMemory imports from this file).
+    let system = '';
+    if (includeMemory) {
+      try {
+        const { assembleMemoryPrompt } = await import('./householdMemory');
+        system = assembleMemoryPrompt();
+      } catch { /* memory optional — proceed without it */ }
+    }
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, maxTokens }),
+      body: JSON.stringify(system ? { prompt, maxTokens, system } : { prompt, maxTokens }),
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: res.statusText }));
