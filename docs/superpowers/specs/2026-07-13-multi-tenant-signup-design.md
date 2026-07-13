@@ -21,12 +21,13 @@ This spec covers un-hardcoding the family, introducing real multi-tenant auth an
 3. Preserve the current role hierarchy and its existing gating behavior (child restrictions in `AppLayout.tsx`, etc.), now driven by data instead of hardcoded arrays.
 4. Migrate the current hardcoded family into the new system as "household #1" with no data loss.
 5. Ship a playful, energetic landing page describing real, working features (Hermes AI assistant, Chore Scanner, Finance Hub, Home Assistant cameras, Household Memory) — framed around helping overwhelmed/ADHD-style household management, without inventing unbuilt features.
+6. Charge for the product: every household requires an active subscription (no free tier), with the base plan covering up to 3 authenticating members and per-seat overage pricing beyond that.
 
 ## Non-goals
 
 - Building a net-new "ADHD assistant" feature (out of scope for this spec; existing features are reframed in copy only).
-- Billing/subscription tiers for multiple households.
 - Household-to-household sharing or cross-household visibility.
+- Annual billing, trials, or promotional/discount codes (can be added later on top of the Stripe integration).
 
 ## Data model
 
@@ -37,6 +38,9 @@ New tables (replacing the single hardcoded roster):
 |---|---|---|
 | id | uuid, pk | |
 | name | text | e.g. "The Hebert House" |
+| stripe_customer_id | text, nullable | set once checkout starts |
+| stripe_subscription_id | text, nullable | set once subscription is created |
+| subscription_status | text | mirrors Stripe status: `active`, `past_due`, `canceled`, etc. |
 | created_at | timestamptz | |
 
 ### `household_members`
@@ -78,30 +82,42 @@ following the security checklist (`TO authenticated`, ownership predicate, no `S
 
 ## Signup / Setup flow
 
-New route: `/setup`
+New route: `/setup`. No free tier — a household cannot finish setup without an active subscription.
 
 1. **Create your household** — enter household name, sign up via Google or email/password → this user becomes `superadmin` and a new `households` row + `household_members` row is created.
-2. **Add family members** — repeatable form: name, email (optional), role (`admin`/`child`/`pet`), color.
+2. **Start your subscription** — Stripe Checkout for the base plan (covers up to 3 authenticating members). `households.stripe_customer_id`/`stripe_subscription_id`/`subscription_status` are set on success. Setup cannot proceed past this step without an active subscription.
+3. **Add family members** — repeatable form: name, email (optional), role (`admin`/`child`/`pet`), color.
    - Members with email get invited (magic link / Supabase invite) to set up their own login.
-   - Pet rows are created with no `auth_user_id`/email — purely an assignable label, matching today's behavior.
-3. **Finish** → redirect into the dashboard, now scoped to the new household.
+   - Pet rows are created with no `auth_user_id`/email — purely an assignable label, matching today's behavior, and never count toward seats.
+   - Adding the 4th (and each subsequent) **authenticating** member (`superadmin`/`admin`/`child`) updates the Stripe subscription quantity (seat-based line item) *before* the member row is created; if the Stripe update fails, the member is not added and the user sees an error.
+4. **Finish** → redirect into the dashboard, now scoped to the new household.
+
+## Billing
+
+- **Provider**: Stripe.
+- **Pricing**: base monthly subscription (placeholder, e.g. $9.99/mo) includes up to 3 authenticating members. Each additional authenticating member is a per-seat monthly add-on (placeholder, e.g. $2.99/mo/seat), modeled as a Stripe subscription quantity/line item. Pets never count toward the seat total or billing.
+- **No free tier**: every household must complete Stripe Checkout as part of setup (see flow above) before members can be added or the dashboard can be used.
+- **Access**: `superadmin` and `admin` roles can view invoices, update the payment method, and see current seat count/cost from a new **Billing** panel (likely surfaced inside Settings). `child`/`pet` roles have no billing visibility or access.
+- **Seat sync**: household seat count is derived by counting `household_members` rows where `role in ('superadmin','admin','child')`; this count is kept in sync with the Stripe subscription's seat-based line item quantity whenever a member is added or removed.
+- **Webhooks**: new `api/stripe-webhook.ts` handles subscription lifecycle events (`invoice.payment_failed`, `customer.subscription.updated`/`deleted`, etc.) and updates `households.subscription_status` accordingly.
+- **Enforcement on payment failure**: a household whose `subscription_status` becomes `past_due` or `canceled` is locked out of the dashboard (redirected to a "update billing" screen, gated similarly to the `/setup` guard) until `superadmin`/`admin` resolves payment.
 
 ## Routes
 
 Current: `/` (dashboard, session-gated), `*` (404).
 
 New:
-- `/` — **landing page** (logged-out marketing page)
+- `/` — the existing dashboard (`AppLayout`), now requiring an authenticated session, an existing `household_members` row, and an active subscription
+- `/welcome` — **landing page** (logged-out marketing page; authenticated visitors without a household are redirected past this into `/setup`)
 - `/login` — sign in (Google or email/password)
-- `/setup` — household creation + member setup (first-run for a new household, or "add a member" later from Settings)
-- `/app` — the existing dashboard (`AppLayout`), now requiring an authenticated session **and** an existing `household_members` row
+- `/setup` — household creation, required subscription checkout, and member setup (first-run for a new household, or "add a member" later from Settings)
 - `*` — 404 (unchanged)
 
-Guard logic: unauthenticated → `/login`; authenticated but no household membership row → `/setup`; authenticated with membership → `/app`.
+Guard logic: unauthenticated → `/welcome` (with a "Log in" link to `/login`); authenticated but no household membership row → `/setup`; authenticated with membership but no active subscription → `/setup` (billing step); authenticated with membership and active subscription → `/`.
 
 ## Landing page
 
-Route: `/`. Playful & energetic tone (bright, fun copy, illustration/emoji accents — not enterprise-SaaS, not overly cozy).
+Route: `/welcome`. Playful & energetic tone (bright, fun copy, illustration/emoji accents — not enterprise-SaaS, not overly cozy).
 
 Sections:
 - **Hero** — bold headline about taming household chaos together; primary CTA "Get Started" → `/setup`; secondary "Log in" → `/login`.
@@ -123,4 +139,5 @@ Sections:
 ## Open items carried into implementation planning
 
 - Exact invite mechanism for household members with email (Supabase magic link vs. a custom invite-code flow) — can be decided during planning.
-- Whether `/app` is the right path name vs. keeping the dashboard at `/` and moving the landing page to `/welcome` — cosmetic, decide during planning.
+- Exact Stripe product/price configuration (base plan price ID, per-seat price ID, whether seats are a metered item or a quantity-based line item) — can be decided during planning.
+- Final pricing numbers (placeholders used in this spec) — to be set before launch.
