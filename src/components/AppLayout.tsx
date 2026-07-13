@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Home, Calendar, Handshake, Heart, LayoutDashboard, Settings as SettingsIcon,
   Search, History, Users, DollarSign, ChevronUp, ChevronDown, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
@@ -19,6 +19,7 @@ import MealPlanner from '@/components/familyos/sections/MealPlanner';
 import BillTracker from '@/components/familyos/sections/BillTracker';
 import CarMaintenance from '@/components/familyos/sections/CarMaintenance';
 import HomeMaintenance from '@/components/familyos/sections/HomeMaintenance';
+import HouseholdMemory from '@/components/familyos/sections/HouseholdMemory';
 import KidsHub from '@/components/familyos/sections/KidsHub';
 import HealthHub from '@/components/familyos/sections/HealthHub';
 import FamilyHub from '@/components/familyos/sections/FamilyHub';
@@ -30,7 +31,7 @@ import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTrack
 import MagicTrail from '@/components/familyos/MagicTrail';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
-type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars';
+type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars' | 'brain';
 
 interface NavItem { id: TopModule; label: string; icon: React.ComponentType<{ className?: string }>; accent: string; adminOnly?: boolean; }
 
@@ -56,6 +57,7 @@ const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentTy
   { id: 'bills', label: 'Bills', icon: Receipt },
   { id: 'home', label: 'Home', icon: Wrench },
   { id: 'cars', label: 'Cars', icon: Car },
+  { id: 'brain', label: 'Brain', icon: Brain },
 ];
 
 const COLOR_DOT: Record<string, string> = {
@@ -207,6 +209,7 @@ const AppLayout: React.FC = () => {
             {householdTab === 'bills' && <BillTracker />}
             {householdTab === 'home' && <HomeMaintenance />}
             {householdTab === 'cars' && <CarMaintenance />}
+            {householdTab === 'brain' && <HouseholdMemory />}
           </div>
         );
 

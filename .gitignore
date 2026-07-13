@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Local ops / handoff files — may contain plaintext credentials, never commit
+ha_audit_plan.md
+handoff-instructions.md
+ha_integrations.json
+ha_states.json
+.claude/
