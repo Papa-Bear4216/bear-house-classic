@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { User, UserRole, getSession, clearSession, USERS } from '@/lib/familyos';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getHouseholdSession, signOut, HouseholdMember, HouseholdRole } from '@/lib/householdAuth';
 
 interface AppContextType {
   sidebarOpen: boolean;
   toggleSidebar: () => void;
-  currentUser: User | null;
-  currentRole: UserRole | null;
+  currentUser: HouseholdMember | null;
+  currentRole: HouseholdRole | null;
+  householdId: string | null;
+  loading: boolean;
   logout: () => void;
-  setCurrentUser: (user: User | null) => void;
 }
 
 const defaultAppContext: AppContextType = {
@@ -15,8 +16,9 @@ const defaultAppContext: AppContextType = {
   toggleSidebar: () => {},
   currentUser: null,
   currentRole: null,
+  householdId: null,
+  loading: true,
   logout: () => {},
-  setCurrentUser: () => {},
 };
 
 const AppContext = createContext<AppContextType>(defaultAppContext);
@@ -25,38 +27,32 @@ export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () => void }> = ({ children, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<HouseholdMember | null>(null);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const session = getSession();
-  const initialUser = session ? USERS.find(u => u.id === session.userId) ?? null : null;
+  useEffect(() => {
+    getHouseholdSession().then((result) => {
+      setCurrentUser(result?.member ?? null);
+      setHouseholdId(result?.householdId ?? null);
+      setLoading(false);
+    });
+  }, []);
 
-  const [currentUser, setCurrentUserState] = useState<User | null>(initialUser);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev);
-  };
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   const logout = useCallback(() => {
-    clearSession();
-    setCurrentUserState(null);
+    signOut();
+    setCurrentUser(null);
+    setHouseholdId(null);
     if (onLogout) onLogout();
   }, [onLogout]);
-
-  const setCurrentUser = useCallback((user: User | null) => {
-    setCurrentUserState(user);
-  }, []);
 
   const currentRole = currentUser?.role ?? null;
 
   return (
     <AppContext.Provider
-      value={{
-        sidebarOpen,
-        toggleSidebar,
-        currentUser,
-        currentRole,
-        logout,
-        setCurrentUser,
-      }}
+      value={{ sidebarOpen, toggleSidebar, currentUser, currentRole, householdId, loading, logout }}
     >
       {children}
     </AppContext.Provider>
