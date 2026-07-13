@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid } from '@/lib/familyos';
+import { memoryFactBlock } from '@/lib/householdMemory';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -241,6 +242,7 @@ OPEN PROMISES: ${promises.length ? promises.map(p => `${p.person}: "${p.text}"`)
 RECENT EMOTIONS: ${emotions.length ? emotions.map(e => `${e.person} felt ${e.emotion} (${e.intensity}/5)`).join(' | ') : 'none'}
 
 ${memory ? `═══ MY MEMORY ═══\n${memory}\n` : ''}
+${(() => { const hb = memoryFactBlock(); return hb ? `═══ HOUSEHOLD BRAIN (rules/inventory/procedures set by the family) ═══\n${hb}\n` : ''; })()}
 
 ═══ RESPONSE FORMAT ═══
 ALWAYS return valid JSON. Never plain text. Never markdown outside the text field:

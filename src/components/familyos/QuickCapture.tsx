@@ -1,22 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Mic, MicOff, X, Loader2, Plus, CheckCircle2 } from 'lucide-react';
-import { KEYS, uid, saveJSON, loadJSON, callClaudeVision, PERSONS, TASK_CATEGORIES, PRIORITIES } from '@/lib/familyos';
-
-// We reuse the text-only Claude caller via the vision proxy with a text-only message
-async function callClaude(prompt: string): Promise<{ ok: boolean; text: string }> {
-  try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) return { ok: false, text: await res.text() };
-    const data = await res.json();
-    return { ok: true, text: data.text || '' };
-  } catch (e: any) {
-    return { ok: false, text: e?.message || 'Network error' };
-  }
-}
+import { KEYS, uid, saveJSON, loadJSON, callClaude, callClaudeVision, PERSONS, TASK_CATEGORIES, PRIORITIES } from '@/lib/familyos';
 
 const PARSE_PROMPT = (input: string) => `You are parsing a voice/text capture for a family OS app. Given the input, classify it and extract structured data.
 

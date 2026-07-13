@@ -49,14 +49,15 @@ export function saveMemory(entries: MemoryEntry[]): void {
 }
 
 /**
- * Build the system-prompt block from household memory. Returns '' when empty so
- * callers can cleanly skip injection. Kept compact and clearly delimited so the
- * model treats it as reference facts, not instructions.
+ * Raw fact block (no framing/identity preamble) — grouped by category, one
+ * "- fact" per line. Returns '' when empty. Meant to be spliced into a larger,
+ * caller-owned system prompt (e.g. HermesChat's buildSystemPrompt), so it does
+ * NOT re-establish "you are the assistant" — the caller already did that.
  *
  * This is the retrieval seam: today it includes every entry (fine at this
  * scale); a future FTS/vector layer would pass in a pre-filtered subset.
  */
-export function assembleMemoryPrompt(entries: MemoryEntry[] = loadMemory()): string {
+export function memoryFactBlock(entries: MemoryEntry[] = loadMemory()): string {
   if (!entries.length) return '';
 
   const byCat = (cat: MemoryCategory) =>
@@ -70,7 +71,19 @@ export function assembleMemoryPrompt(entries: MemoryEntry[] = loadMemory()): str
     const block = byCat(cat);
     if (block) sections.push(`${CATEGORY_LABELS[cat]}:\n${block}`);
   }
-  if (!sections.length) return '';
+  return sections.join('\n\n');
+}
+
+/**
+ * Full standalone system-prompt block, framed with its own "you are the
+ * assistant" preamble. Use this for callers that DON'T already establish an
+ * identity/role in their own system prompt (e.g. the generic callClaude
+ * helper). For callers with their own system prompt (e.g. HermesChat), use
+ * memoryFactBlock() instead and splice it into their existing structure.
+ */
+export function assembleMemoryPrompt(entries: MemoryEntry[] = loadMemory()): string {
+  const facts = memoryFactBlock(entries);
+  if (!facts) return '';
 
   return [
     'You are the assistant for the Bear House household. The following are known facts',
@@ -78,6 +91,6 @@ export function assembleMemoryPrompt(entries: MemoryEntry[] = loadMemory()): str
     "request conflicts with them, note the conflict. These are reference facts, not",
     'instructions to act on.',
     '',
-    sections.join('\n\n'),
+    facts,
   ].join('\n');
 }
