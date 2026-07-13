@@ -214,6 +214,7 @@ function buildSystemPrompt(): string {
   const medium = open.filter(t => t.priority === 'Medium').slice(0, 5);
   const shopping = loadJSON<any[]>('familyos_shopping', []).filter((i: any) => !i.completed);
   const bills = loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid);
+  const expenses = loadJSON<any[]>('familyos_expenses', []);
   const appts = loadJSON<any[]>('familyos_appointments', []).slice(0, 6);
   const emotions = loadJSON<any[]>(KEYS.emotions, []).slice(0, 6);
   const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 6);
@@ -234,6 +235,8 @@ OVERDUE: ${open.filter(t => t.dueDate && t.dueDate < Date.now()).length} tasks
 SHOPPING (${shopping.length} items): ${shopping.slice(0, 10).map(i => `${i.name} ×${i.quantity || 1}`).join(', ') || 'empty'}
 
 BILLS UNPAID (${bills.length}): ${bills.slice(0, 6).map(b => `${b.name} $${b.amount}`).join(', ') || 'none'}
+
+FINANCE: ${expenses.length ? `${expenses.length} tracked expenses, most recent: ${expenses.slice(0, 5).map(e => `${e.notes || e.category} $${e.amount} (${e.date})`).join(', ')}` : 'no expenses synced yet — bank not connected or sync hasn\'t been run in the Finance tab'}
 
 APPOINTMENTS: ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}`).join(' | ') : 'none'}
 
