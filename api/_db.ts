@@ -7,7 +7,7 @@
  * The anon key can no longer write since RLS was locked down (see
  * docs/fix-family-data-rls.sql).
  */
-const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
 
 function headers(key: string) {
   return {
