@@ -1,0 +1,11 @@
+-- RLS policies invoke a policy function AS THE CALLING ROLE — SECURITY
+-- DEFINER only changes whose table privileges apply inside the function
+-- body, it does not exempt the caller from needing EXECUTE on the
+-- function itself. The prior migration's revoke broke both policies that
+-- reference current_user_household_ids() entirely (every authenticated
+-- read of household_members/households started failing with
+-- "permission denied for function current_user_household_ids").
+--
+-- Grant back to authenticated only — anon never needs it, since every
+-- policy referencing this function is `to authenticated`.
+grant execute on function public.current_user_household_ids() to authenticated;
