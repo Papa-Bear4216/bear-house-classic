@@ -46,14 +46,6 @@ export function decodeGoogleJWT(credential: string): { email: string; name: stri
   }
 }
 
-// ── User matching ──────────────────────────────────────────────────────────────
-
-import { USERS } from '@/lib/familyos';
-
-export function matchUserByEmail(email: string) {
-  return USERS.find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
-}
-
 // ── Google Token Client (for requesting access token with scopes) ──────────────
 
 export function requestAccessToken(callback: (token: string) => void, errorCallback: (err: any) => void) {
