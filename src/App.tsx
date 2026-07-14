@@ -18,17 +18,26 @@ const App = () => {
   const [syncReady, setSyncReady] = useState(false);
 
   useEffect(() => {
-    getHouseholdSession().then((result) => setAuthed(!!result));
+    let unsubRealtime: (() => void) | undefined;
+
+    getHouseholdSession().then((result) => {
+      setAuthed(!!result);
+      if (result?.householdId) {
+        pullFromCloud(result.householdId).finally(() => setSyncReady(true));
+        unsubRealtime = subscribeToRealtime(result.householdId);
+      } else {
+        setSyncReady(true);
+      }
+    });
+
     const unsubAuth = onAuthStateChange((loggedIn) => {
       if (!loggedIn) setAuthed(false);
     });
-    return unsubAuth;
-  }, []);
 
-  useEffect(() => {
-    pullFromCloud().finally(() => setSyncReady(true));
-    const unsub = subscribeToRealtime();
-    return unsub;
+    return () => {
+      unsubAuth();
+      unsubRealtime?.();
+    };
   }, []);
 
   const handleLogout = useCallback(() => setAuthed(false), []);
