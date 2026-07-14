@@ -2,6 +2,15 @@
 
 Date: 2026-07-13
 
+> **Status update (2026-07-14):** The auth + data-scoping portion of this spec
+> (Data model, Auth, Roles, RLS, and the `household_id` migration/rollout
+> notes) has been implemented and shipped to production — see
+> `docs/superpowers/plans/2026-07-13-multi-tenant-foundation.md` and its
+> progress ledger. **Signup, Billing, and the `/welcome` landing page below
+> are still unbuilt** — only `/login` exists today; there is no `/setup`,
+> no Stripe integration, and no landing page. See "Deviations from this spec"
+> at the bottom before planning that work.
+
 ## Problem
 
 FamilyOS ("bear-house-classic") is currently a hardcoded single-family app:
@@ -58,7 +67,8 @@ New tables (replacing the single hardcoded roster):
 
 ### `family_data` (existing table)
 - Add `household_id uuid references households(id)`.
-- Backfill: create one `households` row for the current family, set `household_id` on every existing `family_data` row to that id, and create four `household_members` rows (`Daddy`/superadmin, `Mommy`/admin, `Abriana`/child, `Julia`/child) plus one pet row (`Lucy`) matched from the existing hardcoded `USERS`/`FAMILY` data — so nothing existing is lost.
+- Backfill: create one `households` row for the current family (name "Hebert House", `subscription_status = 'active'` — grandfathered in without Stripe checkout), set `household_id` on every existing `family_data` row to that id, and create five `household_members` rows (`Daddy`/superadmin, `Mommy`/admin, `Abriana`/child, `Julia`/child, `Lucy`/pet) matched from the existing hardcoded `USERS`/`FAMILY` data — so nothing existing is lost.
+- **Shipped as built:** `family_data`'s primary key was widened from `(key)` to `(key, household_id)` so two households can't collide on the same key (not called out in this spec's original data model — added during implementation).
 
 ### RLS
 Every table scoped by `household_id` gets RLS policies of the form:
@@ -69,6 +79,23 @@ using (household_id in (
 ```
 following the security checklist (`TO authenticated`, ownership predicate, no `SECURITY DEFINER` shortcuts).
 
+**Shipped as built:** `households` and `household_members` got authenticated,
+household-scoped SELECT policies from the start (never had a legacy anon
+policy to remove). `family_data` was handled differently on purpose —
+RLS was deliberately left unchanged (still anon-readable) through most of
+the rollout so `src/lib/sync.ts`'s existing anon-key read/realtime path
+wasn't broken mid-migration, then tightened *last*, only after the
+authenticated read path was proven working live. The final `family_data`
+policy (`"members read own household data"`) matches this section's
+sketch, using `(select auth.uid())` for the per-row optimizer hint.
+Writes to `family_data` go through a `service_role` server endpoint
+(`api/data-write.ts`), which bypasses RLS by design — there is no
+authenticated write policy on `family_data`. `household_members` itself
+needed a follow-up fix: the initial roster-read policy caused infinite
+self-referential recursion, fixed via a `SECURITY DEFINER` helper function
+(`current_user_household_ids()`) scoped to `auth.uid()` — a narrow,
+justified exception to the "no `SECURITY DEFINER` shortcuts" rule above.
+
 ## Auth
 
 - Move from client-decoded Google JWT (`src/lib/auth.ts`) to **Supabase Auth**, using Supabase's Google OAuth provider for the existing "Sign in with Google" UX, plus Supabase email/password for members without Google.
@@ -76,11 +103,30 @@ following the security checklist (`TO authenticated`, ownership predicate, no `S
 - `AppContext` resolves `currentUser`/`currentRole` via `auth.uid()` → `household_members` row lookup instead of scanning a hardcoded array.
 - Route guarding (see Routes below) replaces the current `App.tsx` "authed = getSession() !== null" gate.
 
+**Shipped as built (2026-07-14):** Google OAuth via Supabase Auth is live —
+`src/lib/householdAuth.ts` (`signInWithGoogle`/`signOut`/`getHouseholdSession`/
+`getHouseholdRoster`), a page-level `/login` (`src/pages/Login.tsx`), and
+`AppContext` resolving `currentUser`/`currentRole`/`members` from
+`household_members` exactly as described above. **The PIN-hash /
+email-password path was never built** — only Google OAuth exists today;
+`pin_hash` remains an unused column. `household_members.auth_user_id` is
+linked to real `auth.users` rows via a one-time manual SQL step per member
+(not a self-service "claim my row" flow) — a deferred item, not yet
+revisited. Old hardcoded auth (`USERS`/`FAMILY`/`getSession`/`setSession`/
+`clearSession`, the JWT-decode `Login.tsx`) has been fully removed from
+`src/lib/familyos.ts` and the codebase.
+
 ## Roles (preserved)
 
 `superadmin` / `admin` / `child` / `pet` remain exactly as they behave today (see `AppLayout.tsx` gating: children lose Health/Finance nav and admin-only household sub-tabs; pets are assignees only, never authenticate). The only change is that role becomes a column on `household_members` rows created during setup, instead of a hardcoded per-person constant.
 
 ## Signup / Setup flow
+
+> **Not built as of 2026-07-14.** No `/setup` route, no Stripe integration,
+> no member-invite flow exist yet. This section remains a plan, not a
+> status report. The current backfilled household (household #1) was
+> created directly via SQL migration, bypassing this flow entirely — see
+> the status note at the top of this document.
 
 New route: `/setup`. No free tier — a household cannot finish setup without an active subscription.
 
@@ -94,6 +140,10 @@ New route: `/setup`. No free tier — a household cannot finish setup without an
 
 ## Billing
 
+> **Not built as of 2026-07-14.** No Stripe integration exists. Household
+> #1's `subscription_status = 'active'` is a hardcoded grandfather value
+> set by the backfill migration, not the output of a real subscription.
+
 - **Provider**: Stripe.
 - **Pricing**: base monthly subscription (placeholder, e.g. $9.99/mo) includes up to 3 authenticating members. Each additional authenticating member is a per-seat monthly add-on (placeholder, e.g. $2.99/mo/seat), modeled as a Stripe subscription quantity/line item. Pets never count toward the seat total or billing.
 - **No free tier**: every household must complete Stripe Checkout as part of setup (see flow above) before members can be added or the dashboard can be used.
@@ -103,6 +153,13 @@ New route: `/setup`. No free tier — a household cannot finish setup without an
 - **Enforcement on payment failure**: a household whose `subscription_status` becomes `past_due` or `canceled` is locked out of the dashboard (redirected to a "update billing" screen, gated similarly to the `/setup` guard) until `superadmin`/`admin` resolves payment.
 
 ## Routes
+
+> **Partially built as of 2026-07-14.** `/` and `/login` exist and work as
+> described. `/welcome` and `/setup` do not exist — there is no landing
+> page and no signup flow. Today, an unauthenticated visitor lands on
+> `/login` directly (not `/welcome`), and there is no guard for "no
+> household membership" or "no active subscription" since every current
+> user was backfilled with both already in place.
 
 Current: `/` (dashboard, session-gated), `*` (404).
 
@@ -116,6 +173,9 @@ New:
 Guard logic: unauthenticated → `/welcome` (with a "Log in" link to `/login`); authenticated but no household membership row → `/setup`; authenticated with membership but no active subscription → `/setup` (billing step); authenticated with membership and active subscription → `/`.
 
 ## Landing page
+
+> **Not built as of 2026-07-14.** No `/welcome` route or landing page copy
+> exists yet.
 
 Route: `/welcome`. Playful & energetic tone (bright, fun copy, illustration/emoji accents — not enterprise-SaaS, not overly cozy).
 
@@ -132,9 +192,12 @@ Sections:
 
 ## Migration/rollout notes
 
-- Existing hardcoded family becomes household #1 via a one-time backfill script (data + member rows), run before the new auth/setup code goes live, so the current family's session transitions seamlessly to the new system.
-- `api/_db.ts`, `src/lib/sync.ts`, and every `dbGet`/`dbSet`/`dbPrepend` call site need `household_id` threaded through — this is the largest mechanical part of the implementation and a good candidate for the parallelized implementation plan.
-- Hardcoded Supabase URL/anon key committed in source (`api/_db.ts:5`, `src/lib/sync.ts:3-4`) should move to env-only reads while this work is in flight, since RLS now becomes the real security boundary.
+**Shipped as built (2026-07-14)** — see `docs/superpowers/plans/2026-07-13-multi-tenant-foundation.md` for the task-by-task execution:
+
+- Existing hardcoded family became household #1 via a one-time backfill migration (data + 5 member rows including the pet), applied before the auth rollout, so the current family's session transitioned seamlessly.
+- Hardcoded Supabase URL/anon key moved to env-only reads (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` client-side, `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`service_role` server-side) before RLS tightened.
+- `household_id` threading **deviated from "every call site"**: client-side paths (`sync.ts`, `data-write.ts`, `App.tsx`) thread `householdId` as originally planned. Server-side background jobs (crons/webhooks in `api/*.ts`) instead resolve the sole existing household via a `soleHouseholdId()` guard in `api/_db.ts`, which throws loudly if more than one household ever exists — a deliberate scope-reduction (confirmed via review) since there is exactly one household today and speculative multi-household fan-out had no consumer yet. Revisit `soleHouseholdId()` before onboarding a second real household.
+- `api/_db.ts`'s `dbGet` moved off the anon key onto `service_role`, since these background-job endpoints have no `auth.uid()` session to satisfy the tightened `family_data` RLS policy.
 
 ## Open items carried into implementation planning
 
