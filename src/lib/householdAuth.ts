@@ -49,6 +49,24 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
   };
 }
 
+export async function getHouseholdRoster(householdId: string): Promise<HouseholdMember[]> {
+  const { data, error } = await supabase
+    .from('household_members')
+    .select('id, household_id, name, email, role, color')
+    .eq('household_id', householdId);
+
+  if (error) { console.warn('getHouseholdRoster: lookup failed:', error.message); return []; }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    householdId: row.household_id,
+    name: row.name,
+    email: row.email,
+    role: row.role as HouseholdRole,
+    color: row.color,
+  }));
+}
+
 export function onAuthStateChange(cb: (loggedIn: boolean) => void): () => void {
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     cb(!!session);

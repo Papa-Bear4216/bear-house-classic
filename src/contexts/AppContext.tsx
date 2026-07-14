@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getHouseholdSession, signOut, HouseholdMember, HouseholdRole } from '@/lib/householdAuth';
+import { getHouseholdSession, getHouseholdRoster, signOut, HouseholdMember, HouseholdRole } from '@/lib/householdAuth';
 
 interface AppContextType {
   sidebarOpen: boolean;
@@ -7,6 +7,7 @@ interface AppContextType {
   currentUser: HouseholdMember | null;
   currentRole: HouseholdRole | null;
   householdId: string | null;
+  members: HouseholdMember[];
   loading: boolean;
   logout: () => void;
 }
@@ -17,6 +18,7 @@ const defaultAppContext: AppContextType = {
   currentUser: null,
   currentRole: null,
   householdId: null,
+  members: [],
   loading: true,
   logout: () => {},
 };
@@ -29,6 +31,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<HouseholdMember | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +39,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setCurrentUser(result?.member ?? null);
       setHouseholdId(result?.householdId ?? null);
       setLoading(false);
+      if (result?.householdId) {
+        getHouseholdRoster(result.householdId).then(setMembers);
+      }
     });
   }, []);
 
@@ -45,6 +51,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
     signOut();
     setCurrentUser(null);
     setHouseholdId(null);
+    setMembers([]);
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -52,7 +59,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
 
   return (
     <AppContext.Provider
-      value={{ sidebarOpen, toggleSidebar, currentUser, currentRole, householdId, loading, logout }}
+      value={{ sidebarOpen, toggleSidebar, currentUser, currentRole, householdId, members, loading, logout }}
     >
       {children}
     </AppContext.Provider>

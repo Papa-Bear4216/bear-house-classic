@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete, USERS } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
 const FamilyHub: React.FC = () => {
-  const { currentRole } = useAppContext();
+  const { currentRole, members } = useAppContext();
   const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight'>('messages');
   const isAdm = currentRole && canDelete(currentRole);
 
@@ -335,13 +335,16 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
 interface Game { id: string; name: string; scores: { player: string; score: number; date: string }[]; createdAt: number; }
 
 const GameNightTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
-  const { currentUser } = useAppContext();
+  const { currentUser, members } = useAppContext();
   const [games, setGames] = useState<Game[]>(() => loadJSON('familyos_games', []));
   const [gameName, setGameName] = useState('');
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
-  const [scorePlayer, setScorePlayer] = useState(USERS[0].name);
+  const [scorePlayer, setScorePlayer] = useState('');
   const [scoreValue, setScoreValue] = useState('');
   const [scoreDate, setScoreDate] = useState(new Date().toISOString().slice(0, 10));
+  useEffect(() => {
+    if (!scorePlayer && members.length > 0) setScorePlayer(members[0].name);
+  }, [members, scorePlayer]);
   const save = (next: Game[]) => { setGames(next); saveJSON('familyos_games', next); };
   const addGame = () => {
     if (!gameName.trim()) return;
@@ -382,7 +385,7 @@ const GameNightTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
                 <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
                   <div className="flex gap-2 flex-wrap">
                     <select value={scorePlayer} onChange={e => setScorePlayer(e.target.value)} className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs outline-none">
-                      {USERS.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                      {members.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                     </select>
                     <input type="number" value={scoreValue} onChange={e => setScoreValue(e.target.value)} placeholder="Score" className="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs placeholder-slate-500 outline-none" />
                     <input type="date" value={scoreDate} onChange={e => setScoreDate(e.target.value)} className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs outline-none" />
