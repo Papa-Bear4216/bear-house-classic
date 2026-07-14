@@ -33,6 +33,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
 
+  if (error) console.warn('getHouseholdSession: household_members lookup failed:', error.message);
   if (error || !data) return null;
 
   return {
