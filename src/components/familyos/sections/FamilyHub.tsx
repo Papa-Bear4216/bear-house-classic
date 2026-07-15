@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete, User } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
 const FamilyHub: React.FC = () => {
-  const { currentRole } = useAppContext();
+  const { currentRole, householdMembers } = useAppContext();
   const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight'>('messages');
   const isAdm = currentRole && canDelete(currentRole);
 

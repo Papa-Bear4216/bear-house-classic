@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, History, RotateCcw, CheckCircle2, Handshake, ListChecks } from 'lucide-react';
-import { KEYS, loadJSON, saveJSON, formatDate } from '@/lib/familyos';
+import { KEYS, loadJSON, saveJSON, formatDate, householdPersons } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface Props {
   open: boolean;
@@ -17,7 +18,6 @@ type HistoryItem = {
   createdAt: number;
 };
 
-const PERSONS = ['All', 'Mommy', 'Abriana', 'Julia', 'Lucy', 'Family', 'General'];
 const RANGES = [
   { id: 'all', label: 'All Time', days: Infinity },
   { id: '7', label: 'Last 7d', days: 7 },
@@ -26,6 +26,8 @@ const RANGES = [
 ];
 
 const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
+  const { householdMembers } = useAppContext();
+  const PERSONS = ['All', ...householdPersons(householdMembers)];
   const [personFilter, setPersonFilter] = useState('All');
   const [rangeId, setRangeId] = useState('30');
   const [reload, setReload] = useState(0);

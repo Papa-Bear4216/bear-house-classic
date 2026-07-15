@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Mic, MicOff, X, Loader2, Plus, CheckCircle2 } from 'lucide-react';
-import { KEYS, uid, saveJSON, loadJSON, callClaude, callClaudeVision, PERSONS, TASK_CATEGORIES, PRIORITIES } from '@/lib/familyos';
+import { KEYS, uid, saveJSON, loadJSON, callClaude, callClaudeVision, householdPersons, TASK_CATEGORIES, PRIORITIES } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 
-const PARSE_PROMPT = (input: string) => `You are parsing a voice/text capture for a family OS app. Given the input, classify it and extract structured data.
+const PARSE_PROMPT = (input: string, persons: string[], defaultPerson: string) => `You are parsing a voice/text capture for a family OS app. Given the input, classify it and extract structured data.
 
 Input: "${input}"
 
@@ -10,7 +11,7 @@ Return ONLY valid JSON, no markdown:
 {
   "type": "task" | "bill" | "shopping" | "appointment",
   "text": "clean description",
-  "person": one of [Daddy, Mommy, Abriana, Julia, Lucy, Family, General],
+  "person": one of [${persons.join(', ')}],
   "priority": "High" | "Medium" | "Low",
   "category": one of [Shopping, Maintenance, Scheduling, Pet, Important Dates, General],
   "dueEstimate": "Today" | "This Week" | "This Month" | "No Deadline",
@@ -23,7 +24,7 @@ Rules:
 - "pay/bill/due/owe" → bill
 - "appointment/doctor/dentist/vet/meet" → appointment
 - everything else → task
-- If person not mentioned, use "Daddy" for tasks, "General" for shopping
+- If person not mentioned, use "${defaultPerson}" for tasks, "General" for shopping
 - Keep text concise and action-oriented`;
 
 interface ParsedItem {
@@ -37,7 +38,7 @@ interface ParsedItem {
   quantity?: string | null;
 }
 
-function saveItem(parsed: ParsedItem) {
+function saveItem(parsed: ParsedItem, defaultPerson: string) {
   const now = Date.now();
   const base = { id: uid(), createdAt: now, source: 'quick_capture' };
 
@@ -46,7 +47,7 @@ function saveItem(parsed: ParsedItem) {
     tasks.unshift({
       ...base,
       text: parsed.text,
-      person: parsed.person || 'Daddy',
+      person: parsed.person || defaultPerson,
       priority: parsed.priority || 'Medium',
       category: parsed.category || 'General',
       dueEstimate: parsed.dueEstimate || 'No Deadline',
@@ -63,7 +64,7 @@ function saveItem(parsed: ParsedItem) {
     saveJSON('familyos_shopping', items);
   } else if (parsed.type === 'appointment') {
     const appts = loadJSON<any[]>('familyos_appointments', []);
-    appts.unshift({ ...base, person: parsed.person || 'Daddy', type: parsed.category || 'General', doctor: '', date: null, notes: parsed.text });
+    appts.unshift({ ...base, person: parsed.person || defaultPerson, type: parsed.category || 'General', doctor: '', date: null, notes: parsed.text });
     saveJSON('familyos_appointments', appts);
   }
 }
@@ -71,6 +72,9 @@ function saveItem(parsed: ParsedItem) {
 type Phase = 'idle' | 'listening' | 'parsing' | 'confirm' | 'saved';
 
 const QuickCapture: React.FC = () => {
+  const { currentUser, householdMembers } = useAppContext();
+  const persons = householdPersons(householdMembers);
+  const defaultPerson = currentUser?.name || persons[0] || 'General';
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -115,7 +119,7 @@ const QuickCapture: React.FC = () => {
     if (!input.trim()) return;
     setPhase('parsing');
     setError('');
-    const result = await callClaude(PARSE_PROMPT(input.trim()));
+    const result = await callClaude(PARSE_PROMPT(input.trim(), persons, defaultPerson));
     if (!result.ok) { setError(result.text); setPhase('idle'); return; }
     try {
       const raw = result.text.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
@@ -130,7 +134,7 @@ const QuickCapture: React.FC = () => {
 
   const confirmSave = () => {
     if (!parsed) return;
-    saveItem(parsed);
+    saveItem(parsed, defaultPerson);
     setPhase('saved');
     setTimeout(() => { close(); }, 1200);
   };

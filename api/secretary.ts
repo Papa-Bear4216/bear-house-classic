@@ -7,7 +7,6 @@ import { dbGet } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
-const FAMILY = ['Daddy', 'Mommy', 'Abriana', 'Julia', 'Lucy', 'Family', 'General'];
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
@@ -66,7 +65,7 @@ function isDuplicate(incoming: string, existing: any[]): boolean {
   return existing.some(t => { const b = norm(t.text || t.name || ''); return a === b || a.includes(b) || b.includes(a); });
 }
 
-const ENRICH_PROMPT = (item: object, existingTasks: any[]) => `
+const ENRICH_PROMPT = (item: object, existingTasks: any[], familyMembers: string[]) => `
 You are Hermes, the Bear House family secretary. Enrich and validate this incoming item before saving.
 
 INCOMING ITEM:
@@ -75,7 +74,7 @@ ${JSON.stringify(item, null, 2)}
 EXISTING OPEN TASKS (dedup check):
 ${existingTasks.map((t: any) => `- [${t.person}] ${t.text}`).join('\n') || 'none'}
 
-FAMILY MEMBERS: ${FAMILY.join(', ')}
+FAMILY MEMBERS: ${familyMembers.join(', ')}
 CATEGORIES: ${CATEGORIES.join(', ')}
 
 Return ONLY valid JSON (no markdown):
@@ -92,7 +91,7 @@ Return ONLY valid JSON (no markdown):
   }
 }
 
-Rules: skip if very similar task exists. Assign Daddy for maintenance/car, Mommy for scheduling by default.
+Rules: skip if very similar task exists. Default to the first family member for maintenance/car, the second for scheduling, unless the item clearly names someone else.
 `.trim();
 
 export default async function handler(req: Request): Promise<Response> {
@@ -107,8 +106,11 @@ export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('x-webhook-token') || body?.token;
   if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
-  const { item, type } = body;
+  const { item, type, familyMembers } = body;
   if (!item || !type) return j({ error: 'Missing item or type' }, 400);
+  const members: string[] = Array.isArray(familyMembers) && familyMembers.length > 0
+    ? familyMembers
+    : ['Family', 'General'];
 
   try {
     const existingTasks = await getRecentTasks();
@@ -116,7 +118,7 @@ export default async function handler(req: Request): Promise<Response> {
     const text = item.text || item.name || '';
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
-    const raw = await callAI(ENRICH_PROMPT(item, existingTasks), anthropicKey, geminiKey);
+    const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey);
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const result = JSON.parse(clean);
 

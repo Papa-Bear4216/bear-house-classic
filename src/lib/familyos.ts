@@ -50,21 +50,12 @@ export const DEFAULT_PRESENCE_ZONES = [
   { id: 'sat-morning', name: 'Saturday Morning', startHour: 8, endHour: 12, days: [6] },
 ];
 
-export const DEFAULT_PILLARS = [
-  { id: 'daddy', name: 'Daddy', color: 'indigo', interests: 'Coding, woodworking, gaming, coffee, being the best dad', lastQualityTime: null },
-  { id: 'gwen', name: 'Mommy', color: 'pink', interests: 'Wine, hiking, true crime podcasts', lastQualityTime: null },
-  { id: 'abriana', name: 'Abriana', color: 'purple', interests: 'Metalcore, drawing, gaming', lastQualityTime: null },
-  { id: 'julia', name: 'Julia', color: 'blue', interests: 'Reading, baking, soccer', lastQualityTime: null },
+// Last-resort fallback only — used when a household has no members loaded
+// yet (e.g. AppContext hasn't finished fetching). Real usage should always
+// prefer householdPillars()/householdPersons() below, derived from the
+// actual household_members roster via useAppContext().
+export const FALLBACK_PILLARS = [
   { id: 'home', name: 'Home & Shared', color: 'green', interests: 'Game nights, cooking, outdoor time', lastQualityTime: null },
-];
-
-export const ACTIVITY_TEMPLATES = [
-  { id: 't1', name: 'Metalcore Jam', person: 'Abriana', duration: 60, color: 'purple' },
-  { id: 't2', name: 'Game Night', person: 'Family', duration: 120, color: 'green' },
-  { id: 't3', name: 'Cook Together', person: 'Family', duration: 90, color: 'orange' },
-  { id: 't4', name: 'Date Night', person: 'Mommy', duration: 180, color: 'pink' },
-  { id: 't5', name: 'Outdoor Time', person: 'Family', duration: 120, color: 'emerald' },
-  { id: 't6', name: '1-on-1 Time', person: 'Any', duration: 60, color: 'blue' },
 ];
 
 export const TASK_CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
@@ -72,7 +63,37 @@ export const EMOTION_CATEGORIES = ['Connection', 'Frustration', 'Concern', 'Joy'
 export const NEGATIVE_EMOTIONS = ['Frustration', 'Concern', 'Anxiety', 'Confusion'];
 export const PRIORITIES = ['High', 'Medium', 'Low'];
 export const DUE_ESTIMATES = ['Today', 'This Week', 'This Month', 'No Deadline'];
-export const PERSONS = ['Daddy', 'Mommy', 'Abriana', 'Julia', 'Lucy', 'Family', 'General'];
+
+// Last-resort fallback only — see FALLBACK_PILLARS above.
+export const FALLBACK_PERSONS = ['Family', 'General'];
+
+/** Build the assignee dropdown list from a household's real roster. */
+export function householdPersons(members: { name: string }[]): string[] {
+  if (members.length === 0) return FALLBACK_PERSONS;
+  return [...members.map((m) => m.name), 'Family', 'General'];
+}
+
+/** Seed Quality Time pillars from a household's real roster (one per member, plus a shared pillar). */
+export function householdPillars(members: { id: string; name: string; color: string }[]): typeof FALLBACK_PILLARS {
+  if (members.length === 0) return FALLBACK_PILLARS;
+  return [
+    ...members.map((m) => ({ id: m.id, name: m.name, color: m.color, interests: '', lastQualityTime: null })),
+    { id: 'home', name: 'Home & Shared', color: 'green', interests: 'Game nights, cooking, outdoor time', lastQualityTime: null },
+  ];
+}
+
+/** Build Quality Time activity templates from a household's real roster. */
+export function householdActivityTemplates(members: { name: string }[]): Array<{ id: string; name: string; person: string; duration: number; color: string }> {
+  const templates: Array<{ id: string; name: string; person: string; duration: number; color: string }> = [
+    { id: 't2', name: 'Game Night', person: 'Family', duration: 120, color: 'green' },
+    { id: 't3', name: 'Cook Together', person: 'Family', duration: 90, color: 'orange' },
+    { id: 't5', name: 'Outdoor Time', person: 'Family', duration: 120, color: 'emerald' },
+  ];
+  members.forEach((m, i) => {
+    templates.push({ id: `t1on1-${i}`, name: `1-on-1 with ${m.name}`, person: m.name, duration: 60, color: 'blue' });
+  });
+  return templates;
+}
 
 // Storage helpers — localStorage + cloud sync
 import { pushToCloud } from './sync';
