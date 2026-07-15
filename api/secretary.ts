@@ -3,7 +3,7 @@
  */
 export const config = { runtime: 'edge' };
 
-import { dbGet } from './_db.js';
+import { dbGet, soleHouseholdId } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -53,8 +53,8 @@ async function callAI(prompt: string, anthropicKey: string | undefined, geminiKe
   throw new Error('No working AI model configurations found.');
 }
 
-async function getRecentTasks(limit = 20) {
-  const value = await dbGet('household_tasks');
+async function getRecentTasks(householdId: string, limit = 20) {
+  const value = await dbGet('household_tasks', householdId);
   if (!value || !Array.isArray(value)) return [];
   return (value as any[]).filter((t: any) => !t.completed).slice(0, limit);
 }
@@ -113,7 +113,8 @@ export default async function handler(req: Request): Promise<Response> {
     : ['Family', 'General'];
 
   try {
-    const existingTasks = await getRecentTasks();
+    const householdId = await soleHouseholdId();
+    const existingTasks = await getRecentTasks(householdId);
 
     const text = item.text || item.name || '';
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });

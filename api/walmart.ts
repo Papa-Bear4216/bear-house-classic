@@ -8,19 +8,19 @@
  */
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, soleHouseholdId } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
-async function getShoppingList() {
-  const value = await dbGet('familyos_shopping');
+async function getShoppingList(householdId: string) {
+  const value = await dbGet('familyos_shopping', householdId);
   return Array.isArray(value) ? value : [];
 }
 
-async function saveShoppingList(items: object[]) {
-  await dbSet('familyos_shopping', items);
+async function saveShoppingList(householdId: string, items: object[]) {
+  await dbSet('familyos_shopping', householdId, items);
 }
 
 async function fetchGmailWalmart(accessToken: string) {
@@ -78,14 +78,15 @@ export default async function handler(req: Request): Promise<Response> {
   if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
   const { action, accessToken, person, items: incomingItems } = body;
+  const householdId = await soleHouseholdId();
 
   if (action === 'add' && incomingItems) {
-    const existing = await getShoppingList();
+    const existing = await getShoppingList(householdId);
     const existingNames = (existing as any[]).map((i: any) => (i.name || '').toLowerCase());
     const newItems = (Array.isArray(incomingItems) ? incomingItems : [incomingItems])
       .filter((name: string) => !existingNames.includes(name.toLowerCase()))
       .map((name: string) => ({ id: uid(), name, category: 'General', assignedTo: person || 'General', quantity: '1', completed: false, createdAt: Date.now(), source: 'voice_assistant' }));
-    await saveShoppingList([...newItems, ...(existing as any[])]);
+    await saveShoppingList(householdId, [...newItems, ...(existing as any[])]);
     return j({ ok: true, added: newItems.length, items: newItems });
   }
 

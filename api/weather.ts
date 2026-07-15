@@ -19,27 +19,27 @@ export const config = { runtime: 'edge' };
  * }
  */
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, soleHouseholdId } from './_db.js';
 
-// Michael's home coordinates (Louisiana — update if needed)
+// Default home coordinates if a household hasn't set its own in Settings.
 const HOME_LAT = process.env.HOME_LAT || '30.45';
 const HOME_LON = process.env.HOME_LON || '-91.15';
 
 const CACHE_KEY = 'weather_cache';
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-async function getCache(): Promise<any | null> {
+async function getCache(householdId: string): Promise<any | null> {
   try {
-    const cache = await dbGet(CACHE_KEY);
+    const cache = await dbGet(CACHE_KEY, householdId);
     if (!cache) return null;
     if (Date.now() - (cache.updatedAt || 0) > CACHE_TTL) return null;
     return cache;
   } catch { return null; }
 }
 
-async function setCache(value: any) {
+async function setCache(householdId: string, value: any) {
   try {
-    await dbSet(CACHE_KEY, value);
+    await dbSet(CACHE_KEY, householdId, value);
   } catch {}
 }
 
@@ -56,7 +56,8 @@ export default async function handler(req: Request): Promise<Response> {
   const lat = url.searchParams.get('lat') || HOME_LAT;
   const lon = url.searchParams.get('lon') || HOME_LON;
 
-  const cached = await getCache();
+  const householdId = await soleHouseholdId();
+  const cached = await getCache(householdId);
   if (cached) return j(cached);
 
   try {
@@ -134,10 +135,10 @@ export default async function handler(req: Request): Promise<Response> {
       updatedAt: Date.now(),
     };
 
-    await setCache(result);
+    await setCache(householdId, result);
     return j(result);
   } catch (e: any) {
-    const stale = await dbGet(CACHE_KEY);
+    const stale = await dbGet(CACHE_KEY, householdId);
     if (stale) return j({ ...stale, stale: true });
     return j({ error: (e as any)?.message || 'Weather fetch failed' }, 500);
   }

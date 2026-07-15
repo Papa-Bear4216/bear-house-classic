@@ -1,7 +1,7 @@
 // api/finance.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId, soleHouseholdId } from './_db.js';
 import { claimAccessUrl, fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
@@ -18,15 +18,25 @@ export default async function handler(req: Request): Promise<Response> {
   const body = (await req.json().catch(() => ({}))) as any;
   const { action, ...params } = body;
 
+  const isWebhookAuth = !!WEBHOOK_TOKEN && params.token === WEBHOOK_TOKEN;
+  let householdId: string | null;
+  if (isWebhookAuth) {
+    householdId = await soleHouseholdId();
+  } else {
+    const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
+  }
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
   if (action === 'connect') {
-    const { setupToken, person = 'Daddy' } = params;
+    const { setupToken, person } = params;
     if (!setupToken) return j({ error: 'Missing setupToken' }, 400);
     try {
       // Claim only — the account probe below can be slow (bank-dependent) and risks
       // exceeding Edge's 25s cap, so institutions are resolved lazily on next 'accounts' call.
       const accessUrl = await claimAccessUrl(setupToken);
-      await dbSet('simplefin_access', {
-        accessUrl, person, connectedAt: Date.now(),
+      await dbSet('simplefin_access', householdId, {
+        accessUrl, person: person || null, connectedAt: Date.now(),
         institutions: [] as { id: string; name: string }[],
       });
       return j({ ok: true, institutions: [] });
@@ -36,7 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'accounts') {
-    const conn: any = await dbGet('simplefin_access');
+    const conn: any = await dbGet('simplefin_access', householdId);
     if (!conn) return j({ accounts: [] });
     if (!conn.institutions?.length) {
       // First load after connect: probe institutions now (last 1 day is enough for metadata).
@@ -44,7 +54,7 @@ export default async function handler(req: Request): Promise<Response> {
         const now = new Date();
         const accts = await fetchAccounts(conn.accessUrl, new Date(now.getTime() - 86400000), now);
         conn.institutions = accts.map((a) => ({ id: a.id, name: a.org.name || a.name }));
-        await dbSet('simplefin_access', conn);
+        await dbSet('simplefin_access', householdId, conn);
       } catch {
         // Bank may still be provisioning; leave institutions empty and let the UI retry later.
       }
@@ -55,16 +65,15 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'disconnect') {
-    const { token } = params;
-    if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
-    await dbSet('simplefin_access', null);
+    if (!isWebhookAuth) return j({ error: 'Unauthorized' }, 401);
+    await dbSet('simplefin_access', householdId, null);
     return j({ ok: true });
   }
 
   if (action === 'sync') {
-    const { days = 30, token } = params;
-    const isWebhook = WEBHOOK_TOKEN && token === WEBHOOK_TOKEN;
-    const conn: any = await dbGet('simplefin_access');
+    const { days = 30 } = params;
+    const isWebhook = isWebhookAuth;
+    const conn: any = await dbGet('simplefin_access', householdId);
     if (!conn?.accessUrl) return j({ synced: 0, transactions: [], recurringBills: [], message: 'No linked accounts' });
 
     try {
@@ -72,7 +81,7 @@ export default async function handler(req: Request): Promise<Response> {
       const start = new Date(Date.now() - Math.min(days, 90) * 86400000); // cap 90d
       const accounts = await fetchAccounts(conn.accessUrl, start, end);
 
-      const cache: Record<string, string> = (await dbGet('merchant_category_cache')) ?? {};
+      const cache: Record<string, string> = (await dbGet('merchant_category_cache', householdId)) ?? {};
       const raw: any[] = [];
       for (const acct of accounts) {
         for (const t of acct.transactions) {
@@ -91,7 +100,7 @@ export default async function handler(req: Request): Promise<Response> {
 
       // Categorize (uses cache; only new merchants hit the model via /api/chat).
       const categorized = await categorize(baseUrl, raw, cache);
-      await dbSet('merchant_category_cache', cache); // categorize mutates cache in place
+      await dbSet('merchant_category_cache', householdId, cache); // categorize mutates cache in place
 
       const transactions = categorized.map((t) => ({
         id: makeId(),
@@ -110,14 +119,14 @@ export default async function handler(req: Request): Promise<Response> {
       const recurringBills = detectRecurring(transactions);
 
       if (isWebhook) {
-        const existing: any[] = (await dbGet('familyos_expenses')) ?? [];
+        const existing: any[] = (await dbGet('familyos_expenses', householdId)) ?? [];
         const seen = new Set(existing.filter((e: any) => e.extId).map((e: any) => e.extId));
         const fresh = transactions.filter((t) => !seen.has(t.extId));
         const merged = [...fresh, ...existing].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        await dbSet('familyos_expenses', merged);
+        await dbSet('familyos_expenses', householdId, merged);
 
         if (recurringBills.length) {
-          const bills: any[] = (await dbGet('familyos_bills')) ?? [];
+          const bills: any[] = (await dbGet('familyos_bills', householdId)) ?? [];
           let added = 0;
           for (const sub of recurringBills) {
             if (!bills.some((b: any) => b.name.toLowerCase() === sub.merchant.toLowerCase() && b.source === 'simplefin')) {
@@ -125,7 +134,7 @@ export default async function handler(req: Request): Promise<Response> {
               added++;
             }
           }
-          if (added) await dbSet('familyos_bills', bills);
+          if (added) await dbSet('familyos_bills', householdId, bills);
         }
         return j({ synced: fresh.length, accounts: accounts.length, subscriptions: recurringBills.length });
       }

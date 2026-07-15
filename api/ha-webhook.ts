@@ -3,24 +3,24 @@
  */
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, soleHouseholdId } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
-async function appendTask(task: object) {
-  const existing: any[] = (await dbGet('household_tasks')) ?? [];
+async function appendTask(householdId: string, task: object) {
+  const existing: any[] = (await dbGet('household_tasks', householdId)) ?? [];
   const text = (task as any).text;
   if (existing.some((t: any) => !t.completed && t.text?.toLowerCase() === text?.toLowerCase())) return { skipped: true };
-  await dbSet('household_tasks', [task, ...existing]);
+  await dbSet('household_tasks', householdId, [task, ...existing]);
   return { saved: true };
 }
 
-async function logPresence(entry: object) {
-  const existing: any[] = (await dbGet('presence_log')) ?? [];
-  await dbSet('presence_log', [entry, ...existing.slice(0, 199)]);
+async function logPresence(householdId: string, entry: object) {
+  const existing: any[] = (await dbGet('presence_log', householdId)) ?? [];
+  await dbSet('presence_log', householdId, [entry, ...existing.slice(0, 199)]);
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -37,39 +37,40 @@ export default async function handler(req: Request): Promise<Response> {
   if (!event) return j({ error: 'Missing event type' }, 400);
 
   try {
+    const householdId = await soleHouseholdId();
     let result: any;
     const base = { id: uid(), completed: false, createdAt: Date.now(), source: 'home_assistant', dueDate: null };
 
     if (event === 'person_arrived' || event === 'person_left') {
-      await logPresence({ ts: Date.now(), person, event: event === 'person_arrived' ? 'arrived' : 'left', area });
+      await logPresence(householdId, { ts: Date.now(), person, event: event === 'person_arrived' ? 'arrived' : 'left', area });
       result = { action: 'presence_logged' };
 
     } else if (event === 'package_delivered') {
-      const task = { ...base, text: 'Bring in package from front door', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
-      const r = await appendTask(task);
+      const task = { ...base, text: 'Bring in package from front door', person: 'General', priority: 'High', category: 'General', dueEstimate: 'Today' };
+      const r = await appendTask(householdId, task);
       if (!r.skipped) await notifyIFTTT('bearhouse_package', 'Package delivered', 'Front door');
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'door_left_open') {
-      const task = { ...base, text: `Close ${area || 'door'} — left open`, person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today' };
-      const r = await appendTask(task);
+      const task = { ...base, text: `Close ${area || 'door'} — left open`, person: 'General', priority: 'High', category: 'General', dueEstimate: 'Today' };
+      const r = await appendTask(householdId, task);
       if (!r.skipped) await notifyIFTTT('bearhouse_door_open', area || 'A door', 'left open');
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'low_battery') {
-      const task = { ...base, text: `Replace battery in ${device || 'sensor'}`, person: 'Daddy', priority: 'Low', category: 'Maintenance', dueEstimate: 'This Week' };
-      const r = await appendTask(task);
+      const task = { ...base, text: `Replace battery in ${device || 'sensor'}`, person: 'General', priority: 'Low', category: 'Maintenance', dueEstimate: 'This Week' };
+      const r = await appendTask(householdId, task);
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'motion_detected') {
-      await logPresence({ ts: Date.now(), event: 'motion', area, device });
+      await logPresence(householdId, { ts: Date.now(), event: 'motion', area, device });
       result = { action: 'motion_logged' };
 
     } else if (event === 'wyze_alert') {
       const at = (alert_type || '').toLowerCase();
       if (at.includes('package') || at.includes('delivery')) {
-        const task = { ...base, text: 'Package delivered — bring inside', person: 'Daddy', priority: 'High', category: 'General', dueEstimate: 'Today', source: 'wyze' };
-        const r = await appendTask(task);
+        const task = { ...base, text: 'Package delivered — bring inside', person: 'General', priority: 'High', category: 'General', dueEstimate: 'Today', source: 'wyze' };
+        const r = await appendTask(householdId, task);
         result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
       } else {
         result = { action: 'alert_logged' };
@@ -77,8 +78,8 @@ export default async function handler(req: Request): Promise<Response> {
 
     } else if (event === 'custom') {
       if (!customText) return j({ error: 'Missing text for custom event' }, 400);
-      const task = { ...base, text: customText, person: person || 'Daddy', priority: priority || 'Medium', category: category || 'General', dueEstimate: dueEstimate || 'Today' };
-      const r = await appendTask(task);
+      const task = { ...base, text: customText, person: person || 'General', priority: priority || 'Medium', category: category || 'General', dueEstimate: dueEstimate || 'Today' };
+      const r = await appendTask(householdId, task);
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else {

@@ -9,14 +9,14 @@ export const config = { runtime: 'edge' };
  * POST /api/briefing  { token, person }
  */
 
-import { dbGet } from './_db.js';
+import { dbGet, soleHouseholdId } from './_db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
-async function getKey(key: string) {
-  return (await dbGet(key)) ?? [];
+async function getKey(key: string, householdId: string) {
+  return (await dbGet(key, householdId)) ?? [];
 }
 
 function isToday(ts: number | null | undefined): boolean {
@@ -132,16 +132,18 @@ export default async function handler(req: Request): Promise<Response> {
   const token = isGet ? url.searchParams.get('token') : (req.headers.get('x-webhook-token') || bodyData?.token);
   if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-  const person: string = (isGet ? url.searchParams.get('person') : bodyData?.person) || 'Daddy';
+  const person: string | null = isGet ? url.searchParams.get('person') : bodyData?.person;
+  if (!person) return new Response(JSON.stringify({ error: 'person required' }), { status: 400 });
   const briefType: string = (isGet ? url.searchParams.get('type') : bodyData?.type) || 'morning';
 
   try {
+    const householdId = await soleHouseholdId();
     const [tasks, bills, appointments, promises, weatherRaw] = await Promise.all([
-      getKey('household_tasks'),
-      getKey('familyos_bills'),
-      getKey('familyos_appointments'),
-      getKey('family_promises'),
-      getKey('weather_cache'),
+      getKey('household_tasks', householdId),
+      getKey('familyos_bills', householdId),
+      getKey('familyos_appointments', householdId),
+      getKey('family_promises', householdId),
+      getKey('weather_cache', householdId),
     ]);
 
     const weather = weatherRaw as any;
@@ -177,7 +179,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (briefType === 'evening') {
       // Evening briefing — pull extra data
       const NEGATIVE = ['Frustration', 'Concern', 'Anxiety', 'Confusion'];
-      const emotions: any[] = await getKey('emotion_logs') as any[];
+      const emotions: any[] = await getKey('emotion_logs', householdId) as any[];
       const todayEmotions = (emotions as any[]).filter((e: any) => isToday(e.createdAt));
       const moodFlags = todayEmotions.filter((e: any) => NEGATIVE.includes(e.category));
       const completedToday = (tasks as any[]).filter((t: any) => t.completed && t.completedAt && isToday(t.completedAt));
