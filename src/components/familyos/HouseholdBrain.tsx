@@ -3,7 +3,7 @@ import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTrian
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import {
   KEYS,
-  PERSONS,
+  householdPersons,
   PRIORITIES,
   TASK_CATEGORIES,
   RECURRENCE_OPTIONS,
@@ -22,6 +22,7 @@ import {
   parseDateInput,
   Recurrence,
 } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
 
 interface Task {
@@ -56,6 +57,8 @@ const DUE_TONE: Record<string, string> = {
 };
 
 const HouseholdBrain: React.FC = () => {
+  const { householdMembers } = useAppContext();
+  const PERSONS = householdPersons(householdMembers);
   const [tasks, setTasks] = useState<Task[]>(() => loadJSON(KEYS.tasks, []));
   const [text, setText] = useState('');
   const [tab, setTab] = useState('Today');

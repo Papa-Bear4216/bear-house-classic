@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard } from 'lucide-react';
-import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, DEFAULT_PILLARS } from '@/lib/familyos';
+import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
+import { useAppContext } from '@/contexts/AppContext';
 
 import AlertModal from './AlertModal';
 import Trends from './Trends';
@@ -15,6 +16,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
+  const { householdMembers } = useAppContext();
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
 
@@ -22,7 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const promises = loadJSON<any[]>(KEYS.promises, []);
   const activities = loadJSON<any[]>(KEYS.activities, []);
   const emotions = loadJSON<any[]>(KEYS.emotions, []);
-  const pillars = loadJSON<any[]>(KEYS.pillars, DEFAULT_PILLARS);
+  const pillars = loadJSON<any[]>(KEYS.pillars, householdPillars(householdMembers));
   const presence = loadJSON<any[]>(KEYS.presenceLog, []);
 
   const stats = useMemo(() => {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { User, UserRole, getSession, clearSession } from '@/lib/familyos';
-import { dbGetHouseholdMemberById, dbGetHouseholdMembersByHouseholdId } from '@/lib/householdDb';
+import { User, UserRole } from '@/lib/familyos';
+import { getHouseholdSession, getHouseholdRoster, signOut } from '@/lib/householdAuth';
 
 interface AppContextType {
   sidebarOpen: boolean;
@@ -8,6 +8,7 @@ interface AppContextType {
   currentUser: User | null;
   currentRole: UserRole | null;
   householdMembers: User[];
+  householdId: string | null;
   logout: () => void;
   setCurrentUser: (user: User | null) => void;
 }
@@ -18,6 +19,7 @@ const defaultAppContext: AppContextType = {
   currentUser: null,
   currentRole: null,
   householdMembers: [],
+  householdId: null,
   logout: () => {},
   setCurrentUser: () => {},
 };
@@ -31,45 +33,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
   const [currentRole, setCurrentRoleState] = useState<UserRole | null>(null);
   const [householdMembers, setHouseholdMembers] = useState<User[]>([]);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUserAndHousehold = async () => {
-      const session = getSession();
-      if (session?.userId) {
-        const member = await dbGetHouseholdMemberById(session.userId);
-        if (member) {
-          const user: User = {
-            id: member.id,
-            name: member.name,
-            email: member.email ?? '',
-            role: member.role as User['role'],
-            color: member.color as User['color'],
-          };
-          setCurrentUserState(user);
-          setCurrentRoleState(member.role as UserRole);
-
-          // Fetch all members of the same household
-          const householdMembers = await dbGetHouseholdMembersByHouseholdId(member.household_id);
-          const users: User[] = householdMembers.map(m => ({
-            id: m.id,
-            name: m.name,
-            email: m.email ?? '',
-            role: m.role as User['role'],
-            color: m.color as User['color'],
-          }));
-          setHouseholdMembers(users);
-        } else {
-          // If no member found, clear session
-          clearSession();
-          setCurrentUserState(null);
-          setCurrentRoleState(null);
-          setHouseholdMembers([]);
-        }
-      } else {
+      const session = await getHouseholdSession();
+      if (!session) {
         setCurrentUserState(null);
         setCurrentRoleState(null);
         setHouseholdMembers([]);
+        setHouseholdId(null);
+        return;
       }
+
+      const user: User = {
+        id: session.member.id,
+        name: session.member.name,
+        email: session.member.email ?? '',
+        role: session.member.role as User['role'],
+        color: session.member.color as User['color'],
+      };
+      setCurrentUserState(user);
+      setCurrentRoleState(session.member.role as UserRole);
+      setHouseholdId(session.householdId);
+
+      const roster = await getHouseholdRoster(session.householdId);
+      const users: User[] = roster.map(m => ({
+        id: m.id,
+        name: m.name,
+        email: m.email ?? '',
+        role: m.role as User['role'],
+        color: m.color as User['color'],
+      }));
+      setHouseholdMembers(users);
     };
 
     loadUserAndHousehold();
@@ -80,10 +76,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   };
 
   const logout = useCallback(() => {
-    clearSession();
+    signOut();
     setCurrentUserState(null);
     setCurrentRoleState(null);
     setHouseholdMembers([]);
+    setHouseholdId(null);
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -104,6 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         currentUser,
         currentRole,
         householdMembers,
+        householdId,
         logout,
         setCurrentUser,
       }}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, RotateCcw } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
 const STORAGE_KEY = 'familyos_shopping';
@@ -20,10 +20,9 @@ interface ShoppingItem {
   deletedBy?: string;
 }
 
-const PERSONS = ['Anyone', 'Daddy', 'Mommy', 'Abriana', 'Julia'];
-
 const Shopping: React.FC = () => {
-  const { currentUser, currentRole } = useAppContext();
+  const { currentUser, currentRole, householdMembers } = useAppContext();
+  const PERSONS = ['Anyone', ...householdPersons(householdMembers).filter((p) => p !== 'Family' && p !== 'General')];
   const [items, setItems] = useState<ShoppingItem[]>(() => loadJSON(STORAGE_KEY, []));
   const [activeTab, setActiveTab] = useState<Category>('Groceries');
   const [name, setName] = useState('');

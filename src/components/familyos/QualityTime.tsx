@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Calendar, CheckCircle2, Sparkles, Trash2, Timer, X, Pencil, Check } from 'lucide-react';
-import { KEYS, DEFAULT_PILLARS, ACTIVITY_TEMPLATES, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate } from '@/lib/familyos';
+import { KEYS, householdPillars, householdActivityTemplates, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
 
 interface Activity {
@@ -52,7 +53,9 @@ function cardStyle(p: Pillar): React.CSSProperties | undefined {
 }
 
 const QualityTime: React.FC = () => {
-  const [pillars, setPillars] = useState<Pillar[]>(() => loadJSON(KEYS.pillars, DEFAULT_PILLARS));
+  const { householdMembers } = useAppContext();
+  const activityTemplates = householdActivityTemplates(householdMembers);
+  const [pillars, setPillars] = useState<Pillar[]>(() => loadJSON(KEYS.pillars, householdPillars(householdMembers)));
   const [activities, setActivities] = useState<Activity[]>(() => loadJSON(KEYS.activities, []));
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [transition, setTransition] = useState<{ open: boolean; secondsLeft: number; activityName: string }>({ open: false, secondsLeft: 0, activityName: '' });
@@ -299,7 +302,7 @@ const QualityTime: React.FC = () => {
       <div>
         <div className="text-sm text-slate-400 mb-2">Activity Templates</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {ACTIVITY_TEMPLATES.map((tpl) => (
+          {activityTemplates.map((tpl) => (
             <button
               key={tpl.id}
               onClick={() => scheduleFromTemplate(tpl)}
