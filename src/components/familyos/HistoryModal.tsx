@@ -53,7 +53,7 @@ const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
         id: p.id,
         type: 'promise' as const,
         text: p.text,
-        person: p.person || 'Mommy',
+        person: p.person || PERSONS[1] || PERSONS[0] || '',
         category: p.category,
         completedAt: p.completedAt || p.createdAt,
         createdAt: p.createdAt,

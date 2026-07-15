@@ -135,7 +135,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (allEmails.length === 0) return j({ suggestions: [] });
 
     const unique = Array.from(new Map(allEmails.map((e: any) => [e.id, e])).values());
-    const raw = await callAI(PARSE_PROMPT(unique, person || 'Daddy'));
+    const raw = await callAI(PARSE_PROMPT(unique, person || 'General'));
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const arrMatch = clean.match(/\[[\s\S]*\]/);
     const suggestions = arrMatch ? JSON.parse(arrMatch[0]) : [];

@@ -60,7 +60,7 @@ function EnvRow({ name, value, placeholder }: { name: string; value?: string; pl
 type Tab = 'general' | 'integrations' | 'family';
 
 const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
-  const { currentRole } = useAppContext();
+  const { currentRole, householdMembers } = useAppContext();
   const isAdmin = currentRole === 'superadmin' || currentRole === 'admin';
 
   const [tab, setTab] = useState<Tab>('general');
@@ -427,13 +427,13 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 title="Google Classroom"
                 badge="Auto via OAuth"
                 badgeColor="sky"
-                description="Syncs assignments as tasks for Abriana & Julia. Works after Google sign-in."
+                description="Syncs assignments as tasks for kids in the household. Works after Google sign-in."
                 expanded={expandedIntegration === 'classroom'}
                 onToggle={() => toggleIntegration('classroom')}
               >
-                <p className="text-xs text-slate-400 mb-2">No separate setup needed — the Classroom API uses the same Google OAuth token as sign-in. Make sure the Google account you sign in with has access to the girls' Classroom.</p>
+                <p className="text-xs text-slate-400 mb-2">No separate setup needed — the Classroom API uses the same Google OAuth token as sign-in. Make sure the Google account you sign in with has access to the kids' Classroom.</p>
                 <CodeRow label="Sync endpoint" value={`${BASE_URL}/api/classroom`} />
-                <p className="text-xs text-slate-500 mt-2">POST with <code className="bg-slate-950 px-1 rounded font-mono">{"{ accessToken, person: \"Abriana\" }"}</code> to pull assignments.</p>
+                <p className="text-xs text-slate-500 mt-2">POST with <code className="bg-slate-950 px-1 rounded font-mono">{"{ accessToken, person: \"<child name>\" }"}</code> to pull assignments.</p>
               </IntegrationCard>
 
               {/* Walmart */}
@@ -465,18 +465,16 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 <h3 className="font-semibold text-white">Family Members</h3>
               </div>
               <div className="bg-slate-900 rounded-lg p-4 text-sm text-slate-300 space-y-2">
-                {[
-                  { name: 'Daddy', note: 'superadmin', color: 'text-indigo-400' },
-                  { name: 'Mommy', note: 'admin', color: 'text-pink-400' },
-                  { name: 'Abriana', note: 'child', color: 'text-purple-400' },
-                  { name: 'Julia', note: 'child', color: 'text-blue-400' },
-                  { name: 'Lucy', note: 'pet dog', color: 'text-amber-400' },
-                ].map((m) => (
-                  <div key={m.name} className="flex items-center justify-between">
-                    <span className={`font-medium ${m.color}`}>{m.name}</span>
-                    <span className="text-slate-500 text-xs">{m.note}</span>
-                  </div>
-                ))}
+                {householdMembers.length === 0 ? (
+                  <div className="text-slate-500 text-xs">No household members yet.</div>
+                ) : (
+                  householdMembers.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between">
+                      <span className={`font-medium text-${m.color || 'slate'}-400`}>{m.name}</span>
+                      <span className="text-slate-500 text-xs">{m.role}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
           )}

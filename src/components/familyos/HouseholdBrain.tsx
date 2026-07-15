@@ -40,7 +40,6 @@ interface Task {
   parentId?: string;
 }
 
-const TABS = ['Today', 'Mommy', 'Abriana', 'Julia', 'Lucy', 'Recurring', 'All'];
 const PRIORITY_COLORS: Record<string, string> = {
   High: 'border-rose-500',
   Medium: 'border-amber-500',
@@ -59,6 +58,7 @@ const DUE_TONE: Record<string, string> = {
 const HouseholdBrain: React.FC = () => {
   const { householdMembers } = useAppContext();
   const PERSONS = householdPersons(householdMembers);
+  const TABS = ['Today', ...PERSONS.filter((p) => p !== 'Family' && p !== 'General'), 'Recurring', 'All'];
   const [tasks, setTasks] = useState<Task[]>(() => loadJSON(KEYS.tasks, []));
   const [text, setText] = useState('');
   const [tab, setTab] = useState('Today');
@@ -75,20 +75,21 @@ const HouseholdBrain: React.FC = () => {
   const [showRecur, setShowRecur] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  const autoAssign = (chore: string): string => {
-    const c = chore.toLowerCase();
-    if (/lawn|yard|mow|trim|outdoor|gutter|fence|driveway|garage/.test(c)) return 'Daddy';
-    if (/dish|laundry|vacuum|sweep|mop|clean|dust|wipe|bathroom|kitchen/.test(c)) return 'Mommy';
-    if (/litter|feed.*pet|walk.*dog|lucy/.test(c)) return 'Julia';
-    if (/trash|garbage|recycl/.test(c)) return 'Abriana';
-    return 'Daddy';
+  // No signal to prefer one household member over another for a given chore type,
+  // so spread new chores evenly across the roster rather than guessing.
+  let autoAssignCursor = 0;
+  const autoAssign = (): string => {
+    if (PERSONS.length === 0) return 'General';
+    const assignee = PERSONS[autoAssignCursor % PERSONS.length];
+    autoAssignCursor++;
+    return assignee;
   };
 
   const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>) => {
     const newTasks: Task[] = detected.map(d => ({
       id: uid(),
       text: d.chore,
-      person: autoAssign(d.chore),
+      person: autoAssign(),
       priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
       category: 'Maintenance',
       dueEstimate: 'Today',
@@ -242,7 +243,7 @@ const HouseholdBrain: React.FC = () => {
   const morningBrief = async () => {
     setModal({ open: true, title: 'Morning Brief', body: '', loading: true });
     const open = tasks.filter((t) => !t.completed);
-    const prompt = `You are a calm morning assistant. Daddy has these open household tasks:\n${open.map((t) => `- [${t.priority}] ${t.text} (${t.person}${t.dueDate ? `, due ${formatDate(t.dueDate)}` : ''})`).join('\n')}\n\nGive a 3-sentence morning brief: top 3 priorities, one piece of encouragement.`;
+    const prompt = `You are a calm morning assistant. The household has these open tasks:\n${open.map((t) => `- [${t.priority}] ${t.text} (${t.person}${t.dueDate ? `, due ${formatDate(t.dueDate)}` : ''})`).join('\n')}\n\nGive a 3-sentence morning brief: top 3 priorities, one piece of encouragement.`;
     const { text } = await callClaude(prompt);
     setModal({ open: true, title: 'Morning Brief', body: text, loading: false });
   };

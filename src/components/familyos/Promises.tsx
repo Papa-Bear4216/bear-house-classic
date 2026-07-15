@@ -18,7 +18,9 @@ import {
   dateInputValue,
   parseDateInput,
   Recurrence,
+  householdPersons,
 } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
 
 interface Promise {
@@ -36,7 +38,6 @@ interface Promise {
   parentId?: string;
 }
 
-const TABS = ['All', 'Mommy', 'Abriana', 'Julia', 'Recurring'];
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const DUE_TONE: Record<string, string> = {
@@ -47,6 +48,12 @@ const DUE_TONE: Record<string, string> = {
 };
 
 const Promises: React.FC = () => {
+  const { currentUser, householdMembers } = useAppContext();
+  // "Others" — everyone except the logged-in user, since promises are made BY the current
+  // user TO other household members. Falls back to the full roster if that'd be empty.
+  const others = householdMembers.filter((m) => m.id !== currentUser?.id).map((m) => m.name);
+  const people = others.length > 0 ? others : householdPersons(householdMembers);
+  const TABS = ['All', ...people, 'Recurring'];
   const [promises, setPromises] = useState<Promise[]>(() => loadJSON(KEYS.promises, []));
   const [text, setText] = useState('');
   const [tab, setTab] = useState('All');
@@ -76,7 +83,7 @@ const Promises: React.FC = () => {
     const base: Promise = {
       id: uid(),
       text: raw.trim(),
-      person: 'Mommy',
+      person: people[0] || '',
       priority: 'Medium',
       category: 'General',
       dueDate,
@@ -92,7 +99,7 @@ const Promises: React.FC = () => {
     setCustomDays([]);
 
     setAiBusy(true);
-    const prompt = `Parse this promise. Return ONLY JSON: {"person":"Mommy|Abriana|Julia","priority":"High|Medium|Low","category":"${TASK_CATEGORIES.join('|')}"}\n\nPromise: "${raw}"`;
+    const prompt = `Parse this promise. Return ONLY JSON: {"person":"${people.join('|')}","priority":"High|Medium|Low","category":"${TASK_CATEGORIES.join('|')}"}\n\nPromise: "${raw}"`;
     const { ok, text: aiText } = await callClaude(prompt);
     if (ok) {
       const parsed = tryParseJSON<Partial<Promise>>(aiText, {});
@@ -101,7 +108,7 @@ const Promises: React.FC = () => {
           p.id === base.id
             ? {
                 ...p,
-                person: parsed.person && ['Mommy', 'Abriana', 'Julia'].includes(parsed.person) ? parsed.person : p.person,
+                person: parsed.person && people.includes(parsed.person) ? parsed.person : p.person,
                 priority: parsed.priority && PRIORITIES.includes(parsed.priority) ? parsed.priority : p.priority,
                 category: parsed.category && TASK_CATEGORIES.includes(parsed.category) ? parsed.category : p.category,
               }
@@ -149,7 +156,7 @@ const Promises: React.FC = () => {
 
   const stats = useMemo(() => {
     const r: Record<string, { open: number; overdue: number; completion: number }> = {};
-    ['Mommy', 'Abriana', 'Julia'].forEach((person) => {
+    people.forEach((person) => {
       const all = promises.filter((p) => p.person === person);
       const open = all.filter((p) => !p.completed);
       const completed = all.filter((p) => p.completed);
@@ -158,7 +165,7 @@ const Promises: React.FC = () => {
       r[person] = { open: open.length, overdue: overdue.length, completion };
     });
     return r;
-  }, [promises]);
+  }, [promises, people]);
 
   const overdueReview = async () => {
     const overdue = promises.filter((p) => !p.completed && isOverdue(p));
@@ -167,14 +174,14 @@ const Promises: React.FC = () => {
       setModal({ open: true, title: 'Overdue Promises', body: 'No overdue promises. You are keeping your word beautifully.', loading: false });
       return;
     }
-    const prompt = `These promises Daddy made are overdue:\n${overdue.map((p) => `- to ${p.person}: "${p.text}"`).join('\n')}\n\nWrite a kind, honest 3-sentence nudge.`;
+    const prompt = `These promises ${currentUser?.name || 'you'} made are overdue:\n${overdue.map((p) => `- to ${p.person}: "${p.text}"`).join('\n')}\n\nWrite a kind, honest 3-sentence nudge.`;
     const { text } = await callClaude(prompt);
     setModal({ open: true, title: 'Overdue Promises', body: text, loading: false });
   };
 
   const weeklyReview = async () => {
     setModal({ open: true, title: 'Weekly Relationship Review', body: '', loading: true });
-    const prompt = `It's Sunday evening. Review Daddy's promise-keeping this week.\nStats: ${JSON.stringify(stats)}\nOpen promises: ${promises.filter((p) => !p.completed).length}.\n\nGive a thoughtful 4-sentence reflection on his relationships with Mommy, Abriana, and Julia.`;
+    const prompt = `It's Sunday evening. Review ${currentUser?.name || "the current user"}'s promise-keeping this week.\nStats: ${JSON.stringify(stats)}\nOpen promises: ${promises.filter((p) => !p.completed).length}.\n\nGive a thoughtful 4-sentence reflection on their relationships with ${people.join(', ')}.`;
     const { text } = await callClaude(prompt);
     setModal({ open: true, title: 'Weekly Relationship Review', body: text, loading: false });
   };
@@ -213,7 +220,7 @@ const Promises: React.FC = () => {
 
       {/* Per-person stats */}
       <div className="grid grid-cols-3 gap-2">
-        {['Mommy', 'Abriana', 'Julia'].map((person) => (
+        {people.map((person) => (
           <div key={person} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
             <div className="text-xs text-slate-400">{person}</div>
             <div className="text-2xl font-bold text-white">{stats[person].completion}%</div>

@@ -18,13 +18,15 @@ import {
 } from 'recharts';
 import { TrendingUp, BarChart3, Activity, Grid3x3 } from 'lucide-react';
 import { KEYS, EMOTION_CATEGORIES, loadJSON, isOverdue } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 
-const PEOPLE = ['Mommy', 'Abriana', 'Julia'] as const;
-const PERSON_COLORS: Record<string, string> = {
-  Mommy: '#ec4899', // pink
-  Abriana: '#a855f7', // purple
-  Julia: '#3b82f6', // blue
+// Maps a household_members.color token (Tailwind name) to a hex value for recharts,
+// which needs raw hex strings rather than Tailwind classes.
+const COLOR_HEX: Record<string, string> = {
+  indigo: '#6366f1', pink: '#ec4899', purple: '#a855f7', blue: '#3b82f6',
+  green: '#10b981', slate: '#64748b', amber: '#f59e0b', rose: '#f43f5e',
 };
+const FALLBACK_HEX = ['#ec4899', '#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e'];
 
 const startOfDay = (ts: number) => {
   const d = new Date(ts);
@@ -33,6 +35,12 @@ const startOfDay = (ts: number) => {
 };
 
 const Trends: React.FC = () => {
+  const { householdMembers } = useAppContext();
+  const PEOPLE = householdMembers.map((m) => m.name);
+  const PERSON_COLORS: Record<string, string> = {};
+  householdMembers.forEach((m, i) => {
+    PERSON_COLORS[m.name] = COLOR_HEX[m.color] || FALLBACK_HEX[i % FALLBACK_HEX.length];
+  });
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const promises = loadJSON<any[]>(KEYS.promises, []);
   const emotions = loadJSON<any[]>(KEYS.emotions, []);
@@ -83,7 +91,7 @@ const Trends: React.FC = () => {
       weeks.push(row);
     }
     return weeks;
-  }, [promises]);
+  }, [promises, PEOPLE]);
 
   // 3) Radar: avg emotional intensity per person across 7 categories
   const radarData = useMemo(() => {
@@ -98,7 +106,7 @@ const Trends: React.FC = () => {
       });
       return row;
     });
-  }, [emotions]);
+  }, [emotions, PEOPLE]);
 
   // 4) Heatmap: presence check-in success by day-of-week × hour-of-day
   const heatmapData = useMemo(() => {

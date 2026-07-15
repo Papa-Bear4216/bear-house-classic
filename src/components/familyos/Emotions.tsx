@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Sparkles, Trash2, AlertTriangle, Heart } from 'lucide-react';
-import { KEYS, EMOTION_CATEGORIES, NEGATIVE_EMOTIONS, loadJSON, saveJSON, uid, callClaude, tryParseJSON, formatDate } from '@/lib/familyos';
+import { KEYS, EMOTION_CATEGORIES, NEGATIVE_EMOTIONS, loadJSON, saveJSON, uid, callClaude, tryParseJSON, formatDate, householdPersons } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
 
 interface Entry {
@@ -15,8 +16,10 @@ interface Entry {
 }
 
 const Emotions: React.FC = () => {
+  const { householdMembers } = useAppContext();
+  const people = householdMembers.map((m) => m.name);
   const [entries, setEntries] = useState<Entry[]>(() => loadJSON(KEYS.emotions, []));
-  const [person, setPerson] = useState('Mommy');
+  const [person, setPerson] = useState(people[0] || '');
   const [feeling, setFeeling] = useState('');
   const [context, setContext] = useState('');
   const [intensity, setIntensity] = useState(5);
@@ -25,17 +28,22 @@ const Emotions: React.FC = () => {
 
   useEffect(() => saveJSON(KEYS.emotions, entries), [entries]);
 
+  // Seed the selected person once the household roster loads.
+  useEffect(() => {
+    if (!person && people.length > 0) setPerson(people[0]);
+  }, [people, person]);
+
   // Pattern check on mount
   useEffect(() => {
     const weekAgo = Date.now() - 7 * 86400000;
     const recent = entries.filter((e) => e.createdAt > weekAgo);
-    ['Mommy', 'Abriana', 'Julia'].forEach((p) => {
+    people.forEach((p) => {
       const negative = recent.filter((e) => e.person === p && e.category && NEGATIVE_EMOTIONS.includes(e.category));
       if (negative.length >= 3) {
         // alert flagged but not auto-shown - they can click pattern button
       }
     });
-  }, [entries]);
+  }, [entries, people]);
 
   const log = async () => {
     if (!feeling.trim()) return;
@@ -80,12 +88,12 @@ const Emotions: React.FC = () => {
   const flagged = useMemo(() => {
     const weekAgo = Date.now() - 7 * 86400000;
     const list: string[] = [];
-    ['Mommy', 'Abriana', 'Julia'].forEach((p) => {
+    people.forEach((p) => {
       const negative = entries.filter((e) => e.createdAt > weekAgo && e.person === p && e.category && NEGATIVE_EMOTIONS.includes(e.category));
       if (negative.length >= 3) list.push(p);
     });
     return list;
-  }, [entries]);
+  }, [entries, people]);
 
   return (
     <div className="space-y-5">
@@ -113,7 +121,7 @@ const Emotions: React.FC = () => {
       {/* Log form */}
       <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3">
         <div className="flex gap-2">
-          {['Mommy', 'Abriana', 'Julia'].map((p) => (
+          {people.map((p) => (
             <button
               key={p}
               onClick={() => setPerson(p)}

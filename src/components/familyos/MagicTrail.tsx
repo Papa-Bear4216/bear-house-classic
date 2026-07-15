@@ -16,39 +16,30 @@ interface Particle {
   char: string; // single unicode glyph
 }
 
-const CFG = {
-  daddy: {
+const CFG_BY_ROLE = {
+  admin: {
     emoji: '🐼',
     sparkles: ['✦', '✧', '⊹', '✸', '✺'],
     colors: ['#a5b4fc', '#c4b5fd', '#fbbf24', '#34d399', '#818cf8'],
     hearts: false,
   },
-  mommy: {
+  superadmin: {
     emoji: '🐼',
     sparkles: ['✦', '✧', '⊹', '✸', '✺'],
     colors: ['#f9a8d4', '#e879f9', '#fde68a', '#fbcfe8', '#f0abfc'],
     hearts: false,
   },
-  julia: {
+  child: {
     emoji: '💖',
     sparkles: ['♥', '♡', '❤', '♥'],
     colors: ['#93c5fd', '#f9a8d4', '#6ee7b7', '#c4b5fd', '#fce7f3'],
     hearts: true,
   },
-  abriana: {
-    emoji: '💜',
-    sparkles: ['♥', '♡', '❤', '♥'],
-    colors: ['#c084fc', '#f472b6', '#818cf8', '#f0abfc', '#a78bfa'],
-    hearts: true,
-  },
 } as const;
 
-type UserId = keyof typeof CFG;
-
 export const MagicTrail: React.FC = () => {
-  const { currentUser } = useAppContext();
-  const userId = (currentUser?.id ?? '') as UserId;
-  const cfg = CFG[userId];
+  const { currentRole } = useAppContext();
+  const cfg = currentRole ? CFG_BY_ROLE[currentRole as keyof typeof CFG_BY_ROLE] : undefined;
 
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const charRef    = useRef<HTMLDivElement>(null);

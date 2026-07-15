@@ -53,7 +53,7 @@ function cardStyle(p: Pillar): React.CSSProperties | undefined {
 }
 
 const QualityTime: React.FC = () => {
-  const { householdMembers } = useAppContext();
+  const { householdMembers, currentUser } = useAppContext();
   const activityTemplates = householdActivityTemplates(householdMembers);
   const [pillars, setPillars] = useState<Pillar[]>(() => loadJSON(KEYS.pillars, householdPillars(householdMembers)));
   const [activities, setActivities] = useState<Activity[]>(() => loadJSON(KEYS.activities, []));
@@ -131,7 +131,10 @@ const QualityTime: React.FC = () => {
 
   const weeklyPlan = async () => {
     setModal({ open: true, title: 'Weekly Quality Time Plan', body: '', loading: true });
-    const prompt = `It's Sunday. Help Daddy plan quality time this week.\nFamily: Mommy, Abriana, Julia, Lucy (dog).\nLast contact:\n${pillars.map((p) => `${p.name}: ${relativeDate(p.lastQualityTime)}`).join('\n')}\n\nSuggest a 7-day plan with one focus per day.`;
+    const familyLine = householdMembers.length > 0
+      ? householdMembers.map((m) => `${m.name} (${m.role})`).join(', ')
+      : 'the household';
+    const prompt = `It's Sunday. Help ${currentUser?.name || 'the user'} plan quality time this week.\nFamily: ${familyLine}.\nLast contact:\n${pillars.map((p) => `${p.name}: ${relativeDate(p.lastQualityTime)}`).join('\n')}\n\nSuggest a 7-day plan with one focus per day.`;
     const { text } = await callClaude(prompt);
     setModal({ open: true, title: 'Weekly Quality Time Plan', body: text, loading: false });
   };
