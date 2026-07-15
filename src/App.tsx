@@ -7,26 +7,42 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Login from "@/components/familyos/Login";
-import { getSession } from "@/lib/familyos";
+import LoginPage from "@/pages/Login";
+import { onAuthStateChange, getHouseholdSession } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime } from "@/lib/sync";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [authed, setAuthed] = useState(() => getSession() !== null);
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [syncReady, setSyncReady] = useState(false);
 
   useEffect(() => {
-    pullFromCloud().finally(() => setSyncReady(true));
-    const unsub = subscribeToRealtime();
-    return unsub;
+    let unsubRealtime: (() => void) | undefined;
+
+    getHouseholdSession().then((result) => {
+      setAuthed(!!result);
+      if (result?.householdId) {
+        pullFromCloud(result.householdId).finally(() => setSyncReady(true));
+        unsubRealtime = subscribeToRealtime(result.householdId);
+      } else {
+        setSyncReady(true);
+      }
+    });
+
+    const unsubAuth = onAuthStateChange((loggedIn) => {
+      if (!loggedIn) setAuthed(false);
+    });
+
+    return () => {
+      unsubAuth();
+      unsubRealtime?.();
+    };
   }, []);
 
-  const handleAuth = useCallback(() => setAuthed(true), []);
   const handleLogout = useCallback(() => setAuthed(false), []);
 
-  if (!syncReady) {
+  if (authed === null || !syncReady) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-slate-400 text-sm animate-pulse">Loading Family OS…</div>
@@ -37,7 +53,7 @@ const App = () => {
   if (!authed) {
     return (
       <ThemeProvider defaultTheme="dark">
-        <Login onAuth={handleAuth} />
+        <LoginPage />
       </ThemeProvider>
     );
   }

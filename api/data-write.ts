@@ -15,7 +15,7 @@ export const config = { runtime: 'edge' };
  * verify the caller's Google JWT server-side instead of a shared secret.
  */
 
-const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
 
 const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -33,10 +33,11 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ error: 'Unauthorized' }, 401);
   }
 
-  const body = (await req.json().catch(() => ({}))) as { key?: string; value?: unknown };
-  const { key, value } = body;
+  const body = (await req.json().catch(() => ({}))) as { key?: string; value?: unknown; householdId?: string };
+  const { key, value, householdId } = body;
   if (typeof key !== 'string' || key.length === 0) return j({ error: 'Missing or invalid key' }, 400);
   if (value === undefined) return j({ error: 'Missing value' }, 400);
+  if (typeof householdId !== 'string' || householdId.length === 0) return j({ error: 'Missing or invalid householdId' }, 400);
 
   // Write via PostgREST using the service_role key (bypasses RLS).
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
@@ -47,7 +48,7 @@ export default async function handler(req: Request): Promise<Response> {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
-    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ key, value, household_id: householdId, updated_at: new Date().toISOString() }),
   });
 
   if (!res.ok) {
