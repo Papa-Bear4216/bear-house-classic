@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { USERS, setSession, User } from '@/lib/familyos';
+import { setSession, User } from '@/lib/familyos';
 import { GOOGLE_CLIENT_ID, decodeGoogleJWT, matchUserByEmail, requestAccessToken } from '@/lib/auth';
+import { dbGetHouseholdMemberById, dbGetHouseholdId, dbCreateHouseholdMember } from '@/lib/householdDb';
 import { ChevronLeft, Loader2, ShieldAlert } from 'lucide-react';
 
 interface LoginProps { onAuth: () => void; }
@@ -26,6 +27,7 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
   const [pin, setPin] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const [abrianaUser, setAbrianaUser] = useState<User | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   // Load Google Identity Services
@@ -48,6 +50,24 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
     return () => { try { document.head.removeChild(script); } catch {} };
   }, []);
 
+  // Fetch Abriana user data from database (since she has no email)
+  useEffect(() => {
+    const fetchAbriana = async () => {
+      const member = await dbGetHouseholdMemberById(PIN_USER_ID);
+      if (member) {
+        const user: User = {
+          id: member.id,
+          name: member.name,
+          email: member.email ?? '',
+          role: member.role as User['role'],
+          color: member.color as User['color'],
+        };
+        setAbrianaUser(user);
+      }
+    };
+    fetchAbriana();
+  }, []);
+
   // Render Google button once GSI is ready
   useEffect(() => {
     if (gsiReady && googleBtnRef.current) {
@@ -61,17 +81,56 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
     }
   }, [gsiReady, phase]);
 
-  const handleGoogleCredential = (response: { credential: string }) => {
+  const handleGoogleCredential = async (response: { credential: string }) => {
     setPhase('google_loading');
     setError('');
     const info = decodeGoogleJWT(response.credential);
     if (!info) { setError('Could not read Google account. Try again.'); setPhase('select'); return; }
 
-    const user = matchUserByEmail(info.email);
+    let user = await matchUserByEmail(info.email);
     if (!user) {
-      setError(`${info.email} isn't registered in Bear House. Ask Daddy to add your account.`);
-      setPhase('error');
-      return;
+      // If the user doesn't exist, create a new household member
+      try {
+        // First, try to get an existing household_id from the database (from any existing member)
+        const householdId = await dbGetHouseholdId();
+        if (!householdId) {
+          // If there's no household yet, we need to create one? But the app expects at least one member.
+          // For now, we'll use a default household_id. However, note that the dbGetHouseholdId returns the household_id of an existing member.
+          // If there are no members, we cannot get a household_id. We'll create a new one? But the db doesn't have a households table.
+          // Looking at the schema, household_members has a household_id column. We assume there is at least one member (like Daddy) already in the db.
+          // If not, we cannot proceed. We'll throw an error.
+          throw new Error('No household found. Please add the first member via the database.');
+        }
+        // Create a new member with the Google user's info
+        // We need to assign a role. Since the first user (Daddy) is superadmin, we'll assign new users as 'child' by default.
+        // But note: the app might have other roles. We'll default to 'child'. The admin can change it later if needed.
+        const newMember = {
+          id: info.sub, // Google's unique user ID
+          name: info.name,
+          email: info.email,
+          role: 'child', // default role
+          color: 'blue', // default color; we could let the user choose later, but for now hardcode
+          household_id: householdId,
+        };
+        await dbCreateHouseholdMember(newMember);
+        // Now fetch the created member to get the full record (including any defaults from the database)
+        const createdMember = await dbGetHouseholdMemberById(info.sub);
+        if (!createdMember) {
+          throw new Error('Failed to retrieve newly created member.');
+        }
+        user = {
+          id: createdMember.id,
+          name: createdMember.name,
+          email: createdMember.email ?? '',
+          role: createdMember.role as User['role'],
+          color: createdMember.color as User['color'],
+        };
+      } catch (err) {
+        console.error('Failed to create new household member:', err);
+        setError('Failed to create account. Please try again later.');
+        setPhase('error');
+        return;
+      }
     }
 
     // Request access token (Calendar + Gmail scopes)
@@ -241,21 +300,21 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
           </div>
 
           {/* Abriana PIN login (no Google account) */}
-          {USERS.filter(u => !u.email).map(user => (
+          {abrianaUser && (
             <button
-              key={user.id}
-              onClick={() => handlePinUser(user)}
+              key={abrianaUser.id}
+              onClick={() => handlePinUser(abrianaUser)}
               className={`flex items-center gap-3 px-5 py-3 rounded-xl bg-slate-800/60 border border-slate-700 hover:border-purple-500/60 hover:bg-slate-800 transition w-full max-w-xs`}
             >
-              <div className={`w-9 h-9 rounded-lg ${COLOR_BG[user.color]?.split(' ')[0]} flex items-center justify-center font-bold text-base`}>
-                {user.name[0]}
+              <div className={`w-9 h-9 rounded-lg ${COLOR_BG[abrianaUser.color]?.split(' ')[0]} flex items-center justify-center font-bold text-base`}>
+                {abrianaUser.name[0]}
               </div>
               <div className="text-left">
-                <div className="text-white text-sm font-medium">{user.name}</div>
+                <div className="text-white text-sm font-medium">{abrianaUser.name}</div>
                 <div className="text-slate-400 text-xs">Sign in with PIN</div>
               </div>
             </button>
-          ))}
+          )}
 
           <p className="text-slate-600 text-xs text-center max-w-xs">
             Only registered Bear House accounts can sign in. Each person uses their own Google account.

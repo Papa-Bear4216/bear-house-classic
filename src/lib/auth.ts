@@ -1,6 +1,9 @@
 // Google OAuth helpers for Bear House
 // Scopes: identity + Gmail readonly + Calendar readonly
 
+import { User } from '@/lib/familyos';
+import { dbGetHouseholdMemberByEmail, dbGetHouseholdMemberById } from '@/lib/householdDb';
+
 export const GOOGLE_SCOPES = [
   'openid',
   'email',
@@ -48,10 +51,42 @@ export function decodeGoogleJWT(credential: string): { email: string; name: stri
 
 // ── User matching ──────────────────────────────────────────────────────────────
 
-import { USERS } from '@/lib/familyos';
+export async function matchUserByEmail(email: string): Promise<User | null> {
+  try {
+    const member = await dbGetHouseholdMemberByEmail(email);
+    if (!member) return null;
 
-export function matchUserByEmail(email: string) {
-  return USERS.find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
+    // Map database record to User type expected by the app
+    return {
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      role: member.role as User['role'], // Assuming role matches UserRole type
+      color: member.color as User['color'] // Assuming color matches User color type
+    };
+  } catch (error) {
+    console.error('Error matching user by email:', error);
+    return null;
+  }
+}
+
+export async function matchUserById(id: string): Promise<User | null> {
+  try {
+    const member = await dbGetHouseholdMemberById(id);
+    if (!member) return null;
+
+    // Map database record to User type expected by the app
+    return {
+      id: member.id,
+      name: member.name,
+      email: member.email ?? '',
+      role: member.role as User['role'], // Assuming role matches UserRole type
+      color: member.color as User['color'] // Assuming color matches User color type
+    };
+  } catch (error) {
+    console.error('Error matching user by id:', error);
+    return null;
+  }
 }
 
 // ── Google Token Client (for requesting access token with scopes) ──────────────

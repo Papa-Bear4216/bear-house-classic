@@ -1,15 +1,14 @@
 // Family OS shared utilities, constants, and storage helpers
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────
-export const USERS = [
-  { id: 'daddy', name: 'Daddy', email: 'michael711hebert@gmail.com', role: 'superadmin' as const, color: 'indigo' },
-  { id: 'mommy', name: 'Mommy', email: 'hpfanatic009@gmail.com', role: 'admin' as const, color: 'pink' },
-  { id: 'abriana', name: 'Abriana', email: 'littlebear8998@gmail.com', role: 'child' as const, color: 'purple' },
-  { id: 'julia', name: 'Julia', email: 'jchebert2010@gmail.com', role: 'child' as const, color: 'blue' },
-];
-
 export type UserRole = 'superadmin' | 'admin' | 'child';
-export type User = typeof USERS[number];
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  color: string;
+};
 
 export function canDelete(role: UserRole) { return role === 'superadmin' || role === 'admin'; }
 export function isSuperAdmin(role: UserRole) { return role === 'superadmin'; }
@@ -22,17 +21,6 @@ export function setSession(userId: string, role: UserRole) {
   sessionStorage.setItem('familyos_session', JSON.stringify({ userId, role }));
 }
 export function clearSession() { sessionStorage.removeItem('familyos_session'); }
-
-export const FAMILY = {
-  user: 'Daddy',
-  members: [
-    { id: 'daddy', name: 'Daddy', role: 'parent', color: 'indigo' },
-    { id: 'gwen', name: 'Mommy', role: 'parent', color: 'pink' },
-    { id: 'abriana', name: 'Abriana', role: 'child', color: 'purple' },
-    { id: 'julia', name: 'Julia', role: 'child', color: 'blue' },
-    { id: 'lucy', name: 'Lucy', role: 'pet', color: 'amber' },
-  ],
-};
 
 export const KEYS = {
   tasks: 'household_tasks',
