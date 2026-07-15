@@ -3,7 +3,6 @@ import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSig
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
-const KIDS = ['Abriana', 'Julia'];
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
 const HW_STATUSES = ['Not Started', 'In Progress', 'Done'];
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -55,7 +54,8 @@ interface AllowanceEntry {
 }
 
 const KidsHub: React.FC = () => {
-  const { currentRole } = useAppContext();
+  const { currentRole, householdMembers } = useAppContext();
+  const kids = householdMembers.filter((m) => m.role === 'child').map((m) => m.name);
   const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance'>('homework');
   const isAdm = currentRole && canDelete(currentRole);
   const TABS = [
@@ -80,18 +80,18 @@ const KidsHub: React.FC = () => {
         })}
       </div>
 
-      {tab === 'homework' && <HomeworkTab isAdm={!!isAdm} />}
-      {tab === 'grades' && <GradesTab isAdm={!!isAdm} />}
-      {tab === 'activities' && <ActivitiesTab isAdm={!!isAdm} />}
-      {tab === 'allowance' && <AllowanceTab isAdm={!!isAdm} />}
+      {tab === 'homework' && <HomeworkTab isAdm={!!isAdm} kids={kids} />}
+      {tab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
+      {tab === 'activities' && <ActivitiesTab isAdm={!!isAdm} kids={kids} />}
+      {tab === 'allowance' && <AllowanceTab isAdm={!!isAdm} kids={kids} />}
     </div>
   );
 };
 
-const HomeworkTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [items, setItems] = useState<HWItem[]>(() => loadJSON('familyos_homework', []));
   const [showForm, setShowForm] = useState(false);
-  const [kid, setKid] = useState(KIDS[0]);
+  const [kid, setKid] = useState(KIDS[0] || '');
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [task, setTask] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -164,7 +164,7 @@ const HomeworkTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
       <div className="space-y-2">
         {active.map(item => (
           <div key={item.id} className={`flex items-start gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-3 py-2.5 ${item.status === 'Done' ? 'opacity-60' : ''}`}>
-            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${item.kid === 'Abriana' ? 'bg-purple-400' : 'bg-blue-400'}`} />
+            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${KIDS.indexOf(item.kid) % 2 === 0 ? 'bg-purple-400' : 'bg-blue-400'}`} />
             <div className="flex-1 min-w-0">
               <div className={`text-white text-sm ${item.status === 'Done' ? 'line-through text-slate-400' : ''}`}>{item.task}</div>
               <div className="text-slate-500 text-xs">{item.kid} · {item.subject}{item.dueDate ? ` · Due ${item.dueDate}` : ''}</div>
@@ -186,10 +186,10 @@ const HomeworkTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   );
 };
 
-const GradesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const GradesTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [entries, setEntries] = useState<GradeEntry[]>(() => loadJSON('familyos_grades', []));
   const [showForm, setShowForm] = useState(false);
-  const [kid, setKid] = useState(KIDS[0]);
+  const [kid, setKid] = useState(KIDS[0] || '');
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [grade, setGrade] = useState('');
   const [date, setDate] = useState('');
@@ -272,7 +272,7 @@ const GradesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
       <div className="space-y-2">
         {filtered.map(e => (
           <div key={e.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-3 py-2.5">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${e.kid === 'Abriana' ? 'bg-purple-400' : 'bg-blue-400'}`} />
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${KIDS.indexOf(e.kid) % 2 === 0 ? 'bg-purple-400' : 'bg-blue-400'}`} />
             <div className="flex-1 min-w-0">
               <div className="text-white text-sm">{e.kid} · {e.subject}</div>
               <div className="text-slate-500 text-xs">{e.date}{e.notes ? ` · ${e.notes}` : ''}</div>
@@ -286,10 +286,10 @@ const GradesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   );
 };
 
-const ActivitiesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const ActivitiesTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [entries, setEntries] = useState<ActivityEntry[]>(() => loadJSON('familyos_activities_kids', []));
   const [showForm, setShowForm] = useState(false);
-  const [kid, setKid] = useState(KIDS[0]);
+  const [kid, setKid] = useState(KIDS[0] || '');
   const [name, setName] = useState('');
   const [day, setDay] = useState('Monday');
   const [time, setTime] = useState('');
@@ -349,11 +349,11 @@ const ActivitiesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         </div>
       )}
 
-      {KIDS.map(k => {
+      {KIDS.map((k, i) => {
         const kidActivities = byKid(k);
         return (
           <div key={k}>
-            <div className={`text-sm font-semibold mb-2 ${k === 'Abriana' ? 'text-purple-400' : 'text-blue-400'}`}>{k}</div>
+            <div className={`text-sm font-semibold mb-2 ${i % 2 === 0 ? 'text-purple-400' : 'text-blue-400'}`}>{k}</div>
             {kidActivities.length === 0 && <div className="text-slate-600 text-xs mb-3">No activities scheduled.</div>}
             <div className="space-y-1.5 mb-3">
               {kidActivities.map(a => (
@@ -373,15 +373,15 @@ const ActivitiesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   );
 };
 
-const AllowanceTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const AllowanceTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [entries, setEntries] = useState<AllowanceEntry[]>(() => loadJSON('familyos_allowance', []));
   const [showForm, setShowForm] = useState(false);
-  const [kid, setKid] = useState(KIDS[0]);
+  const [kid, setKid] = useState(KIDS[0] || '');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'earned' | 'spent'>('earned');
   const [reason, setReason] = useState('');
   const [date, setDate] = useState('');
-  const [filterKid, setFilterKid] = useState(KIDS[0]);
+  const [filterKid, setFilterKid] = useState(KIDS[0] || '');
 
   const save = (next: AllowanceEntry[]) => { setEntries(next); saveJSON('familyos_allowance', next); };
   const add = () => {

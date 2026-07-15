@@ -3,7 +3,6 @@ import { Plus, Trash2, Pill, Calendar, Heart } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
-const FAMILY_MEMBERS = ['Daddy', 'Mommy', 'Abriana', 'Julia'];
 const FREQUENCIES = ['Daily', 'Twice daily', 'Weekly', 'As needed', 'Other'];
 
 interface Medication {
@@ -40,14 +39,16 @@ interface LucyEntry {
 }
 
 const HealthHub: React.FC = () => {
-  const { currentRole } = useAppContext();
-  const [tab, setTab] = useState<'medications' | 'appointments' | 'lucy'>('medications');
+  const { currentRole, householdMembers } = useAppContext();
+  const people = householdMembers.filter((m) => m.role !== 'pet').map((m) => m.name);
+  const pet = householdMembers.find((m) => m.role === 'pet');
+  const [tab, setTab] = useState<'medications' | 'appointments' | 'pet'>('medications');
   const isAdm = currentRole && canDelete(currentRole);
 
   const TABS = [
     { id: 'medications' as const, label: 'Medications', icon: Pill },
     { id: 'appointments' as const, label: 'Appointments', icon: Calendar },
-    { id: 'lucy' as const, label: 'Lucy', icon: Heart },
+    ...(pet ? [{ id: 'pet' as const, label: pet.name, icon: Heart }] : []),
   ];
 
   return (
@@ -64,17 +65,17 @@ const HealthHub: React.FC = () => {
           );
         })}
       </div>
-      {tab === 'medications' && <MedsTab isAdm={!!isAdm} />}
-      {tab === 'appointments' && <ApptTab isAdm={!!isAdm} />}
-      {tab === 'lucy' && <LucyTab isAdm={!!isAdm} />}
+      {tab === 'medications' && <MedsTab isAdm={!!isAdm} people={people} />}
+      {tab === 'appointments' && <ApptTab isAdm={!!isAdm} people={people} />}
+      {tab === 'pet' && pet && <LucyTab isAdm={!!isAdm} />}
     </div>
   );
 };
 
-const MedsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people: FAMILY_MEMBERS }) => {
   const [meds, setMeds] = useState<Medication[]>(() => loadJSON('familyos_medications', []));
   const [showForm, setShowForm] = useState(false);
-  const [person, setPerson] = useState(FAMILY_MEMBERS[0]);
+  const [person, setPerson] = useState(FAMILY_MEMBERS[0] || '');
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState(FREQUENCIES[0]);
@@ -173,10 +174,10 @@ const MedsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   );
 };
 
-const ApptTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
+const ApptTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people: FAMILY_MEMBERS }) => {
   const [appts, setAppts] = useState<Appointment[]>(() => loadJSON('familyos_appointments', []));
   const [showForm, setShowForm] = useState(false);
-  const [person, setPerson] = useState(FAMILY_MEMBERS[0]);
+  const [person, setPerson] = useState(FAMILY_MEMBERS[0] || '');
   const [type, setType] = useState('Doctor');
   const [doctor, setDoctor] = useState('');
   const [date, setDate] = useState('');
@@ -349,7 +350,7 @@ const LucyTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No Lucy records yet.</div>}
+      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No records yet.</div>}
 
       <div className="space-y-2">
         {active.map(e => {

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp, Clock, Briefcase } from 'lucide-react';
+import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { loadJSON, saveJSON, uid, KEYS } from '@/lib/familyos';
+import { useAppContext } from '@/contexts/AppContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -10,17 +11,6 @@ type Day = typeof DAYS[number];
 const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const;
 type MealType = typeof MEALS[number];
 
-// Michael's work schedule
-const SCHEDULE: Record<Day, { off: boolean; label: string }> = {
-  Monday:    { off: true,  label: '🏠 Day off' },
-  Tuesday:   { off: false, label: '🕐 In at noon' },
-  Wednesday: { off: false, label: '🕐 In at noon' },
-  Thursday:  { off: false, label: '🕐 In at noon' },
-  Friday:    { off: false, label: '🕐 In at noon' },
-  Saturday:  { off: false, label: '🕐 In at noon' },
-  Sunday:    { off: false, label: '🕐 In at noon' },
-};
-
 interface CookProfile {
   skill: 'expert' | 'skilled' | 'intermediate' | 'beginner' | null;
   ageGroup: 'adult' | 'teen' | 'child' | 'family' | null;
@@ -28,20 +18,14 @@ interface CookProfile {
   color: string;
 }
 
-const COOK_PROFILES: Record<string, CookProfile> = {
-  Daddy:    { skill: 'expert',       ageGroup: 'adult',  note: 'Can tackle any recipe. Best window: Monday all day, or weekday mornings before noon.', color: 'indigo' },
-  Mommy:    { skill: 'skilled',      ageGroup: 'adult',  note: 'Solid cook. Comfortable with most meals.',                                             color: 'pink'   },
-  Abriana:  { skill: 'beginner',     ageGroup: 'teen',   note: 'ADHD — needs low-step, forgiving recipes. Pasta, eggs, quesadillas are her zone.',     color: 'purple' },
-  Julia:    { skill: 'beginner',     ageGroup: 'child',  note: 'Needs simple assembly meals. Supervision required for stovetop.',                       color: 'blue'   },
-  Together: { skill: 'intermediate', ageGroup: 'family', note: 'Family cooking time — great for teaching moments.',                                     color: 'emerald'},
-  Takeout:  { skill: null,           ageGroup: null,     note: '',                                                                                       color: 'slate'  },
+const EXTRA_COOK_PROFILES: Record<string, CookProfile> = {
+  Together: { skill: 'intermediate', ageGroup: 'family', note: 'Family cooking time — great for teaching moments.', color: 'emerald' },
+  Takeout:  { skill: null,           ageGroup: null,     note: '',                                                  color: 'slate'   },
 };
 
 const SKILL_LABEL: Record<string, string> = {
   expert: '★★★★', skilled: '★★★☆', intermediate: '★★☆☆', beginner: '★☆☆☆',
 };
-
-const COOKS = Object.keys(COOK_PROFILES);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,25 +58,13 @@ function defaultPlan(): WeekPlan {
 
 function suggestionKey(day: Day, meal: MealType): SuggestionKey { return `${day}-${meal}`; }
 
-function timeContextForDay(day: Day, meal: MealType, cook: string): string {
-  const sched = SCHEDULE[day];
-  if (sched.off) {
-    if (meal === 'Dinner') return `${cook} has all day — can do something more involved`;
-    return `${cook} has the whole day off, plenty of time`;
-  }
-  if (meal === 'Dinner') return `Work night — ${cook} leaves around noon, so dinner should be quick (under 40 min) or prepped ahead`;
-  return `Morning before noon — moderate time available`;
-}
-
-async function fetchSuggestion(day: Day, meal: MealType, cook: string): Promise<Recipe | null> {
-  const profile = COOK_PROFILES[cook];
+async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>): Promise<Recipe | null> {
+  const profile = profiles[cook];
   if (!profile?.skill) return null;
 
-  const timeCtx = timeContextForDay(day, meal, cook);
   const prompt = `Suggest one ${meal.toLowerCase()} meal for ${day}.
 Cook: ${cook} | Skill: ${profile.skill} | Age group: ${profile.ageGroup}
 Profile note: ${profile.note}
-Schedule context: ${timeCtx}
 
 Return ONLY valid JSON (no markdown):
 {
@@ -109,10 +81,7 @@ Return ONLY valid JSON (no markdown):
 
 Rules:
 - Match skill level strictly — beginner means ≤5 steps, minimal technique
-- For Abriana (teen, ADHD): low-step, hard to mess up, avoid complex timing
-- For Julia (child): assembly or simple heat-and-serve
-- For Monday/day off Daddy: can suggest elaborate or new-technique recipes
-- For work-night dinners: under 40 min total
+- For teen/child cooks: low-step, hard to mess up, avoid complex timing
 - Keep steps array to max 6 items`;
 
   try {
@@ -148,24 +117,19 @@ Rules:
   } catch { return null; }
 }
 
-async function suggestWholeWeek(plan: WeekPlan): Promise<Partial<Record<Day, Partial<DayPlan>>>> {
+async function suggestWholeWeek(plan: WeekPlan, profiles: Record<string, CookProfile>): Promise<Partial<Record<Day, Partial<DayPlan>>>> {
   const lines = DAYS.map(day => {
     const cook = plan[day].cook;
-    const sched = SCHEDULE[day];
-    const profile = cook ? COOK_PROFILES[cook] : null;
-    return `${day}: Cook=${cook || 'unassigned'}, Skill=${profile?.skill || 'n/a'}, Schedule=${sched.label}`;
+    const profile = cook ? profiles[cook] : null;
+    return `${day}: Cook=${cook || 'unassigned'}, Skill=${profile?.skill || 'n/a'}`;
   }).join('\n');
 
-  const prompt = `Suggest a full week of meals (Breakfast, Lunch, Dinner) for a family of 4 in Baton Rouge, LA.
+  const prompt = `Suggest a full week of meals (Breakfast, Lunch, Dinner) for the household.
 
 Week context:
 ${lines}
 
-Michael (Daddy) work schedule: Off Monday, works Tue-Sun leaving around noon. Weeknight dinners should be quick.
-Abriana (teen, ADHD, beginner cook): needs simple recipes when she's cooking.
-Julia (child, beginner): simple assembly meals.
-Mommy: skilled, comfortable with most things.
-Monday Daddy: can do elaborate meals — make it something fun.
+Match each day's meals to that day's assigned cook's skill level — beginner/teen or child cooks get simple recipes, skilled/expert cooks can do more involved meals.
 
 Return ONLY valid JSON (no markdown):
 {
@@ -246,6 +210,24 @@ const DIFF_COLOR: Record<string, string> = {
 };
 
 const MealPlanner: React.FC = () => {
+  const { householdMembers } = useAppContext();
+
+  const cookProfiles = React.useMemo(() => {
+    const profiles: Record<string, CookProfile> = { ...EXTRA_COOK_PROFILES };
+    householdMembers.forEach((m) => {
+      if (m.role === 'pet') return;
+      const ageGroup = m.role === 'child' ? 'child' : 'adult';
+      profiles[m.name] = {
+        skill: ageGroup === 'child' ? 'beginner' : 'skilled',
+        ageGroup,
+        note: ageGroup === 'child' ? 'Needs simple assembly meals. Supervision required for stovetop.' : 'Comfortable with most meals.',
+        color: m.color || 'slate',
+      };
+    });
+    return profiles;
+  }, [householdMembers]);
+  const cooks = Object.keys(cookProfiles);
+
   const [plan, setPlan] = useState<WeekPlan>(() => {
     const saved = loadJSON<WeekPlan | null>(STORAGE_KEY, null);
     if (!saved) return defaultPlan();
@@ -286,18 +268,18 @@ const MealPlanner: React.FC = () => {
     if (!cook || cook === 'Takeout') return;
     const key = suggestionKey(day, meal);
     setLoading(key); setExpanded(key);
-    const result = await fetchSuggestion(day, meal, cook);
+    const result = await fetchSuggestion(day, meal, cook, cookProfiles);
     if (result) {
       setSuggestions(prev => ({ ...prev, [key]: result }));
       // Auto-fill the meal name
       save({ ...plan, [day]: { ...plan[day], [meal]: result.name } });
     }
     setLoading(null);
-  }, [plan]);
+  }, [plan, cookProfiles]);
 
   const handleSuggestWeek = async () => {
     setLoadingWeek(true);
-    const result = await suggestWholeWeek(plan);
+    const result = await suggestWholeWeek(plan, cookProfiles);
     if (result) {
       const next = { ...plan };
       DAYS.forEach(day => {
@@ -355,7 +337,7 @@ const MealPlanner: React.FC = () => {
 
       {/* Cook skill legend */}
       <div className="flex flex-wrap gap-2 text-xs">
-        {Object.entries(COOK_PROFILES).filter(([, p]) => p.skill).map(([name, p]) => (
+        {Object.entries(cookProfiles).filter(([, p]) => p.skill).map(([name, p]) => (
           <div key={name} className={`flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1`}>
             <span className="text-slate-300 font-medium">{name}</span>
             <span className="text-slate-500">{SKILL_LABEL[p.skill!]}</span>
@@ -368,8 +350,7 @@ const MealPlanner: React.FC = () => {
         {DAYS.map(day => {
           const isToday = day === today;
           const dayPlan = plan[day];
-          const sched = SCHEDULE[day];
-          const cookProfile = dayPlan.cook ? COOK_PROFILES[dayPlan.cook] : null;
+          const cookProfile = dayPlan.cook ? cookProfiles[dayPlan.cook] : null;
 
           return (
             <div
@@ -382,10 +363,6 @@ const MealPlanner: React.FC = () => {
                   <span className={`font-semibold text-sm ${isToday ? 'text-emerald-300' : 'text-white'}`}>
                     {day}
                     {isToday && <span className="ml-2 text-xs bg-emerald-500 text-slate-900 px-1.5 py-0.5 rounded font-medium">Today</span>}
-                  </span>
-                  <span className={`text-xs flex items-center gap-1 ${sched.off ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {sched.off ? <Clock className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                    {sched.label}
                   </span>
                 </div>
 
@@ -401,7 +378,7 @@ const MealPlanner: React.FC = () => {
                       className="bg-slate-700 border border-slate-600 rounded text-xs text-white px-2 py-1 outline-none"
                     >
                       <option value="">Who's cooking?</option>
-                      {COOKS.map(c => <option key={c} value={c}>{c}</option>)}
+                      {cooks.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   ) : (
                     <button onClick={() => setEditingCook(day)} className="text-xs hover:text-white transition flex items-center gap-1">

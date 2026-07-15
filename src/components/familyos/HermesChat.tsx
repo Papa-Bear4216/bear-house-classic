@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
+import { useAppContext } from '@/contexts/AppContext';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -38,7 +39,7 @@ interface HermesResponse {
 }
 
 // ─── Action executor ─────────────────────────────────────────────────────────
-function executeAction(action: Action): { result: string; ok: boolean } {
+function executeAction(action: Action, defaultPerson: string): { result: string; ok: boolean } {
   try {
     const p = action.params;
 
@@ -48,7 +49,7 @@ function executeAction(action: Action): { result: string; ok: boolean } {
       const task = {
         id: uid(), createdAt: Date.now(), completed: false, source: 'hermes',
         text: p.text || 'Untitled task',
-        person: p.person || 'Daddy',
+        person: p.person || defaultPerson,
         priority: p.priority || 'Medium',
         category: p.category || 'General',
         dueEstimate: p.dueEstimate || 'No Deadline',
@@ -141,7 +142,7 @@ function executeAction(action: Action): { result: string; ok: boolean } {
       const appts = loadJSON<any[]>('familyos_appointments', []);
       const appt = {
         id: uid(), createdAt: Date.now(), source: 'hermes',
-        person: p.person || 'Daddy',
+        person: p.person || defaultPerson,
         title: p.title || p.type || 'Appointment',
         type: p.type || 'General',
         doctor: p.doctor || '',
@@ -157,7 +158,7 @@ function executeAction(action: Action): { result: string; ok: boolean } {
       const promises = loadJSON<any[]>(KEYS.promises, []);
       const promise = {
         id: uid(), createdAt: Date.now(), completed: false, source: 'hermes',
-        person: p.person || 'Daddy',
+        person: p.person || defaultPerson,
         text: p.text || 'Unnamed promise',
         dueDate: p.dueDate ? new Date(p.dueDate).getTime() : null,
         priority: p.priority || 'Medium',
@@ -181,7 +182,7 @@ function executeAction(action: Action): { result: string; ok: boolean } {
       const emotions = loadJSON<any[]>(KEYS.emotions, []);
       const entry = {
         id: uid(), createdAt: Date.now(), source: 'hermes',
-        person: p.person || 'Daddy',
+        person: p.person || defaultPerson,
         emotion: p.emotion || 'neutral',
         intensity: Math.min(5, Math.max(1, parseInt(p.intensity) || 3)),
         note: p.note || '',
@@ -207,7 +208,7 @@ function executeAction(action: Action): { result: string; ok: boolean } {
 }
 
 // ─── Context builder ─────────────────────────────────────────────────────────
-function buildSystemPrompt(): string {
+function buildSystemPrompt(householdMembers: { name: string; role: string }[], currentUserName: string | undefined): string {
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const open = tasks.filter(t => !t.completed);
   const high = open.filter(t => t.priority === 'High').slice(0, 8);
@@ -221,9 +222,14 @@ function buildSystemPrompt(): string {
   const memory = localStorage.getItem('hermes_memory') || '';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  return `You are Hermes, the Bear House family AI secretary and agent. You are embedded in a family dashboard app.
+  const familyLine = householdMembers.length > 0
+    ? householdMembers.map((m) => `${m.name} (${m.role})`).join(', ')
+    : 'no household members yet';
+
+  return `You are Hermes, the family AI secretary and agent. You are embedded in a family dashboard app.
 Today: ${today}.
-Family: Daddy (Michael, superadmin), Mommy (Gwen, admin), Abriana (teenager, loves metalcore/gaming), Julia (kid, soccer/baking), Lucy (dog).
+You are currently talking to: ${currentUserName || 'a household member'}.
+Family: ${familyLine}.
 
 ═══ LIVE DATA ═══
 
@@ -281,14 +287,14 @@ updateMemory: {type, params: {memory: "thing to remember about this family"}}
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[]): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: history,
-        system: buildSystemPrompt(),
+        system: buildSystemPrompt(householdMembers, currentUserName),
         maxTokens: 600,
         model: 'claude-haiku-4-5-20251001',
       }),
@@ -332,6 +338,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
 };
 
 const HermesChat: React.FC = () => {
+  const { currentUser, householdMembers } = useAppContext();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -373,12 +380,13 @@ const HermesChat: React.FC = () => {
       content: m.text,
     }));
 
-    const response = await callHermes(history);
+    const response = await callHermes(history, householdMembers, currentUser?.name);
 
     // Execute any actions
     const executed: ExecutedAction[] = [];
+    const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
     for (const action of response.actions || []) {
-      const { result, ok } = executeAction(action);
+      const { result, ok } = executeAction(action, defaultPerson);
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated
       if (action.type === 'updateMemory') {

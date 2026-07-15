@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, RotateCcw, AlertTriangle, Home, ScanLine } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import CameraViewer from '@/components/familyos/CameraViewer';
@@ -31,7 +31,8 @@ const CAT_COLORS: Record<Category, string> = {
 };
 
 const HomeMaintenance: React.FC = () => {
-  const { currentUser, currentRole } = useAppContext();
+  const { currentUser, currentRole, householdMembers } = useAppContext();
+  const persons = householdPersons(householdMembers).filter((p) => p !== 'Family' && p !== 'General');
   const [items, setItems] = useState<HomeItem[]>(() => loadJSON(STORAGE_KEY, []));
   const [showForm, setShowForm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -80,14 +81,14 @@ const HomeMaintenance: React.FC = () => {
   const filtered = filterCat === 'All' ? active : active.filter(i => i.category === filterCat);
   const deleted = items.filter(i => !!i.deletedAt);
 
-  // Auto-assign chore to family member based on type keywords
-  const autoAssign = (chore: string): string => {
-    const c = chore.toLowerCase();
-    if (/lawn|yard|mow|trim|outdoor|gutter|fence|driveway|garage/.test(c)) return 'Daddy';
-    if (/dish|laundry|vacuum|sweep|mop|clean|dust|wipe|bathroom|kitchen|cook/.test(c)) return 'Mommy';
-    if (/litter|feed|walk|pet|lucy/.test(c)) return 'Julia';
-    if (/trash|garbage|recycl/.test(c)) return 'Abriana';
-    return 'Daddy'; // default
+  // No signal to prefer one household member over another for a given chore type,
+  // so spread new chores evenly across the roster rather than guessing.
+  let autoAssignCursor = 0;
+  const autoAssign = (): string => {
+    if (persons.length === 0) return 'General';
+    const assignee = persons[autoAssignCursor % persons.length];
+    autoAssignCursor++;
+    return assignee;
   };
 
   const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>) => {
@@ -96,7 +97,7 @@ const HomeMaintenance: React.FC = () => {
     const newTasks = detected.map(d => ({
       id: uid(),
       text: d.chore,
-      person: autoAssign(d.chore),
+      person: autoAssign(),
       priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
       category: 'Maintenance',
       dueEstimate: 'Today',

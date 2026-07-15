@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2 } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete, isAdmin } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete, isAdmin, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { authedFetch } from '@/lib/householdAuth';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
-const EXPENSE_PAYERS = ['Daddy', 'Mommy', 'Joint'];
 
 interface BudgetCategory {
   id: string;
@@ -51,7 +51,7 @@ const FinanceHub: React.FC = () => {
       <div className="text-center py-16">
         <DollarSign className="w-12 h-12 text-slate-600 mx-auto mb-3" />
         <div className="text-slate-500 text-lg font-medium">Finance is parents only</div>
-        <div className="text-slate-600 text-sm mt-1">Ask Daddy or Mommy.</div>
+        <div className="text-slate-600 text-sm mt-1">Ask an admin in your household.</div>
       </div>
     );
   }
@@ -114,7 +114,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
 
   const loadAccounts = useCallback(async () => {
     try {
-      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'accounts' }) });
+      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'accounts' }) });
       const d = await r.json(); if (d.accounts) setAccounts(d.accounts);
     } catch {}
   }, []);
@@ -124,7 +124,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
     if (!token.trim()) { flash('Paste your SimpleFIN setup token first', 'err'); return; }
     setConnecting(true);
     try {
-      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'connect', setupToken: token.trim(), person: currentUser?.name || 'Daddy' }) });
+      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'connect', setupToken: token.trim(), person: currentUser?.name }) });
       const d = await r.json();
       if (d.ok) { flash(`✓ Connected: ${(d.institutions||[]).join(', ')}`); setToken(''); loadAccounts(); }
       else flash(d.error || 'Connect failed', 'err');
@@ -134,7 +134,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
   const sync = async () => {
     setSyncing(true); flash('Pulling transactions…');
     try {
-      const r = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync', days: 30 }) });
+      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'sync', days: 30 }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       onSync(d.transactions || [], d.recurringBills || []);
       flash(`✓ ${d.synced ?? 0} imported${d.recurringBills?.length ? `, ${d.recurringBills.length} subscriptions` : ''}`);
@@ -180,11 +180,13 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
 };
 
 const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
+  const { householdMembers } = useAppContext();
+  const expensePayers = householdPersons(householdMembers);
   const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm]   = useState(false);
   const [amount, setAmount]       = useState('');
   const [category, setCategory]   = useState(BUDGET_CATEGORIES[0]);
-  const [paidBy, setPaidBy]       = useState<string>(currentUser?.name || EXPENSE_PAYERS[0]);
+  const [paidBy, setPaidBy]       = useState<string>(currentUser?.name || expensePayers[0]);
   const [date, setDate]           = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes]         = useState('');
   const [filterMonth, setFilterMonth] = useState(currentMonth());
@@ -230,7 +232,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
       id: uid(), amount: parseFloat(amount), category, paidBy,
       owner: currentUser?.id, date, notes, createdAt: Date.now(), source: 'manual',
     }, ...expenses]);
-    setAmount(''); setNotes(''); setPaidBy(currentUser?.name || EXPENSE_PAYERS[0]); setShowForm(false);
+    setAmount(''); setNotes(''); setPaidBy(currentUser?.name || expensePayers[0]); setShowForm(false);
   };
 
   const del = (id: string) => persistExpenses(expenses.map(e => e.id === id ? { ...e, deletedAt: Date.now() } : e));
@@ -242,7 +244,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
     : allActive;
   const sorted     = [...active].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const total      = active.reduce((s, e) => s + e.amount, 0);
-  const byPerson   = viewMode === 'combined' ? EXPENSE_PAYERS.map(p => ({
+  const byPerson   = viewMode === 'combined' ? expensePayers.map(p => ({
     name: p,
     total: allActive.filter(e => e.paidBy === p).reduce((s, e) => s + e.amount, 0),
   })).filter(p => p.total > 0) : [];
@@ -303,7 +305,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
               <label className="text-slate-400 text-xs mb-1 block">Paid by</label>
               <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
-                {EXPENSE_PAYERS.map(p => <option key={p}>{p}</option>)}
+                {expensePayers.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div>

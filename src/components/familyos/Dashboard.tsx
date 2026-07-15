@@ -16,7 +16,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
-  const { householdMembers } = useAppContext();
+  const { householdMembers, currentUser } = useAppContext();
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
 
@@ -145,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     // Structured prompt to ensure JSON output for UI parsing
     const prompt = `Act as the "Family OS" secretary. Return ONLY a valid JSON object with this structure:
 {
-  "recommendation": "One high-impact, actionable thing for Daddy today.",
+  "recommendation": "One high-impact, actionable thing for ${currentUser?.name || 'the family'} today.",
   "news": ["Brief summary item 1", "Brief summary item 2"],
   "alerts": ["Any urgent items or overdue tasks"],
   "outlook": "A warm, 1-2 sentence grounding statement for the family."
@@ -282,14 +282,16 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
           </div>
 
           {/* Per-person */}
-          <div>
-            <div className="text-sm text-slate-400 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {personCard('Mommy', 'pink')}
-              {personCard('Abriana', 'purple')}
-              {personCard('Julia', 'blue')}
+          {householdMembers.length > 0 && (
+            <div>
+              <div className="text-sm text-slate-400 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {householdMembers.map((m) => (
+                  <React.Fragment key={m.id}>{personCard(m.name, m.color)}</React.Fragment>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
