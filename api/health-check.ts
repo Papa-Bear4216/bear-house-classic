@@ -1,7 +1,7 @@
 // api/health-check.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, soleHouseholdId } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
@@ -27,6 +27,8 @@ export default async function handler(_req: Request): Promise<Response> {
   const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
   if (!HA_URL || !HA_TOKEN) return j({ error: 'HA not configured' }, 500);
 
+  const householdId = await soleHouseholdId();
+
   let states: any[];
   try {
     const res = await fetch(`${HA_URL}/api/states`, {
@@ -37,11 +39,11 @@ export default async function handler(_req: Request): Promise<Response> {
   } catch (e: any) {
     // HA itself unreachable — record a red snapshot, alert once.
     const snapshot = { updatedAt: Date.now(), integrations: [], overall: 'red' as const, haUnreachable: true };
-    await dbSet('system_health', snapshot);
+    await dbSet('system_health', householdId, snapshot);
     return j(snapshot);
   }
 
-  const alertState: Record<string, number> = (await dbGet('health_alert_state')) ?? {};
+  const alertState: Record<string, number> = (await dbGet('health_alert_state', householdId)) ?? {};
   const now = Date.now();
   const integrations: any[] = [];
 
@@ -88,7 +90,7 @@ export default async function handler(_req: Request): Promise<Response> {
   const overall: 'green' | 'yellow' | 'red' = anyDown ? 'red' : anyDegraded ? 'yellow' : 'green';
 
   const snapshot = { updatedAt: now, integrations, overall };
-  await dbSet('system_health', snapshot);
-  await dbSet('health_alert_state', alertState);
+  await dbSet('system_health', householdId, snapshot);
+  await dbSet('health_alert_state', householdId, alertState);
   return j(snapshot);
 }

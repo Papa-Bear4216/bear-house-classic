@@ -17,25 +17,68 @@ function headers(key: string) {
   };
 }
 
-/** Read a value by key from family_data table */
-export async function dbGet(key: string): Promise<any> {
+/**
+ * Resolve the caller's household_id from a verified Supabase access token.
+ * NEVER trust a client-supplied household_id — service_role writes bypass
+ * RLS, so the household_id is the only thing enforcing tenant isolation.
+ * Returns null if the token is invalid or the user has no household row.
+ */
+export async function resolveHouseholdId(accessToken: string): Promise<string | null> {
   const anonKey = process.env.SUPABASE_ANON_KEY!;
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+  });
+  if (!userRes.ok) return null;
+  const user = await userRes.json() as any;
+  if (!user?.id) return null;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const memberRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=household_id`,
+    { headers: headers(serviceKey) }
+  );
+  if (!memberRes.ok) return null;
+  const rows = await memberRes.json() as any[];
+  return rows[0]?.household_id ?? null;
+}
+
+/**
+ * For true background jobs (crons, external webhooks) with no per-request
+ * auth session. Deliberate scope-reduction: assumes exactly one household
+ * exists today and throws loudly otherwise, rather than silently guessing.
+ * Revisit before a second household needs cron/webhook support.
+ */
+export async function soleHouseholdId(): Promise<string> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/households?select=id&limit=2`, {
+    headers: headers(serviceKey),
+  });
+  if (!res.ok) throw new Error(`soleHouseholdId: households lookup failed: ${res.status}`);
+  const rows = await res.json() as any[];
+  if (rows.length === 0) throw new Error('soleHouseholdId: no households exist');
+  if (rows.length > 1) throw new Error('soleHouseholdId: more than one household exists — background jobs need real household_id threading now');
+  return rows[0].id;
+}
+
+/** Read a value by key, scoped to one household, from family_data table */
+export async function dbGet(key: string, householdId: string): Promise<any> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/family_data?key=eq.${encodeURIComponent(key)}&select=value`,
-    { headers: headers(anonKey) }
+    `${SUPABASE_URL}/rest/v1/family_data?key=eq.${encodeURIComponent(key)}&household_id=eq.${encodeURIComponent(householdId)}&select=value`,
+    { headers: headers(serviceKey) }
   );
   if (!res.ok) return null;
   const rows = await res.json() as any[];
   return rows[0]?.value ?? null;
 }
 
-/** Upsert a value by key into family_data table */
-export async function dbSet(key: string, value: any): Promise<void> {
+/** Upsert a value by key, scoped to one household, into family_data table */
+export async function dbSet(key: string, householdId: string, value: any): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
     method: 'POST',
     headers: { ...headers(serviceKey), 'Prefer': 'resolution=merge-duplicates' },
-    body: JSON.stringify({ key, value }),
+    body: JSON.stringify({ key, household_id: householdId, value }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
@@ -43,11 +86,11 @@ export async function dbSet(key: string, value: any): Promise<void> {
   }
 }
 
-/** Prepend one item to an array stored at key (read-modify-write) */
-export async function dbPrepend(key: string, item: object): Promise<void> {
-  const existing: any[] = (await dbGet(key)) ?? [];
+/** Prepend one item to an array stored at key (read-modify-write), scoped to one household */
+export async function dbPrepend(key: string, householdId: string, item: object): Promise<void> {
+  const existing: any[] = (await dbGet(key, householdId)) ?? [];
   const arr = Array.isArray(existing) ? existing : [];
-  await dbSet(key, [item, ...arr]);
+  await dbSet(key, householdId, [item, ...arr]);
 }
 
 /** Get a household member by email (uses service role to bypass RLS) */
@@ -91,18 +134,6 @@ export async function dbGetHouseholdMembersByHouseholdId(householdId: string): P
   );
   if (!res.ok) return [];
   return await res.json() as any[];
-}
-
-/** Get the household_id from an existing member (used for new user assignment) */
-export async function dbGetHouseholdId(): Promise<string | null> {
-  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?select=household_id&limit=1`,
-    { headers: headers(serviceKey) }
-  );
-  if (!res.ok) return null;
-  const rows = await res.json() as any[];
-  return rows[0]?.household_id ?? null;
 }
 
 /** Create a new household member */

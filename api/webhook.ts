@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, dbPrepend } from './_db.js';
+import { dbGet, dbSet, dbPrepend, soleHouseholdId } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -26,10 +26,10 @@ const NFC_TAG_DEFAULTS: Record<string, string> = {
 
 function buildItem(type: ItemType, body: Record<string, any>) {
   const base = { id: uid(), createdAt: Date.now(), source: body.source || 'webhook' };
-  if (type === 'task' || type === 'reminder') return { ...base, text: body.text || 'Untitled', person: body.person || 'Daddy', priority: body.priority || 'Medium', category: body.category || 'General', dueEstimate: body.dueEstimate || 'No Deadline', dueDate: body.dueDate ? new Date(body.dueDate).getTime() : null, completed: false };
+  if (type === 'task' || type === 'reminder') return { ...base, text: body.text || 'Untitled', person: body.person || 'General', priority: body.priority || 'Medium', category: body.category || 'General', dueEstimate: body.dueEstimate || 'No Deadline', dueDate: body.dueDate ? new Date(body.dueDate).getTime() : null, completed: false };
   if (type === 'bill') return { ...base, name: body.name || body.text || 'Untitled bill', amount: parseFloat(body.amount) || 0, dueDate: body.dueDate ? new Date(body.dueDate).getTime() : null, paid: false, recurring: body.recurring === 'true' };
   if (type === 'shopping') return { ...base, name: body.name || body.text || 'Untitled item', category: body.category || 'General', assignedTo: body.assignedTo || 'General', quantity: body.quantity || '1', completed: false };
-  if (type === 'appointment') return { ...base, person: body.person || 'Daddy', type: body.type || 'General', doctor: body.doctor || '', date: body.date ? new Date(body.date).getTime() : null, notes: body.notes || '' };
+  if (type === 'appointment') return { ...base, person: body.person || 'General', type: body.type || 'General', doctor: body.doctor || '', date: body.date ? new Date(body.date).getTime() : null, notes: body.notes || '' };
   return base;
 }
 
@@ -47,8 +47,8 @@ async function runThroughSecretary(item: object, type: string, token: string): P
   }
 }
 
-async function appendToKey(key: string, item: object) {
-  await dbPrepend(key, item);
+async function appendToKey(householdId: string, key: string, item: object) {
+  await dbPrepend(key, householdId, item);
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -64,17 +64,19 @@ export default async function handler(req: Request): Promise<Response> {
   const type: ItemType = body?.type;
   if (!type || !KEY_MAP[type]) return j({ error: 'Invalid type. Use: task|bill|shopping|appointment|reminder|nfc' }, 400);
 
+  const householdId = await soleHouseholdId();
+
   if (type === 'nfc') {
     const { action: nfcAction = 'log', taskId, tagName, person = 'Family', text: nfcText } = body;
     const logText = nfcText || (tagName ? NFC_TAG_DEFAULTS[tagName] : null) || `NFC tap: ${tagName || 'unknown'}`;
 
     if (nfcAction === 'complete' && taskId) {
-      const tasks: any[] = (await dbGet('household_tasks')) ?? [];
+      const tasks: any[] = (await dbGet('household_tasks', householdId)) ?? [];
       const updated = tasks.map((t: any) => t.id === taskId ? { ...t, completed: true, completedAt: Date.now(), completedBy: person } : t);
-      await dbSet('household_tasks', updated);
+      await dbSet('household_tasks', householdId, updated);
     }
 
-    await appendToKey('nfc_completion_log', { id: uid(), text: logText, person, tagName: tagName || null, ts: Date.now(), nfcAction });
+    await appendToKey(householdId, 'nfc_completion_log', { id: uid(), text: logText, person, tagName: tagName || null, ts: Date.now(), nfcAction });
     return j({ ok: true, action: 'logged', text: logText, person });
   }
 
@@ -82,7 +84,7 @@ export default async function handler(req: Request): Promise<Response> {
   const { action, item } = await runThroughSecretary(raw, type, token);
   if (action === 'skip') return j({ ok: true, action: 'skip', reason: (item as any).reason || 'duplicate' });
 
-  await appendToKey(KEY_MAP[type], item);
+  await appendToKey(householdId, KEY_MAP[type], item);
   if (body?.notify) await notifyIFTTT(`bearhouse_${type}`, (item as any).text || (item as any).name || 'New item', (item as any).person || '');
   return j({ ok: true, action: 'saved', type, item });
 }

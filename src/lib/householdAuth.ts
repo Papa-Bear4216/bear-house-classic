@@ -28,6 +28,16 @@ export async function getAccessToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+/** fetch() with the caller's Supabase session attached as a Bearer token — use for any
+ * API route that resolves household_id server-side via resolveHouseholdId(). */
+export async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken();
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...init, headers });
+}
+
 export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string } | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;

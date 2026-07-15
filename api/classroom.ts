@@ -14,16 +14,16 @@ export const config = { runtime: 'edge' };
  *   classroom.student-submissions.me.readonly
  */
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
 
 const TASKS_KEY = 'household_tasks';
 
-async function getKey(key: string) {
-  return (await dbGet(key)) ?? [];
+async function getKey(key: string, householdId: string) {
+  return (await dbGet(key, householdId)) ?? [];
 }
 
-async function setKey(key: string, value: any) {
-  await dbSet(key, value);
+async function setKey(key: string, householdId: string, value: any) {
+  await dbSet(key, householdId, value);
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
@@ -38,6 +38,11 @@ const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, 
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+  const authHeader = req.headers.get('authorization') || '';
+  const accessTokenSupabase = authHeader.replace(/^Bearer\s+/i, '');
+  const householdId = accessTokenSupabase ? await resolveHouseholdId(accessTokenSupabase) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const body = await req.json().catch(() => ({})) as any;
   const { accessToken, person } = body;
@@ -78,7 +83,7 @@ export default async function handler(req: Request): Promise<Response> {
     });
 
     // 4. Load existing tasks
-    const tasks: any[] = await getKey(TASKS_KEY);
+    const tasks: any[] = await getKey(TASKS_KEY, householdId);
 
     // 5. Upsert by gcClassroomId — update existing, add new
     let added = 0;
@@ -119,7 +124,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
     }
 
-    await setKey(TASKS_KEY, newTasks);
+    await setKey(TASKS_KEY, householdId, newTasks);
 
     return j({ added, total: upcoming.length, courses: courses.length, assignments: upcoming.map((w: any) => ({ id: w.id, title: w.title, course: w.courseName, dueDate: w.dueDate })) });
   } catch (e: any) {

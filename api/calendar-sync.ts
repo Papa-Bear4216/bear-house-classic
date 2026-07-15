@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet } from './_db.js';
+import { dbGet, dbSet, soleHouseholdId } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -45,15 +45,17 @@ export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('x-webhook-token') || body?.token;
   if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
 
-  const { accessToken, person = 'Daddy', calendarId } = body;
+  const { accessToken, person, calendarId } = body;
   if (!accessToken) return j({ error: 'accessToken required' }, 400);
+  if (!person) return j({ error: 'person required' }, 400);
 
   try {
+    const householdId = await soleHouseholdId();
     const events = await fetchCalendarEvents(accessToken, calendarId);
-    const existing: any[] = (await dbGet('familyos_appointments')) || [];
+    const existing: any[] = (await dbGet('familyos_appointments', householdId)) || [];
     const nonGcal = existing.filter((a: any) => a.source !== 'google_calendar');
     const newAppointments = events.map((e: any) => googleEventToAppointment(e, person));
-    await dbSet('familyos_appointments', [...newAppointments, ...nonGcal]);
+    await dbSet('familyos_appointments', householdId, [...newAppointments, ...nonGcal]);
     return j({ ok: true, synced: newAppointments.length });
   } catch (e: any) {
     return j({ error: e?.message || 'Sync failed' }, 500);

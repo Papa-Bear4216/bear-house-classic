@@ -17,6 +17,9 @@ async function getAuthUserId(accessToken: string): Promise<{ id: string; email: 
   const user = await res.json() as any;
   return user?.id ? { id: user.id, email: user.email ?? null } : null;
 }
+// Note: this duplicates api/_db.ts's resolveHouseholdId() auth-token verification
+// step by design — setup.ts runs BEFORE a household_members row exists, so it
+// can't reuse resolveHouseholdId() (which looks one up and returns null if missing).
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
