@@ -4,7 +4,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 
 export function BillingPanel() {
-  const { currentRole, householdId } = useAppContext();
+  const { currentRole, householdId, bypassBilling } = useAppContext();
   const [seats, setSeats] = useState<number | null>(null);
   const [extraSeats, setExtraSeats] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,7 @@ export function BillingPanel() {
   useEffect(() => { refreshSeats(); }, [householdId]);
 
   if (currentRole !== 'superadmin' && currentRole !== 'admin') return null;
+  if (bypassBilling) return null;
 
   const openBillingPortal = async () => {
     setLoading(true);

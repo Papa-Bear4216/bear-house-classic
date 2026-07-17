@@ -38,13 +38,13 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   return fetch(url, { ...init, headers });
 }
 
-export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string; subscriptionStatus: string } | null> {
+export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string; subscriptionStatus: string; bypassBilling: boolean } | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
 
   const { data, error } = await supabase
     .from('household_members')
-    .select('id, household_id, name, email, role, color, households(subscription_status)')
+    .select('id, household_id, name, email, role, color, households(subscription_status, bypass_billing)')
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
 
@@ -54,6 +54,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
   return {
     householdId: data.household_id,
     subscriptionStatus: (data as any).households?.subscription_status ?? 'none',
+    bypassBilling: (data as any).households?.bypass_billing ?? false,
     member: {
       id: data.id,
       householdId: data.household_id,

@@ -10,6 +10,7 @@ interface AppContextType {
   householdMembers: User[];
   householdId: string | null;
   subscriptionStatus: string | null;
+  bypassBilling: boolean;
   logout: () => void;
   setCurrentUser: (user: User | null) => void;
 }
@@ -22,6 +23,7 @@ const defaultAppContext: AppContextType = {
   householdMembers: [],
   householdId: null,
   subscriptionStatus: null,
+  bypassBilling: false,
   logout: () => {},
   setCurrentUser: () => {},
 };
@@ -37,6 +39,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [householdMembers, setHouseholdMembers] = useState<User[]>([]);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [bypassBilling, setBypassBilling] = useState(false);
 
   useEffect(() => {
     const loadUserAndHousehold = async () => {
@@ -47,6 +50,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         setHouseholdMembers([]);
         setHouseholdId(null);
         setSubscriptionStatus(null);
+        setBypassBilling(false);
         return;
       }
 
@@ -61,6 +65,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setCurrentRoleState(session.member.role as UserRole);
       setHouseholdId(session.householdId);
       setSubscriptionStatus(session.subscriptionStatus);
+      setBypassBilling(session.bypassBilling);
 
       const roster = await getHouseholdRoster(session.householdId);
       const users: User[] = roster.map(m => ({
@@ -87,6 +92,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
     setHouseholdMembers([]);
     setHouseholdId(null);
     setSubscriptionStatus(null);
+    setBypassBilling(false);
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -109,6 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         householdMembers,
         householdId,
         subscriptionStatus,
+        bypassBilling,
         logout,
         setCurrentUser,
       }}

@@ -23,9 +23,9 @@ type AuthState = 'loading' | 'signed_out' | 'needs_setup' | 'ready';
 // subscription_status='active' set directly in SQL — treat 'active' as
 // sufficient regardless of how it got set, no other bypass.
 const AuthedApp: React.FC = () => {
-  const { subscriptionStatus } = useAppContext();
+  const { subscriptionStatus, bypassBilling } = useAppContext();
 
-  if (subscriptionStatus !== null && subscriptionStatus !== 'active') {
+  if (!bypassBilling && subscriptionStatus !== null && subscriptionStatus !== 'active') {
     return <BillingLockedPage />;
   }
 
