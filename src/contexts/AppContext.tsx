@@ -9,6 +9,7 @@ interface AppContextType {
   currentRole: UserRole | null;
   householdMembers: User[];
   householdId: string | null;
+  subscriptionStatus: string | null;
   logout: () => void;
   setCurrentUser: (user: User | null) => void;
 }
@@ -20,6 +21,7 @@ const defaultAppContext: AppContextType = {
   currentRole: null,
   householdMembers: [],
   householdId: null,
+  subscriptionStatus: null,
   logout: () => {},
   setCurrentUser: () => {},
 };
@@ -34,6 +36,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [currentRole, setCurrentRoleState] = useState<UserRole | null>(null);
   const [householdMembers, setHouseholdMembers] = useState<User[]>([]);
   const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUserAndHousehold = async () => {
@@ -43,6 +46,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         setCurrentRoleState(null);
         setHouseholdMembers([]);
         setHouseholdId(null);
+        setSubscriptionStatus(null);
         return;
       }
 
@@ -56,6 +60,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setCurrentUserState(user);
       setCurrentRoleState(session.member.role as UserRole);
       setHouseholdId(session.householdId);
+      setSubscriptionStatus(session.subscriptionStatus);
 
       const roster = await getHouseholdRoster(session.householdId);
       const users: User[] = roster.map(m => ({
@@ -81,6 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
     setCurrentRoleState(null);
     setHouseholdMembers([]);
     setHouseholdId(null);
+    setSubscriptionStatus(null);
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -102,6 +108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         currentRole,
         householdMembers,
         householdId,
+        subscriptionStatus,
         logout,
         setCurrentUser,
       }}

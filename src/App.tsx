@@ -9,12 +9,35 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
+import BillingLockedPage from "@/pages/BillingLocked";
 import { onAuthStateChange, getHouseholdSession } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
+import { AppProvider, useAppContext } from "@/contexts/AppContext";
 
 const queryClient = new QueryClient();
 
 type AuthState = 'loading' | 'signed_out' | 'needs_setup' | 'ready';
+
+// Rendered inside <AppProvider>, so useAppContext() (and therefore
+// subscriptionStatus) is available here. Grandfathered household #1 has
+// subscription_status='active' set directly in SQL — treat 'active' as
+// sufficient regardless of how it got set, no other bypass.
+const AuthedApp: React.FC = () => {
+  const { subscriptionStatus } = useAppContext();
+
+  if (subscriptionStatus !== null && subscriptionStatus !== 'active') {
+    return <BillingLockedPage />;
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
 
 const App = () => {
   const [authState, setAuthState] = useState<AuthState>('loading');
@@ -97,12 +120,9 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index onLogout={handleLogout} />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <AppProvider onLogout={handleLogout}>
+            <AuthedApp />
+          </AppProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
