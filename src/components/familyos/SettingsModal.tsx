@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { BillingPanel } from './BillingPanel';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -315,6 +316,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   <p className="text-xs text-slate-400">4. Hit <strong>Sync</strong> to import transactions. A daily cron keeps them fresh automatically.</p>
                 </div>
               </IntegrationCard>
+
+              {/* Billing — hidden internally for non-admin roles */}
+              <BillingPanel />
 
               {/* Webhooks — HA, Secretary, NFC */}
               <IntegrationCard
