@@ -23,13 +23,12 @@ interface Expense {
   notes: string;
   createdAt: number;
   deletedAt?: number;
-  plaidId?: string;
   extId?: string;
-  source?: 'plaid' | 'simplefin' | 'manual';
+  source?: 'simplefin' | 'manual';
   institutionName?: string;
 }
 
-interface PlaidAccount {
+interface LinkedAccount {
   person: string;
   institutionName: string;
   connectedAt: number;
@@ -105,7 +104,7 @@ interface TabProps {
 }
 
 const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any[]) => void }> = ({ currentUser, onSync }) => {
-  const [accounts, setAccounts] = useState<PlaidAccount[]>([]);
+  const [accounts, setAccounts] = useState<LinkedAccount[]>([]);
   const [token, setToken] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -343,7 +342,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-white text-sm">{e.category}</span>
                 {viewMode === 'combined' && <span className="text-slate-500 text-xs">{e.paidBy}</span>}
-                {(e.source === 'simplefin' || e.source === 'plaid') && (
+                {e.source === 'simplefin' && (
                   <span className="flex items-center gap-0.5 bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 text-[10px] px-1.5 py-0.5 rounded-full">
                     <Landmark className="w-2.5 h-2.5" /> {e.institutionName || 'Bank'}
                   </span>
