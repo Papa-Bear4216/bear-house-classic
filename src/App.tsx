@@ -43,6 +43,15 @@ const App = () => {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [syncReady, setSyncReady] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing') === 'success') {
+      params.delete('billing');
+      const newSearch = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+    }
+  }, []);
+
   const loadSession = useCallback(() => {
     let unsubRealtime: (() => void) | undefined;
 

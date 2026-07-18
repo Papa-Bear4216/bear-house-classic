@@ -13,6 +13,9 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
   const [memberName, setMemberName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [cancelledNotice, setCancelledNotice] = useState(
+    () => new URLSearchParams(window.location.search).get('billing') === 'cancelled'
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +48,20 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
         return;
       }
 
-      onHouseholdCreated();
+      const checkoutRes = await fetch('/api/billing-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ householdId: data.householdId }),
+      });
+      const checkoutData = await checkoutRes.json();
+
+      if (!checkoutRes.ok || !checkoutData.url) {
+        setError(checkoutData.error || 'Household created, but starting checkout failed. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      window.location.href = checkoutData.url;
     } catch {
       setError('Network error. Please try again.');
       setSubmitting(false);
@@ -82,6 +98,9 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
           />
         </div>
 
+        {cancelledNotice && (
+          <p className="text-amber-400 text-sm">Checkout was cancelled — you can try again below.</p>
+        )}
         {error && <p className="text-rose-400 text-sm">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={submitting}>
