@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain } from 'lucide-react';
-import { KEYS, loadJSON, saveJSON, uid } from '@/lib/familyos';
+import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
@@ -209,7 +209,7 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
 }
 
 // ─── Context builder ─────────────────────────────────────────────────────────
-function buildSystemPrompt(householdMembers: { name: string; role: string }[], currentUserName: string | undefined): string {
+function buildSystemPrompt(householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined): string {
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const open = tasks.filter(t => !t.completed);
   const high = open.filter(t => t.priority === 'High').slice(0, 8);
@@ -227,10 +227,19 @@ function buildSystemPrompt(householdMembers: { name: string; role: string }[], c
     ? householdMembers.map((m) => `${m.name} (${m.role})`).join(', ')
     : 'no household members yet';
 
+  const hobbyLines = householdMembers
+    .map((m) => {
+      const prefs = loadMemberPreferences(m.id);
+      const fragment = buildHobbyPromptFragment(prefs);
+      return fragment ? `${m.name} enjoys: ${fragment}.` : null;
+    })
+    .filter(Boolean)
+    .join(' ');
+
   return `You are Hermes, the family AI secretary and agent. You are embedded in a family dashboard app.
 Today: ${today}.
 You are currently talking to: ${currentUserName || 'a household member'}.
-Family: ${familyLine}.
+Family: ${familyLine}.${hobbyLines ? `\n${hobbyLines}` : ''}
 
 ═══ LIVE DATA ═══
 
@@ -288,7 +297,7 @@ updateMemory: {type, params: {memory: "thing to remember about this family"}}
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[], householdMembers: { name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
     const res = await fetch('/api/chat', {
