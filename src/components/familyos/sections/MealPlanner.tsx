@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
-import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, calculateShortfall } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, savePantry, calculateShortfall, decrementPantry } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 
@@ -35,6 +35,8 @@ interface DayPlan {
   Lunch: string;
   Dinner: string;
   cook: string;
+  cookedIngredients?: Partial<Record<MealType, { name: string; quantity: number; unit: string }[]>>;
+  cookedAt?: Partial<Record<MealType, number>>;
 }
 type WeekPlan = Record<Day, DayPlan>;
 const EMPTY_DAY: DayPlan = { Breakfast: '', Lunch: '', Dinner: '', cook: '' };
@@ -306,8 +308,15 @@ const MealPlanner: React.FC = () => {
     const result = await fetchSuggestion(day, meal, cook, cookProfiles, foodPreferenceByCook[cook]);
     if (result) {
       setSuggestions(prev => ({ ...prev, [key]: result }));
-      // Auto-fill the meal name
-      save({ ...plan, [day]: { ...plan[day], [meal]: result.name } });
+      // Auto-fill the meal name and remember its ingredients for Mark Cooked
+      save({
+        ...plan,
+        [day]: {
+          ...plan[day],
+          [meal]: result.name,
+          cookedIngredients: { ...plan[day].cookedIngredients, [meal]: result.recipe.ingredients },
+        },
+      });
     }
     setLoading(null);
   }, [plan, cookProfiles, foodPreferenceByCook]);
@@ -338,6 +347,23 @@ const MealPlanner: React.FC = () => {
     const n = addIngredientsToShopping(ingredients);
     setShopFeedback(n > 0 ? `${n} ingredient${n !== 1 ? 's' : ''} added to shopping list` : 'Pantry already covers this recipe — nothing added.');
     setTimeout(() => setShopFeedback(null), 2500);
+  };
+
+  const markCooked = (day: Day, meal: MealType) => {
+    const ingredients = plan[day].cookedIngredients?.[meal];
+    if (!ingredients) return;
+    const key = suggestionKey(day, meal);
+    const recipeServings = suggestions[key]?.servings ?? 1;
+    const chosenServings = servingsOverride[key] ?? recipeServings;
+    const scaled = scaleIngredients(ingredients, recipeServings, chosenServings);
+
+    const pantryItems = loadPantry();
+    savePantry(decrementPantry(pantryItems, scaled));
+
+    save({
+      ...plan,
+      [day]: { ...plan[day], cookedAt: { ...plan[day].cookedAt, [meal]: Date.now() } },
+    });
   };
 
   return (
@@ -498,6 +524,17 @@ const MealPlanner: React.FC = () => {
                               className="text-xs px-2 py-1 rounded-lg bg-orange-900/30 hover:bg-orange-800/50 border border-orange-600/30 text-orange-300 transition"
                             >
                               <ClipboardList className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {/* Mark cooked */}
+                          {mealValue && !dayPlan.cookedAt?.[meal] && (
+                            <button
+                              onClick={() => markCooked(day, meal)}
+                              title="Mark cooked"
+                              className="text-slate-500 hover:text-emerald-400 transition"
+                            >
+                              <Check className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
