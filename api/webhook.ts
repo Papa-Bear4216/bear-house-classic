@@ -4,7 +4,7 @@ import { dbGet, dbSet, dbPrepend, resolveHouseholdIdByWebhookToken } from './_db
 import { notifyIFTTT } from './_notify.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
-const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://bearhouse-os.vercel.app';
+const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.hotmessexpress.lol';
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 

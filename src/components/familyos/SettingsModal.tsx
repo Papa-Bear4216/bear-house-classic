@@ -12,7 +12,7 @@ import { BillingPanel } from './BillingPanel';
 
 interface Props { open: boolean; onClose: () => void; }
 
-const BASE_URL = 'https://bearhouseos.vercel.app';
+const BASE_URL = 'https://www.hotmessexpress.lol';
 
 const NFC_TAG_DEFAULTS: Record<string, string> = {
   kitchen_sink: 'Wipe down kitchen sink and counter',

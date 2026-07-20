@@ -6,6 +6,8 @@
  */
 export const config = { runtime: 'edge' };
 
+import { resolveHouseholdId } from './_db.js';
+
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -114,6 +116,11 @@ async function callAI(prompt: string): Promise<string> {
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+  const authHeader = req.headers.get('authorization') || '';
+  const supabaseToken = authHeader.replace(/^Bearer\s+/i, '');
+  const householdId = supabaseToken ? await resolveHouseholdId(supabaseToken) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const body = await req.json().catch(() => ({})) as any;
   const { accessToken, person } = body;
