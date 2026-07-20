@@ -97,6 +97,7 @@ export function householdActivityTemplates(members: { name: string }[]): Array<{
 
 // Storage helpers — localStorage + cloud sync
 import { pushToCloud } from './sync';
+import { getAccessToken } from './householdAuth';
 
 export function loadJSON<T>(key: string, fallback: T): T {
   try {
@@ -209,9 +210,13 @@ export async function callClaude(
         system = assembleMemoryPrompt();
       } catch { /* memory optional — proceed without it */ }
     }
+    const token = await getAccessToken();
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(system ? { prompt, maxTokens, system } : { prompt, maxTokens }),
     });
     if (!res.ok) {
@@ -228,9 +233,13 @@ export async function callClaude(
 export async function callClaudeVision(imageBase64: string, mediaType: string, prompt: string): Promise<{ ok: boolean; text: string }> {
   try {
     // Route through server-side proxy so the API key is never exposed in the browser bundle
+    const token = await getAccessToken();
     const res = await fetch('/api/vision', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ imageBase64, mediaType, prompt }),
     });
     if (!res.ok) {

@@ -1,9 +1,17 @@
 export const config = { runtime: 'edge' };
 
+import { resolveHouseholdId } from './_db.js';
+
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+  const authHeader = req.headers.get('authorization') || '';
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '');
+  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return j({ error: 'API key not configured.' }, 500);
 
