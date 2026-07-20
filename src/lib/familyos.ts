@@ -95,6 +95,84 @@ export function householdActivityTemplates(members: { name: string }[]): Array<{
   return templates;
 }
 
+// ── Member Preferences ───────────────────────────────────────────────────────
+
+export const FOOD_LIKES_OPTIONS = [
+  'Sweet', 'Spicy', 'Savory', 'Cheesy', 'Crunchy', 'Seafood', 'Grilled',
+  'Fresh vegetables', 'Bread/carbs', 'Fruit',
+];
+export const FOOD_DISLIKES_OPTIONS = [
+  'Mushrooms', 'Cilantro', 'Seafood', 'Spicy food', 'Very sweet',
+  'Mixed textures', 'Onions', 'Tomatoes', 'Mayo', 'Coconut',
+];
+export const FOOD_ALLERGY_OPTIONS = [
+  'Peanuts', 'Tree nuts', 'Shellfish', 'Dairy', 'Eggs', 'Gluten', 'Soy',
+];
+export const FOOD_DIET_OPTIONS = [
+  'Vegetarian', 'Vegan', 'Pescatarian', 'Gluten-free', 'Dairy-free',
+  'Low-carb', 'Halal', 'Kosher',
+];
+export const HOBBY_OPTIONS = [
+  'Sports', 'Soccer', 'Basketball', 'Gaming', 'Reading', 'Art/drawing',
+  'Playing an instrument', 'Outdoors/hiking', 'Cooking', 'Crafts',
+  'Board games',
+];
+export const ENTERTAINMENT_OPTIONS = [
+  'Pop', 'Rock', 'Hip-hop', 'Country', 'Classical', 'Metal',
+  'Comedy shows', 'Action movies', 'Animated shows', 'Documentaries',
+];
+export const HEALTH_NOTE_OPTIONS = [
+  'Prefers low-sugar', 'Sensitive to spicy food', 'Easily overstimulated',
+  'Prefers quiet activities', 'Needs frequent breaks',
+];
+
+export interface MemberPreferences {
+  memberId: string;
+  food: {
+    likes: string[];
+    dislikes: string[];
+    allergies: string[];
+    diet: string[];
+    otherNotes: string;
+  };
+  hobbies: { selected: string[]; otherNotes: string };
+  entertainment: { selected: string[]; otherNotes: string };
+  healthNotes: { selected: string[]; otherNotes: string };
+  updatedAt: number;
+}
+
+export function preferencesKey(memberId: string): string {
+  return `familyos_preferences_${memberId}`;
+}
+
+export function emptyMemberPreferences(memberId: string): MemberPreferences {
+  return {
+    memberId,
+    food: { likes: [], dislikes: [], allergies: [], diet: [], otherNotes: '' },
+    hobbies: { selected: [], otherNotes: '' },
+    entertainment: { selected: [], otherNotes: '' },
+    healthNotes: { selected: [], otherNotes: '' },
+    updatedAt: 0,
+  };
+}
+
+export function buildFoodPreferencePrompt(prefs: MemberPreferences): string {
+  const parts: string[] = [];
+  if (prefs.food.diet.length) parts.push(`Diet: ${prefs.food.diet.join(', ')}`);
+  if (prefs.food.allergies.length) parts.push(`Allergies (must avoid): ${prefs.food.allergies.join(', ')}`);
+  if (prefs.food.dislikes.length) parts.push(`Dislikes: ${prefs.food.dislikes.join(', ')}`);
+  if (prefs.food.likes.length) parts.push(`Likes: ${prefs.food.likes.join(', ')}`);
+  if (prefs.food.otherNotes.trim()) parts.push(prefs.food.otherNotes.trim());
+  return parts.join('. ');
+}
+
+export function buildHobbyPromptFragment(prefs: MemberPreferences): string {
+  const parts: string[] = [];
+  if (prefs.hobbies.selected.length) parts.push(prefs.hobbies.selected.join(', '));
+  if (prefs.hobbies.otherNotes.trim()) parts.push(prefs.hobbies.otherNotes.trim());
+  return parts.join(', ');
+}
+
 // Storage helpers — localStorage + cloud sync
 import { pushToCloud } from './sync';
 import { getAccessToken } from './householdAuth';
@@ -107,6 +185,10 @@ export function loadJSON<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+export function loadMemberPreferences(memberId: string): MemberPreferences {
+  return loadJSON<MemberPreferences>(preferencesKey(memberId), emptyMemberPreferences(memberId));
 }
 
 export function saveJSON(key: string, value: unknown) {
