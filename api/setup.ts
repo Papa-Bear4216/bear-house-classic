@@ -88,5 +88,107 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true, householdId: household.id });
   }
 
-  return j({ error: 'Unknown action. Use: createHousehold' }, 400);
+  if (action === 'inviteMember') {
+    const memberName = (body.memberName || '').trim();
+    const email = (body.email || '').trim().toLowerCase();
+    const role = body.role === 'admin' || body.role === 'child' ? body.role : 'child';
+    const color = (body.color || 'slate').trim();
+    if (!memberName) return j({ error: 'Name is required' }, 400);
+    if (!email) return j({ error: 'Email is required' }, 400);
+
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Caller must be a superadmin/admin of a real household.
+    const callerRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${authUser.id}&select=household_id,role`,
+      { headers }
+    );
+    const callerRows = callerRes.ok ? await callerRes.json() as any[] : [];
+    const caller = callerRows[0];
+    if (!caller || (caller.role !== 'superadmin' && caller.role !== 'admin')) {
+      return j({ error: 'Only superadmin/admin can invite members' }, 403);
+    }
+
+    // Guard: email not already a member of this household.
+    const existingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${caller.household_id}&email=eq.${encodeURIComponent(email)}&select=id`,
+      { headers }
+    );
+    const existing = existingRes.ok ? await existingRes.json() as any[] : [];
+    if (existing.length > 0) return j({ error: 'That email is already a member of this household' }, 409);
+
+    // Pending row: no auth_user_id yet — claimed on the invitee's first sign-in.
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        household_id: caller.household_id,
+        auth_user_id: null,
+        name: memberName,
+        email,
+        role,
+        color,
+      }),
+    });
+    if (!memberRes.ok) {
+      const detail = await memberRes.text().catch(() => '');
+      return j({ error: `Failed to create invite: ${detail}` }, 500);
+    }
+
+    const inviteRes = await fetch(`${SUPABASE_URL}/auth/v1/invite`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email }),
+    });
+    if (!inviteRes.ok) {
+      if (inviteRes.status === 422) {
+        // Already a confirmed Supabase Auth user elsewhere — no invite email
+        // needed, they can just sign in with Google and the app will claim
+        // this pending row on their next sign-in via claimInvite.
+        return j({ ok: true, note: 'This person already has an account — they can sign in directly to join.' });
+      }
+      const detail = await inviteRes.text().catch(() => '');
+      return j({ error: `Member added, but the invite email failed to send: ${detail}` }, 502);
+    }
+
+    return j({ ok: true });
+  }
+
+  if (action === 'claimInvite') {
+    if (!authUser.email) return j({ error: 'Your account has no email to match against' }, 400);
+
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    const pendingRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?email=eq.${encodeURIComponent(authUser.email)}&auth_user_id=is.null&select=id,household_id`,
+      { headers }
+    );
+    const pendingRows = pendingRes.ok ? await pendingRes.json() as any[] : [];
+    const pending = pendingRows[0];
+    if (!pending) return j({ error: 'No pending invite found for your email' }, 404);
+
+    const claimRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members?id=eq.${pending.id}`, {
+      method: 'PATCH',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({ auth_user_id: authUser.id }),
+    });
+    if (!claimRes.ok) {
+      const detail = await claimRes.text().catch(() => '');
+      return j({ error: `Failed to claim invite: ${detail}` }, 500);
+    }
+
+    return j({ ok: true, householdId: pending.household_id });
+  }
+
+  return j({ error: 'Unknown action. Use: createHousehold | inviteMember | claimInvite' }, 400);
 }

@@ -10,7 +10,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
-import { onAuthStateChange, getHouseholdSession } from "@/lib/householdAuth";
+import { onAuthStateChange, getHouseholdSession, getAccessToken } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
 import { AppProvider, useAppContext } from "@/contexts/AppContext";
 
@@ -84,13 +84,27 @@ const App = () => {
 
   // getHouseholdSession() returns null for both "not signed in" and "signed
   // in but no household row yet" — disambiguate via the Supabase auth
-  // session directly so a new Google sign-in lands on /setup, not a login loop.
+  // session directly. A pending invite (household_members row with a
+  // matching email and no auth_user_id) is claimed automatically here,
+  // before falling back to /setup's "create a new household" flow.
   useEffect(() => {
     if (authState !== 'signed_out') return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setAuthState('needs_setup');
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return;
+      const token = await getAccessToken();
+      if (token) {
+        try {
+          const res = await fetch('/api/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ action: 'claimInvite' }),
+          });
+          if (res.ok) { loadSession(); return; }
+        } catch { /* fall through to /setup */ }
+      }
+      setAuthState('needs_setup');
     });
-  }, [authState]);
+  }, [authState, loadSession]);
 
   const handleLogout = useCallback(() => setAuthState('signed_out'), []);
   const handleHouseholdCreated = useCallback(() => {
