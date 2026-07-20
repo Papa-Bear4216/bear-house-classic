@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Calendar, CheckCircle2, Sparkles, Trash2, Timer, X, Pencil, Check } from 'lucide-react';
-import { KEYS, householdPillars, householdActivityTemplates, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate } from '@/lib/familyos';
+import { KEYS, householdPillars, householdActivityTemplates, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
 
@@ -123,7 +123,10 @@ const QualityTime: React.FC = () => {
 
   const aiSuggest = async () => {
     setModal({ open: true, title: 'Scheduling Suggestions', body: '', loading: true });
-    const summary = pillars.map((p) => `${p.name}: last ${relativeDate(p.lastQualityTime)}, interests: ${p.interests}`).join('\n');
+    const summary = pillars.map((p) => {
+      const hobbyFragment = buildHobbyPromptFragment(loadMemberPreferences(p.id));
+      return `${p.name}: last ${relativeDate(p.lastQualityTime)}, interests: ${p.interests}${hobbyFragment ? `, structured hobbies: ${hobbyFragment}` : ''}`;
+    }).join('\n');
     const prompt = `Suggest 3 quality-time activities for this week based on:\n${summary}\n\nKeep it warm, specific, and actionable. 1-2 sentences each.`;
     const { text } = await callClaude(prompt);
     setModal({ open: true, title: 'Scheduling Suggestions', body: text, loading: false });
