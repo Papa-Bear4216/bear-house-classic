@@ -3,6 +3,7 @@ import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Bra
 import { KEYS, loadJSON, saveJSON, uid } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
+import { getAccessToken } from '@/lib/householdAuth';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -289,9 +290,13 @@ updateMemory: {type, params: {memory: "thing to remember about this family"}}
 // ─── API call ─────────────────────────────────────────────────────────────────
 async function callHermes(history: { role: string; content: string }[], householdMembers: { name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
   try {
+    const token = await getAccessToken();
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         messages: history,
         system: buildSystemPrompt(householdMembers, currentUserName),

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2, Bot, Home, MapPin } from 'lucide-react';
 import { KEYS, loadJSON } from '@/lib/familyos';
 import { markBriefed } from '@/lib/presenceTracker';
+import { getAccessToken } from '@/lib/householdAuth';
 
 interface Props {
   days: number;
@@ -71,9 +72,13 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
       }
 
       // Fall back to Claude
+      const token = await getAccessToken();
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ prompt: context, maxTokens: 200 }),
       });
       if (res.ok) {

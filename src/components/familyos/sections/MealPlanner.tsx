@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { loadJSON, saveJSON, uid, KEYS } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { getAccessToken } from '@/lib/householdAuth';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,9 +106,13 @@ Rules:
       }
     }
 
+    const token = await getAccessToken();
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ prompt, maxTokens: 500 }),
     });
     if (!res.ok) return null;
@@ -164,9 +169,13 @@ Keep meal names short (2-4 words). Vary it — don't repeat meals. Make Monday d
         if (raw) return JSON.parse(raw);
       }
     }
+    const token = await getAccessToken();
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ prompt, maxTokens: 600 }),
     });
     if (!res.ok) return {};
