@@ -22,7 +22,15 @@ const MATCHERS: Record<string, (entityId: string) => boolean> = {
 
 const ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // don't re-alert same integration within 6h
 
-export default async function handler(_req: Request): Promise<Response> {
+export default async function handler(req: Request): Promise<Response> {
+  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
+  const CRON_SECRET = process.env.CRON_SECRET;
+  const authHeader = req.headers.get('authorization') || '';
+  const suppliedToken = req.headers.get('x-webhook-token') || authHeader.replace(/^Bearer\s+/i, '');
+  const isCron = !!CRON_SECRET && suppliedToken === CRON_SECRET;
+  const isWebhookCaller = !!WEBHOOK_TOKEN && suppliedToken === WEBHOOK_TOKEN;
+  if (!isCron && !isWebhookCaller) return j({ error: 'Unauthorized' }, 401);
+
   const HA_URL = process.env.HOME_ASSISTANT_URL;
   const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
   if (!HA_URL || !HA_TOKEN) return j({ error: 'HA not configured' }, 500);
