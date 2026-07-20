@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
@@ -5,17 +6,37 @@ import { getAccessToken } from '@/lib/householdAuth';
 export default function BillingLockedPage() {
   const { currentRole, householdId } = useAppContext();
   const isPayer = currentRole === 'superadmin' || currentRole === 'admin';
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const resumeBilling = async () => {
-    const token = await getAccessToken();
-    if (!token) return;
-    const res = await fetch('/api/billing-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ householdId }),
-    });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
+    setError('');
+    setBusy(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setError('Your session expired. Please sign in again.');
+        setBusy(false);
+        return;
+      }
+      const res = await fetch('/api/billing-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ householdId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        setError(data.error || 'Could not start checkout. Please try again.');
+        setBusy(false);
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch {
+      setError('Network error. Please try again.');
+      setBusy(false);
+    }
   };
 
   return (
@@ -26,7 +47,8 @@ export default function BillingLockedPage() {
           <p className="text-slate-400 text-sm max-w-sm">
             Your household's subscription is inactive. Update billing to keep using FamilyOS.
           </p>
-          <Button onClick={resumeBilling}>Update Billing</Button>
+          <Button onClick={resumeBilling} disabled={busy}>{busy ? 'Opening…' : 'Update Billing'}</Button>
+          {error && <p className="text-rose-400 text-sm max-w-sm">{error}</p>}
         </>
       ) : (
         <p className="text-slate-400 text-sm max-w-sm">

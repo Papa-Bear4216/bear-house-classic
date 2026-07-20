@@ -16,19 +16,26 @@ export default async function handler(req: Request): Promise<Response> {
   const auth = await requireBillingRole(req, householdId);
   if (auth.ok === false) return j({ error: auth.error }, auth.status);
 
+  const basePriceId = process.env.STRIPE_BASE_PRICE_ID;
+  if (!basePriceId) return j({ error: 'Billing is not configured (missing STRIPE_BASE_PRICE_ID)' }, 500);
+
   const baseUrl = new URL(req.url).origin;
-  const stripe = getStripeClient();
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    line_items: [
-      { price: process.env.STRIPE_BASE_PRICE_ID!, quantity: 1 },
-    ],
-    success_url: `${baseUrl}/setup?billing=success`,
-    cancel_url: `${baseUrl}/setup?billing=cancelled`,
-    metadata: { householdId },
-    subscription_data: { metadata: { householdId } },
-  });
+  try {
+    const stripe = getStripeClient();
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [
+        { price: basePriceId, quantity: 1 },
+      ],
+      success_url: `${baseUrl}/setup?billing=success`,
+      cancel_url: `${baseUrl}/setup?billing=cancelled`,
+      metadata: { householdId },
+      subscription_data: { metadata: { householdId } },
+    });
 
-  return j({ url: session.url });
+    return j({ url: session.url });
+  } catch (err: any) {
+    return j({ error: err.message || 'Failed to start checkout' }, 500);
+  }
 }
