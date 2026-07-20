@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Trash2, Package } from 'lucide-react';
-import { loadPantry, savePantry, uid, PANTRY_CATEGORY_EMOJI, isAdmin, type PantryItem, type PantryCategory } from '@/lib/familyos';
+import { Plus, Minus, Trash2, Package, ScanLine } from 'lucide-react';
+import { loadPantry, savePantry, uid, PANTRY_CATEGORY_EMOJI, mergeIntoPantry, isAdmin, type PantryItem, type PantryCategory } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import ReceiptScanner from '@/components/familyos/ReceiptScanner';
 
 const CATEGORY_ORDER: PantryCategory[] = [
   'produce', 'meat', 'dairy', 'bakery', 'pantry', 'frozen', 'beverages', 'household', 'personal-care', 'other',
@@ -12,6 +13,7 @@ const Pantry: React.FC = () => {
   const canEdit = !!currentRole && isAdmin(currentRole);
   const [items, setItems] = useState<PantryItem[]>(() => loadPantry());
   const [showForm, setShowForm] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('');
@@ -37,20 +39,32 @@ const Pantry: React.FC = () => {
     save(items.filter((i) => i.id !== id));
   };
 
+  const handleScanSave = (scanned: { name: string; quantity: number; unit: string; category: PantryCategory }[]) => {
+    save(mergeIntoPantry(items, scanned));
+  };
+
   const byCategory = CATEGORY_ORDER
     .map((cat) => ({ cat, items: items.filter((i) => i.category === cat) }))
     .filter((g) => g.items.length > 0);
 
   return (
     <div className="space-y-4">
+      {showScanner && (
+        <ReceiptScanner onClose={() => setShowScanner(false)} onSave={handleScanSave} />
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Package className="w-5 h-5 text-emerald-400" /> Pantry
         </h2>
         {canEdit && (
-          <button onClick={() => setShowForm((f) => !f)} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
-            <Plus className="w-4 h-4" /> Add Item
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowScanner(true)} className="flex items-center gap-1 bg-violet-600 hover:bg-violet-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
+              <ScanLine className="w-4 h-4" /> Scan Receipt
+            </button>
+            <button onClick={() => setShowForm((f) => !f)} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
+              <Plus className="w-4 h-4" /> Add Item
+            </button>
+          </div>
         )}
       </div>
 
