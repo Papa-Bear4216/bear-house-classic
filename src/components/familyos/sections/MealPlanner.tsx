@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
-import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, calculateShortfall } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 
@@ -44,8 +44,8 @@ interface Recipe {
   description: string;
   time: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  recipe: { ingredients: string[]; steps: string[] };
-  shoppingNeeded: string[];
+  servings: number;
+  recipe: { ingredients: { name: string; quantity: number; unit: string }[]; steps: string[] };
 }
 type SuggestionKey = string; // "Monday-Dinner"
 
@@ -58,6 +58,16 @@ function defaultPlan(): WeekPlan {
 }
 
 function suggestionKey(day: Day, meal: MealType): SuggestionKey { return `${day}-${meal}`; }
+
+export function scaleIngredients(
+  ingredients: { name: string; quantity: number; unit: string }[],
+  fromServings: number,
+  toServings: number
+): { name: string; quantity: number; unit: string }[] {
+  const from = fromServings || 1;
+  const factor = toServings / from;
+  return ingredients.map((ing) => ({ ...ing, quantity: Math.round(ing.quantity * factor * 100) / 100 }));
+}
 
 async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>, foodPreference?: string): Promise<Recipe | null> {
   const profile = profiles[cook];
@@ -73,17 +83,18 @@ Return ONLY valid JSON (no markdown):
   "description": "One sentence, appealing description",
   "time": "XX min",
   "difficulty": "Easy",
+  "servings": 4,
   "recipe": {
-    "ingredients": ["2 eggs", "1 cup flour"],
+    "ingredients": [{"name": "Eggs", "quantity": 2, "unit": ""}, {"name": "Flour", "quantity": 1, "unit": "cup"}],
     "steps": ["Step 1", "Step 2", "Step 3"]
-  },
-  "shoppingNeeded": ["any ingredient that might need to be bought"]
+  }
 }
 
 Rules:
 - Match skill level strictly — beginner means ≤5 steps, minimal technique
 - For teen/child cooks: low-step, hard to mess up, avoid complex timing
-- Keep steps array to max 6 items`;
+- Keep steps array to max 6 items
+- Return ingredients as a structured array with numeric quantity and a short unit string (e.g. "cups", "lb", "" for count-only items like eggs) — not free-text lines`;
 
   try {
     const geminiKey = localStorage.getItem(KEYS.geminiApiKey) || '';
@@ -199,14 +210,18 @@ function addCookingChore(meal: string, mealType: MealType, cook: string, day: Da
   saveJSON(KEYS.tasks, tasks);
 }
 
-function addIngredientsToShopping(ingredients: string[]) {
+function addIngredientsToShopping(ingredients: { name: string; quantity: number; unit: string }[]) {
+  const pantryItems = loadPantry();
+  const shortfall = calculateShortfall(pantryItems, ingredients);
+  if (shortfall.length === 0) return 0;
+
   const items = loadJSON<any[]>('familyos_shopping', []);
   const existingNames = items.map((i: any) => (i.name || '').toLowerCase());
-  const newItems = ingredients
-    .filter(ing => !existingNames.includes(ing.toLowerCase()))
-    .map(ing => ({
+  const newItems = shortfall
+    .filter((ing) => !existingNames.includes(ing.name.toLowerCase()))
+    .map((ing) => ({
       id: uid(), createdAt: Date.now(), completed: false, source: 'meal_planner',
-      name: ing, category: 'Groceries', quantity: '1', assignedTo: 'General',
+      name: ing.name, category: 'Groceries', quantity: String(ing.quantity), assignedTo: 'General',
     }));
   if (newItems.length) saveJSON('familyos_shopping', [...newItems, ...items]);
   return newItems.length;
@@ -264,6 +279,7 @@ const MealPlanner: React.FC = () => {
   const [loadingWeek, setLoadingWeek] = useState(false);
   const [choreFeedback, setChoreFeedback] = useState<string | null>(null);
   const [shopFeedback, setShopFeedback] = useState<string | null>(null);
+  const [servingsOverride, setServingsOverride] = useState<Record<SuggestionKey, number>>({});
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as Day;
 
@@ -318,9 +334,9 @@ const MealPlanner: React.FC = () => {
     setTimeout(() => setChoreFeedback(null), 2000);
   };
 
-  const handleAddShopping = (ingredients: string[]) => {
+  const handleAddShopping = (ingredients: { name: string; quantity: number; unit: string }[]) => {
     const n = addIngredientsToShopping(ingredients);
-    setShopFeedback(n > 0 ? `${n} ingredient${n !== 1 ? 's' : ''} added to shopping list` : 'Already on your shopping list');
+    setShopFeedback(n > 0 ? `${n} ingredient${n !== 1 ? 's' : ''} added to shopping list` : 'Pantry already covers this recipe — nothing added.');
     setTimeout(() => setShopFeedback(null), 2500);
   };
 
@@ -501,12 +517,28 @@ const MealPlanner: React.FC = () => {
                             </div>
                           </div>
 
+                          {/* Servings */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 text-xs">Servings:</span>
+                            <button
+                              onClick={() => setServingsOverride((prev) => ({ ...prev, [key]: Math.max(1, (prev[key] ?? suggestion.servings) - 1) }))}
+                              className="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 text-sm"
+                            >−</button>
+                            <span className="w-6 text-center text-sm font-bold text-white">{servingsOverride[key] ?? suggestion.servings}</span>
+                            <button
+                              onClick={() => setServingsOverride((prev) => ({ ...prev, [key]: (prev[key] ?? suggestion.servings) + 1 }))}
+                              className="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 text-sm"
+                            >+</button>
+                          </div>
+
                           {/* Ingredients */}
                           <div>
                             <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1.5">Ingredients</div>
                             <div className="flex flex-wrap gap-1">
-                              {suggestion.recipe.ingredients.map((ing, i) => (
-                                <span key={i} className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-300">{ing}</span>
+                              {scaleIngredients(suggestion.recipe.ingredients, suggestion.servings, servingsOverride[key] ?? suggestion.servings).map((ing, i) => (
+                                <span key={i} className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-300">
+                                  {ing.quantity} {ing.unit} {ing.name}
+                                </span>
                               ))}
                             </div>
                           </div>
@@ -526,15 +558,18 @@ const MealPlanner: React.FC = () => {
 
                           {/* Action row */}
                           <div className="flex gap-2 pt-1">
-                            {suggestion.shoppingNeeded?.length > 0 && (
-                              <button
-                                onClick={() => handleAddShopping(suggestion.shoppingNeeded)}
-                                className="flex items-center gap-1.5 text-xs bg-blue-900/40 hover:bg-blue-800/60 border border-blue-600/30 text-blue-300 px-3 py-1.5 rounded-lg transition"
-                              >
-                                <ShoppingCart className="w-3.5 h-3.5" />
-                                Add {suggestion.shoppingNeeded.length} to shopping
-                              </button>
-                            )}
+                            {(() => {
+                              const scaled = scaleIngredients(suggestion.recipe.ingredients, suggestion.servings, servingsOverride[key] ?? suggestion.servings);
+                              return scaled.length > 0 && (
+                                <button
+                                  onClick={() => handleAddShopping(scaled)}
+                                  className="flex items-center gap-1.5 text-xs bg-blue-900/40 hover:bg-blue-800/60 border border-blue-600/30 text-blue-300 px-3 py-1.5 rounded-lg transition"
+                                >
+                                  <ShoppingCart className="w-3.5 h-3.5" />
+                                  Add {scaled.length} to shopping
+                                </button>
+                              );
+                            })()}
                             {dayPlan.cook && (
                               <button
                                 onClick={() => handleAddChore(suggestion.name, meal, dayPlan.cook, day)}
