@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog } from 'lucide-react';
 import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
@@ -8,6 +8,7 @@ import AlertModal from './AlertModal';
 import Trends from './Trends';
 import WeatherWidget from './WeatherWidget';
 import SystemHealth from './SystemHealth';
+import MemberProfileModal from './MemberProfileModal';
 
 interface DashboardProps {
   onNav: (m: string) => void;
@@ -19,6 +20,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const { householdMembers, currentUser } = useAppContext();
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
 
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const promises = loadJSON<any[]>(KEYS.promises, []);
@@ -46,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   }, [tasks, promises, activities, presence]);
 
 
-  const personCard = (name: string, color: string) => {
+  const personCard = (id: string, name: string, color: string) => {
     const open = promises.filter((p) => !p.completed && p.person === name).length;
     const pillar = pillars.find((p) => p.name === name);
     const weekAgo = Date.now() - 7 * 86400000;
@@ -54,7 +56,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     const avg = recent.length ? (recent.reduce((s, e) => s + e.intensity, 0) / recent.length).toFixed(1) : '—';
     const overdueT = tasks.filter((t) => !t.completed && t.person === name && isOverdue(t)).length;
     return (
-      <div key={name} className={`bg-gradient-to-br from-${color}-900/30 to-slate-800 border border-${color}-500/30 rounded-2xl p-4`}>
+      <div key={name} className={`bg-gradient-to-br from-${color}-900/30 to-slate-800 border border-${color}-500/30 rounded-2xl p-4 relative group`}>
+        <button
+          onClick={() => setProfileMemberId(id)}
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-white"
+          title="Edit profile"
+        >
+          <UserCog className="w-4 h-4" />
+        </button>
         <div className="flex items-center justify-between mb-3">
           <div className="text-white font-bold">{name}</div>
           <div className={`text-xs text-${color}-300`}>Quality: {relativeDate(pillar?.lastQualityTime)}</div>
@@ -208,6 +217,9 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
   return (
     <div className="space-y-5">
       <AlertModal {...modal} accent="indigo" onClose={() => setModal({ ...modal, open: false })} />
+      {profileMemberId && (
+        <MemberProfileModal memberId={profileMemberId} onClose={() => setProfileMemberId(null)} />
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -287,7 +299,7 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
               <div className="text-sm text-slate-400 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {householdMembers.map((m) => (
-                  <React.Fragment key={m.id}>{personCard(m.name, m.color)}</React.Fragment>
+                  <React.Fragment key={m.id}>{personCard(m.id, m.name, m.color)}</React.Fragment>
                 ))}
               </div>
             </div>
