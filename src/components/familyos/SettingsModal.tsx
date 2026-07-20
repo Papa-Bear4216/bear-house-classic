@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { authedFetch } from '@/lib/householdAuth';
+import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
 
 interface Props { open: boolean; onClose: () => void; }
@@ -58,11 +60,94 @@ function EnvRow({ name, value, placeholder }: { name: string; value?: string; pl
   );
 }
 
+function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'admin' | 'child'>('child');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const invite = async () => {
+    setError(''); setNotice('');
+    if (!name.trim() || !email.trim()) { setError('Name and email are required.'); return; }
+    setSubmitting(true);
+    try {
+      const res = await authedFetch('/api/setup', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'inviteMember', memberName: name.trim(), email: email.trim(), role }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to invite.'); return; }
+      setNotice(data.note || 'Invite sent.');
+      setName(''); setEmail(''); setRole('child');
+      onInvited();
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-slate-900 rounded-lg p-4 space-y-2 mt-3">
+      <div className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Invite a member</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name"
+          className="bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white placeholder-slate-500 outline-none"
+          disabled={submitting}
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as 'admin' | 'child')}
+          className="bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white outline-none"
+          disabled={submitting}
+        >
+          <option value="child">Child</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email"
+        type="email"
+        className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white placeholder-slate-500 outline-none"
+        disabled={submitting}
+      />
+      {error && <p className="text-rose-400 text-xs">{error}</p>}
+      {notice && <p className="text-emerald-400 text-xs">{notice}</p>}
+      <button
+        onClick={invite}
+        disabled={submitting}
+        className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition"
+      >
+        {submitting ? 'Sending…' : 'Send invite'}
+      </button>
+    </div>
+  );
+}
+
 type Tab = 'general' | 'integrations' | 'family';
 
 const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
-  const { currentRole, householdMembers } = useAppContext();
+  const { currentRole, householdMembers, householdId } = useAppContext();
   const isAdmin = currentRole === 'superadmin' || currentRole === 'admin';
+
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const refreshPending = React.useCallback(() => {
+    if (!householdId || !isAdmin) return;
+    supabase
+      .from('household_members')
+      .select('id')
+      .eq('household_id', householdId)
+      .is('auth_user_id', null)
+      .then(({ data }) => setPendingIds(new Set((data ?? []).map((r: any) => r.id))));
+  }, [householdId, isAdmin]);
+  useEffect(() => { refreshPending(); }, [refreshPending]);
 
   const [tab, setTab] = useState<Tab>('general');
   const [apiKey, setApiKey] = useState('');
@@ -475,11 +560,17 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   householdMembers.map((m) => (
                     <div key={m.id} className="flex items-center justify-between">
                       <span className={`font-medium text-${m.color || 'slate'}-400`}>{m.name}</span>
-                      <span className="text-slate-500 text-xs">{m.role}</span>
+                      <span className="text-slate-500 text-xs flex items-center gap-2">
+                        {pendingIds.has(m.id) && (
+                          <span className="bg-amber-900/40 text-amber-300 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">Pending</span>
+                        )}
+                        {m.role}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
+              {isAdmin && <InviteMemberForm onInvited={refreshPending} />}
             </section>
           )}
 
