@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Home, Calendar, Handshake, Heart, LayoutDashboard, Settings as SettingsIcon,
   Search, History, Users, DollarSign, ChevronUp, ChevronDown, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain, Package
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
@@ -16,6 +16,7 @@ import SettingsModal from '@/components/familyos/SettingsModal';
 import HistoryModal from '@/components/familyos/HistoryModal';
 import Shopping from '@/components/familyos/sections/Shopping';
 import MealPlanner from '@/components/familyos/sections/MealPlanner';
+import Pantry from '@/components/familyos/sections/Pantry';
 import BillTracker from '@/components/familyos/sections/BillTracker';
 import CarMaintenance from '@/components/familyos/sections/CarMaintenance';
 import HomeMaintenance from '@/components/familyos/sections/HomeMaintenance';
@@ -31,7 +32,7 @@ import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTrack
 import MagicTrail from '@/components/familyos/MagicTrail';
 
 type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
-type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'bills' | 'home' | 'cars' | 'brain';
+type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'brain';
 
 interface NavItem { id: TopModule; label: string; icon: React.ComponentType<{ className?: string }>; accent: string; adminOnly?: boolean; }
 
@@ -54,6 +55,7 @@ const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentTy
   { id: 'tasks', label: 'Tasks', icon: Home },
   { id: 'shopping', label: 'Shopping', icon: ShoppingCart },
   { id: 'meals', label: 'Meals', icon: Utensils },
+  { id: 'pantry', label: 'Pantry', icon: Package },
   { id: 'bills', label: 'Bills', icon: Receipt },
   { id: 'home', label: 'Home', icon: Wrench },
   { id: 'cars', label: 'Cars', icon: Car },
@@ -206,6 +208,7 @@ const AppLayout: React.FC = () => {
             {householdTab === 'tasks' && <HouseholdBrain />}
             {householdTab === 'shopping' && <Shopping />}
             {householdTab === 'meals' && <MealPlanner />}
+            {householdTab === 'pantry' && <Pantry />}
             {householdTab === 'bills' && <BillTracker />}
             {householdTab === 'home' && <HomeMaintenance />}
             {householdTab === 'cars' && <CarMaintenance />}
