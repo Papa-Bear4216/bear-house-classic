@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
-import { loadJSON, saveJSON, uid, KEYS } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 
@@ -59,13 +59,13 @@ function defaultPlan(): WeekPlan {
 
 function suggestionKey(day: Day, meal: MealType): SuggestionKey { return `${day}-${meal}`; }
 
-async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>): Promise<Recipe | null> {
+async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>, foodPreference?: string): Promise<Recipe | null> {
   const profile = profiles[cook];
   if (!profile?.skill) return null;
 
   const prompt = `Suggest one ${meal.toLowerCase()} meal for ${day}.
 Cook: ${cook} | Skill: ${profile.skill} | Age group: ${profile.ageGroup}
-Profile note: ${profile.note}
+Profile note: ${profile.note}${foodPreference ? `\nFood preferences for the household member eating this meal: ${foodPreference}` : ''}
 
 Return ONLY valid JSON (no markdown):
 {
@@ -237,6 +237,16 @@ const MealPlanner: React.FC = () => {
   }, [householdMembers]);
   const cooks = Object.keys(cookProfiles);
 
+  const foodPreferenceByCook = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    householdMembers.forEach((m) => {
+      const prefs = loadMemberPreferences(m.id);
+      const fragment = buildFoodPreferencePrompt(prefs);
+      if (fragment) map[m.name] = fragment;
+    });
+    return map;
+  }, [householdMembers]);
+
   const [plan, setPlan] = useState<WeekPlan>(() => {
     const saved = loadJSON<WeekPlan | null>(STORAGE_KEY, null);
     if (!saved) return defaultPlan();
@@ -277,14 +287,14 @@ const MealPlanner: React.FC = () => {
     if (!cook || cook === 'Takeout') return;
     const key = suggestionKey(day, meal);
     setLoading(key); setExpanded(key);
-    const result = await fetchSuggestion(day, meal, cook, cookProfiles);
+    const result = await fetchSuggestion(day, meal, cook, cookProfiles, foodPreferenceByCook[cook]);
     if (result) {
       setSuggestions(prev => ({ ...prev, [key]: result }));
       // Auto-fill the meal name
       save({ ...plan, [day]: { ...plan[day], [meal]: result.name } });
     }
     setLoading(null);
-  }, [plan, cookProfiles]);
+  }, [plan, cookProfiles, foodPreferenceByCook]);
 
   const handleSuggestWeek = async () => {
     setLoadingWeek(true);
