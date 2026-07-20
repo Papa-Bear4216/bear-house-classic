@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Cloud, CloudRain, Sun, Snowflake, Wind, Umbrella } from 'lucide-react';
+import { authedFetch } from '@/lib/householdAuth';
 
 interface WeatherData {
   current: { temp: number; unit: string; shortForecast: string; windSpeed: string };
@@ -36,7 +37,7 @@ const WeatherWidget: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/weather')
+    authedFetch('/api/weather')
       .then(r => r.json())
       .then(d => { if (!d.error) setWeather(d); })
       .catch(() => {})

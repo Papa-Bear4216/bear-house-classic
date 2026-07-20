@@ -9,11 +9,10 @@ export const config = { runtime: 'edge' };
  * POST /api/briefing  { token, person }
  */
 
-import { dbGet, soleHouseholdId } from './_db.js';
+import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
 
 async function getKey(key: string, householdId: string) {
   return (await dbGet(key, householdId)) ?? [];
@@ -130,14 +129,14 @@ export default async function handler(req: Request): Promise<Response> {
   const bodyData = isGet ? {} : await req.json().catch(() => ({})) as any;
 
   const token = isGet ? url.searchParams.get('token') : (req.headers.get('x-webhook-token') || bodyData?.token);
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const householdId = await resolveHouseholdIdByWebhookToken(token || '');
+  if (!householdId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
   const person: string | null = isGet ? url.searchParams.get('person') : bodyData?.person;
   if (!person) return new Response(JSON.stringify({ error: 'person required' }), { status: 400 });
   const briefType: string = (isGet ? url.searchParams.get('type') : bodyData?.type) || 'morning';
 
   try {
-    const householdId = await soleHouseholdId();
     const [tasks, bills, appointments, promises, weatherRaw] = await Promise.all([
       getKey('household_tasks', householdId),
       getKey('familyos_bills', householdId),

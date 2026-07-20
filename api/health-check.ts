@@ -1,7 +1,7 @@
 // api/health-check.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
@@ -35,7 +35,14 @@ export default async function handler(req: Request): Promise<Response> {
   const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
   if (!HA_URL || !HA_TOKEN) return j({ error: 'HA not configured' }, 500);
 
-  const householdId = await soleHouseholdId();
+  // This HA instance is one physical house — the household that owns it must
+  // be pinned explicitly, not guessed. The scheduled cron carries no
+  // household-specific token, so it can only ever check this one household.
+  const HA_HOUSEHOLD_ID = process.env.HOME_ASSISTANT_HOUSEHOLD_ID;
+  const householdId = isWebhookCaller
+    ? (await resolveHouseholdIdByWebhookToken(suppliedToken)) ?? HA_HOUSEHOLD_ID
+    : HA_HOUSEHOLD_ID;
+  if (!householdId) return j({ error: 'HOME_ASSISTANT_HOUSEHOLD_ID not configured' }, 500);
 
   let states: any[];
   try {

@@ -1,7 +1,7 @@
 // api/finance.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, resolveHouseholdId, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { claimAccessUrl, fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
@@ -13,16 +13,14 @@ function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
-  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || '';
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const body = (await req.json().catch(() => ({}))) as any;
   const { action, ...params } = body;
 
-  const isWebhookAuth = !!WEBHOOK_TOKEN && params.token === WEBHOOK_TOKEN;
-  let householdId: string | null;
-  if (isWebhookAuth) {
-    householdId = await soleHouseholdId();
-  } else {
+  const webhookHouseholdId = params.token ? await resolveHouseholdIdByWebhookToken(params.token) : null;
+  const isWebhookAuth = !!webhookHouseholdId;
+  let householdId: string | null = webhookHouseholdId;
+  if (!householdId) {
     const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
     householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   }
