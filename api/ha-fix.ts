@@ -2,6 +2,7 @@
 export const config = { runtime: 'edge' };
 
 import { resolveFix } from './_integrationFixMap.js';
+import { resolveHouseholdId } from './_db.js';
 
 const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -103,11 +104,11 @@ export async function runFix(integration: string, key?: string): Promise<FixResu
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
-  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN;
-  const body = (await req.json().catch(() => ({}))) as any;
-  const token = req.headers.get('x-webhook-token') || body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
+  const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
+  const body = (await req.json().catch(() => ({}))) as any;
   const { integration, key } = body;
   if (!integration) return j({ error: 'Missing integration' }, 400);
 

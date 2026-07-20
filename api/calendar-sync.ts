@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -39,18 +39,16 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') return j({ ok: true, message: 'Bear House calendar sync endpoint.' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
-
   const body = await req.json().catch(() => ({})) as any;
   const token = req.headers.get('x-webhook-token') || body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
+  const householdId = await resolveHouseholdIdByWebhookToken(token);
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const { accessToken, person, calendarId } = body;
   if (!accessToken) return j({ error: 'accessToken required' }, 400);
   if (!person) return j({ error: 'person required' }, 400);
 
   try {
-    const householdId = await soleHouseholdId();
     const events = await fetchCalendarEvents(accessToken, calendarId);
     const existing: any[] = (await dbGet('familyos_appointments', householdId)) || [];
     const nonGcal = existing.filter((a: any) => a.source !== 'google_calendar');

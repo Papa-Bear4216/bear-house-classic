@@ -1,7 +1,7 @@
 // api/finance-sync.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, allHouseholdIds } from './_db.js';
 import { fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
@@ -9,12 +9,18 @@ import { categorize } from './_categorize.js';
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-// Server-side daily sync — same logic as finance.ts sync/webhook branch, no token needed (cron is trusted).
+// True Vercel cron — no per-request session, so it fans out over every
+// household independently instead of assuming a single one.
 export default async function handler(req: Request): Promise<Response> {
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
-  const householdId = await soleHouseholdId();
+  const householdIds = await allHouseholdIds();
+  const results = await Promise.all(householdIds.map((householdId) => syncHousehold(baseUrl, householdId)));
+  return j({ households: results });
+}
+
+async function syncHousehold(baseUrl: string, householdId: string): Promise<{ householdId: string; synced?: number; subscriptions?: number; message?: string; error?: string }> {
   const conn: any = await dbGet('simplefin_access', householdId);
-  if (!conn?.accessUrl) return j({ synced: 0, message: 'No linked accounts' });
+  if (!conn?.accessUrl) return { householdId, synced: 0, message: 'No linked accounts' };
   try {
     const end = new Date();
     const start = new Date(Date.now() - 30 * 86400000);
@@ -50,8 +56,8 @@ export default async function handler(req: Request): Promise<Response> {
       }
       if (added) await dbSet('familyos_bills', householdId, existingBills);
     }
-    return j({ synced: fresh.length, subscriptions: bills.length });
+    return { householdId, synced: fresh.length, subscriptions: bills.length };
   } catch (e: any) {
-    return j({ error: e?.message || 'sync failed' }, 500);
+    return { householdId, error: e?.message || 'sync failed' };
   }
 }

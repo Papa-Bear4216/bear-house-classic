@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { loadJSON, isAdmin, KEYS } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { authedFetch } from '@/lib/householdAuth';
 
 type IntegrationHealth = {
   id: string; label: string;
@@ -37,15 +38,9 @@ const SystemHealth: React.FC = () => {
   const fixIt = async (integration: string) => {
     setFixing(integration); setMsg('');
     try {
-      // WEBHOOK_TOKEN is a server env var, NOT stored client-side. The panel must not hold it.
-      // Instead, ha-fix accepts the adult session as sufficient here is NOT possible (edge route
-      // has no session). So: read the webhook token from the settings object the superadmin enters.
-      const settings = loadJSON<Record<string, any>>(KEYS.settings, {});
-      const token = settings.webhookToken || '';
-      const res = await fetch('/api/ha-fix', {
+      const res = await authedFetch('/api/ha-fix', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ integration, token }),
+        body: JSON.stringify({ integration }),
       });
       const data = await res.json();
       if (data.ok) setMsg(`✓ ${integration} fixed`);

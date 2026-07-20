@@ -8,7 +8,7 @@
  */
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -72,13 +72,12 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') return j({ ok: true, service: 'Bear House Walmart + Voice Assistant bridge' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN!;
   const body = await req.json().catch(() => ({})) as any;
   const token = req.headers.get('x-webhook-token') || body?.token;
-  if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) return j({ error: 'Unauthorized' }, 401);
+  const householdId = await resolveHouseholdIdByWebhookToken(token);
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const { action, accessToken, person, items: incomingItems } = body;
-  const householdId = await soleHouseholdId();
 
   if (action === 'add' && incomingItems) {
     const existing = await getShoppingList(householdId);

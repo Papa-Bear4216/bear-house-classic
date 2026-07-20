@@ -19,7 +19,7 @@ export const config = { runtime: 'edge' };
  * }
  */
 
-import { dbGet, dbSet, soleHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } from './_db.js';
 
 // Default home coordinates if a household hasn't set its own in Settings.
 const HOME_LAT = process.env.HOME_LAT || '30.45';
@@ -56,7 +56,13 @@ export default async function handler(req: Request): Promise<Response> {
   const lat = url.searchParams.get('lat') || HOME_LAT;
   const lon = url.searchParams.get('lon') || HOME_LON;
 
-  const householdId = await soleHouseholdId();
+  const token = url.searchParams.get('token') || (req.headers.get('x-webhook-token') ?? '');
+  const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const householdId = accessToken
+    ? await resolveHouseholdId(accessToken)
+    : token ? await resolveHouseholdIdByWebhookToken(token) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
   const cached = await getCache(householdId);
   if (cached) return j(cached);
 

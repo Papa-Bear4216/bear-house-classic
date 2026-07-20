@@ -47,6 +47,10 @@ export async function resolveHouseholdId(accessToken: string): Promise<string | 
  * auth session. Deliberate scope-reduction: assumes exactly one household
  * exists today and throws loudly otherwise, rather than silently guessing.
  * Revisit before a second household needs cron/webhook support.
+ *
+ * @deprecated Superseded by resolveHouseholdIdByWebhookToken() (per-household
+ * webhook callers) and allHouseholdIds() (true crons that must run for every
+ * household). Kept only for any caller not yet migrated.
  */
 export async function soleHouseholdId(): Promise<string> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
@@ -58,6 +62,37 @@ export async function soleHouseholdId(): Promise<string> {
   if (rows.length === 0) throw new Error('soleHouseholdId: no households exist');
   if (rows.length > 1) throw new Error('soleHouseholdId: more than one household exists — background jobs need real household_id threading now');
   return rows[0].id;
+}
+
+/**
+ * Resolve which household owns a given webhook token. Each household has its
+ * own households.webhook_token (set once via Settings, rotatable), so a
+ * shared secret no longer implies a single household — the token itself
+ * IS the tenant identifier for external callers (Tasker/IFTTT/HA/NFC) that
+ * have no Supabase Auth session to resolve a user from.
+ * Returns null if the token doesn't match any household.
+ */
+export async function resolveHouseholdIdByWebhookToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?webhook_token=eq.${encodeURIComponent(token)}&select=id`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json() as any[];
+  return rows[0]?.id ?? null;
+}
+
+/** Every household id — for true crons that must process each household independently. */
+export async function allHouseholdIds(): Promise<string[]> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/households?select=id`, {
+    headers: headers(serviceKey),
+  });
+  if (!res.ok) throw new Error(`allHouseholdIds: households lookup failed: ${res.status}`);
+  const rows = await res.json() as any[];
+  return rows.map((r) => r.id);
 }
 
 /** Read a value by key, scoped to one household, from family_data table */
