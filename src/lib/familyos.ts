@@ -173,6 +173,75 @@ export function buildHobbyPromptFragment(prefs: MemberPreferences): string {
   return parts.join(', ');
 }
 
+// ── Pantry ────────────────────────────────────────────────────────────────────
+
+export type PantryCategory =
+  | 'produce' | 'meat' | 'dairy' | 'bakery' | 'pantry'
+  | 'frozen' | 'beverages' | 'household' | 'personal-care' | 'other';
+
+export const PANTRY_CATEGORY_EMOJI: Record<PantryCategory, string> = {
+  produce: '🥦', meat: '🥩', dairy: '🥛', bakery: '🍞', pantry: '🥫',
+  frozen: '❄️', beverages: '🧃', household: '🧹', 'personal-care': '🧴', other: '📦',
+};
+
+export interface PantryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  category: PantryCategory;
+  updatedAt: number;
+}
+
+const PANTRY_KEY = 'familyos_pantry';
+
+export function findPantryItem(items: PantryItem[], name: string, unit: string): PantryItem | undefined {
+  const n = name.toLowerCase();
+  return items.find((i) => i.name.toLowerCase() === n && i.unit === unit);
+}
+
+export function mergeIntoPantry(
+  items: PantryItem[],
+  incoming: { name: string; quantity: number; unit: string; category: PantryCategory }[]
+): PantryItem[] {
+  let next = [...items];
+  for (const inc of incoming) {
+    const existing = findPantryItem(next, inc.name, inc.unit);
+    if (existing) {
+      next = next.map((i) => i.id === existing.id ? { ...i, quantity: i.quantity + inc.quantity, updatedAt: Date.now() } : i);
+    } else {
+      next = [...next, { id: uid(), name: inc.name, quantity: inc.quantity, unit: inc.unit, category: inc.category, updatedAt: Date.now() }];
+    }
+  }
+  return next;
+}
+
+export function decrementPantry(
+  items: PantryItem[],
+  ingredients: { name: string; quantity: number; unit: string }[]
+): PantryItem[] {
+  let next = [...items];
+  for (const ing of ingredients) {
+    const existing = findPantryItem(next, ing.name, ing.unit);
+    if (!existing) continue;
+    next = next.map((i) => i.id === existing.id ? { ...i, quantity: Math.max(0, i.quantity - ing.quantity), updatedAt: Date.now() } : i);
+  }
+  return next;
+}
+
+export function calculateShortfall(
+  pantryItems: PantryItem[],
+  needed: { name: string; quantity: number; unit: string }[]
+): { name: string; quantity: number; unit: string }[] {
+  const shortfall: { name: string; quantity: number; unit: string }[] = [];
+  for (const need of needed) {
+    const onHand = findPantryItem(pantryItems, need.name, need.unit)?.quantity ?? 0;
+    const remaining = need.quantity - onHand;
+    if (remaining > 0) shortfall.push({ name: need.name, quantity: remaining, unit: need.unit });
+  }
+  return shortfall;
+}
+
 // Storage helpers — localStorage + cloud sync
 import { pushToCloud } from './sync';
 import { getAccessToken } from './householdAuth';
@@ -191,6 +260,10 @@ export function loadMemberPreferences(memberId: string): MemberPreferences {
   return loadJSON<MemberPreferences>(preferencesKey(memberId), emptyMemberPreferences(memberId));
 }
 
+export function loadPantry(): PantryItem[] {
+  return loadJSON<PantryItem[]>(PANTRY_KEY, []);
+}
+
 export function saveJSON(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -198,6 +271,10 @@ export function saveJSON(key: string, value: unknown) {
   } catch {
     // ignore
   }
+}
+
+export function savePantry(items: PantryItem[]): void {
+  saveJSON(PANTRY_KEY, items);
 }
 
 export function uid() {
