@@ -63,8 +63,6 @@ waiting for a `google-services.json` that was never added.
   - No foreground-notification-tap deep-linking in this scope — a received push just
     surfaces as a system notification; tapping it opens the app to its default screen
     (Capacitor's default behavior needs no extra code for this).
-- HermesChat's send-message path gets a new call to trigger a server-side push (see
-  below) after a message is successfully persisted.
 
 ## Server-side
 
@@ -83,13 +81,28 @@ export async function notifyPush(householdId: string, title: string, body: strin
 ```
 - Loads all `device_tokens` rows for `householdId` via a new `_db.ts` helper
   `dbGetPushTokensByHouseholdId(householdId)`.
-- Sends via `firebase-admin`'s FCM HTTP v1 messaging API (`getMessaging().sendEachForMulticast`
-  or per-token `send`, whichever the admin SDK version bundled supports — implementer's
-  call at build time). Initializes `firebase-admin` once from `FIREBASE_SERVICE_ACCOUNT`
-  (a JSON string env var, `JSON.parse`d, passed to `cert()`).
-- On a send result reporting `messaging/registration-token-not-registered` (or
-  equivalent invalid-token error) for a given token, delete that row from
-  `device_tokens` — self-cleaning, no separate cron needed.
+- **Constraint:** every `api/*.ts` route calling this runs under
+  `export const config = { runtime: 'edge' }` (Vercel Edge Runtime), which does not
+  support Node.js SDKs — so `firebase-admin` cannot be used here. Instead, send via
+  raw `fetch` against the FCM HTTP v1 REST API, matching this codebase's existing
+  "no SDK, pure fetch" pattern (`api/_db.ts`):
+  1. Build a Google service-account OAuth2 JWT (`iss`/`sub` = service account
+     `client_email`, `aud` = `https://oauth2.googleapis.com/token`, `scope` =
+     `https://www.googleapis.com/auth/firebase.messaging`, `exp` = now + 1hr),
+     sign it RS256 using the service account `private_key` via the Web Crypto API
+     (`crypto.subtle.importKey('pkcs8', ...)` + `crypto.subtle.sign`), which Edge
+     Runtime supports natively (no Node `crypto` needed).
+  2. Exchange the signed JWT for an access token: `POST
+     https://oauth2.googleapis.com/token` with
+     `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<jwt>`.
+  3. For each token, `POST
+     https://fcm.googleapis.com/v1/projects/{project_id}/messages:send` with
+     `Authorization: Bearer <access_token>` and body
+     `{ message: { token, notification: { title, body } } }`.
+  - Cache the exchanged access token in module scope for its lifetime (~1hr) to
+    avoid re-signing a JWT on every send within the same warm Edge instance.
+- On a `NOT_FOUND` or `UNREGISTERED` error in the FCM response for a given token,
+  delete that row from `device_tokens` — self-cleaning, no separate cron needed.
 - Wrapped in the same try/catch-and-swallow pattern as `notifyIFTTT`: a push failure
   must never break the caller's actual data write. Runs independently of and in
   addition to any `notifyIFTTT` call at the same call site (not a replacement).
