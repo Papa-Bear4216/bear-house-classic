@@ -163,6 +163,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   // Integration settings
   const [homeLat, setHomeLat] = useState('');
   const [homeLon, setHomeLon] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState('');
   const [nfcTags, setNfcTags] = useState<Record<string, string>>(NFC_TAG_DEFAULTS);
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagVal, setNewTagVal] = useState('');
@@ -214,6 +216,24 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
   const toggleIntegration = (key: string) =>
     setExpandedIntegration(expandedIntegration === key ? null : key);
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { setLocateError('Geolocation not available on this device.'); return; }
+    setLocating(true);
+    setLocateError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setHomeLat(pos.coords.latitude.toFixed(4));
+        setHomeLon(pos.coords.longitude.toFixed(4));
+        setLocating(false);
+      },
+      (err) => {
+        setLocateError(err.code === err.PERMISSION_DENIED ? 'Location permission denied.' : 'Could not get your location.');
+        setLocating(false);
+      },
+      { timeout: 10000 }
+    );
+  };
 
   if (!open) return null;
 
@@ -381,6 +401,16 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                       className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-white text-sm font-mono" />
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={useMyLocation}
+                  disabled={locating}
+                  className="mt-2 flex items-center gap-1.5 text-xs bg-sky-950/50 hover:bg-sky-900/60 border border-sky-700/40 text-sky-300 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  {locating ? 'Locating…' : 'Use my current location'}
+                </button>
+                {locateError && <p className="text-xs text-rose-400 mt-1.5">{locateError}</p>}
                 <p className="text-xs text-slate-500 mt-2">Default is Baton Rouge, LA. Find your coords at <a href="https://www.latlong.net" target="_blank" className="text-sky-400 underline">latlong.net</a>.</p>
               </IntegrationCard>
 
