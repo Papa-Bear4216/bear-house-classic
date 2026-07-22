@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ScanLine, StopCircle, Plus, CheckCircle2, Camera } from 'lucide-react';
 import { callClaudeVision, callGeminiVision, getGeminiDailyUsage, resetGeminiCount } from '@/lib/familyos';
+import { tryOnDeviceVision } from '@/lib/onDeviceVision';
 
 interface DetectedChore {
   id: string;
@@ -46,6 +47,7 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
 
   const [mode, setMode] = useState<ScanMode>('capture');
   const [provider, setProvider] = useState<Provider>('claude');
+  const [lastSource, setLastSource] = useState<'on-device' | 'cloud' | null>(null);
   const [scanning, setScanning] = useState(false);
   const [chores, setChores] = useState<DetectedChore[]>([]);
   const [status, setStatus] = useState<string>('Starting camera…');
@@ -118,6 +120,12 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
   }, []);
 
   const callVision = useCallback(async (base64: string) => {
+    const onDevice = await tryOnDeviceVision(base64, SCAN_PROMPT);
+    if (onDevice.ok) {
+      setLastSource('on-device');
+      return { ok: true, text: onDevice.text };
+    }
+    setLastSource('cloud');
     if (provider === 'gemini') return callGeminiVision(base64, 'image/jpeg', SCAN_PROMPT);
     return callClaudeVision(base64, 'image/jpeg', SCAN_PROMPT);
   }, [provider]);
@@ -282,6 +290,11 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
                 </button>
               ))}
             </div>
+            {lastSource && (
+              <span className="text-xs text-slate-500">
+                {lastSource === 'on-device' ? '⚡ On-device' : '☁️ Cloud'}
+              </span>
+            )}
             {provider === 'gemini' && (
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${
