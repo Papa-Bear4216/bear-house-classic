@@ -10,7 +10,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
-import { onAuthStateChange, getHouseholdSession, getAccessToken } from "@/lib/householdAuth";
+import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
 import { AppProvider, useAppContext } from "@/contexts/AppContext";
 
@@ -51,6 +51,8 @@ const App = () => {
       window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
     }
   }, []);
+
+  useEffect(() => initNativeAuthRedirect(), []);
 
   const loadSession = useCallback(() => {
     let unsubRealtime: (() => void) | undefined;

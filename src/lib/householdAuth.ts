@@ -1,6 +1,11 @@
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from './sync';
 
 export type HouseholdRole = 'superadmin' | 'admin' | 'child' | 'pet';
+
+const NATIVE_REDIRECT_URL = 'com.bearhouse.app://auth-callback';
 
 export interface HouseholdMember {
   id: string;
@@ -11,12 +16,48 @@ export interface HouseholdMember {
   color: string;
 }
 
+/** Web: normal full-page redirect. Native (Capacitor): open the OAuth URL in
+ * an in-app browser tab and catch the redirect back via the custom URL
+ * scheme deep link — a generic embedded WebView cannot complete Google
+ * OAuth or receive an http(s) redirect back into the app. */
 export async function signInWithGoogle(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: NATIVE_REDIRECT_URL, skipBrowserRedirect: true },
+    });
+    if (error) throw error;
+    if (data?.url) await Browser.open({ url: data.url });
+    return;
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin },
   });
   if (error) throw error;
+}
+
+/** Register once at app startup on native platforms. Google redirects back
+ * to com.bearhouse.app://auth-callback#access_token=...; Android hands that
+ * URL to this listener via the intent-filter in AndroidManifest.xml. */
+export function initNativeAuthRedirect(): () => void {
+  if (!Capacitor.isNativePlatform()) return () => {};
+
+  const listenerPromise = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+    if (!url.startsWith(NATIVE_REDIRECT_URL)) return;
+    await Browser.close();
+
+    const hash = url.split('#')[1] ?? '';
+    const params = new URLSearchParams(hash);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) {
+      await supabase.auth.setSession({ access_token, refresh_token });
+    }
+  });
+
+  return () => { listenerPromise.then((l) => l.remove()); };
 }
 
 export async function signOut(): Promise<void> {
