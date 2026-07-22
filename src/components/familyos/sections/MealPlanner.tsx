@@ -7,9 +7,9 @@ import { getAccessToken } from '@/lib/householdAuth';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'familyos_meals';
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 export type Day = typeof DAYS[number];
-const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const;
+export const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const;
 export type MealType = typeof MEALS[number];
 
 interface CookProfile {
