@@ -4,6 +4,7 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
+import { defaultPlan, MEALS_STORAGE_KEY } from '@/components/familyos/sections/MealPlanner';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -13,7 +14,8 @@ type ActionType =
   | 'addAppointment'
   | 'addPromise' | 'completePromise'
   | 'logEmotion'
-  | 'updateMemory';
+  | 'updateMemory'
+  | 'clearWeekMeals';
 
 interface ActionParams extends Record<string, any> {}
 
@@ -192,6 +194,12 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
       return { result: `Logged ${entry.emotion} (${entry.intensity}/5) for ${entry.person}`, ok: true };
     }
 
+    // ── Meals ──────────────────────────────────────────────────────────────
+    if (action.type === 'clearWeekMeals') {
+      saveJSON(MEALS_STORAGE_KEY, defaultPlan());
+      return { result: `Cleared the week's meal plan`, ok: true };
+    }
+
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
       const existing = localStorage.getItem('hermes_memory') || '';
@@ -284,6 +292,7 @@ addPromise: {type, params: {person, text, dueDate: "YYYY-MM-DD"|null, priority}}
 completePromise: {type, params: {match: "partial text"}}
 logEmotion: {type, params: {person, emotion, intensity: 1-5, note}}
 updateMemory: {type, params: {memory: "thing to remember about this family"}}
+clearWeekMeals: {type, params: {}} — resets the entire week's meal plan (all days/meals/cook assignments) back to empty
 
 ═══ RULES ═══
 - Use actions whenever the user asks you to DO something (add, complete, mark, log, remove, etc.)
@@ -349,6 +358,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   addPromise: '🤝', completePromise: '✅',
   logEmotion: '💭',
   updateMemory: '🧠',
+  clearWeekMeals: '🍽️',
 };
 
 const HermesChat: React.FC = () => {

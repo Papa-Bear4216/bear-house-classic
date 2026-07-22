@@ -53,11 +53,13 @@ type SuggestionKey = string; // "Monday-Dinner"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function defaultPlan(): WeekPlan {
+export function defaultPlan(): WeekPlan {
   const plan = {} as WeekPlan;
   DAYS.forEach(d => { plan[d] = { ...EMPTY_DAY }; });
   return plan;
 }
+
+export const MEALS_STORAGE_KEY = STORAGE_KEY;
 
 function suggestionKey(day: Day, meal: MealType): SuggestionKey { return `${day}-${meal}`; }
 
