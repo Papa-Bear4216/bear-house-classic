@@ -135,4 +135,40 @@ describe('setMealPlanAction', () => {
     expect(result.ok).toBe(false);
     expect(result.result).toContain('Invalid day/meal');
   });
+
+  it('writes cookedIngredients and recipeDetail when a recipe with ingredients is provided', () => {
+    setMealPlanAction('Wednesday', 'Dinner', 'Grilled chicken', 'Mike', {
+      description: 'Hearty and simple',
+      time: '30 min',
+      difficulty: 'Easy',
+      servings: 4,
+      ingredients: [{ name: 'Chicken breast', quantity: 4, unit: '' }, { name: 'Potatoes', quantity: 6, unit: '' }],
+      steps: ['Season chicken', 'Roast potatoes', 'Grill chicken 8 min per side'],
+    });
+    const plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.cookedIngredients.Dinner).toHaveLength(2);
+    expect(plan.Wednesday.cookedIngredients.Dinner[0].name).toBe('Chicken breast');
+    expect(plan.Wednesday.recipeDetail.Dinner.servings).toBe(4);
+    expect(plan.Wednesday.recipeDetail.Dinner.steps).toHaveLength(3);
+    expect(plan.Wednesday.recipeDetail.Dinner.description).toBe('Hearty and simple');
+  });
+
+  it('does not write cookedIngredients/recipeDetail when no ingredients are provided', () => {
+    setMealPlanAction('Wednesday', 'Lunch', 'Leftovers');
+    const plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.cookedIngredients).toBeUndefined();
+    expect(plan.Wednesday.recipeDetail).toBeUndefined();
+  });
+
+  it('does not clobber one meal\'s recipe when setting a different meal on the same day', () => {
+    setMealPlanAction('Wednesday', 'Dinner', 'Grilled chicken', undefined, {
+      ingredients: [{ name: 'Chicken', quantity: 4, unit: '' }],
+    });
+    setMealPlanAction('Wednesday', 'Breakfast', 'Eggs', undefined, {
+      ingredients: [{ name: 'Eggs', quantity: 2, unit: '' }],
+    });
+    const plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.cookedIngredients.Dinner[0].name).toBe('Chicken');
+    expect(plan.Wednesday.cookedIngredients.Breakfast[0].name).toBe('Eggs');
+  });
 });

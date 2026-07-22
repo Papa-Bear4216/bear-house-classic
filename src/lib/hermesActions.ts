@@ -110,20 +110,52 @@ function defaultWeekPlan(): Record<string, any> {
   return plan;
 }
 
+export interface MealPlanRecipeInput {
+  description?: string;
+  time?: string;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  servings?: number;
+  ingredients?: { name: string; quantity: number; unit: string }[];
+  steps?: string[];
+}
+
 /** Sets one meal slot (day+meal) in the week plan, optionally assigning a
- * cook. Kept independent of MealPlanner.tsx's own defaultPlan/DAYS/MEALS to
+ * cook and/or a full recipe. Without `recipe.ingredients`, this only sets
+ * the plain meal-name text — no recipe card, Mark Cooked, or
+ * Add-to-shopping button will appear for it (matching how manually typing
+ * a meal name in the UI behaves). Pass ingredients (at minimum) for the
+ * meal to behave exactly like one planned via the UI's own AI-suggestion
+ * flow — MealPlanner.tsx renders both sources identically.
+ *
+ * Kept independent of MealPlanner.tsx's own defaultPlan/DAYS/MEALS to
  * avoid a cross-module dependency for a single small action — this is the
  * only writer of familyos_meals outside MealPlanner.tsx itself, and the
- * shape (Record<Day, {Breakfast,Lunch,Dinner,cook,...}>) is stable. */
+ * shape (Record<Day, {Breakfast,Lunch,Dinner,cook,cookedIngredients,
+ * recipeDetail,...}>) is stable. */
 export function setMealPlanAction(
-  day: string, meal: string, name: string, cook?: string
+  day: string, meal: string, name: string, cook?: string, recipe?: MealPlanRecipeInput
 ): { result: string; ok: boolean } {
   if (!VALID_DAYS.includes(day) || !VALID_MEALS.includes(meal)) {
     return { result: `Invalid day/meal: "${day}" / "${meal}"`, ok: false };
   }
   const weekPlan = loadJSON<Record<string, any>>(MEALS_STORAGE_KEY, defaultWeekPlan());
-  const updatedDay = { ...weekPlan[day], [meal]: name || '' };
+  const updatedDay: Record<string, any> = { ...weekPlan[day], [meal]: name || '' };
   if (cook) updatedDay.cook = cook;
+
+  if (recipe?.ingredients?.length) {
+    updatedDay.cookedIngredients = { ...updatedDay.cookedIngredients, [meal]: recipe.ingredients };
+    updatedDay.recipeDetail = {
+      ...updatedDay.recipeDetail,
+      [meal]: {
+        description: recipe.description || '',
+        time: recipe.time || '',
+        difficulty: recipe.difficulty || 'Easy',
+        servings: recipe.servings || 4,
+        steps: recipe.steps || [],
+      },
+    };
+  }
+
   saveJSON(MEALS_STORAGE_KEY, { ...weekPlan, [day]: updatedDay });
-  return { result: `Set ${day} ${meal}: "${name}"${cook ? ` (${cook} cooking)` : ''}`, ok: true };
+  return { result: `Set ${day} ${meal}: "${name}"${cook ? ` (${cook} cooking)` : ''}${recipe?.ingredients?.length ? ` with ${recipe.ingredients.length} ingredients` : ''}`, ok: true };
 }

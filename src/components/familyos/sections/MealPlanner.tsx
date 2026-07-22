@@ -30,6 +30,14 @@ const SKILL_LABEL: Record<string, string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface RecipeDetail {
+  description: string;
+  time: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  servings: number;
+  steps: string[];
+}
+
 interface DayPlan {
   Breakfast: string;
   Lunch: string;
@@ -37,6 +45,10 @@ interface DayPlan {
   cook: string;
   cookedIngredients?: Partial<Record<MealType, { name: string; quantity: number; unit: string }[]>>;
   cookedAt?: Partial<Record<MealType, number>>;
+  // Populated either by the UI's own AI-suggestion flow (fetchSuggestion) or
+  // by Hermes via setMealPlanAction — whichever planned the meal. Lets the
+  // recipe drawer render identically regardless of who filled it in.
+  recipeDetail?: Partial<Record<MealType, RecipeDetail>>;
 }
 export type WeekPlan = Record<Day, DayPlan>;
 const EMPTY_DAY: DayPlan = { Breakfast: '', Lunch: '', Dinner: '', cook: '' };
@@ -352,13 +364,25 @@ const MealPlanner: React.FC = () => {
     const result = await fetchSuggestion(day, meal, cook, cookProfiles, foodPreferenceByCook[cook]);
     if (result.ok) {
       setSuggestions(prev => ({ ...prev, [key]: result.recipe }));
-      // Auto-fill the meal name and remember its ingredients for Mark Cooked
+      // Auto-fill the meal name and remember its ingredients/details so the
+      // recipe drawer, Mark Cooked, and Add-to-shopping all keep working
+      // even after a reload (suggestions state itself is not persisted).
       save({
         ...plan,
         [day]: {
           ...plan[day],
           [meal]: result.recipe.name,
           cookedIngredients: { ...plan[day].cookedIngredients, [meal]: result.recipe.recipe.ingredients },
+          recipeDetail: {
+            ...plan[day].recipeDetail,
+            [meal]: {
+              description: result.recipe.description,
+              time: result.recipe.time,
+              difficulty: result.recipe.difficulty,
+              servings: result.recipe.servings,
+              steps: result.recipe.recipe.steps,
+            },
+          },
         },
       });
     } else {
@@ -366,6 +390,27 @@ const MealPlanner: React.FC = () => {
     }
     setLoading(null);
   }, [plan, cookProfiles, foodPreferenceByCook]);
+
+  // suggestions state (from clicking "Suggest") is ephemeral and lost on
+  // reload; cookedIngredients/recipeDetail are persisted. When a meal was
+  // planned by Hermes (setMealPlanAction) or survives a reload, synthesize
+  // an equivalent Recipe from the persisted fields so the drawer renders
+  // identically either way.
+  const getDisplayRecipe = useCallback((day: Day, meal: MealType): Recipe | undefined => {
+    const key = suggestionKey(day, meal);
+    if (suggestions[key]) return suggestions[key];
+    const ingredients = plan[day].cookedIngredients?.[meal];
+    if (!ingredients) return undefined;
+    const detail = plan[day].recipeDetail?.[meal];
+    return {
+      name: plan[day][meal],
+      description: detail?.description || '',
+      time: detail?.time || '',
+      difficulty: detail?.difficulty || 'Easy',
+      servings: detail?.servings || 1,
+      recipe: { ingredients, steps: detail?.steps || [] },
+    };
+  }, [plan, suggestions]);
 
   const handleSuggestWeek = async () => {
     setLoadingWeek(true);
@@ -399,7 +444,7 @@ const MealPlanner: React.FC = () => {
     const ingredients = plan[day].cookedIngredients?.[meal];
     if (!ingredients) return;
     const key = suggestionKey(day, meal);
-    const recipeServings = suggestions[key]?.servings ?? 1;
+    const recipeServings = suggestions[key]?.servings ?? plan[day].recipeDetail?.[meal]?.servings ?? 1;
     const chosenServings = servingsOverride[key] ?? recipeServings;
     const scaled = scaleIngredients(ingredients, recipeServings, chosenServings);
 
@@ -506,9 +551,10 @@ const MealPlanner: React.FC = () => {
                   const mealValue = dayPlan[meal];
                   const key = suggestionKey(day, meal);
                   const isLoadingThis = loading === key;
-                  const suggestion = suggestions[key];
+                  const suggestion = getDisplayRecipe(day, meal);
                   const isExpanded = expanded === key && !!suggestion;
                   const hasCook = !!(dayPlan.cook && dayPlan.cook !== 'Takeout');
+                  const hasStoredRecipe = !!dayPlan.cookedIngredients?.[meal];
 
                   return (
                     <div key={meal}>
@@ -546,9 +592,13 @@ const MealPlanner: React.FC = () => {
                           {/* Suggest */}
                           {hasCook && (
                             <button
-                              onClick={() => isExpanded ? setExpanded(null) : handleSuggest(day, meal)}
+                              onClick={() => {
+                                if (isExpanded) { setExpanded(null); return; }
+                                if (hasStoredRecipe && !suggestions[key]) { setExpanded(key); return; }
+                                handleSuggest(day, meal);
+                              }}
                               disabled={isLoadingThis}
-                              title={`Suggest ${meal.toLowerCase()} for ${dayPlan.cook}`}
+                              title={hasStoredRecipe ? `View recipe for ${meal.toLowerCase()}` : `Suggest ${meal.toLowerCase()} for ${dayPlan.cook}`}
                               className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-violet-900/40 hover:bg-violet-800/60 border border-violet-600/30 text-violet-300 transition disabled:opacity-50"
                             >
                               {isLoadingThis
