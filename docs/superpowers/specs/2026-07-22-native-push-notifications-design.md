@@ -19,9 +19,8 @@ waiting for a `google-services.json` that was never added.
   project ("Dysfunction Junction", `prime-mechanic-463314-m8`).
 - Household-wide broadcast (no per-user targeting) — every device registered by any
   member of a household receives every push sent to that household.
-- Triggers: the 4 existing `notifyIFTTT` call sites (shopping/chore item notify flag,
-  package delivered, door left open, health-check alerts) plus a new trigger on
-  HermesChat message send.
+- Triggers: the 4 existing `notifyIFTTT` call sites only (shopping/chore item notify
+  flag, package delivered, door left open, health-check alerts).
 - Runs **alongside** `notifyIFTTT`, not replacing it.
 
 **Out of scope (explicitly deferred):**
@@ -30,6 +29,13 @@ waiting for a `google-services.json` that was never added.
 - The separate "rename app to FamilyOS" project — this spec uses the current real
   Android package id, `com.bearhouse.app`.
 - Removing or changing `notifyIFTTT`.
+- A HermesChat/family-chat push trigger. **Correction from initial scoping:**
+  `HermesChat.tsx` is the AI-assistant chat (calls `/api/chat`, an LLM) — not
+  family-to-family messaging. It has no server round-trip for message writes;
+  `genericAction` (including the `messages` domain) persists straight to
+  `localStorage` client-side via `runGenericAction`, so there is no server-side hook
+  `notifyPush` (which needs the FCM secret) could attach to. Revisit if/when a real
+  server-backed family chat exists.
 
 ## Firebase / Android setup
 
@@ -93,11 +99,6 @@ export async function notifyPush(householdId: string, title: string, body: strin
   `notifyPush(householdId, 'New item', text)`.
 - `api/ha-webhook.ts:49` (package_delivered) and `:55` (door_left_open) — same pairing.
 - `api/health-check.ts:91` — same pairing.
-- New: HermesChat's message-send server path — after a chat message is persisted,
-  call `notifyPush(householdId, senderName, messageText)`. Since broadcast is
-  household-wide, this pings every registered device including the sender's own
-  other devices (no exclusion logic in scope).
-
 ### New Supabase table: `device_tokens`
 ```sql
 create table device_tokens (
@@ -134,7 +135,5 @@ create table device_tokens (
 - Manual: trigger each of the 4 existing webhook paths (or a mock POST to
   `api/webhook.ts`/`api/ha-webhook.ts`/`api/health-check.ts`) and confirm a system
   notification arrives on the device within a few seconds.
-- Manual: send a HermesChat message from a second logged-in device/session and
-  confirm a push arrives.
 - No new automated test suite is proposed — this codebase has no existing test
   harness for `api/*.ts` webhook handlers to extend.
