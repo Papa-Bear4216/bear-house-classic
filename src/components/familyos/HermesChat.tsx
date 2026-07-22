@@ -4,9 +4,9 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
-import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, scaleIngredients, DAYS, MEALS, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
+import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
 import { CARS_STORAGE_KEY } from '@/components/familyos/sections/CarMaintenance';
-import { runGenericAction } from '@/lib/hermesActions';
+import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 
 // ─── Action types ────────────────────────────────────────────────────────────
@@ -205,16 +205,7 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
     }
 
     if (action.type === 'setMealPlan') {
-      const day = p.day as Day;
-      const meal = p.meal as MealType;
-      if (!DAYS.includes(day) || !MEALS.includes(meal)) {
-        return { result: `Invalid day/meal: "${p.day}" / "${p.meal}"`, ok: false };
-      }
-      const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
-      const updatedDay = { ...weekPlan[day], [meal]: p.name || '' };
-      if (p.cook) updatedDay.cook = p.cook;
-      saveJSON(MEALS_STORAGE_KEY, { ...weekPlan, [day]: updatedDay });
-      return { result: `Set ${day} ${meal}: "${p.name}"${p.cook ? ` (${p.cook} cooking)` : ''}`, ok: true };
+      return setMealPlanAction(p.day, p.meal, p.name, p.cook);
     }
 
     if (action.type === 'markMealCooked') {

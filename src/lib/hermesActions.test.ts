@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runGenericAction, DOMAIN_REGISTRY } from './hermesActions';
+import { runGenericAction, DOMAIN_REGISTRY, setMealPlanAction } from './hermesActions';
 
 // vitest.config.ts uses environment: 'node' — no real localStorage global.
 // Minimal in-memory shim, reset before each test.
@@ -88,5 +88,51 @@ describe('runGenericAction', () => {
     const itemId = stored[0].id;
     const del = runGenericAction('bucketList', 'delete', { id: itemId, match: 'totally different text' });
     expect(del.ok).toBe(true);
+  });
+});
+
+describe('setMealPlanAction', () => {
+  it('sets a meal name for a given day/meal', () => {
+    const result = setMealPlanAction('Wednesday', 'Dinner', 'Grilled chicken');
+    expect(result.ok).toBe(true);
+    const plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.Dinner).toBe('Grilled chicken');
+  });
+
+  it('sets the cook when provided, leaves it unchanged when omitted', () => {
+    setMealPlanAction('Wednesday', 'Dinner', 'Grilled chicken', 'Mike');
+    let plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.cook).toBe('Mike');
+
+    setMealPlanAction('Wednesday', 'Lunch', 'Sandwich');
+    plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.cook).toBe('Mike'); // unchanged
+    expect(plan.Wednesday.Lunch).toBe('Sandwich');
+  });
+
+  it('does not clobber other meals/days when setting one slot', () => {
+    setMealPlanAction('Wednesday', 'Breakfast', 'Eggs and toast');
+    setMealPlanAction('Wednesday', 'Lunch', 'Sandwich');
+    setMealPlanAction('Wednesday', 'Dinner', 'Grilled chicken');
+    setMealPlanAction('Thursday', 'Dinner', 'Tacos');
+
+    const plan = JSON.parse(localStorage.getItem('familyos_meals')!);
+    expect(plan.Wednesday.Breakfast).toBe('Eggs and toast');
+    expect(plan.Wednesday.Lunch).toBe('Sandwich');
+    expect(plan.Wednesday.Dinner).toBe('Grilled chicken');
+    expect(plan.Thursday.Dinner).toBe('Tacos');
+    expect(plan.Monday.Dinner).toBe(''); // untouched day stays empty
+  });
+
+  it('returns ok:false for an invalid day', () => {
+    const result = setMealPlanAction('Someday', 'Dinner', 'Tacos');
+    expect(result.ok).toBe(false);
+    expect(result.result).toContain('Invalid day/meal');
+  });
+
+  it('returns ok:false for an invalid meal', () => {
+    const result = setMealPlanAction('Wednesday', 'Brunch', 'Tacos');
+    expect(result.ok).toBe(false);
+    expect(result.result).toContain('Invalid day/meal');
   });
 });

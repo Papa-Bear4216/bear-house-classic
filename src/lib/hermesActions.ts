@@ -1,4 +1,5 @@
 import { loadJSON, saveJSON, uid } from './familyos';
+import { MEALS_STORAGE_KEY } from '@/components/familyos/sections/MealPlanner';
 
 export interface DomainSpec {
   domain: string;
@@ -97,4 +98,32 @@ export function runGenericAction(
   items[idx] = { ...items[idx], ...pick(params, spec.fields) };
   saveJSON(spec.storageKey, items);
   return { result: `Updated ${spec.domain}: "${items[idx][spec.matchField] ?? items[idx].id}"`, ok: true };
+}
+
+const VALID_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const VALID_MEALS = ['Breakfast', 'Lunch', 'Dinner'];
+const EMPTY_DAY = { Breakfast: '', Lunch: '', Dinner: '', cook: '' };
+
+function defaultWeekPlan(): Record<string, any> {
+  const plan: Record<string, any> = {};
+  VALID_DAYS.forEach((d) => { plan[d] = { ...EMPTY_DAY }; });
+  return plan;
+}
+
+/** Sets one meal slot (day+meal) in the week plan, optionally assigning a
+ * cook. Kept independent of MealPlanner.tsx's own defaultPlan/DAYS/MEALS to
+ * avoid a cross-module dependency for a single small action — this is the
+ * only writer of familyos_meals outside MealPlanner.tsx itself, and the
+ * shape (Record<Day, {Breakfast,Lunch,Dinner,cook,...}>) is stable. */
+export function setMealPlanAction(
+  day: string, meal: string, name: string, cook?: string
+): { result: string; ok: boolean } {
+  if (!VALID_DAYS.includes(day) || !VALID_MEALS.includes(meal)) {
+    return { result: `Invalid day/meal: "${day}" / "${meal}"`, ok: false };
+  }
+  const weekPlan = loadJSON<Record<string, any>>(MEALS_STORAGE_KEY, defaultWeekPlan());
+  const updatedDay = { ...weekPlan[day], [meal]: name || '' };
+  if (cook) updatedDay.cook = cook;
+  saveJSON(MEALS_STORAGE_KEY, { ...weekPlan, [day]: updatedDay });
+  return { result: `Set ${day} ${meal}: "${name}"${cook ? ` (${cook} cooking)` : ''}`, ok: true };
 }
