@@ -43,7 +43,7 @@
 
 This task is pure TypeScript and fully testable without the native plugin existing yet — the test mocks the registered plugin object directly.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // src/lib/onDeviceVision.test.ts
@@ -119,12 +119,12 @@ describe('tryOnDeviceVision', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run src/lib/onDeviceVision.test.ts`
 Expected: FAIL — `Cannot find module './onDeviceVision'` (file doesn't exist yet).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // src/lib/onDeviceVision.ts
@@ -158,12 +158,12 @@ export async function tryOnDeviceVision(base64: string, prompt: string): Promise
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/lib/onDeviceVision.test.ts`
 Expected: PASS — all 6 tests green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/onDeviceVision.ts src/lib/onDeviceVision.test.ts
@@ -185,7 +185,7 @@ git commit -m "feat(android): add on-device vision TS wrapper with silent fallba
 
 This task has no automated test (no Android unit test harness exists in this project — confirmed via `Glob` during spec research). It is verified via a manual gradle build plus a manual on-device smoke test.
 
-- [ ] **Step 1: Add the ML Kit GenAI Prompt dependency**
+- [x] **Step 1: Add the ML Kit GenAI Prompt dependency**
 
 Edit `android/app/build.gradle`, in the `dependencies { ... }` block, add:
 
@@ -195,7 +195,27 @@ Edit `android/app/build.gradle`, in the `dependencies { ... }` block, add:
 
 Add it right after the line `implementation project(':capacitor-android')`.
 
-- [ ] **Step 2: Write the plugin class**
+**Note (discovered during implementation):** this library's own manifest declares `minSdkVersion 26` (and its transitive dependency `com.google.mlkit:genai-common:1.0.0-beta3` does too), which fails Android's manifest merger even though the project's actual `minSdkVersion` stays 24. This is a build-time check, not a runtime one — the `Build.VERSION.SDK_INT < 26` guards in the plugin code (Step 2) don't satisfy it. Fixed by adding an override directive to `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- genai-prompt (ML Kit on-device GenAI) declares minSdk 26 in its own
+         manifest; app minSdk stays 24 for every other API, and
+         OnDeviceGenAIPlugin runtime-guards Build.VERSION.SDK_INT < 26 so
+         the feature simply reports unavailable on API 24-25 devices. -->
+    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.prompt,com.google.mlkit.genai.common" />
+
+    <application
+    ...
+```
+
+Add the `xmlns:tools` namespace to the root `<manifest>` tag and the `<uses-sdk>` override line right before the existing `<application ...>` tag.
+
+- [x] **Step 2: Write the plugin class**
+
+**Note (discovered during implementation):** the WebFetch-sourced API surface used in the original plan draft had two inaccuracies, corrected below against the actual decompiled AAR classes: `GenerativeModelFutures` lives in package `com.google.mlkit.genai.prompt.java` (not `.common`), its status-check method is `checkStatus()` (not `checkFeatureStatus()`), and `GenerateContentResponse` has no `getText()` — the text lives on `GenerateContentResponse.getCandidates().get(0).getText()` (a `List<Candidate>`).
 
 ```java
 // android/app/src/main/java/com/bearhouse/app/OnDeviceGenAIPlugin.java
@@ -212,15 +232,17 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.mlkit.genai.common.FeatureStatus;
-import com.google.mlkit.genai.common.GenerativeModelFutures;
+import com.google.mlkit.genai.prompt.Candidate;
 import com.google.mlkit.genai.prompt.Generation;
 import com.google.mlkit.genai.prompt.GenerateContentRequest;
 import com.google.mlkit.genai.prompt.GenerateContentResponse;
 import com.google.mlkit.genai.prompt.ImagePart;
 import com.google.mlkit.genai.prompt.TextPart;
+import com.google.mlkit.genai.prompt.java.GenerativeModelFutures;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -239,7 +261,7 @@ public class OnDeviceGenAIPlugin extends Plugin {
         }
         try {
             GenerativeModelFutures model = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
-            Futures.addCallback(model.checkFeatureStatus(), new FutureCallback<Integer>() {
+            Futures.addCallback(model.checkStatus(), new FutureCallback<Integer>() {
                 @Override
                 public void onSuccess(Integer status) {
                     JSObject result = new JSObject();
@@ -291,8 +313,13 @@ public class OnDeviceGenAIPlugin extends Plugin {
             Futures.addCallback(model.generateContent(request), new FutureCallback<GenerateContentResponse>() {
                 @Override
                 public void onSuccess(GenerateContentResponse response) {
+                    List<Candidate> candidates = response.getCandidates();
+                    if (candidates.isEmpty()) {
+                        call.reject("no candidates in response");
+                        return;
+                    }
                     JSObject result = new JSObject();
-                    result.put("text", response.getText());
+                    result.put("text", candidates.get(0).getText());
                     call.resolve(result);
                 }
 
@@ -315,7 +342,7 @@ public class OnDeviceGenAIPlugin extends Plugin {
 }
 ```
 
-- [ ] **Step 3: Register the plugin in `MainActivity.java`**
+- [x] **Step 3: Register the plugin in `MainActivity.java`**
 
 In `android/app/src/main/java/com/bearhouse/app/MainActivity.java`, add the import and register the plugin before `super.onCreate()` runs the bridge init — Capacitor plugins must be registered in `onCreate` before `super.onCreate(savedInstanceState)`:
 
@@ -348,15 +375,15 @@ public class MainActivity extends BridgeActivity {
 
 (Leave the rest of the file — `setupCameraForWebView`, `onRequestPermissionsResult` — unchanged.)
 
-- [ ] **Step 4: Sync and build to verify it compiles**
+- [x] **Step 4: Sync and build to verify it compiles**
 
 Run: `npx cap sync android`
 Expected: `Found 2 Capacitor plugins for android: @capacitor/app, @capacitor/browser` (the new plugin is a local class, not an npm package, so it won't be listed here — that's expected).
 
 Run: `cd android && ./gradlew assembleDebug`
-Expected: `BUILD SUCCESSFUL`. If it fails with an unresolved `com.google.mlkit:genai-prompt` artifact, check that `google()` is listed in `android/build.gradle`'s `allprojects { repositories { ... } }` (it already is, confirmed during spec research) and that the version `1.0.0-beta1` still resolves — if Google has since promoted it past beta, use the latest version shown on `https://developers.google.com/ml-kit/genai/prompt/android/get-started`.
+Expected: `BUILD SUCCESSFUL`. If it fails with an unresolved `com.google.mlkit:genai-prompt` artifact, check that `google()` is listed in `android/build.gradle`'s `allprojects { repositories { ... } }` (it already is, confirmed during spec research) and that the version `1.0.0-beta1` still resolves — if Google has since promoted it past beta, use the latest version shown on `https://developers.google.com/ml-kit/genai/prompt/android/get-started`. If it fails with a manifest merger error about `minSdkVersion`, see the note under Step 1.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/app/src/main/java/com/bearhouse/app/OnDeviceGenAIPlugin.java android/app/src/main/java/com/bearhouse/app/MainActivity.java android/app/build.gradle
