@@ -5,6 +5,7 @@ import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } fr
 import { claimAccessUrl, fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
+import { parseBody, FinanceBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -14,10 +15,9 @@ function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
-  const body = (await req.json().catch(() => ({}))) as any;
-  const { action, ...params } = body;
+  const rawBody = (await req.json().catch(() => ({}))) as any;
 
-  const webhookHouseholdId = params.token ? await resolveHouseholdIdByWebhookToken(params.token) : null;
+  const webhookHouseholdId = rawBody.token ? await resolveHouseholdIdByWebhookToken(rawBody.token) : null;
   const isWebhookAuth = !!webhookHouseholdId;
   let householdId: string | null = webhookHouseholdId;
   if (!householdId) {
@@ -25,6 +25,11 @@ export default async function handler(req: Request): Promise<Response> {
     householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   }
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const parsed = parseBody(FinanceBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const params = parsed.data;
+  const { action } = params;
 
   if (action === 'connect') {
     const { setupToken, person } = params;
@@ -75,7 +80,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'sync') {
-    const { days = 30 } = params;
+    const { days } = params;
     const isWebhook = isWebhookAuth;
     const conn: any = await dbGet('simplefin_access', householdId);
     if (!conn?.accessUrl) return j({ synced: 0, transactions: [], recurringBills: [], message: 'No linked accounts' });

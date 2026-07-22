@@ -1,6 +1,8 @@
 // api/setup.ts — creates a new household + its first (superadmin) member.
 export const config = { runtime: 'edge' };
 
+import { parseBody, SetupBodySchema } from './_schemas.js';
+
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
 const j = (d: unknown, s = 200) =>
@@ -31,14 +33,14 @@ export default async function handler(req: Request): Promise<Response> {
   const authUser = await getAuthUserId(accessToken);
   if (!authUser) return j({ error: 'Invalid or expired session' }, 401);
 
-  const body = (await req.json().catch(() => ({}))) as any;
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(SetupBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const body = parsed.data;
   const { action } = body;
 
   if (action === 'createHousehold') {
-    const householdName = (body.householdName || '').trim();
-    const memberName = (body.memberName || '').trim();
-    if (!householdName) return j({ error: 'Household name is required' }, 400);
-    if (!memberName) return j({ error: 'Your name is required' }, 400);
+    const { householdName, memberName } = body;
 
     const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
     const headers = {
@@ -89,12 +91,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'inviteMember') {
-    const memberName = (body.memberName || '').trim();
-    const email = (body.email || '').trim().toLowerCase();
-    const role = body.role === 'admin' || body.role === 'child' ? body.role : 'child';
-    const color = (body.color || 'slate').trim();
-    if (!memberName) return j({ error: 'Name is required' }, 400);
-    if (!email) return j({ error: 'Email is required' }, 400);
+    const { memberName, email, role, color } = body;
 
     const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
     const headers = {
