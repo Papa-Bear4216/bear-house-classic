@@ -8,9 +8,9 @@ import { getAccessToken } from '@/lib/householdAuth';
 
 const STORAGE_KEY = 'familyos_meals';
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
-type Day = typeof DAYS[number];
+export type Day = typeof DAYS[number];
 const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const;
-type MealType = typeof MEALS[number];
+export type MealType = typeof MEALS[number];
 
 interface CookProfile {
   skill: 'expert' | 'skilled' | 'intermediate' | 'beginner' | null;
@@ -38,7 +38,7 @@ interface DayPlan {
   cookedIngredients?: Partial<Record<MealType, { name: string; quantity: number; unit: string }[]>>;
   cookedAt?: Partial<Record<MealType, number>>;
 }
-type WeekPlan = Record<Day, DayPlan>;
+export type WeekPlan = Record<Day, DayPlan>;
 const EMPTY_DAY: DayPlan = { Breakfast: '', Lunch: '', Dinner: '', cook: '' };
 
 interface Recipe {
@@ -71,6 +71,23 @@ export function scaleIngredients(
   const from = fromServings || 1;
   const factor = toServings / from;
   return ingredients.map((ing) => ({ ...ing, quantity: Math.round(ing.quantity * factor * 100) / 100 }));
+}
+
+/** Pure plan transform — stamps cookedAt for one day/meal. Does not touch
+ * pantry; callers scale ingredients and decrement pantry separately before
+ * calling this, exactly as the UI's markCooked handler already does. */
+export function applyMealCooked(
+  plan: WeekPlan,
+  day: Day,
+  meal: MealType,
+  ingredients: { name: string; quantity: number; unit: string }[],
+  fromServings: number,
+  toServings: number
+): WeekPlan {
+  return {
+    ...plan,
+    [day]: { ...plan[day], cookedAt: { ...plan[day].cookedAt, [meal]: Date.now() } },
+  };
 }
 
 async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>, foodPreference?: string): Promise<Recipe | null> {
@@ -362,10 +379,7 @@ const MealPlanner: React.FC = () => {
     const pantryItems = loadPantry();
     savePantry(decrementPantry(pantryItems, scaled));
 
-    save({
-      ...plan,
-      [day]: { ...plan[day], cookedAt: { ...plan[day].cookedAt, [meal]: Date.now() } },
-    });
+    save(applyMealCooked(plan, day, meal, ingredients, recipeServings, chosenServings));
   };
 
   return (

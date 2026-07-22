@@ -3,7 +3,8 @@ import { Plus, Trash2, Car, ChevronDown, ChevronUp } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 
-const STORAGE_KEY = 'familyos_cars';
+export const CARS_STORAGE_KEY = 'familyos_cars';
+const STORAGE_KEY = CARS_STORAGE_KEY;
 
 interface MaintenanceEntry {
   id: string;
