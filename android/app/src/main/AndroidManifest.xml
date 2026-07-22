@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- genai-prompt (ML Kit on-device GenAI) declares minSdk 26 in its own
+         manifest; app minSdk stays 24 for every other API, and
+         OnDeviceGenAIPlugin runtime-guards Build.VERSION.SDK_INT < 26 so
+         the feature simply reports unavailable on API 24-25 devices. -->
+    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.prompt,com.google.mlkit.genai.common" />
 
     <application
         android:allowBackup="true"
