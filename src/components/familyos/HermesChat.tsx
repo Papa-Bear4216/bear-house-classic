@@ -205,7 +205,10 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
     }
 
     if (action.type === 'setMealPlan') {
-      return setMealPlanAction(p.day, p.meal, p.name, p.cook);
+      return setMealPlanAction(p.day, p.meal, p.name, p.cook, {
+        description: p.description, time: p.time, difficulty: p.difficulty,
+        servings: p.servings, ingredients: p.ingredients, steps: p.steps,
+      });
     }
 
     if (action.type === 'markMealCooked') {
@@ -337,7 +340,9 @@ completePromise: {type, params: {match: "partial text"}}
 logEmotion: {type, params: {person, emotion, intensity: 1-5, note}}
 updateMemory: {type, params: {memory: "thing to remember about this family"}}
 clearWeekMeals: {type, params: {}} — resets the entire week's meal plan (all days/meals/cook assignments) back to empty
-setMealPlan: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner", name: "meal name", cook?: "who's cooking"}} — use this to plan/suggest/fill in a specific meal. This is the ONLY way to write meal plan data — "meals"/"mealPlan" is NOT a valid genericAction domain, always use setMealPlan for meals instead.
+setMealPlan: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner", name: "meal name", cook?: "who's cooking", description?, time?: "XX min", difficulty?: "Easy"|"Medium"|"Hard", servings?: number, ingredients?: [{name,quantity,unit}], steps?: ["Step 1", "Step 2"]}}
+  Use this to plan/suggest/fill in a specific meal. This is the ONLY way to write meal plan data — "meals"/"mealPlan" is NOT a valid genericAction domain, always use setMealPlan for meals instead.
+  IMPORTANT: whenever you suggest a specific dish (not just a vague meal name), ALWAYS include ingredients (with realistic quantities/units) and steps too — without them, no recipe card, "Mark cooked" button, or "Add to shopping" button will appear for that meal, so the household member can't act on your suggestion. A bare name with no ingredients should only be used for vague placeholders like "Leftovers" or "Takeout".
 markMealCooked: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner"}} — decrements pantry by that meal's recorded ingredients and marks it cooked
 addCarMaintenanceEntry: {type, params: {carMatch: "partial car name", type, date: "YYYY-MM-DD", mileage, notes}}
 genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...fields}}
