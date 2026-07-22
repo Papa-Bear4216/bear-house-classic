@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' };
 
 import { getStripeClient } from './_stripe.js';
 import { requireBillingRole } from './_billingAuth.js';
+import { parseBody, BillingActionBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -9,9 +10,10 @@ const j = (d: unknown, s = 200) =>
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const body = (await req.json().catch(() => ({}))) as { householdId?: string };
-  const { householdId } = body;
-  if (!householdId) return j({ error: 'Missing householdId' }, 400);
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(BillingActionBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { householdId } = parsed.data;
 
   const auth = await requireBillingRole(req, householdId);
   if (auth.ok === false) return j({ error: auth.error }, auth.status);

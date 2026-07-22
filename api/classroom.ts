@@ -15,6 +15,7 @@ export const config = { runtime: 'edge' };
  */
 
 import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
+import { parseBody, ClassroomBodySchema } from './_schemas.js';
 
 const TASKS_KEY = 'household_tasks';
 
@@ -44,9 +45,10 @@ export default async function handler(req: Request): Promise<Response> {
   const householdId = accessTokenSupabase ? await resolveHouseholdId(accessTokenSupabase) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const body = await req.json().catch(() => ({})) as any;
-  const { accessToken, person } = body;
-  if (!accessToken || !person) return j({ error: 'Missing accessToken or person' }, 400);
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(ClassroomBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { accessToken, person } = parsed.data;
 
   try {
     // 1. Get active courses

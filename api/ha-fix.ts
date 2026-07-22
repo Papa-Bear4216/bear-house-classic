@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' };
 
 import { resolveFix } from './_integrationFixMap.js';
 import { resolveHouseholdId } from './_db.js';
+import { parseBody, HaFixBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) =>
   new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -108,9 +109,10 @@ export default async function handler(req: Request): Promise<Response> {
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const body = (await req.json().catch(() => ({}))) as any;
-  const { integration, key } = body;
-  if (!integration) return j({ error: 'Missing integration' }, 400);
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(HaFixBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { integration, key } = parsed.data;
 
   const result = await runFix(integration, key);
   return j(result, result.ok ? 200 : 200); // always 200; ok flag carries success
