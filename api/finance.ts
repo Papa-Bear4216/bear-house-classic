@@ -63,8 +63,15 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'disconnect') {
-    await dbSet('simplefin_access', householdId, null);
-    return j({ ok: true });
+    try {
+      // {} not null — the value column may reject NULL, and dbGet's callers
+      // (e.g. the 'accounts' check above) already treat a valueless/empty
+      // record as "no connection" via `!conn`/`conn.accessUrl` checks.
+      await dbSet('simplefin_access', householdId, {});
+      return j({ ok: true });
+    } catch (e: any) {
+      return j({ error: e?.message || 'disconnect failed' }, 500);
+    }
   }
 
   if (action === 'sync') {
