@@ -109,6 +109,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState<'ok'|'err'|''>('');
+  const [disconnecting, setDisconnecting] = useState(false);
   const flash = (t: string, ty: 'ok'|'err'='ok') => { setMsg(t); setMsgType(ty); setTimeout(() => setMsg(''), 5000); };
 
   const loadAccounts = useCallback(async () => {
@@ -125,9 +126,22 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
     try {
       const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'connect', setupToken: token.trim(), person: currentUser?.name }) });
       const d = await r.json();
-      if (d.ok) { flash(`✓ Connected: ${(d.institutions||[]).join(', ')}`); setToken(''); loadAccounts(); }
+      // institutions are resolved lazily (see api/finance.ts) — never populated
+      // on the connect response itself, so don't try to name them here.
+      if (d.ok) { flash('✓ Connected — loading account details…'); setToken(''); loadAccounts(); }
       else flash(d.error || 'Connect failed', 'err');
     } catch (e: any) { flash(e.message, 'err'); } finally { setConnecting(false); }
+  };
+
+  const disconnect = async () => {
+    if (!confirm('Unlink this bank connection? You can reconnect later with a new setup token.')) return;
+    setDisconnecting(true);
+    try {
+      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'disconnect' }) });
+      const d = await r.json();
+      if (d.ok) { flash('Disconnected'); setAccounts([]); }
+      else flash(d.error || 'Disconnect failed', 'err');
+    } catch (e: any) { flash(e.message, 'err'); } finally { setDisconnecting(false); }
   };
 
   const sync = async () => {
@@ -165,13 +179,20 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
         </div>
       )}
       <div className="flex gap-2">
-        <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
-          {connecting ? 'Connecting…' : 'Connect'}
-        </button>
-        {accounts.length > 0 && (
-          <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync 30 days'}
+        {accounts.length === 0 && (
+          <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+            {connecting ? 'Connecting…' : 'Connect'}
           </button>
+        )}
+        {accounts.length > 0 && (
+          <>
+            <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync 30 days'}
+            </button>
+            <button onClick={disconnect} disabled={disconnecting} className="flex items-center gap-1.5 bg-slate-800 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-800 disabled:opacity-60 text-slate-400 hover:text-rose-300 text-xs px-3 py-2 rounded-lg">
+              <Trash2 className="w-3.5 h-3.5" /> {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+            </button>
+          </>
         )}
       </div>
     </div>
