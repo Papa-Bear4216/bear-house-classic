@@ -37,7 +37,13 @@ const WeatherWidget: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authedFetch('/api/weather')
+    // Uses the household's Settings > home_lat/home_lon when set — otherwise
+    // /api/weather falls back to its own server-side default coordinates,
+    // which won't match this household's actual location.
+    const lat = localStorage.getItem('home_lat');
+    const lon = localStorage.getItem('home_lon');
+    const query = lat && lon ? `?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}` : '';
+    authedFetch(`/api/weather${query}`)
       .then(r => r.json())
       .then(d => { if (!d.error) setWeather(d); })
       .catch(() => {})
