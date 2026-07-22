@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ScanLine, Camera, Check, Trash2, Loader2 } from 'lucide-react';
 import { callClaudeVision, callGeminiVision, getGeminiDailyUsage, resetGeminiCount, type PantryCategory } from '@/lib/familyos';
+import { tryOnDeviceVision } from '@/lib/onDeviceVision';
 
 interface ScannedItem {
   id: string;
@@ -33,6 +34,7 @@ const ReceiptScanner: React.FC<Props> = ({ onClose, onSave }) => {
   const streamRef = useRef<MediaStream | null>(null);
 
   const [provider, setProvider] = useState<Provider>('claude');
+  const [lastSource, setLastSource] = useState<'on-device' | 'cloud' | null>(null);
   const [status, setStatus] = useState<string>('Starting camera…');
   const [analyzing, setAnalyzing] = useState(false);
   const [cameraFailed, setCameraFailed] = useState(false);
@@ -102,6 +104,12 @@ const ReceiptScanner: React.FC<Props> = ({ onClose, onSave }) => {
   }, []);
 
   const callVision = useCallback(async (base64: string) => {
+    const onDevice = await tryOnDeviceVision(base64, RECEIPT_PROMPT);
+    if (onDevice.ok) {
+      setLastSource('on-device');
+      return { ok: true, text: onDevice.text };
+    }
+    setLastSource('cloud');
     if (provider === 'gemini') return callGeminiVision(base64, 'image/jpeg', RECEIPT_PROMPT);
     return callClaudeVision(base64, 'image/jpeg', RECEIPT_PROMPT);
   }, [provider]);
@@ -196,6 +204,11 @@ const ReceiptScanner: React.FC<Props> = ({ onClose, onSave }) => {
                 </button>
               ))}
             </div>
+            {lastSource && (
+              <span className="text-xs text-slate-500">
+                {lastSource === 'on-device' ? '⚡ On-device' : '☁️ Cloud'}
+              </span>
+            )}
             {provider === 'gemini' && (
               <span className={`text-xs ${geminiUsage.count >= geminiUsage.limit ? 'text-rose-400' : 'text-slate-500'}`}>
                 {geminiUsage.count}/{geminiUsage.limit} today
