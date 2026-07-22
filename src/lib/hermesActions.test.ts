@@ -1,0 +1,92 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { runGenericAction, DOMAIN_REGISTRY } from './hermesActions';
+
+// vitest.config.ts uses environment: 'node' — no real localStorage global.
+// Minimal in-memory shim, reset before each test.
+class MemoryStorage {
+  private store = new Map<string, string>();
+  getItem(key: string) { return this.store.has(key) ? this.store.get(key)! : null; }
+  setItem(key: string, value: string) { this.store.set(key, value); }
+  removeItem(key: string) { this.store.delete(key); }
+  clear() { this.store.clear(); }
+}
+
+beforeEach(() => {
+  (globalThis as any).localStorage = new MemoryStorage();
+});
+
+describe('DOMAIN_REGISTRY', () => {
+  it('has exactly 22 domains', () => {
+    expect(DOMAIN_REGISTRY.length).toBe(22);
+  });
+
+  it('every domain has a unique name and storage key', () => {
+    const domains = DOMAIN_REGISTRY.map(d => d.domain);
+    const keys = DOMAIN_REGISTRY.map(d => d.storageKey);
+    expect(new Set(domains).size).toBe(domains.length);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('runGenericAction', () => {
+  it('returns ok:false for an unknown domain', () => {
+    const result = runGenericAction('nonexistent', 'add', {});
+    expect(result.ok).toBe(false);
+    expect(result.result).toContain('Unknown domain');
+  });
+
+  it('adds an item to bucketList and persists it', () => {
+    const add = runGenericAction('bucketList', 'add', { text: 'Visit Japan' });
+    expect(add.ok).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].text).toBe('Visit Japan');
+    expect(stored[0].id).toBeTruthy();
+    expect(stored[0].createdAt).toBeTypeOf('number');
+  });
+
+  it('only writes fields declared in the domain spec', () => {
+    runGenericAction('bucketList', 'add', { text: 'Visit Japan', notAField: 'ignored' });
+    const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);
+    expect(stored[0].notAField).toBeUndefined();
+  });
+
+  it('updates an item matched by fuzzy text on the domain matchField', () => {
+    runGenericAction('homework', 'add', { kid: 'Sam', subject: 'Math', task: 'Fractions worksheet', dueDate: '2026-07-25', status: 'pending' });
+    const update = runGenericAction('homework', 'update', { match: 'fractions', status: 'done' });
+    expect(update.ok).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('familyos_homework')!);
+    expect(stored[0].status).toBe('done');
+  });
+
+  it('returns ok:false when update match finds nothing', () => {
+    const result = runGenericAction('homework', 'update', { match: 'nope', status: 'done' });
+    expect(result.ok).toBe(false);
+  });
+
+  it('deletes an item matched by fuzzy text', () => {
+    runGenericAction('bucketList', 'add', { text: 'Visit Japan' });
+    runGenericAction('bucketList', 'add', { text: 'Learn guitar' });
+    const del = runGenericAction('bucketList', 'delete', { match: 'japan' });
+    expect(del.ok).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].text).toBe('Learn guitar');
+  });
+
+  it('clears an entire domain to an empty array', () => {
+    runGenericAction('bucketList', 'add', { text: 'Visit Japan' });
+    const clear = runGenericAction('bucketList', 'clear', {});
+    expect(clear.ok).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);
+    expect(stored).toEqual([]);
+  });
+
+  it('matches by id when params.id is provided, ignoring match text', () => {
+    runGenericAction('bucketList', 'add', { text: 'Visit Japan' });
+    const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);
+    const itemId = stored[0].id;
+    const del = runGenericAction('bucketList', 'delete', { id: itemId, match: 'totally different text' });
+    expect(del.ok).toBe(true);
+  });
+});
