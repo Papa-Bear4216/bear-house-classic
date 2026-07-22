@@ -4,7 +4,10 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
-import { defaultPlan, MEALS_STORAGE_KEY } from '@/components/familyos/sections/MealPlanner';
+import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, scaleIngredients, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
+import { CARS_STORAGE_KEY } from '@/components/familyos/sections/CarMaintenance';
+import { runGenericAction } from '@/lib/hermesActions';
+import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -15,7 +18,8 @@ type ActionType =
   | 'addPromise' | 'completePromise'
   | 'logEmotion'
   | 'updateMemory'
-  | 'clearWeekMeals';
+  | 'clearWeekMeals'
+  | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry';
 
 interface ActionParams extends Record<string, any> {}
 
@@ -200,6 +204,42 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
       return { result: `Cleared the week's meal plan`, ok: true };
     }
 
+    if (action.type === 'markMealCooked') {
+      const day = p.day as Day;
+      const meal = p.meal as MealType;
+      const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
+      const ingredients = weekPlan[day]?.cookedIngredients?.[meal];
+      if (!ingredients) return { result: `No recipe recorded for ${day} ${meal} — plan it from the Meals tab first`, ok: false };
+
+      const pantryItems = loadPantry();
+      savePantry(decrementPantry(pantryItems, ingredients));
+
+      const updated = applyMealCooked(weekPlan, day, meal, ingredients, ingredients.length, ingredients.length);
+      saveJSON(MEALS_STORAGE_KEY, updated);
+      return { result: `Marked ${meal} cooked for ${day} and updated the pantry`, ok: true };
+    }
+
+    // ── Cars ───────────────────────────────────────────────────────────────
+    if (action.type === 'addCarMaintenanceEntry') {
+      const cars = loadJSON<any[]>(CARS_STORAGE_KEY, []);
+      const match = (p.carMatch || '').toLowerCase();
+      const idx = cars.findIndex((c) => String(c.name ?? '').toLowerCase().includes(match));
+      if (idx === -1) return { result: `No car matching "${p.carMatch}"`, ok: false };
+
+      const entry = {
+        id: uid(), createdAt: Date.now(),
+        type: p.type || 'Other', date: p.date || '', mileage: p.mileage || '', notes: p.notes || '',
+      };
+      cars[idx] = { ...cars[idx], entries: [entry, ...(cars[idx].entries || [])] };
+      saveJSON(CARS_STORAGE_KEY, cars);
+      return { result: `Logged ${entry.type} for ${cars[idx].name}`, ok: true };
+    }
+
+    // ── Generic domain actions ────────────────────────────────────────────
+    if (action.type === 'genericAction') {
+      return runGenericAction(p.domain, p.op, p.params ?? p);
+    }
+
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
       const existing = localStorage.getItem('hermes_memory') || '';
@@ -293,6 +333,21 @@ completePromise: {type, params: {match: "partial text"}}
 logEmotion: {type, params: {person, emotion, intensity: 1-5, note}}
 updateMemory: {type, params: {memory: "thing to remember about this family"}}
 clearWeekMeals: {type, params: {}} — resets the entire week's meal plan (all days/meals/cook assignments) back to empty
+markMealCooked: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner"}} — decrements pantry by that meal's recorded ingredients and marks it cooked
+addCarMaintenanceEntry: {type, params: {carMatch: "partial car name", type, date: "YYYY-MM-DD", mileage, notes}}
+genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...fields}}
+  Use this for anything not covered by a specific action above. Valid domains and their fields:
+  shopping(name,category,assignedTo,quantity) · bills(name,amount,dueDate,recurring) ·
+  appointments(person,type,doctor,date,notes) · pantry(name,quantity,unit,category) ·
+  messages(author,text) · askParents(kid,request,status) · moments(caption,emoji,date,author) ·
+  bucketList(text) · watchlist(title,type,wantsToWatch) · games(name) ·
+  medications(person,name,dosage,frequency,nextRefill,notes) · petLog(type,date,notes,nextDue) ·
+  homework(kid,subject,task,dueDate,status) · grades(kid,subject,grade,date,notes) ·
+  kidsActivities(kid,name,day,time,location) · allowance(kid,amount,type,reason,date) ·
+  expenses(amount,category,paidBy,date,notes) · budget(name,budgeted,month) ·
+  homeMaintenance(item,category,lastDone,nextDue,notes) · qualityActivities(name,person,duration,scheduledAt) ·
+  promises(text,person,priority,dueDate) · emotions(person,feeling,context,intensity,category)
+  For update/delete, pass {match: "partial text to find the item"} instead of full fields.
 
 ═══ RULES ═══
 - Use actions whenever the user asks you to DO something (add, complete, mark, log, remove, etc.)
@@ -359,6 +414,9 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   logEmotion: '💭',
   updateMemory: '🧠',
   clearWeekMeals: '🍽️',
+  markMealCooked: '✅',
+  addCarMaintenanceEntry: '🚗',
+  genericAction: '⚡',
 };
 
 const HermesChat: React.FC = () => {
