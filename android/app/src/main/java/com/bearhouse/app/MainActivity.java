@@ -3,6 +3,7 @@ package com.bearhouse.app;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
@@ -14,7 +15,10 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     private static final int CAMERA_REQ = 1001;
+    private static final int LOCATION_REQ = 1002;
     private PermissionRequest pendingWebPermission;
+    private String pendingGeoOrigin;
+    private GeolocationPermissions.Callback pendingGeoCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +55,22 @@ public class MainActivity extends BridgeActivity {
                     );
                 }
             }
+
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    callback.invoke(origin, true, false);
+                } else {
+                    pendingGeoOrigin = origin;
+                    pendingGeoCallback = callback;
+                    ActivityCompat.requestPermissions(
+                        MainActivity.this,
+                        new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        LOCATION_REQ
+                    );
+                }
+            }
         });
     }
 
@@ -65,6 +85,11 @@ public class MainActivity extends BridgeActivity {
                 pendingWebPermission.deny();
             }
             pendingWebPermission = null;
+        } else if (requestCode == LOCATION_REQ && pendingGeoCallback != null) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            pendingGeoCallback.invoke(pendingGeoOrigin, granted, false);
+            pendingGeoCallback = null;
+            pendingGeoOrigin = null;
         }
     }
 }
