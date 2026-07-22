@@ -4,7 +4,7 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
-import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, scaleIngredients, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
+import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, scaleIngredients, DAYS, MEALS, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
 import { CARS_STORAGE_KEY } from '@/components/familyos/sections/CarMaintenance';
 import { runGenericAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
@@ -18,7 +18,7 @@ type ActionType =
   | 'addPromise' | 'completePromise'
   | 'logEmotion'
   | 'updateMemory'
-  | 'clearWeekMeals'
+  | 'clearWeekMeals' | 'setMealPlan'
   | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry';
 
 interface ActionParams extends Record<string, any> {}
@@ -204,6 +204,19 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
       return { result: `Cleared the week's meal plan`, ok: true };
     }
 
+    if (action.type === 'setMealPlan') {
+      const day = p.day as Day;
+      const meal = p.meal as MealType;
+      if (!DAYS.includes(day) || !MEALS.includes(meal)) {
+        return { result: `Invalid day/meal: "${p.day}" / "${p.meal}"`, ok: false };
+      }
+      const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
+      const updatedDay = { ...weekPlan[day], [meal]: p.name || '' };
+      if (p.cook) updatedDay.cook = p.cook;
+      saveJSON(MEALS_STORAGE_KEY, { ...weekPlan, [day]: updatedDay });
+      return { result: `Set ${day} ${meal}: "${p.name}"${p.cook ? ` (${p.cook} cooking)` : ''}`, ok: true };
+    }
+
     if (action.type === 'markMealCooked') {
       const day = p.day as Day;
       const meal = p.meal as MealType;
@@ -333,6 +346,7 @@ completePromise: {type, params: {match: "partial text"}}
 logEmotion: {type, params: {person, emotion, intensity: 1-5, note}}
 updateMemory: {type, params: {memory: "thing to remember about this family"}}
 clearWeekMeals: {type, params: {}} — resets the entire week's meal plan (all days/meals/cook assignments) back to empty
+setMealPlan: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner", name: "meal name", cook?: "who's cooking"}} — use this to plan/suggest/fill in a specific meal. This is the ONLY way to write meal plan data — "meals"/"mealPlan" is NOT a valid genericAction domain, always use setMealPlan for meals instead.
 markMealCooked: {type, params: {day: "Monday".."Sunday", meal: "Breakfast"|"Lunch"|"Dinner"}} — decrements pantry by that meal's recorded ingredients and marks it cooked
 addCarMaintenanceEntry: {type, params: {carMatch: "partial car name", type, date: "YYYY-MM-DD", mileage, notes}}
 genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...fields}}
@@ -414,6 +428,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   logEmotion: '💭',
   updateMemory: '🧠',
   clearWeekMeals: '🍽️',
+  setMealPlan: '🍽️',
   markMealCooked: '✅',
   addCarMaintenanceEntry: '🚗',
   genericAction: '⚡',
