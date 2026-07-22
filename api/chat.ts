@@ -1,6 +1,8 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
+import { parseBody, ChatBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -43,14 +45,17 @@ export default async function handler(req: Request): Promise<Response> {
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
+  const rl = await checkRateLimit(householdId, 'chat', 30);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
+
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!anthropicKey && !geminiKey) return j({ error: 'API key not configured.' }, 500);
 
-  const body = await req.json().catch(() => ({})) as any;
-  // Support both single-prompt mode and multi-turn messages array
-  const { prompt, messages: msgArray, system, maxTokens, model } = body;
-  if (!prompt && !msgArray) return j({ error: 'Missing prompt or messages' }, 400);
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(ChatBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { prompt, messages: msgArray, system, maxTokens, model } = parsed.data;
 
   const messages = msgArray || [{ role: 'user', content: prompt }];
   const tokens = maxTokens || 512;
