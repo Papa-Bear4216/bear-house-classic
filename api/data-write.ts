@@ -15,6 +15,8 @@ export const config = { runtime: 'edge' };
  * verify the caller's Google JWT server-side instead of a shared secret.
  */
 
+import { parseBody, DataWriteBodySchema } from './_schemas.js';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
 
 const j = (d: unknown, s = 200) =>
@@ -33,11 +35,10 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ error: 'Unauthorized' }, 401);
   }
 
-  const body = (await req.json().catch(() => ({}))) as { key?: string; value?: unknown; householdId?: string };
-  const { key, value, householdId } = body;
-  if (typeof key !== 'string' || key.length === 0) return j({ error: 'Missing or invalid key' }, 400);
-  if (value === undefined) return j({ error: 'Missing value' }, 400);
-  if (typeof householdId !== 'string' || householdId.length === 0) return j({ error: 'Missing or invalid householdId' }, 400);
+  const rawBody = await req.json().catch(() => ({}));
+  const parsed = parseBody(DataWriteBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { key, value, householdId } = parsed.data;
 
   // Write via PostgREST using the service_role key (bypasses RLS).
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
