@@ -28,18 +28,24 @@ const HOME_LON = process.env.HOME_LON || '-91.15';
 const CACHE_KEY = 'weather_cache';
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-async function getCache(householdId: string): Promise<any | null> {
+// Cache must be keyed by coordinates, not just household — otherwise a
+// household that changes home_lat/home_lon (e.g. via the Settings "use my
+// location" button) keeps getting served the OLD location's cached weather
+// for up to an hour, since the previous cache entry never distinguished
+// which coordinates it was for.
+async function getCache(householdId: string, lat: string, lon: string): Promise<any | null> {
   try {
     const cache = await dbGet(CACHE_KEY, householdId);
     if (!cache) return null;
+    if (cache.lat !== lat || cache.lon !== lon) return null;
     if (Date.now() - (cache.updatedAt || 0) > CACHE_TTL) return null;
     return cache;
   } catch { return null; }
 }
 
-async function setCache(householdId: string, value: any) {
+async function setCache(householdId: string, lat: string, lon: string, value: any) {
   try {
-    await dbSet(CACHE_KEY, householdId, value);
+    await dbSet(CACHE_KEY, householdId, { ...value, lat, lon });
   } catch {}
 }
 
@@ -63,7 +69,7 @@ export default async function handler(req: Request): Promise<Response> {
     : token ? await resolveHouseholdIdByWebhookToken(token) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const cached = await getCache(householdId);
+  const cached = await getCache(householdId, lat, lon);
   if (cached) return j(cached);
 
   try {
@@ -141,7 +147,7 @@ export default async function handler(req: Request): Promise<Response> {
       updatedAt: Date.now(),
     };
 
-    await setCache(householdId, result);
+    await setCache(householdId, lat, lon, result);
     return j(result);
   } catch (e: any) {
     const stale = await dbGet(CACHE_KEY, householdId);

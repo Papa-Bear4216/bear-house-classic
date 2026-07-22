@@ -9,6 +9,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
+import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -190,6 +191,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
       localStorage.setItem(KEYS.cameraToken, cameraToken);
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
+      window.dispatchEvent(new Event(HOME_LOCATION_CHANGED_EVENT));
       saveJSON('nfc_tag_map', nfcTags);
     }
     saveJSON(KEYS.settings, settings);

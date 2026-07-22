@@ -32,22 +32,35 @@ function activitySuggestion(temp: number, precipChance: number, shortForecast: s
   return 'Decent day for outdoor plans.';
 }
 
+// Settings' saveAll() dispatches this after writing home_lat/home_lon to
+// localStorage, so an already-mounted WeatherWidget (which otherwise only
+// reads localStorage once, on mount) picks up a coordinate change without
+// requiring a full page reload.
+export const HOME_LOCATION_CHANGED_EVENT = 'familyos:home-location-changed';
+
 const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Uses the household's Settings > home_lat/home_lon when set — otherwise
-    // /api/weather falls back to its own server-side default coordinates,
-    // which won't match this household's actual location.
-    const lat = localStorage.getItem('home_lat');
-    const lon = localStorage.getItem('home_lon');
-    const query = lat && lon ? `?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}` : '';
-    authedFetch(`/api/weather${query}`)
-      .then(r => r.json())
-      .then(d => { if (!d.error) setWeather(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const fetchWeather = () => {
+      // Uses the household's Settings > home_lat/home_lon when set —
+      // otherwise /api/weather falls back to its own server-side default
+      // coordinates, which won't match this household's actual location.
+      const lat = localStorage.getItem('home_lat');
+      const lon = localStorage.getItem('home_lon');
+      const query = lat && lon ? `?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}` : '';
+      setLoading(true);
+      authedFetch(`/api/weather${query}`)
+        .then(r => r.json())
+        .then(d => { if (!d.error) setWeather(d); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+
+    fetchWeather();
+    window.addEventListener(HOME_LOCATION_CHANGED_EVENT, fetchWeather);
+    return () => window.removeEventListener(HOME_LOCATION_CHANGED_EVENT, fetchWeather);
   }, []);
 
   if (loading) {
