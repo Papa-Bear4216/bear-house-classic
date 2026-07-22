@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
+import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, savePantry, calculateShortfall, decrementPantry } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
