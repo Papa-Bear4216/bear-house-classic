@@ -403,7 +403,7 @@ git commit -m "feat(android): add native OnDeviceGenAI Capacitor plugin (ML Kit 
 
 No new automated test — `callVision` is a thin dispatcher already covered indirectly by the manual scanner testing this repo relies on (no existing test file mocks camera/vision calls in this component). Verified by code review + a manual on-device run in Task 5.
 
-- [ ] **Step 1: Add the import**
+- [x] **Step 1: Add the import**
 
 In `src/components/familyos/ReceiptScanner.tsx`, add after the existing `@/lib/familyos` import (line 3):
 
@@ -411,7 +411,7 @@ In `src/components/familyos/ReceiptScanner.tsx`, add after the existing `@/lib/f
 import { tryOnDeviceVision } from '@/lib/onDeviceVision';
 ```
 
-- [ ] **Step 2: Add a `usedSource` state and update `callVision`**
+- [x] **Step 2: Add a `usedSource` state and update `callVision`**
 
 Replace the `provider` state declaration area — find:
 
@@ -449,7 +449,7 @@ with:
   }, [provider]);
 ```
 
-- [ ] **Step 3: Add the source badge next to the provider toggle**
+- [x] **Step 3: Add the source badge next to the provider toggle**
 
 Find the provider toggle block (around line 190-198):
 
@@ -474,12 +474,12 @@ Add immediately after the closing `</div>` of that block:
             )}
 ```
 
-- [ ] **Step 4: Build to verify no type errors**
+- [x] **Step 4: Build to verify no type errors**
 
 Run: `npm run build`
 Expected: build succeeds with no TypeScript errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/familyos/ReceiptScanner.tsx
@@ -499,7 +499,7 @@ git commit -m "feat(android): try on-device Gemini first in ReceiptScanner, fall
 
 Same rationale as Task 3: no new automated test, verified by code review + manual on-device run in Task 5.
 
-- [ ] **Step 1: Add the import**
+- [x] **Step 1: Add the import**
 
 In `src/components/familyos/ChoreScanner.tsx`, add after the existing `@/lib/familyos` import (line 3):
 
@@ -507,7 +507,7 @@ In `src/components/familyos/ChoreScanner.tsx`, add after the existing `@/lib/fam
 import { tryOnDeviceVision } from '@/lib/onDeviceVision';
 ```
 
-- [ ] **Step 2: Add a `lastSource` state and update `callVision`**
+- [x] **Step 2: Add a `lastSource` state and update `callVision`**
 
 Find the `provider` state declaration:
 
@@ -545,7 +545,7 @@ with:
   }, [provider]);
 ```
 
-- [ ] **Step 3: Add the source badge next to the provider toggle**
+- [x] **Step 3: Add the source badge next to the provider toggle**
 
 `ChoreScanner.tsx`'s provider toggle UI lives in the render body further down the file (same pattern as `ReceiptScanner.tsx`, rendered only when not in an active scan). Locate the block rendering `(['gemini', 'claude'] as Provider[]).map(...)` — it is styled identically to the one in `ReceiptScanner.tsx` from Task 3. Add the same badge markup immediately after that block's closing `</div>`:
 
@@ -557,12 +557,12 @@ with:
             )}
 ```
 
-- [ ] **Step 4: Build to verify no type errors**
+- [x] **Step 4: Build to verify no type errors**
 
 Run: `npm run build`
 Expected: build succeeds with no TypeScript errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/familyos/ChoreScanner.tsx
@@ -577,17 +577,17 @@ git commit -m "feat(android): try on-device Gemini first in ChoreScanner, fall b
 
 **Interfaces:** none — this task consumes the completed app from Tasks 1-4 as a whole.
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `npm test`
 Expected: all tests pass, including the 6 new `onDeviceVision.test.ts` tests plus the pre-existing 54.
 
-- [ ] **Step 2: Full web build**
+- [x] **Step 2: Full web build**
 
 Run: `npm run build`
 Expected: `vite build` succeeds, no errors.
 
-- [ ] **Step 3: Sync and build the Android debug APK**
+- [x] **Step 3: Sync and build the Android debug APK**
 
 Run: `npx cap sync android`
 Run: `cd android && ./gradlew assembleDebug`
