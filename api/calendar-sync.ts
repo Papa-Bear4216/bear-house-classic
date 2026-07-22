@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { parseBody, CalendarSyncBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -39,14 +40,14 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') return j({ ok: true, message: 'Bear House calendar sync endpoint.' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const body = await req.json().catch(() => ({})) as any;
-  const token = req.headers.get('x-webhook-token') || body?.token;
+  const rawBody = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const { accessToken, person, calendarId } = body;
-  if (!accessToken) return j({ error: 'accessToken required' }, 400);
-  if (!person) return j({ error: 'person required' }, 400);
+  const parsed = parseBody(CalendarSyncBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { accessToken, person, calendarId } = parsed.data;
 
   try {
     const events = await fetchCalendarEvents(accessToken, calendarId);
