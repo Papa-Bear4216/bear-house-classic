@@ -63,7 +63,6 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'disconnect') {
-    if (!isWebhookAuth) return j({ error: 'Unauthorized' }, 401);
     await dbSet('simplefin_access', householdId, null);
     return j({ ok: true });
   }
