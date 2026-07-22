@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, dbPrepend, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
+import { parseBody, WebhookBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.hotmessexpress.lol';
@@ -29,7 +30,7 @@ function buildItem(type: ItemType, body: Record<string, any>) {
   if (type === 'task' || type === 'reminder') return { ...base, text: body.text || 'Untitled', person: body.person || 'General', priority: body.priority || 'Medium', category: body.category || 'General', dueEstimate: body.dueEstimate || 'No Deadline', dueDate: body.dueDate ? new Date(body.dueDate).getTime() : null, completed: false };
   if (type === 'bill') return { ...base, name: body.name || body.text || 'Untitled bill', amount: parseFloat(body.amount) || 0, dueDate: body.dueDate ? new Date(body.dueDate).getTime() : null, paid: false, recurring: body.recurring === 'true' };
   if (type === 'shopping') return { ...base, name: body.name || body.text || 'Untitled item', category: body.category || 'General', assignedTo: body.assignedTo || 'General', quantity: body.quantity || '1', completed: false };
-  if (type === 'appointment') return { ...base, person: body.person || 'General', type: body.type || 'General', doctor: body.doctor || '', date: body.date ? new Date(body.date).getTime() : null, notes: body.notes || '' };
+  if (type === 'appointment') return { ...base, person: body.person || 'General', type: body.type_ || 'General', doctor: body.doctor || '', date: body.date ? new Date(body.date).getTime() : null, notes: body.notes || '' };
   return base;
 }
 
@@ -55,16 +56,18 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') return j({ ok: true, message: 'Bear House webhook + Hermes is live.' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const body = await req.json().catch(() => ({})) as any;
-  const token = req.headers.get('x-webhook-token') || body?.token;
+  const rawBody = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const type: ItemType = body?.type;
-  if (!type || !KEY_MAP[type]) return j({ error: 'Invalid type. Use: task|bill|shopping|appointment|reminder|nfc' }, 400);
+  const parsed = parseBody(WebhookBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const body = parsed.data;
+  const type: ItemType = body.type;
 
   if (type === 'nfc') {
-    const { action: nfcAction = 'log', taskId, tagName, person = 'Family', text: nfcText } = body;
+    const { action: nfcAction, taskId, tagName, person, text: nfcText } = body;
     const logText = nfcText || (tagName ? NFC_TAG_DEFAULTS[tagName] : null) || `NFC tap: ${tagName || 'unknown'}`;
 
     if (nfcAction === 'complete' && taskId) {
