@@ -90,9 +90,11 @@ export function applyMealCooked(
   };
 }
 
-async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>, foodPreference?: string): Promise<Recipe | null> {
+type SuggestionResult = { ok: true; recipe: Recipe } | { ok: false; error: string };
+
+async function fetchSuggestion(day: Day, meal: MealType, cook: string, profiles: Record<string, CookProfile>, foodPreference?: string): Promise<SuggestionResult> {
   const profile = profiles[cook];
-  if (!profile?.skill) return null;
+  if (!profile?.skill) return { ok: false, error: `No cooking profile found for "${cook}" — check they're still a household member.` };
 
   const prompt = `Suggest one ${meal.toLowerCase()} meal for ${day}.
 Cook: ${cook} | Skill: ${profile.skill} | Age group: ${profile.ageGroup}
@@ -134,7 +136,16 @@ Rules:
       if (res.ok) {
         const data = await res.json();
         const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (raw) return JSON.parse(raw) as Recipe;
+        if (raw) {
+          try {
+            return { ok: true, recipe: JSON.parse(raw) as Recipe };
+          } catch {
+            console.warn('Gemini recipe suggestion: could not parse JSON response', raw);
+            // fall through to the cloud path below rather than failing outright
+          }
+        }
+      } else {
+        console.warn(`Gemini recipe suggestion failed: ${res.status} ${res.statusText}`);
       }
     }
 
@@ -147,11 +158,23 @@ Rules:
       },
       body: JSON.stringify({ prompt, maxTokens: 500 }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const reason = res.status === 401 ? 'Session expired — try signing out and back in.' : `Server error (${res.status}).`;
+      console.warn(`Meal suggestion request failed: ${res.status} ${res.statusText}`);
+      return { ok: false, error: reason };
+    }
     const data = await res.json();
     const raw = (data.text || '').replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
-    return JSON.parse(raw) as Recipe;
-  } catch { return null; }
+    try {
+      return { ok: true, recipe: JSON.parse(raw) as Recipe };
+    } catch {
+      console.warn('Meal suggestion: could not parse AI response as JSON', raw);
+      return { ok: false, error: 'The AI response was malformed — try again.' };
+    }
+  } catch (e: any) {
+    console.warn('Meal suggestion request threw', e);
+    return { ok: false, error: 'Network error — check your connection and try again.' };
+  }
 }
 
 async function suggestWholeWeek(plan: WeekPlan, profiles: Record<string, CookProfile>): Promise<Partial<Record<Day, Partial<DayPlan>>>> {
@@ -295,6 +318,7 @@ const MealPlanner: React.FC = () => {
   const [editValue, setEditValue] = useState('');
   const [editingCook, setEditingCook] = useState<Day | null>(null);
   const [suggestions, setSuggestions] = useState<Record<SuggestionKey, Recipe>>({});
+  const [suggestError, setSuggestError] = useState<Record<SuggestionKey, string>>({});
   const [loading, setLoading] = useState<SuggestionKey | null>(null);
   const [expanded, setExpanded] = useState<SuggestionKey | null>(null);
   const [loadingWeek, setLoadingWeek] = useState(false);
@@ -324,18 +348,21 @@ const MealPlanner: React.FC = () => {
     if (!cook || cook === 'Takeout') return;
     const key = suggestionKey(day, meal);
     setLoading(key); setExpanded(key);
+    setSuggestError(prev => { const next = { ...prev }; delete next[key]; return next; });
     const result = await fetchSuggestion(day, meal, cook, cookProfiles, foodPreferenceByCook[cook]);
-    if (result) {
-      setSuggestions(prev => ({ ...prev, [key]: result }));
+    if (result.ok) {
+      setSuggestions(prev => ({ ...prev, [key]: result.recipe }));
       // Auto-fill the meal name and remember its ingredients for Mark Cooked
       save({
         ...plan,
         [day]: {
           ...plan[day],
-          [meal]: result.name,
-          cookedIngredients: { ...plan[day].cookedIngredients, [meal]: result.recipe.ingredients },
+          [meal]: result.recipe.name,
+          cookedIngredients: { ...plan[day].cookedIngredients, [meal]: result.recipe.recipe.ingredients },
         },
       });
+    } else {
+      setSuggestError(prev => ({ ...prev, [key]: result.error }));
     }
     setLoading(null);
   }, [plan, cookProfiles, foodPreferenceByCook]);
@@ -555,6 +582,14 @@ const MealPlanner: React.FC = () => {
                           )}
                         </div>
                       </div>
+
+                      {/* Suggestion error */}
+                      {expanded === key && !suggestion && suggestError[key] && (
+                        <div className="mx-4 mb-3 bg-rose-950/40 border border-rose-800/40 rounded-xl px-3 py-2 text-xs text-rose-300 flex items-center justify-between gap-2">
+                          <span>{suggestError[key]}</span>
+                          <button onClick={() => handleSuggest(day, meal)} className="text-rose-200 hover:text-white underline flex-shrink-0">Retry</button>
+                        </div>
+                      )}
 
                       {/* Recipe drawer */}
                       {isExpanded && suggestion && (
