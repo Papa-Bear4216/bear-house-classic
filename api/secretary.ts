@@ -4,6 +4,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { parseBody, SecretaryBodySchema } from './_schemas.js';
 
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
@@ -101,13 +102,14 @@ export default async function handler(req: Request): Promise<Response> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
-  const body = await req.json().catch(() => ({})) as any;
-  const token = req.headers.get('x-webhook-token') || body?.token;
+  const rawBody = await req.json().catch(() => ({})) as any;
+  const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
-  const { item, type, familyMembers } = body;
-  if (!item || !type) return j({ error: 'Missing item or type' }, 400);
+  const parsed = parseBody(SecretaryBodySchema, rawBody);
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { item, type, familyMembers } = parsed.data;
   const members: string[] = Array.isArray(familyMembers) && familyMembers.length > 0
     ? familyMembers
     : ['Family', 'General'];
