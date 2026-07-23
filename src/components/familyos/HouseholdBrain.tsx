@@ -26,6 +26,7 @@ import {
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
+import FocusMode from './FocusMode';
 
 interface Task {
   id: string;
@@ -80,6 +81,7 @@ const HouseholdBrain: React.FC = () => {
   const [customDays, setCustomDays] = useState<number[]>([]);
   const [showRecur, setShowRecur] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
 
   // No signal to prefer one household member over another for a given chore type,
   // so spread new chores evenly across the roster rather than guessing.
@@ -117,6 +119,10 @@ const HouseholdBrain: React.FC = () => {
   });
 
   useEffect(() => saveJSON(KEYS.tasks, tasks), [tasks]);
+
+  useEffect(() => {
+    setFocusMode(false);
+  }, [tab]);
 
   const filteredTasks = useMemo(() => {
     const open = tasks.filter((t) => !t.completed);
@@ -455,12 +461,28 @@ const HouseholdBrain: React.FC = () => {
             </button>
           );
         })}
-        <button onClick={overdueAlert} className="ml-auto bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
+        <button
+          onClick={() => setFocusMode((f) => !f)}
+          disabled={filteredTasks.length === 0}
+          className={`ml-auto px-3 py-1.5 rounded-lg text-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed ${
+            focusMode ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Focus
+        </button>
+        <button onClick={overdueAlert} className="bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
           <AlertTriangle className="w-3.5 h-3.5" /> Overdue
         </button>
       </div>
 
       {/* Task list */}
+      {focusMode ? (
+        <FocusMode
+          tasks={filteredTasks}
+          onComplete={completeTask}
+          onExit={() => setFocusMode(false)}
+        />
+      ) : (
       <div className="space-y-2">
         {filteredTasks.length === 0 ? (
           <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
@@ -513,6 +535,7 @@ const HouseholdBrain: React.FC = () => {
           })
         )}
       </div>
+      )}
     </div>
   );
 };
