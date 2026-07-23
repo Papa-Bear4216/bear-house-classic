@@ -37,6 +37,8 @@ export const KEYS = {
   apiKey: 'anthropic_api_key',
   settings: 'familyos_settings',
   cameraToken: 'camera_access_token',
+  points: 'household_points',
+  redemptions: 'reward_redemptions',
 };
 
 export const DEFAULT_SETTINGS = {
@@ -57,6 +59,19 @@ export const DEFAULT_PRESENCE_ZONES = [
 export const FALLBACK_PILLARS = [
   { id: 'home', name: 'Home & Shared', color: 'green', interests: 'Game nights, cooking, outdoor time', lastQualityTime: null },
 ];
+
+export type RewardCatalogItem = { id: number; title: string; cost: number; icon: string };
+
+export const REWARD_CATALOG: RewardCatalogItem[] = [
+  { id: 1, title: 'Extra Screen Time (30m)', cost: 50, icon: 'Video' },
+  { id: 2, title: 'Choose Movie Night', cost: 100, icon: 'Film' },
+  { id: 3, title: '$5 Allowance Bonus', cost: 200, icon: 'DollarSign' },
+  { id: 4, title: 'Stay Up 1hr Late', cost: 150, icon: 'Moon' },
+  { id: 5, title: 'Trip to Ice Cream Shop', cost: 300, icon: 'IceCream' },
+  { id: 6, title: 'Skip One Chore', cost: 120, icon: 'PartyPopper' },
+];
+
+export const POINT_VALUES = { easy: 15, medium: 30, hard: 50, default: 10 };
 
 export const TASK_CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 export const EMOTION_CATEGORIES = ['Connection', 'Frustration', 'Concern', 'Joy', 'Anxiety', 'Gratitude', 'Confusion'];
@@ -275,6 +290,41 @@ export function saveJSON(key: string, value: unknown) {
 
 export function savePantry(items: PantryItem[]): void {
   saveJSON(PANTRY_KEY, items);
+}
+
+export type PointsBalance = Record<string, number>;
+
+export function loadPointsBalance(): PointsBalance {
+  return loadJSON<PointsBalance>(KEYS.points, {});
+}
+
+export function awardPoints(memberId: string, amount: number): void {
+  const balance = loadPointsBalance();
+  balance[memberId] = (balance[memberId] ?? 0) + amount;
+  saveJSON(KEYS.points, balance);
+}
+
+export type RedemptionStatus = 'pending' | 'approved' | 'denied';
+
+export type RewardRedemption = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  rewardId: number;
+  rewardTitle: string;
+  cost: number;
+  status: RedemptionStatus;
+  requestedAt: number;
+  resolvedAt?: number;
+  resolvedBy?: string;
+};
+
+export function loadRedemptions(): RewardRedemption[] {
+  return loadJSON<RewardRedemption[]>(KEYS.redemptions, []);
+}
+
+export function saveRedemptions(items: RewardRedemption[]): void {
+  saveJSON(KEYS.redemptions, items);
 }
 
 export function uid() {
