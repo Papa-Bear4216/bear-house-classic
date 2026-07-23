@@ -333,7 +333,7 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
           {/* Per-person */}
           {householdMembers.length > 0 && (
             <div>
-              <div className="text-sm text-slate-400 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
+              <div className="text-sm text-cream-400/60 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {householdMembers.map((m) => (
                   <React.Fragment key={m.id}>{personCard(m.id, m.name, m.color)}</React.Fragment>
