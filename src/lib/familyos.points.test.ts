@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { KEYS, loadPointsBalance, awardPoints, loadRedemptions, saveRedemptions, REWARD_CATALOG, POINT_VALUES } from './familyos';
+import {
+  KEYS, loadPointsBalance, awardPoints, loadRedemptions, saveRedemptions,
+  REWARD_CATALOG, POINT_VALUES, computeSpendable, resolveClaim,
+  type RewardRedemption,
+} from './familyos';
 
 // vitest.config.ts runs this suite under environment: 'node', which has no
 // localStorage global — loadJSON/saveJSON in familyos.ts read/write it
@@ -69,5 +73,98 @@ describe('points storage', () => {
 
   it('POINT_VALUES matches original bear-house-os defaults', () => {
     expect(POINT_VALUES).toEqual({ easy: 15, medium: 30, hard: 50, default: 10 });
+  });
+});
+
+function redemption(overrides: Partial<RewardRedemption> = {}): RewardRedemption {
+  return {
+    id: 'r1', memberId: 'm1', memberName: 'Jordan', rewardId: 1,
+    rewardTitle: 'Extra Screen Time (30m)', cost: 50,
+    status: 'pending', requestedAt: 1000,
+    ...overrides,
+  };
+}
+
+describe('computeSpendable', () => {
+  it('equals the full balance when there are no pending redemptions', () => {
+    expect(computeSpendable(100, [], 'm1')).toBe(100);
+  });
+
+  it('subtracts the cost of pending redemptions for that member', () => {
+    const redemptions = [redemption({ memberId: 'm1', cost: 30, status: 'pending' })];
+    expect(computeSpendable(100, redemptions, 'm1')).toBe(70);
+  });
+
+  it('sums multiple pending redemptions for the same member', () => {
+    const redemptions = [
+      redemption({ id: 'r1', memberId: 'm1', cost: 30, status: 'pending' }),
+      redemption({ id: 'r2', memberId: 'm1', cost: 20, status: 'pending' }),
+    ];
+    expect(computeSpendable(100, redemptions, 'm1')).toBe(50);
+  });
+
+  it('ignores pending redemptions belonging to other members', () => {
+    const redemptions = [redemption({ memberId: 'm2', cost: 90, status: 'pending' })];
+    expect(computeSpendable(100, redemptions, 'm1')).toBe(100);
+  });
+
+  it('ignores resolved (approved/denied) redemptions, only pending holds spendable', () => {
+    const redemptions = [
+      redemption({ id: 'r1', memberId: 'm1', cost: 30, status: 'approved' }),
+      redemption({ id: 'r2', memberId: 'm1', cost: 20, status: 'denied' }),
+    ];
+    expect(computeSpendable(100, redemptions, 'm1')).toBe(100);
+  });
+});
+
+describe('resolveClaim', () => {
+  it('approving marks the entry approved, sets resolver, and deducts cost from balance', () => {
+    const redemptions = [redemption({ cost: 50, status: 'pending' })];
+    const balance = { m1: 100 };
+    const result = resolveClaim(redemptions, balance, 'r1', 'approved', 'Maya');
+
+    expect(result.redemptions[0]).toMatchObject({ status: 'approved', resolvedBy: 'Maya' });
+    expect(result.redemptions[0].resolvedAt).toBeTypeOf('number');
+    expect(result.balance).toEqual({ m1: 50 });
+  });
+
+  it('denying marks the entry denied, sets resolver, and leaves balance unchanged', () => {
+    const redemptions = [redemption({ cost: 50, status: 'pending' })];
+    const balance = { m1: 100 };
+    const result = resolveClaim(redemptions, balance, 'r1', 'denied', 'Maya');
+
+    expect(result.redemptions[0]).toMatchObject({ status: 'denied', resolvedBy: 'Maya' });
+    expect(result.balance).toEqual({ m1: 100 });
+  });
+
+  it('only touches the targeted entry, leaving other redemptions untouched', () => {
+    const redemptions = [
+      redemption({ id: 'r1', cost: 50, status: 'pending' }),
+      redemption({ id: 'r2', memberId: 'm2', cost: 30, status: 'pending' }),
+    ];
+    const balance = { m1: 100, m2: 100 };
+    const result = resolveClaim(redemptions, balance, 'r1', 'approved', 'Maya');
+
+    expect(result.redemptions[1]).toEqual(redemptions[1]);
+    expect(result.balance.m2).toBe(100);
+  });
+
+  it('returns inputs unchanged when the target id does not exist', () => {
+    const redemptions = [redemption({ id: 'r1', status: 'pending' })];
+    const balance = { m1: 100 };
+    const result = resolveClaim(redemptions, balance, 'does-not-exist', 'approved', 'Maya');
+
+    expect(result.redemptions).toEqual(redemptions);
+    expect(result.balance).toEqual(balance);
+  });
+
+  it('deducts from a balance of 0 (or missing) down into negative rather than throwing — approval does not re-check affordability', () => {
+    // resolveClaim trusts the caller to have already gated "Request" on affordability at
+    // request time; it does not re-validate here, matching the plan's no-ledger, simple
+    // balance-decrement design. This test documents that behavior explicitly.
+    const redemptions = [redemption({ cost: 50, status: 'pending' })];
+    const balance = {};
+    const result = resolveClaim(redemptions, balance, 'r1', 'approved', 'Maya');
+    expect(result.balance.m1).toBe(-50);
   });
 });

@@ -327,6 +327,39 @@ export function saveRedemptions(items: RewardRedemption[]): void {
   saveJSON(KEYS.redemptions, items);
 }
 
+/** Points still available to spend: balance minus whatever this member already has held in pending requests. */
+export function computeSpendable(balance: number, redemptions: RewardRedemption[], memberId: string): number {
+  const pendingCost = redemptions
+    .filter((r) => r.memberId === memberId && r.status === 'pending')
+    .reduce((sum, r) => sum + r.cost, 0);
+  return balance - pendingCost;
+}
+
+/** Approve or deny a pending redemption. Approving deducts its cost from the member's balance;
+ * denying leaves the balance untouched. Does not re-check affordability — "Request" already
+ * gated on computeSpendable() at request time, matching the plan's simple-balance (no ledger) design. */
+export function resolveClaim(
+  redemptions: RewardRedemption[],
+  balance: PointsBalance,
+  redemptionId: string,
+  status: 'approved' | 'denied',
+  resolvedBy: string
+): { redemptions: RewardRedemption[]; balance: PointsBalance } {
+  const entry = redemptions.find((r) => r.id === redemptionId);
+  if (!entry) return { redemptions, balance };
+
+  const nextRedemptions = redemptions.map((r) =>
+    r.id === redemptionId ? { ...r, status, resolvedAt: Date.now(), resolvedBy } : r
+  );
+
+  const nextBalance = { ...balance };
+  if (status === 'approved') {
+    nextBalance[entry.memberId] = (nextBalance[entry.memberId] ?? 0) - entry.cost;
+  }
+
+  return { redemptions: nextRedemptions, balance: nextBalance };
+}
+
 export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
