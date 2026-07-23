@@ -516,7 +516,7 @@ const HermesChat: React.FC = () => {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-20 right-20 z-40 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-500 shadow-xl shadow-violet-500/30 flex items-center justify-center transition-all active:scale-95"
+        className="fixed bottom-20 right-20 z-40 w-14 h-14 rounded-full bg-honey-500 hover:bg-honey-400 shadow-xl shadow-[0_0_24px_rgba(224,140,0,0.4)] flex items-center justify-center transition-all active:scale-95 focus-ring"
         title="Ask Hermes"
       >
         <Bot className="w-6 h-6 text-white" />
@@ -530,31 +530,31 @@ const HermesChat: React.FC = () => {
       {/* Panel */}
       {open && (
         <div
-          className="fixed bottom-20 md:bottom-6 right-4 z-50 w-full max-w-sm sm:max-w-md flex flex-col bg-slate-900 border border-violet-500/30 rounded-2xl shadow-2xl shadow-violet-900/40 overflow-hidden"
+          className="fixed bottom-20 right-4 z-50 w-full max-w-sm sm:max-w-md flex flex-col bg-bark-800 border border-honey-500/30 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
           style={{ height: '520px' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-950 to-slate-900 border-b border-violet-500/20 flex-shrink-0">
-            <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0 ring-2 ring-violet-400/30">
+          <div className="flex items-center gap-3 px-4 py-3 bg-bark-700 border-b border-honey-500/20 flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-honey-500 flex items-center justify-center flex-shrink-0 ring-2 ring-honey-400/30">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
               <div className="text-sm font-bold text-white flex items-center gap-1.5">
                 Hermes
-                <Zap className="w-3 h-3 text-violet-400" />
+                <Zap className="w-3 h-3 text-honey-400" />
               </div>
-              <div className="text-[10px] text-violet-300 flex items-center gap-1">
+              <div className="text-[10px] text-honey-300 flex items-center gap-1">
                 <Brain className="w-2.5 h-2.5" />
                 {memoryCount > 0 ? `${memoryCount} memories` : 'learning…'}
               </div>
             </div>
             <div className="flex items-center gap-1">
               {memoryCount > 0 && (
-                <button onClick={clearMemory} className="text-xs text-slate-500 hover:text-rose-400 px-1.5 py-1 rounded transition">
+                <button onClick={clearMemory} className="text-xs text-cream-400/50 hover:text-rose-400 px-1.5 py-1 rounded transition focus-ring">
                   clear memory
                 </button>
               )}
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white p-1">
+              <button onClick={() => setOpen(false)} className="text-cream-400/60 hover:text-white p-1 focus-ring">
                 <ChevronDown className="w-5 h-5" />
               </button>
             </div>
@@ -564,11 +564,11 @@ const HermesChat: React.FC = () => {
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.length === 0 && (
               <div className="space-y-4 pt-2">
-                <p className="text-xs text-slate-500 text-center">I know your household data and can take actions — add tasks, mark things done, log emotions, and more.</p>
+                <p className="text-xs text-cream-400/50 text-center">I know your household data and can take actions — add tasks, mark things done, log emotions, and more.</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {STARTERS.map(s => (
                     <button key={s} onClick={() => send(s)}
-                      className="text-left text-xs bg-slate-800 hover:bg-violet-900/30 border border-slate-700 hover:border-violet-500/40 rounded-xl px-3 py-2 text-slate-300 transition leading-snug">
+                      className="text-left text-xs bg-bark-700 hover:bg-honey-700/30 border border-cream-400/10 hover:border-honey-500/40 rounded-xl px-3 py-2 text-cream-200 transition leading-snug focus-ring">
                       {s}
                     </button>
                   ))}
@@ -580,8 +580,8 @@ const HermesChat: React.FC = () => {
               <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} gap-1`}>
                 <div className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   m.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-sm'
-                    : 'bg-slate-800 border border-slate-700/80 text-slate-200 rounded-bl-sm'
+                    ? 'bg-honey-500 text-white rounded-br-sm'
+                    : 'bg-bark-700 border border-cream-400/10 text-cream-200 rounded-bl-sm'
                 }`}>
                   {m.text}
                 </div>
@@ -609,9 +609,9 @@ const HermesChat: React.FC = () => {
 
             {loading && (
               <div className="flex items-start gap-2">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-                  <span className="text-xs text-slate-400">Hermes is thinking…</span>
+                <div className="bg-bark-700 border border-cream-400/10 rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-honey-400" />
+                  <span className="text-xs text-cream-400/60">Hermes is thinking…</span>
                 </div>
               </div>
             )}
@@ -619,19 +619,19 @@ const HermesChat: React.FC = () => {
           </div>
 
           {/* Input */}
-          <div className="px-3 py-3 border-t border-slate-700/50 flex gap-2 flex-shrink-0">
+          <div className="px-3 py-3 border-t border-cream-400/10 flex gap-2 flex-shrink-0">
             <input
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
               placeholder="Ask or tell Hermes anything…"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-violet-500 outline-none"
+              className="flex-1 bg-bark-700 border border-cream-400/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-cream-400/40 focus:border-honey-500 outline-none"
             />
             <button
               onClick={() => send()}
               disabled={!input.trim() || loading}
-              className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 flex items-center justify-center flex-shrink-0 transition"
+              className="w-10 h-10 rounded-xl bg-honey-500 hover:bg-honey-400 disabled:opacity-40 flex items-center justify-center flex-shrink-0 transition focus-ring"
             >
               <Send className="w-4 h-4 text-white" />
             </button>
