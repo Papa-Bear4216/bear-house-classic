@@ -62,13 +62,13 @@ const FinanceHub: React.FC = () => {
         <div className="flex items-center gap-1 bg-bark-700/60 border border-cream-400/10 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode('mine')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'mine' ? 'bg-sage-600 text-white' : 'text-cream-400/60 hover:text-white'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'mine' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
           >
             <User className="w-3 h-3" /> Mine
           </button>
           <button
             onClick={() => setViewMode('combined')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'combined' ? 'bg-sage-600 text-white' : 'text-cream-400/60 hover:text-white'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'combined' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
           >
             <Users className="w-3 h-3" /> Combined
           </button>
@@ -83,7 +83,7 @@ const FinanceHub: React.FC = () => {
           const Icon = t.icon;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-sage-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-honey-500 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
@@ -186,7 +186,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
         )}
         {accounts.length > 0 && (
           <>
-            <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-sage-600 hover:bg-sage-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">
+            <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-honey-500 hover:bg-honey-400 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync 30 days'}
             </button>
             <button onClick={disconnect} disabled={disconnecting} className="flex items-center gap-1.5 bg-bark-700 hover:bg-rose-950/60 border border-cream-400/10 hover:border-rose-800 disabled:opacity-60 text-cream-400/60 hover:text-rose-300 text-xs px-3 py-2 rounded-lg focus-ring">
@@ -287,7 +287,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
         </div>
         <button
           onClick={() => setShowForm(f => !f)}
-          className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"
+          className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"
         >
           <Plus className="w-3.5 h-3.5" /> Add
         </button>
@@ -341,7 +341,7 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
-            <button onClick={add} className="bg-sage-600 hover:bg-sage-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
+            <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
@@ -455,7 +455,7 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
       <div className="flex items-center justify-between">
         <span className="text-cream-400/60 text-sm">{new Date(month + '-01').toLocaleDateString([], { month: 'long', year: 'numeric' })}</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
           <Plus className="w-3.5 h-3.5" /> Set Budget
         </button>
       </div>
@@ -484,7 +484,7 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
-            <button onClick={add} className="bg-sage-600 hover:bg-sage-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
+            <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
