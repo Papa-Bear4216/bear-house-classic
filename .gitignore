@@ -31,3 +31,6 @@ handoff-instructions.md
 ha_integrations.json
 ha_states.json
 .claude/
+
+# Supabase CLI local cache
+supabase/.temp/
