@@ -131,3 +131,13 @@
 .markdown-preview ol {
   @apply my-4 ml-6;
 }
+
+@layer utilities {
+  .focus-ring {
+    @apply outline-none;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid #E08C00;
+    box-shadow: 0 0 0 3px rgba(224, 155, 45, 0.2);
+  }
+}
