@@ -21,6 +21,8 @@ import {
   dateInputValue,
   parseDateInput,
   Recurrence,
+  awardPoints,
+  POINT_VALUES,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import AlertModal from './AlertModal';
@@ -38,6 +40,10 @@ interface Task {
   completedAt?: number;
   recurrence?: Recurrence | null;
   parentId?: string;
+}
+
+export function resolveMemberIdByName(members: { id: string; name: string }[], name: string): string | null {
+  return members.find((m) => m.name === name)?.id ?? null;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -203,6 +209,9 @@ const HouseholdBrain: React.FC = () => {
     if (!target) return;
     const now = Date.now();
     const updated = tasks.map((t) => (t.id === id ? { ...t, completed: true, completedAt: now } : t));
+
+    const memberId = resolveMemberIdByName(householdMembers, target.person);
+    if (memberId) awardPoints(memberId, POINT_VALUES.default);
     // If recurring, generate next instance
     if (target.recurrence) {
       const nextAt = nextRecurrence(now, target.recurrence);
