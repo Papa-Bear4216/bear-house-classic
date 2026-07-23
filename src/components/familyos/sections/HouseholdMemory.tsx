@@ -49,12 +49,12 @@ const HouseholdMemory: React.FC = () => {
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-honey-500 to-honey-700 flex items-center justify-center shrink-0">
           <Brain className="w-5 h-5 text-white" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-white">Household Brain</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-cream-400/60">
             Facts the AI should know about your home. Everything here is given to the assistant
             on every request, so it answers with your actual rules, inventory, and procedures.
           </p>
@@ -62,14 +62,14 @@ const HouseholdMemory: React.FC = () => {
       </div>
 
       {/* Add new entry */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 space-y-3">
+      <div className="bg-bark-700/50 border border-cream-400/10 rounded-2xl p-4 space-y-3">
         <div className="flex gap-1.5 flex-wrap">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
               onClick={() => setDraftCat(cat)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                draftCat === cat ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-sm transition focus-ring ${
+                draftCat === cat ? 'bg-honey-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'
               }`}
             >
               {CATEGORY_LABELS[cat]}
@@ -82,14 +82,14 @@ const HouseholdMemory: React.FC = () => {
           onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addEntry(); }}
           placeholder={CATEGORY_HINTS[draftCat]}
           rows={2}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-500 resize-y"
+          className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-cream-400/50 focus:outline-none focus:border-honey-500 resize-y focus-ring"
         />
         <div className="flex justify-between items-center">
-          <span className="text-xs text-slate-500">⌘/Ctrl + Enter to add</span>
+          <span className="text-xs text-cream-400/50">⌘/Ctrl + Enter to add</span>
           <button
             onClick={addEntry}
             disabled={!draftText.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-honey-600 hover:bg-honey-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition focus-ring"
           >
             <Plus className="w-4 h-4" /> Add fact
           </button>
@@ -98,7 +98,7 @@ const HouseholdMemory: React.FC = () => {
 
       {/* Entries grouped by category */}
       {entries.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 text-sm">
+        <div className="text-center py-12 text-cream-400/50 text-sm">
           No household facts yet. Add your first one above — the AI will start using it right away.
         </div>
       ) : (
@@ -107,13 +107,13 @@ const HouseholdMemory: React.FC = () => {
           if (!catEntries.length) return null;
           return (
             <div key={cat} className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {CATEGORY_LABELS[cat]} <span className="text-slate-600">({catEntries.length})</span>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-cream-400/50">
+                {CATEGORY_LABELS[cat]} <span className="text-cream-400/40">({catEntries.length})</span>
               </h3>
               {catEntries.map(e => (
                 <div
                   key={e.id}
-                  className="group bg-slate-800/40 border border-slate-700/60 rounded-xl px-3 py-2.5 flex items-start gap-2"
+                  className="group bg-bark-700/40 border border-cream-400/10 rounded-xl px-3 py-2.5 flex items-start gap-2"
                 >
                   {editId === e.id ? (
                     <>
@@ -122,12 +122,12 @@ const HouseholdMemory: React.FC = () => {
                         onChange={ev => setEditText(ev.target.value)}
                         rows={2}
                         autoFocus
-                        className="flex-1 bg-slate-900 border border-orange-500 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none resize-y"
+                        className="flex-1 bg-bark-800 border border-honey-500 rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none resize-y focus-ring"
                       />
-                      <button onClick={saveEdit} className="p-1.5 text-emerald-400 hover:text-emerald-300" title="Save">
+                      <button onClick={saveEdit} className="p-1.5 text-sage-400 hover:text-sage-500 focus-ring" title="Save">
                         <Save className="w-4 h-4" />
                       </button>
-                      <button onClick={() => setEditId(null)} className="p-1.5 text-slate-400 hover:text-white" title="Cancel">
+                      <button onClick={() => setEditId(null)} className="p-1.5 text-cream-400/60 hover:text-white focus-ring" title="Cancel">
                         <X className="w-4 h-4" />
                       </button>
                     </>
@@ -135,14 +135,14 @@ const HouseholdMemory: React.FC = () => {
                     <>
                       <button
                         onClick={() => startEdit(e)}
-                        className="flex-1 text-left text-sm text-slate-200 hover:text-white"
+                        className="flex-1 text-left text-sm text-cream-200 hover:text-white focus-ring"
                         title="Click to edit"
                       >
                         {e.text}
                       </button>
                       <button
                         onClick={() => removeEntry(e.id)}
-                        className="p-1 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition"
+                        className="p-1 text-cream-400/40 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition focus-ring"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />

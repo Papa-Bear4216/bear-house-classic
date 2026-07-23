@@ -83,11 +83,11 @@ const Shopping: React.FC = () => {
         <h2 className="text-xl font-bold text-white">Shopping List</h2>
         <div className="flex gap-2">
           {isAdm && completed.length > 0 && (
-            <button onClick={clearCompleted} className="text-xs text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 px-2 py-1 rounded transition">
+            <button onClick={clearCompleted} className="text-xs text-cream-400/60 hover:text-rose-400 border border-cream-400/10 hover:border-rose-500/40 px-2 py-1 rounded transition focus-ring">
               Clear completed
             </button>
           )}
-          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
+          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring">
             <Plus className="w-4 h-4" /> Add
           </button>
         </div>
@@ -99,7 +99,7 @@ const Shopping: React.FC = () => {
           <button
             key={cat}
             onClick={() => setActiveTab(cat)}
-            className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${activeTab === cat ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${activeTab === cat ? 'bg-sage-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}
           >
             {cat}
             <span className="ml-1.5 text-xs opacity-70">{items.filter(i => i.category === cat && !i.completed && !i.deletedAt).length || ''}</span>
@@ -109,42 +109,42 @@ const Shopping: React.FC = () => {
 
       {/* Add form */}
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Item name</label>
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Item name</label>
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addItem()}
                 placeholder="e.g. Milk, Tide Pods..."
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-emerald-500 outline-none"
+                className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/50 focus:border-sage-500 outline-none"
                 autoFocus
               />
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Qty</label>
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Qty</label>
               <input
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
                 placeholder="1"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-emerald-500 outline-none"
+                className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/50 focus:border-sage-500 outline-none"
               />
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Assigned to</label>
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Assigned to</label>
               <select
                 value={assignedTo}
                 onChange={e => setAssignedTo(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:border-emerald-500 outline-none"
+                className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm focus:border-sage-500 outline-none"
               >
                 {PERSONS.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white text-sm px-3 py-1.5 rounded transition">Cancel</button>
-            <button onClick={addItem} className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-1.5 rounded-lg transition">Add Item</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 hover:text-white text-sm px-3 py-1.5 rounded transition focus-ring">Cancel</button>
+            <button onClick={addItem} className="bg-sage-600 hover:bg-sage-500 text-white text-sm px-4 py-1.5 rounded-lg transition focus-ring">Add Item</button>
           </div>
         </div>
       )}
@@ -152,22 +152,22 @@ const Shopping: React.FC = () => {
       {/* Active items */}
       <div className="space-y-2">
         {active.length === 0 && completed.length === 0 && deleted.length === 0 && (
-          <div className="text-center text-slate-500 py-8 text-sm">No items in {activeTab}. Add something!</div>
+          <div className="text-center text-cream-400/50 py-8 text-sm">No items in {activeTab}. Add something!</div>
         )}
         {active.map(item => (
-          <div key={item.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
-            <button onClick={() => toggleComplete(item.id)} className="text-slate-400 hover:text-emerald-400 transition flex-shrink-0">
+          <div key={item.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
+            <button onClick={() => toggleComplete(item.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring">
               <Circle className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
               <div className="text-white text-sm font-medium">{item.name}</div>
-              <div className="text-slate-500 text-xs flex gap-2">
+              <div className="text-cream-400/50 text-xs flex gap-2">
                 {item.quantity !== '1' && <span>Qty: {item.quantity}</span>}
                 {item.assignedTo !== 'Anyone' && <span>For: {item.assignedTo}</span>}
               </div>
             </div>
             {isAdm && (
-              <button onClick={() => softDelete(item.id)} className="text-slate-600 hover:text-rose-400 transition flex-shrink-0">
+              <button onClick={() => softDelete(item.id)} className="text-cream-400/40 hover:text-rose-400 transition flex-shrink-0 focus-ring">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -178,17 +178,17 @@ const Shopping: React.FC = () => {
       {/* Completed */}
       {completed.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-500 text-xs uppercase tracking-wide">Completed ({completed.length})</div>
+          <div className="text-cream-400/50 text-xs uppercase tracking-wide">Completed ({completed.length})</div>
           {completed.map(item => (
-            <div key={item.id} className="flex items-center gap-3 bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3 opacity-60">
-              <button onClick={() => toggleComplete(item.id)} className="text-emerald-500 transition flex-shrink-0">
+            <div key={item.id} className="flex items-center gap-3 bg-bark-800/40 border border-bark-700 rounded-xl px-4 py-3 opacity-60">
+              <button onClick={() => toggleComplete(item.id)} className="text-sage-500 transition flex-shrink-0 focus-ring">
                 <CheckCircle2 className="w-5 h-5" />
               </button>
               <div className="flex-1 min-w-0">
-                <div className="text-slate-400 text-sm line-through">{item.name}</div>
+                <div className="text-cream-400/60 text-sm line-through">{item.name}</div>
               </div>
               {isAdm && (
-                <button onClick={() => softDelete(item.id)} className="text-slate-600 hover:text-rose-400 transition flex-shrink-0">
+                <button onClick={() => softDelete(item.id)} className="text-cream-400/40 hover:text-rose-400 transition flex-shrink-0 focus-ring">
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}
@@ -200,13 +200,13 @@ const Shopping: React.FC = () => {
       {/* Deleted items (admin only) */}
       {isAdm && deleted.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-600 text-xs uppercase tracking-wide">Removed ({deleted.length})</div>
+          <div className="text-cream-400/40 text-xs uppercase tracking-wide">Removed ({deleted.length})</div>
           {deleted.map(item => (
-            <div key={item.id} className="flex items-center gap-3 bg-slate-900/20 border border-slate-800/50 rounded-xl px-4 py-2 opacity-40">
+            <div key={item.id} className="flex items-center gap-3 bg-bark-800/20 border border-bark-700/50 rounded-xl px-4 py-2 opacity-40">
               <div className="flex-1 min-w-0">
-                <div className="text-slate-500 text-sm line-through">{item.name}</div>
+                <div className="text-cream-400/50 text-sm line-through">{item.name}</div>
               </div>
-              <button onClick={() => restore(item.id)} className="text-slate-600 hover:text-amber-400 transition flex-shrink-0">
+              <button onClick={() => restore(item.id)} className="text-cream-400/40 hover:text-honey-400 transition flex-shrink-0 focus-ring">
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
             </div>

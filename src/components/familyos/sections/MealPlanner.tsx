@@ -286,7 +286,7 @@ function addIngredientsToShopping(ingredients: { name: string; quantity: number;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const DIFF_COLOR: Record<string, string> = {
-  Easy: 'text-emerald-400', Medium: 'text-amber-400', Hard: 'text-rose-400',
+  Easy: 'text-sage-500', Medium: 'text-honey-400', Hard: 'text-rose-400',
 };
 
 const MealPlanner: React.FC = () => {
@@ -459,13 +459,13 @@ const MealPlanner: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <ChefHat className="w-5 h-5 text-orange-400" />
+          <ChefHat className="w-5 h-5 text-honey-400" />
           Meal Planner
         </h2>
         <button
           onClick={handleSuggestWeek}
           disabled={loadingWeek}
-          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm px-3 py-1.5 rounded-lg transition"
+          className="flex items-center gap-2 bg-berry-600 hover:bg-berry-500 disabled:opacity-50 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring"
         >
           {loadingWeek ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
           Suggest whole week
@@ -474,12 +474,12 @@ const MealPlanner: React.FC = () => {
 
       {/* Feedback toasts */}
       {choreFeedback && (
-        <div className="bg-emerald-900/40 border border-emerald-600/40 text-emerald-300 text-sm px-4 py-2 rounded-xl flex items-center gap-2">
+        <div className="bg-sage-600/40 border border-sage-600/40 text-sage-200 text-sm px-4 py-2 rounded-xl flex items-center gap-2">
           <ClipboardList className="w-4 h-4" /> {choreFeedback}
         </div>
       )}
       {shopFeedback && (
-        <div className="bg-blue-900/40 border border-blue-600/40 text-blue-300 text-sm px-4 py-2 rounded-xl flex items-center gap-2">
+        <div className="bg-berry-600/40 border border-berry-600/40 text-berry-400 text-sm px-4 py-2 rounded-xl flex items-center gap-2">
           <ShoppingCart className="w-4 h-4" /> {shopFeedback}
         </div>
       )}
@@ -487,9 +487,9 @@ const MealPlanner: React.FC = () => {
       {/* Cook skill legend */}
       <div className="flex flex-wrap gap-2 text-xs">
         {Object.entries(cookProfiles).filter(([, p]) => p.skill).map(([name, p]) => (
-          <div key={name} className={`flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1`}>
-            <span className="text-slate-300 font-medium">{name}</span>
-            <span className="text-slate-500">{SKILL_LABEL[p.skill!]}</span>
+          <div key={name} className={`flex items-center gap-1 bg-bark-700 border border-cream-400/10 rounded-lg px-2.5 py-1`}>
+            <span className="text-cream-200 font-medium">{name}</span>
+            <span className="text-cream-400/50">{SKILL_LABEL[p.skill!]}</span>
           </div>
         ))}
       </div>
@@ -504,40 +504,40 @@ const MealPlanner: React.FC = () => {
           return (
             <div
               key={day}
-              className={`bg-slate-800/40 border rounded-xl overflow-hidden ${isToday ? 'border-emerald-500/50' : 'border-slate-700'}`}
+              className={`bg-bark-700/40 border rounded-xl overflow-hidden ${isToday ? 'border-sage-500/50' : 'border-cream-400/10'}`}
             >
               {/* Day header */}
-              <div className={`px-4 py-2.5 flex items-center justify-between flex-wrap gap-2 ${isToday ? 'bg-emerald-900/20' : 'bg-slate-800/60'}`}>
+              <div className={`px-4 py-2.5 flex items-center justify-between flex-wrap gap-2 ${isToday ? 'bg-sage-600/20' : 'bg-bark-700/60'}`}>
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold text-sm ${isToday ? 'text-emerald-300' : 'text-white'}`}>
+                  <span className={`font-semibold text-sm ${isToday ? 'text-sage-200' : 'text-white'}`}>
                     {day}
-                    {isToday && <span className="ml-2 text-xs bg-emerald-500 text-slate-900 px-1.5 py-0.5 rounded font-medium">Today</span>}
+                    {isToday && <span className="ml-2 text-xs bg-sage-500 text-bark-800 px-1.5 py-0.5 rounded font-medium">Today</span>}
                   </span>
                 </div>
 
                 {/* Cook selector */}
                 <div className="flex items-center gap-1.5">
-                  <ChefHat className="w-3.5 h-3.5 text-slate-500" />
+                  <ChefHat className="w-3.5 h-3.5 text-cream-400/50" />
                   {editingCook === day ? (
                     <select
                       autoFocus
                       value={dayPlan.cook}
                       onChange={e => setCook(day, e.target.value)}
                       onBlur={() => setEditingCook(null)}
-                      className="bg-slate-700 border border-slate-600 rounded text-xs text-white px-2 py-1 outline-none"
+                      className="bg-bark-800 border border-cream-400/10 rounded text-xs text-white px-2 py-1 outline-none focus-ring"
                     >
                       <option value="">Who's cooking?</option>
                       {cooks.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   ) : (
-                    <button onClick={() => setEditingCook(day)} className="text-xs hover:text-white transition flex items-center gap-1">
+                    <button onClick={() => setEditingCook(day)} className="text-xs hover:text-white transition flex items-center gap-1 focus-ring">
                       {dayPlan.cook ? (
                         <>
                           <span className={`text-${cookProfile?.color || 'slate'}-300 font-medium`}>{dayPlan.cook}</span>
-                          {cookProfile?.skill && <span className="text-slate-500">{SKILL_LABEL[cookProfile.skill]}</span>}
+                          {cookProfile?.skill && <span className="text-cream-400/50">{SKILL_LABEL[cookProfile.skill]}</span>}
                         </>
                       ) : (
-                        <span className="text-slate-500 italic">Who's cooking?</span>
+                        <span className="text-cream-400/50 italic">Who's cooking?</span>
                       )}
                     </button>
                   )}
@@ -545,7 +545,7 @@ const MealPlanner: React.FC = () => {
               </div>
 
               {/* Meal slots */}
-              <div className="divide-y divide-slate-700/40">
+              <div className="divide-y divide-cream-400/10">
                 {MEALS.map(meal => {
                   const isEdit = editing?.day === day && editing?.meal === meal;
                   const mealValue = dayPlan[meal];
@@ -560,7 +560,7 @@ const MealPlanner: React.FC = () => {
                     <div key={meal}>
                       <div className="px-4 py-2.5 flex items-center gap-3">
                         {/* Meal label */}
-                        <span className="text-slate-500 text-[10px] uppercase tracking-wider w-16 flex-shrink-0">{meal}</span>
+                        <span className="text-cream-400/50 text-[10px] uppercase tracking-wider w-16 flex-shrink-0">{meal}</span>
 
                         {/* Meal name edit */}
                         <div className="flex-1 min-w-0">
@@ -571,18 +571,18 @@ const MealPlanner: React.FC = () => {
                                 value={editValue}
                                 onChange={e => setEditValue(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(null); }}
-                                className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm outline-none focus:border-orange-500"
+                                className="flex-1 bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-1.5 text-white text-sm outline-none focus:border-honey-500 focus-ring"
                                 placeholder="Enter meal..."
                               />
-                              <button onClick={commitEdit} className="text-emerald-400 hover:text-emerald-300 p-1"><Check className="w-4 h-4" /></button>
-                              <button onClick={() => setEditing(null)} className="text-slate-500 hover:text-white p-1"><X className="w-4 h-4" /></button>
+                              <button onClick={commitEdit} className="text-sage-400 hover:text-sage-500 p-1 focus-ring"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => setEditing(null)} className="text-cream-400/50 hover:text-white p-1 focus-ring"><X className="w-4 h-4" /></button>
                             </div>
                           ) : (
-                            <button onClick={() => startEdit(day, meal)} className="group flex items-center gap-1 w-full text-left">
-                              <span className={`text-sm ${mealValue ? 'text-slate-200' : 'text-slate-600 italic'}`}>
+                            <button onClick={() => startEdit(day, meal)} className="group flex items-center gap-1 w-full text-left focus-ring">
+                              <span className={`text-sm ${mealValue ? 'text-cream-200' : 'text-cream-400/40 italic'}`}>
                                 {mealValue || 'Tap to add…'}
                               </span>
-                              <Edit3 className="w-3 h-3 text-slate-600 group-hover:text-slate-400 opacity-0 group-hover:opacity-100 transition" />
+                              <Edit3 className="w-3 h-3 text-cream-400/40 group-hover:text-cream-400/60 opacity-0 group-hover:opacity-100 transition" />
                             </button>
                           )}
                         </div>
@@ -599,7 +599,7 @@ const MealPlanner: React.FC = () => {
                               }}
                               disabled={isLoadingThis}
                               title={hasStoredRecipe ? `View recipe for ${meal.toLowerCase()}` : `Suggest ${meal.toLowerCase()} for ${dayPlan.cook}`}
-                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-violet-900/40 hover:bg-violet-800/60 border border-violet-600/30 text-violet-300 transition disabled:opacity-50"
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-berry-600/40 hover:bg-berry-600/60 border border-berry-600/30 text-berry-400 transition disabled:opacity-50 focus-ring"
                             >
                               {isLoadingThis
                                 ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -614,7 +614,7 @@ const MealPlanner: React.FC = () => {
                             <button
                               onClick={() => handleAddChore(mealValue, meal, dayPlan.cook, day)}
                               title="Add cooking as a chore"
-                              className="text-xs px-2 py-1 rounded-lg bg-orange-900/30 hover:bg-orange-800/50 border border-orange-600/30 text-orange-300 transition"
+                              className="text-xs px-2 py-1 rounded-lg bg-honey-700/30 hover:bg-honey-600/50 border border-honey-600/30 text-honey-200 transition focus-ring"
                             >
                               <ClipboardList className="w-3 h-3" />
                             </button>
@@ -625,7 +625,7 @@ const MealPlanner: React.FC = () => {
                             <button
                               onClick={() => markCooked(day, meal)}
                               title="Mark cooked"
-                              className="text-slate-500 hover:text-emerald-400 transition"
+                              className="text-cream-400/50 hover:text-sage-400 transition focus-ring"
                             >
                               <Check className="w-3.5 h-3.5" />
                             </button>
@@ -637,44 +637,44 @@ const MealPlanner: React.FC = () => {
                       {expanded === key && !suggestion && suggestError[key] && (
                         <div className="mx-4 mb-3 bg-rose-950/40 border border-rose-800/40 rounded-xl px-3 py-2 text-xs text-rose-300 flex items-center justify-between gap-2">
                           <span>{suggestError[key]}</span>
-                          <button onClick={() => handleSuggest(day, meal)} className="text-rose-200 hover:text-white underline flex-shrink-0">Retry</button>
+                          <button onClick={() => handleSuggest(day, meal)} className="text-rose-200 hover:text-white underline flex-shrink-0 focus-ring">Retry</button>
                         </div>
                       )}
 
                       {/* Recipe drawer */}
                       {isExpanded && suggestion && (
-                        <div className="mx-4 mb-3 bg-slate-900 border border-violet-500/20 rounded-xl p-4 text-sm space-y-3">
+                        <div className="mx-4 mb-3 bg-bark-800 border border-berry-500/20 rounded-xl p-4 text-sm space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="font-semibold text-white">{suggestion.name}</div>
-                              <div className="text-slate-400 text-xs mt-0.5">{suggestion.description}</div>
+                              <div className="text-cream-400/60 text-xs mt-0.5">{suggestion.description}</div>
                             </div>
                             <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                              <span className={`text-xs font-medium ${DIFF_COLOR[suggestion.difficulty] || 'text-slate-400'}`}>{suggestion.difficulty}</span>
-                              <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" />{suggestion.time}</span>
+                              <span className={`text-xs font-medium ${DIFF_COLOR[suggestion.difficulty] || 'text-cream-400/60'}`}>{suggestion.difficulty}</span>
+                              <span className="text-xs text-cream-400/50 flex items-center gap-1"><Clock className="w-3 h-3" />{suggestion.time}</span>
                             </div>
                           </div>
 
                           {/* Servings */}
                           <div className="flex items-center gap-2">
-                            <span className="text-slate-400 text-xs">Servings:</span>
+                            <span className="text-cream-400/60 text-xs">Servings:</span>
                             <button
                               onClick={() => setServingsOverride((prev) => ({ ...prev, [key]: Math.max(1, (prev[key] ?? suggestion.servings) - 1) }))}
-                              className="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 text-sm"
+                              className="w-6 h-6 rounded-lg bg-bark-700 hover:bg-bark-700/70 flex items-center justify-center text-cream-200 text-sm focus-ring"
                             >−</button>
                             <span className="w-6 text-center text-sm font-bold text-white">{servingsOverride[key] ?? suggestion.servings}</span>
                             <button
                               onClick={() => setServingsOverride((prev) => ({ ...prev, [key]: (prev[key] ?? suggestion.servings) + 1 }))}
-                              className="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 text-sm"
+                              className="w-6 h-6 rounded-lg bg-bark-700 hover:bg-bark-700/70 flex items-center justify-center text-cream-200 text-sm focus-ring"
                             >+</button>
                           </div>
 
                           {/* Ingredients */}
                           <div>
-                            <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1.5">Ingredients</div>
+                            <div className="text-[10px] uppercase tracking-wide text-cream-400/50 mb-1.5">Ingredients</div>
                             <div className="flex flex-wrap gap-1">
                               {scaleIngredients(suggestion.recipe.ingredients, suggestion.servings, servingsOverride[key] ?? suggestion.servings).map((ing, i) => (
-                                <span key={i} className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-300">
+                                <span key={i} className="text-xs bg-bark-700 border border-cream-400/10 rounded px-2 py-0.5 text-cream-200">
                                   {ing.quantity} {ing.unit} {ing.name}
                                 </span>
                               ))}
@@ -683,11 +683,11 @@ const MealPlanner: React.FC = () => {
 
                           {/* Steps */}
                           <div>
-                            <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1.5">Steps</div>
+                            <div className="text-[10px] uppercase tracking-wide text-cream-400/50 mb-1.5">Steps</div>
                             <ol className="space-y-1">
                               {suggestion.recipe.steps.map((step, i) => (
-                                <li key={i} className="flex gap-2 text-xs text-slate-300">
-                                  <span className="text-violet-400 font-bold flex-shrink-0">{i + 1}.</span>
+                                <li key={i} className="flex gap-2 text-xs text-cream-200">
+                                  <span className="text-berry-400 font-bold flex-shrink-0">{i + 1}.</span>
                                   <span>{step}</span>
                                 </li>
                               ))}
@@ -701,7 +701,7 @@ const MealPlanner: React.FC = () => {
                               return scaled.length > 0 && (
                                 <button
                                   onClick={() => handleAddShopping(scaled)}
-                                  className="flex items-center gap-1.5 text-xs bg-blue-900/40 hover:bg-blue-800/60 border border-blue-600/30 text-blue-300 px-3 py-1.5 rounded-lg transition"
+                                  className="flex items-center gap-1.5 text-xs bg-berry-600/40 hover:bg-berry-600/60 border border-berry-600/30 text-berry-400 px-3 py-1.5 rounded-lg transition focus-ring"
                                 >
                                   <ShoppingCart className="w-3.5 h-3.5" />
                                   Add {scaled.length} to shopping
@@ -711,7 +711,7 @@ const MealPlanner: React.FC = () => {
                             {dayPlan.cook && (
                               <button
                                 onClick={() => handleAddChore(suggestion.name, meal, dayPlan.cook, day)}
-                                className="flex items-center gap-1.5 text-xs bg-orange-900/30 hover:bg-orange-800/50 border border-orange-600/30 text-orange-300 px-3 py-1.5 rounded-lg transition"
+                                className="flex items-center gap-1.5 text-xs bg-honey-700/30 hover:bg-honey-600/50 border border-honey-600/30 text-honey-200 px-3 py-1.5 rounded-lg transition focus-ring"
                               >
                                 <ClipboardList className="w-3.5 h-3.5" />
                                 Add as chore
@@ -719,7 +719,7 @@ const MealPlanner: React.FC = () => {
                             )}
                             <button
                               onClick={() => setExpanded(null)}
-                              className="ml-auto text-xs text-slate-500 hover:text-white px-2 py-1.5 transition"
+                              className="ml-auto text-xs text-cream-400/50 hover:text-white px-2 py-1.5 transition focus-ring"
                             >
                               Close
                             </button>
