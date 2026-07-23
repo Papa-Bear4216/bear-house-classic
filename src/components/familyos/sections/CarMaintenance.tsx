@@ -168,7 +168,7 @@ const CarMaintenance: React.FC = () => {
                     <span className="text-cream-400/60 text-sm">Maintenance History</span>
                     <button
                       onClick={() => setAddEntryFor(addEntryFor === car.id ? null : car.id)}
-                      className="flex items-center gap-1 text-xs bg-honey-600/20 hover:bg-honey-600/30 text-honey-300 border border-honey-500/30 px-2.5 py-1 rounded-lg transition focus-ring"
+                      className="flex items-center gap-1 text-xs bg-honey-600/20 hover:bg-honey-600/30 text-honey-200 border border-honey-500/30 px-2.5 py-1 rounded-lg transition focus-ring"
                     >
                       <Plus className="w-3 h-3" /> Log Service
                     </button>
