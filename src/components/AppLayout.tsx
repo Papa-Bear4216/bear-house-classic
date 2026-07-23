@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Home, Calendar, Handshake, Heart, LayoutDashboard, Settings as SettingsIcon,
   Search, History, Users, DollarSign, ChevronUp, ChevronDown, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain, Package
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain, Package, Trophy
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
@@ -25,13 +25,14 @@ import KidsHub from '@/components/familyos/sections/KidsHub';
 import HealthHub from '@/components/familyos/sections/HealthHub';
 import FamilyHub from '@/components/familyos/sections/FamilyHub';
 import FinanceHub from '@/components/familyos/sections/FinanceHub';
+import RewardStore from '@/components/familyos/RewardStore';
 import QuickCapture from '@/components/familyos/QuickCapture';
 import HermesChat from '@/components/familyos/HermesChat';
 import WelcomeBackModal from '@/components/familyos/WelcomeBackModal';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import MagicTrail from '@/components/familyos/MagicTrail';
 
-type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'quality' | 'promises' | 'emotions';
+type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'rewards' | 'quality' | 'promises' | 'emotions';
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'brain';
 
 interface NavItem { id: TopModule; label: string; icon: React.ComponentType<{ className?: string }>; accent: string; adminOnly?: boolean; }
@@ -39,6 +40,7 @@ interface NavItem { id: TopModule; label: string; icon: React.ComponentType<{ cl
 const MAIN_NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: 'indigo' },
   { id: 'household', label: 'Household', icon: Home, accent: 'orange' },
+  { id: 'rewards', label: 'Rewards', icon: Trophy, accent: 'amber' },
   { id: 'kids', label: 'Kids', icon: Baby, accent: 'purple' },
   { id: 'family', label: 'Family', icon: Users, accent: 'blue' },
   { id: 'health', label: 'Health', icon: Heart, accent: 'rose' },
@@ -216,6 +218,9 @@ const AppLayout: React.FC = () => {
           </div>
         );
 
+      case 'rewards':
+        return <RewardStore />;
+
       case 'kids':
         return <KidsHub />;
       case 'family':
@@ -247,7 +252,7 @@ const AppLayout: React.FC = () => {
         <span className="bg-rose-500 bg-rose-600 bg-rose-900/40 bg-rose-600/20 bg-rose-600/30 border-rose-500 border-rose-500/20 border-rose-500/30 border-rose-500/40 text-rose-200 text-rose-300 text-rose-400 from-rose-900/40 hover:bg-rose-500 hover:bg-rose-600/30 shadow-rose-500/20" />
         <span className="bg-pink-500 bg-pink-600 bg-pink-900/40 border-pink-500 border-pink-500/20 border-pink-500/30 text-pink-200 text-pink-300 text-pink-400 from-pink-900/40 from-pink-900/30 shadow-pink-500/20" />
         <span className="bg-emerald-500 bg-emerald-600 bg-emerald-900/40 border-emerald-500 border-emerald-500/30 text-emerald-200 text-emerald-300 text-emerald-400 from-emerald-900/40 from-emerald-900/30 shadow-emerald-500/20" />
-        <span className="bg-amber-500 bg-amber-600 bg-amber-900/40 border-amber-500 border-amber-500/30 text-amber-200 text-amber-300 text-amber-400 from-amber-900/40 from-amber-900/30 shadow-amber-500/20" />
+        <span className="bg-amber-500 bg-amber-600 bg-amber-600/20 bg-amber-900/40 border-amber-500 border-amber-500/30 text-amber-200 text-amber-300 text-amber-400 from-amber-900/40 from-amber-900/30 shadow-amber-500/20" />
         <span className="bg-green-500 border-green-500 border-green-500/30 from-green-900/40 from-green-900/30 text-green-200 text-green-300 text-green-400" />
         <span className="bg-indigo-400 bg-pink-400 bg-purple-400 bg-blue-400" />
         <span className="hover:border-indigo-500/60 hover:border-pink-500/60 hover:border-purple-500/60 hover:border-blue-500/60" />
