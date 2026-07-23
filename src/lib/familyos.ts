@@ -1,4 +1,5 @@
 // Family OS shared utilities, constants, and storage helpers
+import type { TopModule } from './navVisibility';
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────
 export type UserRole = 'superadmin' | 'admin' | 'child';
@@ -153,6 +154,7 @@ export interface MemberPreferences {
   hobbies: { selected: string[]; otherNotes: string };
   entertainment: { selected: string[]; otherNotes: string };
   healthNotes: { selected: string[]; otherNotes: string };
+  coreNav: TopModule[];
   updatedAt: number;
 }
 
@@ -167,6 +169,7 @@ export function emptyMemberPreferences(memberId: string): MemberPreferences {
     hobbies: { selected: [], otherNotes: '' },
     entertainment: { selected: [], otherNotes: '' },
     healthNotes: { selected: [], otherNotes: '' },
+    coreNav: ['household', 'family', 'rewards'],
     updatedAt: 0,
   };
 }
