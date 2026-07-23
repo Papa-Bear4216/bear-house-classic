@@ -3,6 +3,7 @@ import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCar
 import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, savePantry, calculateShortfall, decrementPantry } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
+import { getColorCardStyle } from '@/lib/colorStyles';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -533,7 +534,7 @@ const MealPlanner: React.FC = () => {
                     <button onClick={() => setEditingCook(day)} className="text-xs hover:text-white transition flex items-center gap-1 focus-ring">
                       {dayPlan.cook ? (
                         <>
-                          <span className={`text-${cookProfile?.color || 'slate'}-300 font-medium`}>{dayPlan.cook}</span>
+                          <span className={`${getColorCardStyle(cookProfile?.color || '').text} font-medium`}>{dayPlan.cook}</span>
                           {cookProfile?.skill && <span className="text-cream-400/50">{SKILL_LABEL[cookProfile.skill]}</span>}
                         </>
                       ) : (
