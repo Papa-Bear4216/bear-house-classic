@@ -1,11 +1,25 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   emptyMemberPreferences,
   buildFoodPreferencePrompt,
   buildHobbyPromptFragment,
   preferencesKey,
+  loadMemberPreferences,
   type MemberPreferences,
 } from './familyos';
+
+// vitest.config.ts runs this suite under environment: 'node', which has no
+// localStorage global — loadJSON/saveJSON in familyos.ts read/write it
+// directly, so a minimal in-memory polyfill is needed for these tests to
+// exercise real persistence rather than only pure-function logic.
+class MemoryStorage {
+  private store = new Map<string, string>();
+  getItem(key: string) { return this.store.has(key) ? this.store.get(key)! : null; }
+  setItem(key: string, value: string) { this.store.set(key, value); }
+  removeItem(key: string) { this.store.delete(key); }
+  clear() { this.store.clear(); }
+}
+(globalThis as any).localStorage = new MemoryStorage();
 
 describe('preferencesKey', () => {
   it('namespaces the family_data key by member id', () => {
@@ -25,6 +39,48 @@ describe('emptyMemberPreferences', () => {
     expect(prefs.hobbies.selected).toEqual([]);
     expect(prefs.entertainment.selected).toEqual([]);
     expect(prefs.healthNotes.selected).toEqual([]);
+    expect(prefs.coreNav).toEqual(['household', 'family', 'rewards']);
+  });
+});
+
+describe('loadMemberPreferences', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns full defaults, including coreNav, when nothing is stored', () => {
+    const prefs = loadMemberPreferences('member-1');
+    expect(prefs.coreNav).toEqual(['household', 'family', 'rewards']);
+  });
+
+  it('backfills missing fields (e.g. coreNav) on a preferences object saved before that field existed', () => {
+    // Simulates a real localStorage record written before `coreNav` was added
+    // to MemberPreferences — loadJSON returns stored data verbatim, so
+    // without a merge this object would come back with `coreNav: undefined`,
+    // crashing any caller that assumes it's always an array (e.g. AppLayout's
+    // `prefs.coreNav.filter(...)`).
+    const legacyStored = {
+      memberId: 'member-1',
+      food: { likes: ['Pizza'], dislikes: [], allergies: [], diet: [], otherNotes: '' },
+      hobbies: { selected: [], otherNotes: '' },
+      entertainment: { selected: [], otherNotes: '' },
+      healthNotes: { selected: [], otherNotes: '' },
+      updatedAt: 12345,
+    };
+    localStorage.setItem(preferencesKey('member-1'), JSON.stringify(legacyStored));
+
+    const prefs = loadMemberPreferences('member-1');
+    expect(prefs.coreNav).toEqual(['household', 'family', 'rewards']);
+    expect(prefs.food.likes).toEqual(['Pizza']); // real stored data is preserved, not clobbered
+    expect(prefs.updatedAt).toBe(12345);
+  });
+
+  it('preserves a stored coreNav rather than overwriting it with the default', () => {
+    const stored: MemberPreferences = { ...emptyMemberPreferences('member-1'), coreNav: ['kids', 'health', 'finance'] };
+    localStorage.setItem(preferencesKey('member-1'), JSON.stringify(stored));
+
+    const prefs = loadMemberPreferences('member-1');
+    expect(prefs.coreNav).toEqual(['kids', 'health', 'finance']);
   });
 });
 

@@ -275,7 +275,13 @@ export function loadJSON<T>(key: string, fallback: T): T {
 }
 
 export function loadMemberPreferences(memberId: string): MemberPreferences {
-  return loadJSON<MemberPreferences>(preferencesKey(memberId), emptyMemberPreferences(memberId));
+  const defaults = emptyMemberPreferences(memberId);
+  const stored = loadJSON<Partial<MemberPreferences>>(preferencesKey(memberId), defaults);
+  // Shallow-merge over defaults: loadJSON returns whatever was previously saved
+  // verbatim, so a preferences object saved before a new field (e.g. coreNav)
+  // existed would otherwise come back missing that field entirely, crashing
+  // any code that assumes it's always present (e.g. AppLayout's coreNav.filter).
+  return { ...defaults, ...stored };
 }
 
 export function loadPantry(): PantryItem[] {
