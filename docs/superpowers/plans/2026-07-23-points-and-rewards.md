@@ -8,6 +8,8 @@
 
 **Tech Stack:** React 18, TypeScript, Tailwind (existing shadcn/ui components: `Card`, `Button`, `Badge`, `Dialog`), lucide-react icons, existing `KEYS`/`loadJSON`/`saveJSON` storage helpers, existing `useAppContext()` for household roster/role/current user.
 
+**Execution note (deviation from the plan as originally written):** Tasks 3-4 below describe testing `RewardStore.tsx` with `@testing-library/react`, which would have required adding jsdom/happy-dom as a new dependency plus a Vitest environment change — infrastructure this repo doesn't have anywhere else (every existing `src/lib/*.test.ts` tests pure functions under `environment: 'node'`, not rendered components). Rather than introduce that footprint, the approve/deny point-math (`resolveClaim`) and the affordability calculation (`computeSpendable`) were extracted as pure, independently-tested functions in `src/lib/familyos.ts` (see `src/lib/familyos.points.test.ts`), and `RewardStore.tsx` is a thin consumer of them. This matches the codebase's existing testing convention. The component's click-through wiring (request → modal → confirm, approve/deny buttons) is covered by manual verification against the live app instead of an automated render test.
+
 ## Global Constraints
 
 - No new Supabase tables/migrations — use the existing `KEYS`-based `family_data` sync layer, exactly like every other feature (tasks, promises, emotions).
