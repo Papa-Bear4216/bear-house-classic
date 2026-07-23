@@ -31,12 +31,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const presence = loadJSON<any[]>(KEYS.presenceLog, []);
 
   const stats = useMemo(() => {
-    const todayTasks = tasks.filter((t) => {
-      if (t.completed) return false;
+    const isDueToday = (t: any) => {
       if (t.priority === 'High') return true;
       if (t.dueDate) return daysUntilDue(t.dueDate) <= 0; // due today or overdue
       return t.dueEstimate === 'Today';
-    }).length;
+    };
+    const todayTaskList = tasks.filter(isDueToday);
+    const todayTasks = todayTaskList.filter((t) => !t.completed).length;
+    const todayCompletedCount = todayTaskList.filter((t) => t.completed).length;
+    const todayTotalCount = todayTaskList.length;
     const openPromises = promises.filter((p) => !p.completed);
     const overduePromises = openPromises.filter((p) => isOverdue(p)).length;
     const upcoming = activities
@@ -45,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     const weekAgo = Date.now() - 7 * 86400000;
     const recentPresence = presence.filter((p) => p.ts > weekAgo);
     const presencePct = recentPresence.length ? Math.round((recentPresence.filter((p) => p.present).length / recentPresence.length) * 100) : 0;
-    return { todayTasks, openPromises: openPromises.length, overduePromises, upcoming, presencePct };
+    return { todayTasks, todayCompletedCount, todayTotalCount, openPromises: openPromises.length, overduePromises, upcoming, presencePct };
   }, [tasks, promises, activities, presence]);
 
 
@@ -56,6 +59,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     const recent = emotions.filter((e) => e.person === name && e.createdAt > weekAgo);
     const avg = recent.length ? (recent.reduce((s, e) => s + e.intensity, 0) / recent.length).toFixed(1) : '—';
     const overdueT = tasks.filter((t) => !t.completed && t.person === name && isOverdue(t)).length;
+    const personTaskList = tasks.filter((t) => t.person === name);
+    const personTaskStats = {
+      completed: personTaskList.filter((t) => t.completed).length,
+      total: personTaskList.length,
+    };
     const style = getColorCardStyle(color);
     return (
       <div key={name} className={`${style.card} rounded-2xl p-4 relative group`}>
@@ -70,18 +78,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
           <div className="text-white font-bold">{name}</div>
           <div className={`text-xs ${style.text}`}>Quality: {relativeDate(pillar?.lastQualityTime)}</div>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-900/60 rounded-lg p-2">
-            <div className="text-xs text-slate-400">Promises</div>
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="bg-bark-700/60 rounded-lg p-2">
+            <div className="text-xs text-cream-400/60">Promises</div>
             <div className="text-lg font-bold text-white">{open}</div>
           </div>
-          <div className="bg-slate-900/60 rounded-lg p-2">
-            <div className="text-xs text-slate-400">Mood</div>
+          <div className="bg-bark-700/60 rounded-lg p-2">
+            <div className="text-xs text-cream-400/60">Mood</div>
             <div className="text-lg font-bold text-white">{avg}</div>
           </div>
-          <div className="bg-slate-900/60 rounded-lg p-2">
-            <div className="text-xs text-slate-400">Late</div>
-            <div className={`text-lg font-bold ${overdueT > 0 ? 'text-rose-400' : 'text-white'}`}>{overdueT}</div>
+        </div>
+        {overdueT > 0 && (
+          <div className="mt-2 text-xs text-honey-300 bg-honey-700/20 rounded-lg px-2 py-1 text-center">
+            {overdueT} {overdueT === 1 ? 'task needs' : 'tasks need'} a little attention
+          </div>
+        )}
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] uppercase tracking-wide text-cream-400/50">Tasks</span>
+            <span className="text-[10px] text-cream-400/50">{personTaskStats.completed}/{personTaskStats.total}</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-bark-700/60 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-sage-500 transition-all"
+              style={{ width: `${personTaskStats.total > 0 ? Math.round((personTaskStats.completed / personTaskStats.total) * 100) : 0}%` }}
+            />
           </div>
         </div>
       </div>
@@ -193,8 +214,8 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         
         {parsedBody.news.length > 0 && (
           <div>
-            <h4 className="text-slate-400 text-xs font-bold uppercase mb-2">Family News</h4>
-            <ul className="list-disc list-inside text-slate-300 text-sm space-y-1">
+            <h4 className="text-cream-400/60 text-xs font-bold uppercase mb-2">Family News</h4>
+            <ul className="list-disc list-inside text-cream-200 text-sm space-y-1">
               {parsedBody.news.map((n: string, i: number) => <li key={i}>{n}</li>)}
             </ul>
           </div>
@@ -209,7 +230,7 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
           </div>
         )}
 
-        <p className="text-slate-500 italic text-xs pt-2 border-t border-slate-700">{parsedBody.outlook}</p>
+        <p className="text-cream-400/50 italic text-xs pt-2 border-t border-cream-400/10">{parsedBody.outlook}</p>
       </div>
     );
 
@@ -226,9 +247,9 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Family Dashboard</h2>
-          <p className="text-sm text-slate-400">One view of everything that matters.</p>
+          <p className="text-sm text-cream-400/60">One view of everything that matters.</p>
         </div>
-        <button onClick={dailySummary} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+        <button onClick={dailySummary} className="bg-honey-500 hover:bg-honey-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 focus-ring">
           <Sparkles className="w-4 h-4" /> AI Summary
         </button>
       </div>
@@ -238,19 +259,19 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       <SystemHealth />
 
       {/* Tabs */}
-      <div className="inline-flex bg-slate-800 border border-slate-700 rounded-lg p-1 gap-1">
+      <div className="inline-flex bg-bark-800 border border-cream-400/10 rounded-lg p-1 gap-1">
         <button
           onClick={() => setTab('overview')}
-          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition ${
-            tab === 'overview' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'
+          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition focus-ring ${
+            tab === 'overview' ? 'bg-honey-500 text-white shadow' : 'text-cream-400/70 hover:text-white'
           }`}
         >
           <LayoutDashboard className="w-4 h-4" /> Overview
         </button>
         <button
           onClick={() => setTab('trends')}
-          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition ${
-            tab === 'trends' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'
+          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition focus-ring ${
+            tab === 'trends' ? 'bg-honey-500 text-white shadow' : 'text-cream-400/70 hover:text-white'
           }`}
         >
           <BarChart3 className="w-4 h-4" /> Trends
@@ -261,38 +282,52 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         <Trends />
       ) : (
         <>
+          {/* Household daily progress */}
+          <div className="bg-bark-800 border border-cream-400/10 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-cream-100">Today's progress</span>
+              <span className="text-sm text-cream-400/70">{stats.todayCompletedCount}/{stats.todayTotalCount} done</span>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-bark-700 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-sage-500 transition-all"
+                style={{ width: `${stats.todayTotalCount > 0 ? Math.round((stats.todayCompletedCount / stats.todayTotalCount) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+
           {/* KPI grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button onClick={() => onNav('household')} className="bg-gradient-to-br from-orange-900/40 to-slate-800 border border-orange-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition">
-              <ListChecks className="w-5 h-5 text-orange-400 mb-2" />
+            <button onClick={() => onNav('household')} className="bg-gradient-to-br from-honey-700/40 to-bark-800 border border-honey-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
+              <ListChecks className="w-5 h-5 text-honey-400 mb-2" />
               <div className="text-2xl font-bold text-white">{stats.todayTasks}</div>
-              <div className="text-xs text-orange-200">Today's tasks</div>
+              <div className="text-xs text-honey-200">Today's tasks</div>
             </button>
-            <button onClick={() => onNav('quality')} className="bg-gradient-to-br from-indigo-900/40 to-slate-800 border border-indigo-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition">
-              <Calendar className="w-5 h-5 text-indigo-400 mb-2" />
+            <button onClick={() => onNav('quality')} className="bg-gradient-to-br from-berry-700/40 to-bark-800 border border-berry-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
+              <Calendar className="w-5 h-5 text-berry-400 mb-2" />
               <div className="text-sm font-bold text-white truncate">{stats.upcoming ? stats.upcoming.name : 'Nothing'}</div>
-              <div className="text-xs text-indigo-200">{stats.upcoming ? new Date(stats.upcoming.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' }) : 'Plan something'}</div>
+              <div className="text-xs text-berry-200">{stats.upcoming ? new Date(stats.upcoming.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' }) : 'Plan something'}</div>
             </button>
-            <button onClick={() => onNav('promises')} className="bg-gradient-to-br from-blue-900/40 to-slate-800 border border-blue-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition">
-              <Handshake className="w-5 h-5 text-blue-400 mb-2" />
+            <button onClick={() => onNav('promises')} className="bg-gradient-to-br from-sky-900/40 to-bark-800 border border-sky-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
+              <Handshake className="w-5 h-5 text-sky-400 mb-2" />
               <div className="text-2xl font-bold text-white">{stats.openPromises}</div>
-              <div className="text-xs text-blue-200 flex items-center gap-1">
+              <div className="text-xs text-sky-200 flex items-center gap-1">
                 {stats.overduePromises > 0 && <><AlertTriangle className="w-3 h-3 text-rose-400" /> {stats.overduePromises} overdue ·</>} open
               </div>
             </button>
-            <div className="bg-gradient-to-br from-emerald-900/40 to-slate-800 border border-emerald-500/30 rounded-2xl p-4">
-              <TrendingUp className="w-5 h-5 text-emerald-400 mb-2" />
+            <div className="bg-gradient-to-br from-sage-600/40 to-bark-800 border border-sage-500/30 rounded-2xl p-4">
+              <TrendingUp className="w-5 h-5 text-sage-400 mb-2" />
               <div className="text-2xl font-bold text-white">{stats.presencePct}%</div>
-              <div className="text-xs text-emerald-200">Presence this week</div>
+              <div className="text-xs text-sage-200">Presence this week</div>
             </div>
           </div>
 
           {/* Quick actions */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <button onClick={() => onQuickAdd('household')} className="bg-orange-600/20 border border-orange-500/30 hover:bg-orange-600/30 text-orange-200 rounded-lg py-2.5 text-sm font-medium">+ Task</button>
-            <button onClick={() => onQuickAdd('promises')} className="bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 text-blue-200 rounded-lg py-2.5 text-sm font-medium">+ Promise</button>
-            <button onClick={() => onQuickAdd('quality')} className="bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/30 text-indigo-200 rounded-lg py-2.5 text-sm font-medium">+ Activity</button>
-            <button onClick={() => onQuickAdd('emotions')} className="bg-rose-600/20 border border-rose-500/30 hover:bg-rose-600/30 text-rose-200 rounded-lg py-2.5 text-sm font-medium">Log Emotion</button>
+            <button onClick={() => onQuickAdd('household')} className="bg-honey-600/20 border border-honey-500/30 hover:bg-honey-600/30 text-honey-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Task</button>
+            <button onClick={() => onQuickAdd('promises')} className="bg-sky-600/20 border border-sky-500/30 hover:bg-sky-600/30 text-sky-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Promise</button>
+            <button onClick={() => onQuickAdd('quality')} className="bg-berry-600/20 border border-berry-500/30 hover:bg-berry-600/30 text-berry-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Activity</button>
+            <button onClick={() => onQuickAdd('emotions')} className="bg-rose-600/20 border border-rose-500/30 hover:bg-rose-600/30 text-rose-200 rounded-lg py-2.5 text-sm font-medium focus-ring">Log Emotion</button>
           </div>
 
           {/* Per-person */}
