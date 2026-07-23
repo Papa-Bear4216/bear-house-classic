@@ -3,6 +3,7 @@ import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, Trendi
 import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
+import { getColorCardStyle } from '@/lib/colorStyles';
 
 import AlertModal from './AlertModal';
 import Trends from './Trends';
@@ -55,18 +56,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     const recent = emotions.filter((e) => e.person === name && e.createdAt > weekAgo);
     const avg = recent.length ? (recent.reduce((s, e) => s + e.intensity, 0) / recent.length).toFixed(1) : '—';
     const overdueT = tasks.filter((t) => !t.completed && t.person === name && isOverdue(t)).length;
+    const style = getColorCardStyle(color);
     return (
-      <div key={name} className={`bg-gradient-to-br from-${color}-900/30 to-slate-800 border border-${color}-500/30 rounded-2xl p-4 relative group`}>
+      <div key={name} className={`${style.card} rounded-2xl p-4 relative group`}>
         <button
           onClick={() => setProfileMemberId(id)}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-white"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-cream-400/60 hover:text-white focus-ring"
           title="Edit profile"
         >
           <UserCog className="w-4 h-4" />
         </button>
         <div className="flex items-center justify-between mb-3">
           <div className="text-white font-bold">{name}</div>
-          <div className={`text-xs text-${color}-300`}>Quality: {relativeDate(pillar?.lastQualityTime)}</div>
+          <div className={`text-xs ${style.text}`}>Quality: {relativeDate(pillar?.lastQualityTime)}</div>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="bg-slate-900/60 rounded-lg p-2">
