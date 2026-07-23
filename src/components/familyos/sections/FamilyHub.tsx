@@ -25,7 +25,7 @@ const FamilyHub: React.FC = () => {
           const Icon = t.icon;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${tab === t.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-honey-500 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
@@ -60,19 +60,19 @@ const MessagesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && post()} placeholder="Post a message to the family..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-indigo-500 outline-none" />
-        <button onClick={post} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition"><MessageSquare className="w-4 h-4" /></button>
+        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && post()} placeholder="Post a message to the family..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
+        <button onClick={post} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><MessageSquare className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No messages yet. Post something!</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No messages yet. Post something!</div>}
       <div className="space-y-2">
         {active.map(m => (
-          <div key={m.id} className="bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
+          <div key={m.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="text-white text-sm">{m.text}</div>
-                <div className="text-slate-500 text-xs mt-1">{m.author} · {new Date(m.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                <div className="text-cream-400/60 text-xs mt-1">{m.author} · {new Date(m.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
               </div>
-              {isAdm && <button onClick={() => del(m.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && <button onClick={() => del(m.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
         ))}
@@ -106,24 +106,24 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Ask permission for something..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-indigo-500 outline-none" />
-        <button onClick={submit} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition"><Plus className="w-4 h-4" /></button>
+        <input value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Ask permission for something..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
+        <button onClick={submit} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No requests yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No requests yet.</div>}
       {pending.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-400 text-xs uppercase tracking-wide">Pending</div>
+          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Pending</div>
           {pending.map(i => (
-            <div key={i.id} className="bg-slate-800/40 border border-amber-500/30 rounded-xl px-4 py-3">
+            <div key={i.id} className="bg-bark-700/40 border border-honey-500/30 rounded-xl px-4 py-3">
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="text-white text-sm">{i.request}</div>
-                  <div className="text-slate-500 text-xs">{i.kid} · {new Date(i.createdAt).toLocaleDateString()}</div>
+                  <div className="text-cream-400/60 text-xs">{i.kid} · {new Date(i.createdAt).toLocaleDateString()}</div>
                 </div>
                 {isAdm && (
                   <div className="flex gap-1.5">
-                    <button onClick={() => setStatus(i.id, 'approved')} className="text-emerald-400 hover:text-emerald-300 transition"><Check className="w-4 h-4" /></button>
-                    <button onClick={() => setStatus(i.id, 'denied')} className="text-rose-400 hover:text-rose-300 transition"><X className="w-4 h-4" /></button>
+                    <button onClick={() => setStatus(i.id, 'approved')} className="text-sage-500 hover:text-sage-200 transition focus-ring"><Check className="w-4 h-4" /></button>
+                    <button onClick={() => setStatus(i.id, 'denied')} className="text-rose-400 hover:text-rose-300 transition focus-ring"><X className="w-4 h-4" /></button>
                   </div>
                 )}
               </div>
@@ -133,15 +133,15 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
       )}
       {resolved.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-500 text-xs uppercase tracking-wide">Resolved</div>
+          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Resolved</div>
           {resolved.map(i => (
-            <div key={i.id} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 opacity-60 ${i.status === 'approved' ? 'bg-emerald-900/20 border border-emerald-500/20' : 'bg-rose-900/20 border border-rose-500/20'}`}>
+            <div key={i.id} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 opacity-60 ${i.status === 'approved' ? 'bg-sage-600/20 border border-sage-500/20' : 'bg-rose-900/20 border border-rose-500/20'}`}>
               <div className="flex-1 min-w-0">
-                <div className="text-slate-300 text-sm">{i.request}</div>
-                <div className="text-slate-500 text-xs">{i.kid}</div>
+                <div className="text-cream-200 text-sm">{i.request}</div>
+                <div className="text-cream-400/60 text-xs">{i.kid}</div>
               </div>
-              <span className={`text-xs font-semibold ${i.status === 'approved' ? 'text-emerald-400' : 'text-rose-400'}`}>{i.status}</span>
-              {isAdm && <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              <span className={`text-xs font-semibold ${i.status === 'approved' ? 'text-sage-500' : 'text-rose-400'}`}>{i.status}</span>
+              {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           ))}
         </div>
@@ -171,41 +171,41 @@ const MomentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-slate-400 text-sm">{active.length} memories</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Add Moment</button>
+        <span className="text-cream-400/60 text-sm">{active.length} memories</span>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Add Moment</button>
       </div>
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs mb-1 block">Caption</label>
-              <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="A memory to remember..." className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm placeholder-slate-500 outline-none" autoFocus />
+              <label className="text-cream-400/60 text-xs mb-1 block">Caption</label>
+              <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="A memory to remember..." className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-sm placeholder-cream-400/60 outline-none" autoFocus />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Emoji (optional)</label>
-              <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🎉" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Emoji (optional)</label>
+              <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🎉" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-sm outline-none" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No moments saved yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No moments saved yet.</div>}
       <div className="space-y-2">
         {active.map(m => (
-          <div key={m.id} className="flex items-start gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
+          <div key={m.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
             {m.emoji && <div className="text-2xl flex-shrink-0">{m.emoji}</div>}
             <div className="flex-1 min-w-0">
               <div className="text-white text-sm">{m.caption}</div>
-              <div className="text-slate-500 text-xs">{m.author} · {m.date}</div>
+              <div className="text-cream-400/60 text-xs">{m.author} · {m.date}</div>
             </div>
-            {isAdm && <button onClick={() => del(m.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+            {isAdm && <button onClick={() => del(m.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
           </div>
         ))}
       </div>
@@ -233,26 +233,26 @@ const BucketListTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Something to do together..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-indigo-500 outline-none" />
-        <button onClick={add} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition"><Plus className="w-4 h-4" /></button>
+        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Something to do together..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
+        <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">The family bucket list is empty!</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">The family bucket list is empty!</div>}
       <div className="space-y-2">
         {open.map(i => (
-          <div key={i.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
-            <button onClick={() => toggle(i.id)} className="text-slate-400 hover:text-emerald-400 transition flex-shrink-0"><Circle className="w-5 h-5" /></button>
+          <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
+            <button onClick={() => toggle(i.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring"><Circle className="w-5 h-5" /></button>
             <div className="flex-1 text-white text-sm">{i.text}</div>
-            {isAdm && <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-4 h-4" /></button>}
+            {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
           </div>
         ))}
         {done.length > 0 && (
           <>
-            <div className="text-slate-500 text-xs uppercase tracking-wide mt-2">Done ({done.length})</div>
+            <div className="text-cream-400/60 text-xs uppercase tracking-wide mt-2">Done ({done.length})</div>
             {done.map(i => (
-              <div key={i.id} className="flex items-center gap-3 bg-slate-900/30 border border-slate-800 rounded-xl px-4 py-2.5 opacity-60">
-                <button onClick={() => toggle(i.id)} className="text-emerald-500 flex-shrink-0"><CheckCircle2 className="w-5 h-5" /></button>
-                <div className="flex-1 text-slate-400 text-sm line-through">{i.text}</div>
-                {isAdm && <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-4 h-4" /></button>}
+              <div key={i.id} className="flex items-center gap-3 bg-bark-800/30 border border-cream-400/10 rounded-xl px-4 py-2.5 opacity-60">
+                <button onClick={() => toggle(i.id)} className="text-sage-500 flex-shrink-0 focus-ring"><CheckCircle2 className="w-5 h-5" /></button>
+                <div className="flex-1 text-cream-400/60 text-sm line-through">{i.text}</div>
+                {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
               </div>
             ))}
           </>
@@ -293,36 +293,36 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Movie or show title..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-indigo-500 outline-none" />
-        <select value={type} onChange={e => setType(e.target.value as 'movie' | 'show')} className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-white text-sm outline-none">
+        <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Movie or show title..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
+        <select value={type} onChange={e => setType(e.target.value as 'movie' | 'show')} className="bg-bark-700 border border-cream-400/10 rounded-lg px-2 py-2 text-white text-sm outline-none">
           <option value="movie">Movie</option>
           <option value="show">Show</option>
         </select>
-        <button onClick={add} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition"><Plus className="w-4 h-4" /></button>
+        <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">Watchlist is empty.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">Watchlist is empty.</div>}
       <div className="space-y-2">
         {unwatched.map(i => (
-          <div key={i.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
-            <button onClick={() => toggleWatched(i.id)} className="text-slate-400 hover:text-emerald-400 transition flex-shrink-0"><Circle className="w-5 h-5" /></button>
+          <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
+            <button onClick={() => toggleWatched(i.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring"><Circle className="w-5 h-5" /></button>
             <div className="flex-1 min-w-0">
               <div className="text-white text-sm">{i.title}</div>
-              <div className="text-slate-500 text-xs">{i.type} · Wants: {i.wantsToWatch.join(', ') || 'none'}</div>
+              <div className="text-cream-400/60 text-xs">{i.type} · Wants: {i.wantsToWatch.join(', ') || 'none'}</div>
             </div>
-            <button onClick={() => toggleWant(i.id)} className={`text-xs px-2 py-0.5 rounded border transition ${currentUser && i.wantsToWatch.includes(currentUser.name) ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'border-slate-700 text-slate-500 hover:text-white'}`}>
+            <button onClick={() => toggleWant(i.id)} className={`text-xs px-2 py-0.5 rounded border transition focus-ring ${currentUser && i.wantsToWatch.includes(currentUser.name) ? 'bg-honey-500/20 border-honey-500/40 text-honey-400' : 'border-cream-400/10 text-cream-400/60 hover:text-white'}`}>
               {currentUser && i.wantsToWatch.includes(currentUser.name) ? 'Watching' : '+ Watch'}
             </button>
-            {isAdm && <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-4 h-4" /></button>}
+            {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
           </div>
         ))}
         {watched.length > 0 && (
           <>
-            <div className="text-slate-500 text-xs uppercase tracking-wide mt-2">Watched</div>
+            <div className="text-cream-400/60 text-xs uppercase tracking-wide mt-2">Watched</div>
             {watched.map(i => (
-              <div key={i.id} className="flex items-center gap-3 bg-slate-900/30 border border-slate-800 rounded-xl px-4 py-2.5 opacity-60">
-                <button onClick={() => toggleWatched(i.id)} className="text-emerald-500 flex-shrink-0"><CheckCircle2 className="w-5 h-5" /></button>
-                <div className="flex-1 text-slate-400 text-sm line-through">{i.title}</div>
-                {isAdm && <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-4 h-4" /></button>}
+              <div key={i.id} className="flex items-center gap-3 bg-bark-800/30 border border-cream-400/10 rounded-xl px-4 py-2.5 opacity-60">
+                <button onClick={() => toggleWatched(i.id)} className="text-sage-500 flex-shrink-0 focus-ring"><CheckCircle2 className="w-5 h-5" /></button>
+                <div className="flex-1 text-cream-400/60 text-sm line-through">{i.title}</div>
+                {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
               </div>
             ))}
           </>
@@ -358,10 +358,10 @@ const GameNightTab: React.FC<{ isAdm: boolean; householdMembers: User[] }> = ({ 
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input value={gameName} onChange={e => setGameName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGame()} placeholder="Add a game..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-indigo-500 outline-none" />
-        <button onClick={addGame} className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg transition"><Plus className="w-4 h-4" /></button>
+        <input value={gameName} onChange={e => setGameName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGame()} placeholder="Add a game..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
+        <button onClick={addGame} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {games.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No games yet. Add one!</div>}
+      {games.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No games yet. Add one!</div>}
       <div className="space-y-2">
         {games.map(g => {
           const isExp = expandedGame === g.id;
@@ -369,30 +369,30 @@ const GameNightTab: React.FC<{ isAdm: boolean; householdMembers: User[] }> = ({ 
           g.scores.forEach(s => { if (!playerScores[s.player]) playerScores[s.player] = []; playerScores[s.player].push(s.score); });
           const leaders = Object.entries(playerScores).map(([p, sc]) => ({ p, best: Math.max(...sc) })).sort((a, b) => b.best - a.best);
           return (
-            <div key={g.id} className="bg-slate-800/40 border border-slate-700 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-800/60" onClick={() => setExpandedGame(isExp ? null : g.id)}>
+            <div key={g.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-bark-700/60 focus-ring" onClick={() => setExpandedGame(isExp ? null : g.id)}>
                 <div className="flex-1">
                   <div className="text-white font-medium">{g.name}</div>
-                  <div className="text-slate-500 text-xs">{g.scores.length} games played</div>
-                  {leaders.length > 0 && <div className="text-slate-400 text-xs">{leaders[0].p}: {leaders[0].best}</div>}
+                  <div className="text-cream-400/60 text-xs">{g.scores.length} games played</div>
+                  {leaders.length > 0 && <div className="text-cream-400/60 text-xs">{leaders[0].p}: {leaders[0].best}</div>}
                 </div>
-                {isAdm && <button onClick={e => { e.stopPropagation(); delGame(g.id); }} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-4 h-4" /></button>}
+                {isAdm && <button onClick={e => { e.stopPropagation(); delGame(g.id); }} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
               </div>
               {isExp && (
-                <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
+                <div className="border-t border-cream-400/10 px-4 py-3 space-y-3">
                   <div className="flex gap-2 flex-wrap">
-                    <select value={scorePlayer} onChange={e => setScorePlayer(e.target.value)} className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs outline-none">
+                    <select value={scorePlayer} onChange={e => setScorePlayer(e.target.value)} className="bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs outline-none">
                       {householdMembers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                     </select>
-                    <input type="number" value={scoreValue} onChange={e => setScoreValue(e.target.value)} placeholder="Score" className="w-20 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs placeholder-slate-500 outline-none" />
-                    <input type="date" value={scoreDate} onChange={e => setScoreDate(e.target.value)} className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs outline-none" />
-                    <button onClick={() => addScore(g.id)} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1 rounded transition">Log Score</button>
+                    <input type="number" value={scoreValue} onChange={e => setScoreValue(e.target.value)} placeholder="Score" className="w-20 bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs placeholder-cream-400/60 outline-none" />
+                    <input type="date" value={scoreDate} onChange={e => setScoreDate(e.target.value)} className="bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs outline-none" />
+                    <button onClick={() => addScore(g.id)} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Log Score</button>
                   </div>
                   <div className="space-y-1">
                     {leaders.map(({ p, best }) => (
                       <div key={p} className="flex justify-between text-sm">
-                        <span className="text-slate-300">{p}</span>
-                        <span className="text-slate-400">Best: {best}</span>
+                        <span className="text-cream-200">{p}</span>
+                        <span className="text-cream-400/60">Best: {best}</span>
                       </div>
                     ))}
                   </div>

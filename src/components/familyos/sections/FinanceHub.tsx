@@ -48,9 +48,9 @@ const FinanceHub: React.FC = () => {
   if (!isAdm) {
     return (
       <div className="text-center py-16">
-        <DollarSign className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-        <div className="text-slate-500 text-lg font-medium">Finance is parents only</div>
-        <div className="text-slate-600 text-sm mt-1">Ask an admin in your household.</div>
+        <DollarSign className="w-12 h-12 text-cream-400/60 mx-auto mb-3" />
+        <div className="text-cream-400/60 text-lg font-medium">Finance is parents only</div>
+        <div className="text-cream-400/60 text-sm mt-1">Ask an admin in your household.</div>
       </div>
     );
   }
@@ -59,16 +59,16 @@ const FinanceHub: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Finance Hub</h2>
-        <div className="flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-bark-700/60 border border-cream-400/10 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode('mine')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${viewMode === 'mine' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'mine' ? 'bg-sage-600 text-white' : 'text-cream-400/60 hover:text-white'}`}
           >
             <User className="w-3 h-3" /> Mine
           </button>
           <button
             onClick={() => setViewMode('combined')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${viewMode === 'combined' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'combined' ? 'bg-sage-600 text-white' : 'text-cream-400/60 hover:text-white'}`}
           >
             <Users className="w-3 h-3" /> Combined
           </button>
@@ -83,7 +83,7 @@ const FinanceHub: React.FC = () => {
           const Icon = t.icon;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${tab === t.id ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-sage-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
@@ -155,41 +155,41 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
   };
 
   return (
-    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4 space-y-3">
+    <div className="bg-bark-700/40 border border-cream-400/10 rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Landmark className="w-4 h-4 text-emerald-400" />
+        <Landmark className="w-4 h-4 text-sage-500" />
         <span className="text-white text-sm font-semibold">Linked Bank Accounts (SimpleFIN)</span>
-        {accounts.length > 0 && <span className="bg-emerald-900/50 border border-emerald-600/30 text-emerald-300 text-xs px-1.5 py-0.5 rounded-full">{accounts.length}</span>}
+        {accounts.length > 0 && <span className="bg-sage-600/50 border border-sage-600/30 text-sage-200 text-xs px-1.5 py-0.5 rounded-full">{accounts.length}</span>}
       </div>
-      {msg && <div className={`text-xs px-3 py-2 rounded-lg ${msgType === 'err' ? 'bg-rose-950/40 text-rose-300' : 'bg-emerald-950/40 text-emerald-300'}`}>{msg}</div>}
+      {msg && <div className={`text-xs px-3 py-2 rounded-lg ${msgType === 'err' ? 'bg-rose-950/40 text-rose-300' : 'bg-sage-600/40 text-sage-200'}`}>{msg}</div>}
       {accounts.length > 0 ? (
         <div className="space-y-2">{accounts.map(a => (
-          <div key={a.itemId} className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5">
-            <Building2 className="w-4 h-4 text-slate-400" />
+          <div key={a.itemId} className="flex items-center gap-3 bg-bark-800/50 border border-cream-400/10 rounded-xl px-3 py-2.5">
+            <Building2 className="w-4 h-4 text-cream-400/60" />
             <div className="flex-1 min-w-0"><div className="text-white text-sm truncate">{a.institutionName}</div>
-            <div className="text-slate-500 text-xs">{a.person} · {new Date(a.connectedAt).toLocaleDateString()}</div></div>
-            <span className="text-emerald-400 text-xs">Active</span>
+            <div className="text-cream-400/60 text-xs">{a.person} · {new Date(a.connectedAt).toLocaleDateString()}</div></div>
+            <span className="text-sage-500 text-xs">Active</span>
           </div>))}
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-slate-500 text-xs">Get a setup token at beta-bridge.simplefin.org, then paste it here.</p>
+          <p className="text-cream-400/60 text-xs">Get a setup token at beta-bridge.simplefin.org, then paste it here.</p>
           <input value={token} onChange={e => setToken(e.target.value)} placeholder="SimpleFIN setup token"
-            className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+            className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none" />
         </div>
       )}
       <div className="flex gap-2">
         {accounts.length === 0 && (
-          <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+          <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-honey-500 hover:bg-honey-400 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">
             {connecting ? 'Connecting…' : 'Connect'}
           </button>
         )}
         {accounts.length > 0 && (
           <>
-            <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg">
+            <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-sage-600 hover:bg-sage-500 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync 30 days'}
             </button>
-            <button onClick={disconnect} disabled={disconnecting} className="flex items-center gap-1.5 bg-slate-800 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-800 disabled:opacity-60 text-slate-400 hover:text-rose-300 text-xs px-3 py-2 rounded-lg">
+            <button onClick={disconnect} disabled={disconnecting} className="flex items-center gap-1.5 bg-bark-700 hover:bg-rose-950/60 border border-cream-400/10 hover:border-rose-800 disabled:opacity-60 text-cream-400/60 hover:text-rose-300 text-xs px-3 py-2 rounded-lg focus-ring">
               <Trash2 className="w-3.5 h-3.5" /> {disconnecting ? 'Disconnecting…' : 'Disconnect'}
             </button>
           </>
@@ -278,16 +278,16 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
         <div className="flex items-center gap-2">
           <input
             type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs outline-none"
+            className="bg-bark-700 border border-cream-400/10 rounded-lg px-2 py-1 text-white text-xs outline-none"
           />
-          <span className="text-slate-400 text-sm">
+          <span className="text-cream-400/60 text-sm">
             {viewMode === 'mine' ? `${myName}: ` : ''}
             <span className="text-white font-semibold">${total.toFixed(2)}</span>
           </span>
         </div>
         <button
           onClick={() => setShowForm(f => !f)}
-          className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition"
+          className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"
         >
           <Plus className="w-3.5 h-3.5" /> Add
         </button>
@@ -297,8 +297,8 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
       {viewMode === 'combined' && byPerson.length > 0 && (
         <div className="flex gap-2">
           {byPerson.map(p => (
-            <div key={p.name} className="flex-1 bg-slate-800/40 border border-slate-700 rounded-lg p-2 text-center">
-              <div className="text-slate-400 text-xs">{p.name}</div>
+            <div key={p.name} className="flex-1 bg-bark-700/40 border border-cream-400/10 rounded-lg p-2 text-center">
+              <div className="text-cream-400/60 text-xs">{p.name}</div>
               <div className="text-white text-sm font-semibold">${p.total.toFixed(0)}</div>
             </div>
           ))}
@@ -307,50 +307,50 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
       {/* Manual add form */}
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Amount ($)</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Amount ($)</label>
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" autoFocus />
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/60 outline-none" autoFocus />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Category</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Category</label>
               <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none">
                 {BUDGET_CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Paid by</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Paid by</label>
               <select value={paidBy} onChange={e => setPaidBy(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none">
                 {expensePayers.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Date</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Date</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none" />
             </div>
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs mb-1 block">Notes / Merchant</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Notes / Merchant</label>
               <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional"
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/60 outline-none" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-sage-600 hover:bg-sage-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
 
       {sorted.length === 0 && (
-        <div className="text-center text-slate-500 py-8 text-sm">
+        <div className="text-center text-cream-400/60 py-8 text-sm">
           No expenses for this period.
           {active.length === 0 && expenses.filter(e => !e.deletedAt).length > 0 && (
-            <div className="text-slate-600 text-xs mt-1">Try changing the month filter.</div>
+            <div className="text-cream-400/60 text-xs mt-1">Try changing the month filter.</div>
           )}
         </div>
       )}
@@ -358,23 +358,23 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
       {/* Expense list */}
       <div className="space-y-2">
         {sorted.map(e => (
-          <div key={e.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
+          <div key={e.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-white text-sm">{e.category}</span>
-                {viewMode === 'combined' && <span className="text-slate-500 text-xs">{e.paidBy}</span>}
+                {viewMode === 'combined' && <span className="text-cream-400/60 text-xs">{e.paidBy}</span>}
                 {e.source === 'simplefin' && (
-                  <span className="flex items-center gap-0.5 bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 text-[10px] px-1.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-0.5 bg-honey-700/40 border border-honey-500/30 text-honey-200 text-[10px] px-1.5 py-0.5 rounded-full">
                     <Landmark className="w-2.5 h-2.5" /> {e.institutionName || 'Bank'}
                   </span>
                 )}
               </div>
-              <div className="text-slate-500 text-xs">
+              <div className="text-cream-400/60 text-xs">
                 {e.date}{e.notes ? ` · ${e.notes}` : ''}
               </div>
             </div>
             <span className="text-white font-semibold whitespace-nowrap">${e.amount.toFixed(2)}</span>
-            <button onClick={() => del(e.id)} className="text-slate-600 hover:text-rose-400 transition flex-shrink-0">
+            <button onClick={() => del(e.id)} className="text-cream-400/60 hover:text-rose-400 transition flex-shrink-0 focus-ring">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -436,17 +436,17 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   return (
     <div className="space-y-4">
       {viewMode === 'mine' && (
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl px-3 py-2 text-xs text-slate-400">
+        <div className="bg-bark-700/30 border border-cream-400/10 rounded-xl px-3 py-2 text-xs text-cream-400/60">
           Showing {myName}'s expenses only
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 text-center">
-          <div className="text-slate-400 text-xs">Budgeted</div>
+        <div className="bg-bark-700/40 border border-cream-400/10 rounded-xl p-3 text-center">
+          <div className="text-cream-400/60 text-xs">Budgeted</div>
           <div className="text-white text-xl font-bold">${totalBudgeted.toFixed(0)}</div>
         </div>
-        <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 text-center">
-          <div className="text-slate-400 text-xs">Spent</div>
+        <div className="bg-bark-700/40 border border-cream-400/10 rounded-xl p-3 text-center">
+          <div className="text-cream-400/60 text-xs">Spent</div>
           <div className={`text-xl font-bold ${totalSpent > totalBudgeted ? 'text-rose-400' : 'text-emerald-400'}`}>
             ${totalSpent.toFixed(0)}
           </div>
@@ -454,43 +454,43 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-slate-400 text-sm">{new Date(month + '-01').toLocaleDateString([], { month: 'long', year: 'numeric' })}</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition">
+        <span className="text-cream-400/60 text-sm">{new Date(month + '-01').toLocaleDateString([], { month: 'long', year: 'numeric' })}</span>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
           <Plus className="w-3.5 h-3.5" /> Set Budget
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Category</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Category</label>
               <select value={name} onChange={e => setName(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none">
                 {BUDGET_CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Budget ($)</label>
+              <label className="text-cream-400/60 text-xs mb-1 block">Budget ($)</label>
               <input type="number" value={budgeted} onChange={e => setBudgeted(e.target.value)} placeholder="0.00"
-                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" autoFocus />
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/60 outline-none" autoFocus />
             </div>
           </div>
           <div className="flex justify-end">
             <button type="button" onClick={() => setBudgeted(String(suggestBudget(name)))}
-              className="text-xs text-emerald-400 hover:text-emerald-300 whitespace-nowrap">
+              className="text-xs text-sage-500 hover:text-sage-200 whitespace-nowrap focus-ring">
               Suggest ({`$${suggestBudget(name)}`})
             </button>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-sage-600 hover:bg-sage-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
 
       {monthCats.length === 0 && (
-        <div className="text-center text-slate-500 py-6 text-sm">No budget categories set for this month.</div>
+        <div className="text-center text-cream-400/60 py-6 text-sm">No budget categories set for this month.</div>
       )}
 
       <div className="space-y-2">
@@ -499,19 +499,19 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
           const pct   = cat.budgeted > 0 ? Math.min((spent / cat.budgeted) * 100, 100) : 0;
           const over  = spent > cat.budgeted;
           return (
-            <div key={cat.id} className="bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
+            <div key={cat.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-white text-sm font-medium">{cat.name}</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm ${over ? 'text-rose-400' : 'text-slate-300'}`}>
+                  <span className={`text-sm ${over ? 'text-rose-400' : 'text-cream-200'}`}>
                     ${spent.toFixed(0)} / ${cat.budgeted.toFixed(0)}
                   </span>
-                  <button onClick={() => del(cat.id)} className="text-slate-600 hover:text-rose-400 transition">
+                  <button onClick={() => del(cat.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-bark-700 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all ${over ? 'bg-rose-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                   style={{ width: `${pct}%` }} />
               </div>
