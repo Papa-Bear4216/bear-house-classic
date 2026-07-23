@@ -172,8 +172,6 @@ const AppLayout: React.FC = () => {
     return true;
   });
 
-  const accent = [...MAIN_NAV, ...MORE_NAV].find((n) => n.id === active)?.accent || 'indigo';
-
   const renderModule = () => {
     // Redirect child away from restricted modules
     const restrictedForChild: TopModule[] = ['health', 'finance', 'quality', 'promises', 'emotions'];
@@ -241,33 +239,18 @@ const AppLayout: React.FC = () => {
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Hidden safelist */}
-      <div className="hidden">
-        <span className="from-orange-500 to-orange-700 from-indigo-500 to-indigo-700 from-purple-500 to-purple-700 from-blue-500 to-blue-700 from-rose-500 to-rose-700 from-pink-500 to-pink-700 from-emerald-500 to-emerald-700 from-amber-500 to-amber-700 from-green-500 to-green-700" />
-        <span className="bg-orange-500 bg-orange-600 bg-orange-900/40 bg-orange-600/20 bg-orange-600/30 border-orange-500 border-orange-500/20 border-orange-500/30 border-orange-500/40 text-orange-200 text-orange-300 text-orange-400 from-orange-900/40 from-orange-900/30 hover:bg-orange-500 hover:bg-orange-600/30 shadow-orange-500/20" />
-        <span className="bg-indigo-500 bg-indigo-600 bg-indigo-900/40 bg-indigo-600/20 bg-indigo-600/30 border-indigo-500 border-indigo-500/20 border-indigo-500/30 border-indigo-500/40 text-indigo-200 text-indigo-300 text-indigo-400 from-indigo-900/40 hover:bg-indigo-500 hover:bg-indigo-600/30 shadow-indigo-500/20" />
-        <span className="bg-purple-500 bg-purple-600 bg-purple-900/40 border-purple-500 border-purple-500/20 border-purple-500/30 text-purple-200 text-purple-300 text-purple-400 from-purple-900/40 from-purple-900/30 hover:bg-purple-500 shadow-purple-500/20" />
-        <span className="bg-blue-500 bg-blue-600 bg-blue-900/40 bg-blue-600/20 bg-blue-600/30 border-blue-500 border-blue-500/20 border-blue-500/30 border-blue-500/40 text-blue-200 text-blue-300 text-blue-400 from-blue-900/40 from-blue-900/30 hover:bg-blue-500 hover:bg-blue-600/30 shadow-blue-500/20" />
-        <span className="bg-rose-500 bg-rose-600 bg-rose-900/40 bg-rose-600/20 bg-rose-600/30 border-rose-500 border-rose-500/20 border-rose-500/30 border-rose-500/40 text-rose-200 text-rose-300 text-rose-400 from-rose-900/40 hover:bg-rose-500 hover:bg-rose-600/30 shadow-rose-500/20" />
-        <span className="bg-pink-500 bg-pink-600 bg-pink-900/40 border-pink-500 border-pink-500/20 border-pink-500/30 text-pink-200 text-pink-300 text-pink-400 from-pink-900/40 from-pink-900/30 shadow-pink-500/20" />
-        <span className="bg-emerald-500 bg-emerald-600 bg-emerald-900/40 border-emerald-500 border-emerald-500/30 text-emerald-200 text-emerald-300 text-emerald-400 from-emerald-900/40 from-emerald-900/30 shadow-emerald-500/20" />
-        <span className="bg-amber-500 bg-amber-600 bg-amber-600/20 bg-amber-900/40 border-amber-500 border-amber-500/30 text-amber-200 text-amber-300 text-amber-400 from-amber-900/40 from-amber-900/30 shadow-amber-500/20" />
-        <span className="bg-green-500 border-green-500 border-green-500/30 from-green-900/40 from-green-900/30 text-green-200 text-green-300 text-green-400" />
-        <span className="bg-indigo-400 bg-pink-400 bg-purple-400 bg-blue-400" />
-        <span className="hover:border-indigo-500/60 hover:border-pink-500/60 hover:border-purple-500/60 hover:border-blue-500/60" />
-      </div>
+    <div className="min-h-screen bg-[#1E0E04] text-white">
 
       {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+      <header className="sticky top-0 z-30 bg-[#1E0E04]/90 backdrop-blur-md border-b border-[#F8DABC]/10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-${accent}-500 to-${accent}-700 flex items-center justify-center font-bold text-sm transition-colors duration-500`}>
+            <div className="w-8 h-8 rounded-lg bg-[#E08C00] flex items-center justify-center font-display font-bold text-sm text-white">
               FO
             </div>
             <div>
-              <div className="font-bold leading-none">Family OS</div>
-              <div className="text-[10px] text-slate-400 flex items-center gap-1">
+              <div className="font-display font-bold leading-none">FamilyOS</div>
+              <div className="text-[10px] text-white/50 flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
                 Hi, {currentUser?.name || 'Guest'}
               </div>
@@ -275,12 +258,12 @@ const AppLayout: React.FC = () => {
           </div>
 
           <div className="flex-1 max-w-md mx-auto hidden sm:block relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-white/40" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tasks & promises..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+              className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-3 py-2 text-sm text-white placeholder-white/40 focus:border-[#E08C00] outline-none"
             />
             {searchResults && (searchResults.tasks.length > 0 || searchResults.promises.length > 0) && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto z-40">
@@ -310,15 +293,15 @@ const AppLayout: React.FC = () => {
 
           <div className="flex items-center gap-2 ml-auto">
             <div className="hidden sm:flex items-center gap-2 text-xs">
-              <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-              <span className="text-slate-400">{inZone ? 'In zone' : 'Off zone'}</span>
+              <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-[#1A8A4E] animate-pulse' : 'bg-white/30'}`} />
+              <span className="text-white/50">{inZone ? 'In zone' : 'Off zone'}</span>
             </div>
-            <div className="text-sm font-medium text-slate-300 tabular-nums">{formatTime(now)}</div>
-            <button onClick={() => setHistoryOpen(true)} title="History" className="text-slate-400 hover:text-emerald-400 p-1.5 transition">
+            <div className="text-sm font-medium text-white/70 tabular-nums">{formatTime(now)}</div>
+            <button onClick={() => setHistoryOpen(true)} title="History" className="text-white/50 hover:text-[#1A8A4E] p-1.5 transition">
               <History className="w-5 h-5" />
             </button>
             {isAdm && (
-              <button onClick={() => setSettingsOpen(true)} className="relative text-slate-400 hover:text-white p-1.5">
+              <button onClick={() => setSettingsOpen(true)} className="relative text-white/50 hover:text-white p-1.5">
                 <SettingsIcon className="w-5 h-5" />
                 {totals.overdue > 0 && (
                   <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -327,7 +310,7 @@ const AppLayout: React.FC = () => {
                 )}
               </button>
             )}
-            <button onClick={logout} title="Logout" className="text-slate-400 hover:text-rose-400 p-1.5 transition">
+            <button onClick={logout} title="Logout" className="text-white/50 hover:text-rose-400 p-1.5 transition">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -342,8 +325,8 @@ const AppLayout: React.FC = () => {
               <button
                 key={n.id}
                 onClick={() => setActive(n.id)}
-                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition ${
-                  isActive ? `bg-${n.accent}-600 text-white shadow-lg shadow-${n.accent}-500/20` : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                className={`px-4 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition ${
+                  isActive ? 'bg-[#E08C00] text-white shadow-[0_4px_20px_rgba(224,140,0,0.45)]' : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -357,12 +340,12 @@ const AppLayout: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setShowMore(m => !m)}
-                className="px-4 py-2 rounded-lg text-sm flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                className="px-4 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 text-white/50 hover:text-white hover:bg-white/5 transition"
               >
                 More {showMore ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               </button>
               {showMore && (
-                <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-40 min-w-[150px]">
+                <div className="absolute top-full left-0 mt-1 bg-[#1E0E04] border border-[#F8DABC]/10 rounded-xl shadow-2xl overflow-hidden z-40 min-w-[150px]">
                   {MORE_NAV.map(n => {
                     const Icon = n.icon;
                     const isActive = active === n.id;
@@ -370,7 +353,7 @@ const AppLayout: React.FC = () => {
                       <button
                         key={n.id}
                         onClick={() => { setActive(n.id); setShowMore(false); }}
-                        className={`w-full px-4 py-2.5 text-sm flex items-center gap-2 transition ${isActive ? `bg-${n.accent}-600/20 text-${n.accent}-300` : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                        className={`w-full px-4 py-2.5 text-sm flex items-center gap-2 transition ${isActive ? 'bg-[#E08C00]/20 text-[#F5A800]' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
                       >
                         <Icon className="w-4 h-4" /> {n.label}
                       </button>
@@ -398,10 +381,10 @@ const AppLayout: React.FC = () => {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 py-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#1E0E04]/95 backdrop-blur-md border-t border-[#F8DABC]/10 px-2 py-2">
         {/* More drawer */}
         {showMore && isAdm && (
-          <div className="flex gap-1 justify-around mb-2 pb-2 border-b border-slate-800">
+          <div className="flex gap-1 justify-around mb-2 pb-2 border-b border-[#F8DABC]/10">
             {MORE_NAV.map(n => {
               const Icon = n.icon;
               const isActive = active === n.id;
@@ -409,7 +392,7 @@ const AppLayout: React.FC = () => {
                 <button
                   key={n.id}
                   onClick={() => { setActive(n.id); setShowMore(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg transition ${isActive ? `text-${n.accent}-400` : 'text-slate-500'}`}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg transition ${isActive ? 'text-[#F5A800]' : 'text-white/40'}`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
@@ -427,7 +410,7 @@ const AppLayout: React.FC = () => {
               <button
                 key={n.id}
                 onClick={() => setActive(n.id)}
-                className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${isActive ? `text-${n.accent}-400` : 'text-slate-500'}`}
+                className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${isActive ? 'text-[#F5A800]' : 'text-white/40'}`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
@@ -438,7 +421,7 @@ const AppLayout: React.FC = () => {
           {isAdm && (
             <button
               onClick={() => setShowMore(m => !m)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${showMore ? 'text-white' : 'text-slate-500'}`}
+              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${showMore ? 'text-white' : 'text-white/40'}`}
             >
               <ChevronUp className={`w-5 h-5 transition ${showMore ? 'rotate-180' : ''}`} />
               <span className="text-[9px] font-medium">More</span>
