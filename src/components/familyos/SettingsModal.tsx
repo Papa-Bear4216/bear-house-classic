@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Key, Bell, Clock, Users, Trash2, Plus, Download, Eye, EyeOff,
   Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home, BookOpen,
-  ShoppingCart, ExternalLink,
+  ShoppingCart, ExternalLink, Grid2x2 as Grid2x2Icon,
 } from 'lucide-react';
-import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid } from '@/lib/familyos';
+import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid, loadMemberPreferences, preferencesKey } from '@/lib/familyos';
+import { getVisibleModulesFor, type TopModule } from '@/lib/navVisibility';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
@@ -135,8 +136,12 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
 type Tab = 'general' | 'integrations' | 'family';
 
 const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
-  const { currentRole, householdMembers, householdId } = useAppContext();
+  const { currentUser, currentRole, householdMembers, householdId } = useAppContext();
   const isAdmin = currentRole === 'superadmin' || currentRole === 'admin';
+
+  const [coreNav, setCoreNav] = useState<TopModule[]>(() =>
+    currentUser ? loadMemberPreferences(currentUser.id).coreNav : []
+  );
 
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const refreshPending = React.useCallback(() => {
@@ -218,6 +223,23 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
   const toggleIntegration = (key: string) =>
     setExpandedIntegration(expandedIntegration === key ? null : key);
+
+  const toggleCoreModule = (id: TopModule) => {
+    if (!currentUser) return;
+    setCoreNav((prev) => {
+      let next: TopModule[];
+      if (prev.includes(id)) {
+        next = prev.filter((m) => m !== id);
+      } else if (prev.length >= 3) {
+        return prev; // already at the 3-module cap — no-op until the user deselects one
+      } else {
+        next = [...prev, id];
+      }
+      const prefs = loadMemberPreferences(currentUser.id);
+      saveJSON(preferencesKey(currentUser.id), { ...prefs, coreNav: next, updatedAt: Date.now() });
+      return next;
+    });
+  };
 
   const useMyLocation = () => {
     if (!navigator.geolocation) { setLocateError('Geolocation not available on this device.'); return; }
@@ -305,6 +327,42 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   <input type="checkbox" checked={settings.aiEnabled} onChange={(e) => setSettings({ ...settings, aiEnabled: e.target.checked })} className="sr-only" />
                 </div>
               </label>
+
+              {/* My Navigation — per-user core module picker */}
+              {currentUser && (
+                <div className="rounded-xl border border-cream-400/10 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-bark-700">
+                    <Grid2x2Icon className="w-4 h-4 text-honey-400" />
+                    <span className="font-semibold text-white text-sm">My Navigation</span>
+                    <span className="ml-auto text-xs text-cream-400/50">pick 3</span>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <label className="flex items-center justify-between px-3 py-2 rounded-lg bg-bark-800 opacity-60 cursor-not-allowed">
+                      <span className="text-sm text-white">Dashboard</span>
+                      <span className="text-xs text-cream-400/50">always on</span>
+                    </label>
+                    {getVisibleModulesFor(currentRole!).filter((m) => m.id !== 'dashboard').map((m) => {
+                      const selected = coreNav.includes(m.id);
+                      const disabled = !selected && coreNav.length >= 3;
+                      return (
+                        <label
+                          key={m.id}
+                          className={`flex items-center justify-between px-3 py-2 rounded-lg transition ${disabled ? 'bg-bark-800 opacity-40 cursor-not-allowed' : 'bg-bark-800 cursor-pointer hover:bg-bark-700'}`}
+                        >
+                          <span className="text-sm text-white">{m.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={disabled}
+                            onChange={() => toggleCoreModule(m.id)}
+                            className="w-4 h-4 accent-honey-500"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Two simple numbers */}
               <div className="grid grid-cols-2 gap-3">
