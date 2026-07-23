@@ -41,6 +41,9 @@ interface Task {
   completedAt?: number;
   recurrence?: Recurrence | null;
   parentId?: string;
+  steps?: string[];
+  stepsCompleted?: boolean[];
+  estimatedMinutes?: number;
 }
 
 export function resolveMemberIdByName(members: { id: string; name: string }[], name: string): string | null {
@@ -173,10 +176,16 @@ const HouseholdBrain: React.FC = () => {
     setCustomDays([]);
 
     setAiBusy(true);
-    const prompt = `Categorize this household task. Return ONLY JSON: {"category":"one of: ${TASK_CATEGORIES.join(', ')}","priority":"High|Medium|Low","person":"one of: ${PERSONS.join(', ')}"}\n\nTask: "${rawText}"`;
+    const prompt = `Categorize this household task and break it into concrete steps. Return ONLY JSON: {"category":"one of: ${TASK_CATEGORIES.join(', ')}","priority":"High|Medium|Low","person":"one of: ${PERSONS.join(', ')}","steps":["2 to 4 short, concrete sub-steps"],"estimatedMinutes":number}\n\nTask: "${rawText}"`;
     const { ok, text: aiText } = await callClaude(prompt);
     if (ok) {
       const parsed = tryParseJSON<Partial<Task>>(aiText, {});
+      const validSteps = Array.isArray(parsed.steps) && parsed.steps.length >= 2 && parsed.steps.length <= 4
+        ? parsed.steps.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+        : undefined;
+      const validEstimate = typeof parsed.estimatedMinutes === 'number' && parsed.estimatedMinutes > 0
+        ? Math.round(parsed.estimatedMinutes)
+        : undefined;
       setTasks((prev) =>
         prev.map((t) =>
           t.id === baseTask.id
@@ -185,6 +194,9 @@ const HouseholdBrain: React.FC = () => {
                 category: parsed.category && TASK_CATEGORIES.includes(parsed.category) ? parsed.category : t.category,
                 priority: parsed.priority && PRIORITIES.includes(parsed.priority) ? parsed.priority : t.priority,
                 person: parsed.person && PERSONS.includes(parsed.person) ? parsed.person : t.person,
+                steps: validSteps,
+                stepsCompleted: validSteps ? validSteps.map(() => false) : undefined,
+                estimatedMinutes: validEstimate,
               }
             : t
         )
@@ -242,6 +254,16 @@ const HouseholdBrain: React.FC = () => {
   };
 
   const deleteTask = (id: string) => setTasks(tasks.filter((t) => t.id !== id));
+
+  const toggleTaskStep = (taskId: string, stepIndex: number) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId || !t.stepsCompleted) return t;
+        const nextCompleted = t.stepsCompleted.map((done, i) => (i === stepIndex ? !done : done));
+        return { ...t, stepsCompleted: nextCompleted };
+      })
+    );
+  };
 
   const presenceTotal = presentToday.yes + presentToday.no;
   const presencePct = presenceTotal ? Math.round((presentToday.yes / presenceTotal) * 100) : 0;
@@ -509,6 +531,11 @@ const HouseholdBrain: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.person}</span>
                     <span className="text-[10px] uppercase tracking-wide bg-orange-900/40 text-orange-300 px-1.5 py-0.5 rounded">{t.category}</span>
+                    {t.steps && t.steps.length > 0 && (
+                      <span className="text-[10px] uppercase tracking-wide bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded">
+                        {t.stepsCompleted?.filter(Boolean).length ?? 0}/{t.steps.length} steps
+                      </span>
+                    )}
                     {dueBadge ? (
                       <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded flex items-center gap-1 ${DUE_TONE[dueBadge.tone]}`}>
                         <CalendarIcon className="w-2.5 h-2.5" />
