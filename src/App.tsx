@@ -60,8 +60,20 @@ const App = () => {
   // dead — channel before opening a fresh one, instead of leaking it.
   const unsubRealtimeRef = useRef<(() => void) | undefined>(undefined);
 
+  // getHouseholdSession() (an optimistic local-cache read) and
+  // onAuthStateChange() (Supabase's own server-validated listener) both run
+  // independently on mount and can race: on a cold/hard reload, Supabase may
+  // emit a transient SIGNED_OUT while it revalidates a persisted session,
+  // landing after loadSession() has already flipped to 'ready' — yanking the
+  // user back to the login screen right after the app briefly rendered.
+  // initialCheckDone gates the listener so it can't act on that transient
+  // event before the initial session check has settled at least once; a
+  // real logout after that point still goes through normally.
+  const initialCheckDone = useRef(false);
+
   const loadSession = useCallback(() => {
     getHouseholdSession().then((result) => {
+      initialCheckDone.current = true;
       if (!result) {
         setAuthState((prev) => (prev === 'loading' ? 'signed_out' : prev));
         setSyncReady(true);
@@ -80,7 +92,11 @@ const App = () => {
     const cleanupSession = loadSession();
 
     const unsubAuth = onAuthStateChange((loggedIn) => {
-      if (!loggedIn) { setAuthState('signed_out'); setSyncReady(true); }
+      if (!loggedIn) {
+        if (!initialCheckDone.current) return; // transient pre-settle event — ignore
+        setAuthState('signed_out');
+        setSyncReady(true);
+      }
     });
 
     return () => {
