@@ -63,7 +63,42 @@ export default {
           'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))'
-        }
+        },
+        honey: {
+          50: '#FFFBF0',
+          100: '#FFF0C2',
+          200: '#FFD96B',
+          400: '#F5A800',
+          500: '#E08C00',
+          600: '#B86E00',
+          700: '#8F5200',
+        },
+        bark: {
+          700: '#1E0E04',
+          800: '#120800',
+        },
+        cream: {
+          50: '#FFFFFF',
+          100: '#FFFDF9',
+          200: '#FFF8EE',
+          400: '#F8DABC',
+        },
+        sage: {
+          50: '#EDFAF3',
+          100: '#C0EDD6',
+          200: '#80D4AA',
+          500: '#1A8A4E',
+          600: '#0E6E3A',
+        },
+        berry: {
+          400: '#E040C0',
+          500: '#C020A0',
+          600: '#980080',
+        },
+        stone: {
+          300: '#C8BAB0',
+          500: '#887060',
+        },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'monospace'],
