@@ -502,6 +502,7 @@ const HouseholdBrain: React.FC = () => {
         <FocusMode
           tasks={filteredTasks}
           onComplete={completeTask}
+          onToggleStep={toggleTaskStep}
           onExit={() => setFocusMode(false)}
         />
       ) : (
