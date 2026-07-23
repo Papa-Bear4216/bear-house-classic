@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Home, Calendar, Handshake, Heart, LayoutDashboard, Settings as SettingsIcon,
-  Search, History, Users, DollarSign, ChevronUp, ChevronDown, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Baby, Brain, Package, Trophy
+  Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2,
 } from 'lucide-react';
 
-import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
+import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
+import { getVisibleModulesFor, type TopModule } from '@/lib/navVisibility';
 import { useAppContext } from '@/contexts/AppContext';
 import HouseholdBrain from '@/components/familyos/HouseholdBrain';
 import QualityTime from '@/components/familyos/QualityTime';
@@ -32,26 +32,7 @@ import WelcomeBackModal from '@/components/familyos/WelcomeBackModal';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import MagicTrail from '@/components/familyos/MagicTrail';
 
-type TopModule = 'dashboard' | 'household' | 'kids' | 'family' | 'health' | 'finance' | 'rewards' | 'quality' | 'promises' | 'emotions';
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'brain';
-
-interface NavItem { id: TopModule; label: string; icon: React.ComponentType<{ className?: string }>; accent: string; adminOnly?: boolean; }
-
-const MAIN_NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, accent: 'indigo' },
-  { id: 'household', label: 'Household', icon: Home, accent: 'orange' },
-  { id: 'rewards', label: 'Rewards', icon: Trophy, accent: 'amber' },
-  { id: 'kids', label: 'Kids', icon: Baby, accent: 'purple' },
-  { id: 'family', label: 'Family', icon: Users, accent: 'blue' },
-  { id: 'health', label: 'Health', icon: Heart, accent: 'rose' },
-  { id: 'finance', label: 'Finance', icon: DollarSign, accent: 'emerald', adminOnly: true },
-];
-
-const MORE_NAV: NavItem[] = [
-  { id: 'quality', label: 'Quality Time', icon: Calendar, accent: 'purple' },
-  { id: 'promises', label: 'Promises', icon: Handshake, accent: 'blue' },
-  { id: 'emotions', label: 'Emotions', icon: Heart, accent: 'rose' },
-];
 
 const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentType<{ className?: string }>; adminOnly?: boolean; }[] = [
   { id: 'tasks', label: 'Tasks', icon: Home },
@@ -75,6 +56,37 @@ const AppLayout: React.FC = () => {
   const { currentUser, currentRole, logout } = useAppContext();
   const isChild = currentRole === 'child';
   const isAdm = currentRole === 'superadmin' || currentRole === 'admin';
+
+  const visibleModules = useMemo(
+    () => (currentRole ? getVisibleModulesFor(currentRole) : []),
+    [currentRole]
+  );
+
+  const coreNav = useMemo(() => {
+    if (!currentUser) return [] as TopModule[];
+    const prefs = loadMemberPreferences(currentUser.id);
+    // Defensive fallback: drop any saved pick this role can no longer see (see navVisibility.ts's isModuleVisibleTo).
+    const visibleIds = new Set(visibleModules.map((m) => m.id));
+    const valid = prefs.coreNav.filter((id) => visibleIds.has(id));
+    // Backfill from the default list if a role change or corrupted preference left fewer than 3 valid picks.
+    for (const fallback of ['household', 'family', 'rewards', 'kids'] as TopModule[]) {
+      if (valid.length >= 3) break;
+      if (visibleIds.has(fallback) && !valid.includes(fallback)) valid.push(fallback);
+    }
+    return valid.slice(0, 3);
+  }, [currentUser, visibleModules]);
+
+  const dockModules = useMemo(
+    () => ['dashboard' as TopModule, ...coreNav]
+      .map((id) => visibleModules.find((m) => m.id === id))
+      .filter((m): m is NonNullable<typeof m> => Boolean(m)),
+    [coreNav, visibleModules]
+  );
+
+  const moreModules = useMemo(
+    () => visibleModules.filter((m) => m.id !== 'dashboard' && !coreNav.includes(m.id)),
+    [visibleModules, coreNav]
+  );
 
   const [active, setActive] = useState<TopModule>('dashboard');
   const [householdTab, setHouseholdTab] = useState<HouseholdTab>('tasks');
@@ -159,26 +171,25 @@ const AppLayout: React.FC = () => {
     return { tasks, promises };
   }, [search, tick]);
 
-  // Visible nav items based on role
-  const visibleMainNav = MAIN_NAV.filter(n => {
-    if (isChild && (n.id === 'health' || n.id === 'finance')) return false;
-    if (n.adminOnly && !isAdm) return false;
-    return true;
-  });
-
   // Child-visible household tabs
   const visibleHouseholdTabs = HOUSEHOLD_TABS.filter(t => {
     if (isChild && !['tasks', 'shopping'].includes(t.id)) return false;
     return true;
   });
 
+  const dockSlotIndex = useMemo(() => {
+    const idx = dockModules.findIndex((m) => m.id === active);
+    return idx >= 0 ? idx : dockModules.length; // "More" slot (last) when a More-menu module is active
+  }, [dockModules, active]);
+
   const renderModule = () => {
-    // Redirect child away from restricted modules
-    const restrictedForChild: TopModule[] = ['health', 'finance', 'quality', 'promises', 'emotions'];
-    if (isChild && restrictedForChild.includes(active)) {
+    // Redirect a role away from a module it can't see — defense in depth alongside
+    // the nav-level filtering in dockModules/moreModules (navVisibility.ts is the
+    // single source of truth for the restriction itself).
+    if (currentRole && !visibleModules.some((m) => m.id === active)) {
       return (
         <div className="text-center py-16">
-          <div className="text-slate-500 text-lg">This section is for parents only.</div>
+          <div className="text-cream-400/60 text-lg">This section isn't available for your account.</div>
         </div>
       );
     }
@@ -316,54 +327,6 @@ const AppLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* Desktop nav */}
-        <div className="max-w-6xl mx-auto px-4 hidden md:flex gap-1 pb-2 -mt-1 flex-wrap">
-          {visibleMainNav.map((n) => {
-            const Icon = n.icon;
-            const isActive = active === n.id;
-            return (
-              <button
-                key={n.id}
-                onClick={() => setActive(n.id)}
-                className={`px-4 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition ${
-                  isActive ? 'bg-[#E08C00] text-white shadow-[0_4px_20px_rgba(224,140,0,0.45)]' : 'text-white/50 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {n.label}
-              </button>
-            );
-          })}
-
-          {/* More dropdown (desktop) */}
-          {isAdm && (
-            <div className="relative">
-              <button
-                onClick={() => setShowMore(m => !m)}
-                className="px-4 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 text-white/50 hover:text-white hover:bg-white/5 transition"
-              >
-                More {showMore ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-              {showMore && (
-                <div className="absolute top-full left-0 mt-1 bg-[#1E0E04] border border-[#F8DABC]/10 rounded-xl shadow-2xl overflow-hidden z-40 min-w-[150px]">
-                  {MORE_NAV.map(n => {
-                    const Icon = n.icon;
-                    const isActive = active === n.id;
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => { setActive(n.id); setShowMore(false); }}
-                        className={`w-full px-4 py-2.5 text-sm flex items-center gap-2 transition ${isActive ? 'bg-[#E08C00]/20 text-[#F5A800]' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-                      >
-                        <Icon className="w-4 h-4" /> {n.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </header>
 
       {/* No-API-key banner */}
@@ -374,25 +337,25 @@ const AppLayout: React.FC = () => {
       )}
 
       {/* MAIN */}
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-28 md:pb-10 transition-opacity duration-300" key={active}>
+      <main className="max-w-6xl mx-auto px-4 py-6 pb-28 transition-opacity duration-300" key={active}>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           {renderModule()}
         </div>
       </main>
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#1E0E04]/95 backdrop-blur-md border-t border-[#F8DABC]/10 px-2 py-2">
+      {/* Unified bottom dock — all breakpoints */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-[#1E0E04]/95 backdrop-blur-md border-t border-[#F8DABC]/10 px-2 py-2">
         {/* More drawer */}
-        {showMore && isAdm && (
-          <div className="flex gap-1 justify-around mb-2 pb-2 border-b border-[#F8DABC]/10">
-            {MORE_NAV.map(n => {
+        {showMore && moreModules.length > 0 && (
+          <div className="flex flex-wrap gap-1 justify-around mb-2 pb-2 border-b border-[#F8DABC]/10">
+            {moreModules.map(n => {
               const Icon = n.icon;
               const isActive = active === n.id;
               return (
                 <button
                   key={n.id}
                   onClick={() => { setActive(n.id); setShowMore(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg transition ${isActive ? 'text-[#F5A800]' : 'text-white/40'}`}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg transition focus-ring ${isActive ? 'text-[#F5A800]' : 'text-white/40 hover:text-white'}`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
@@ -402,28 +365,40 @@ const AppLayout: React.FC = () => {
           </div>
         )}
 
-        <div className={`grid gap-1 ${isAdm ? 'grid-cols-7' : 'grid-cols-5'}`}>
-          {visibleMainNav.map((n) => {
+        <div
+          className="relative grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${dockModules.length + (moreModules.length > 0 ? 1 : 0)}, minmax(0, 1fr))` }}
+        >
+          {/* Sliding active-state pill */}
+          <div
+            className="absolute inset-y-0 rounded-lg bg-white/5 transition-transform duration-300 ease-out motion-reduce:transition-none"
+            style={{
+              width: `${100 / (dockModules.length + (moreModules.length > 0 ? 1 : 0))}%`,
+              transform: `translateX(${dockSlotIndex * 100}%)`,
+            }}
+          />
+
+          {dockModules.map((n) => {
             const Icon = n.icon;
             const isActive = active === n.id;
             return (
               <button
                 key={n.id}
                 onClick={() => setActive(n.id)}
-                className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${isActive ? 'text-[#F5A800]' : 'text-white/40'}`}
+                className={`relative flex flex-col items-center gap-0.5 py-2 rounded-lg transition-transform focus-ring ${isActive ? 'text-[#F5A800] scale-110' : 'text-white/40 hover:text-white'}`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-6 h-6" />
                 <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
               </button>
             );
           })}
 
-          {isAdm && (
+          {moreModules.length > 0 && (
             <button
               onClick={() => setShowMore(m => !m)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition ${showMore ? 'text-white' : 'text-white/40'}`}
+              className={`relative flex flex-col items-center gap-0.5 py-2 rounded-lg transition-transform focus-ring ${showMore ? 'text-white scale-110' : 'text-white/40 hover:text-white'}`}
             >
-              <ChevronUp className={`w-5 h-5 transition ${showMore ? 'rotate-180' : ''}`} />
+              <Grid2x2 className="w-6 h-6" />
               <span className="text-[9px] font-medium">More</span>
             </button>
           )}

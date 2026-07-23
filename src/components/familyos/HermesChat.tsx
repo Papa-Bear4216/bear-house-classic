@@ -516,7 +516,7 @@ const HermesChat: React.FC = () => {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-20 right-20 md:bottom-6 md:right-20 z-40 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-500 shadow-xl shadow-violet-500/30 flex items-center justify-center transition-all active:scale-95"
+        className="fixed bottom-20 right-20 z-40 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-500 shadow-xl shadow-violet-500/30 flex items-center justify-center transition-all active:scale-95"
         title="Ask Hermes"
       >
         <Bot className="w-6 h-6 text-white" />
