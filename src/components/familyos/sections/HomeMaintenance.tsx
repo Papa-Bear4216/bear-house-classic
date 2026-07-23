@@ -21,13 +21,13 @@ interface HomeItem {
   deletedBy?: string;
 }
 
-const CAT_COLORS: Record<Category, string> = {
-  HVAC: 'blue',
-  Plumbing: 'cyan',
-  Electrical: 'yellow',
-  Appliances: 'purple',
-  Yard: 'green',
-  Other: 'slate',
+const CAT_STYLES: Record<Category, { icon: string; badge: string; text: string }> = {
+  HVAC: { icon: 'bg-blue-900/40 border border-blue-500/30', badge: 'bg-blue-900/40 border-blue-500/30', text: 'text-blue-400' },
+  Plumbing: { icon: 'bg-cyan-900/40 border border-cyan-500/30', badge: 'bg-cyan-900/40 border-cyan-500/30', text: 'text-cyan-400' },
+  Electrical: { icon: 'bg-yellow-900/40 border border-yellow-500/30', badge: 'bg-yellow-900/40 border-yellow-500/30', text: 'text-yellow-400' },
+  Appliances: { icon: 'bg-purple-900/40 border border-purple-500/30', badge: 'bg-purple-900/40 border-purple-500/30', text: 'text-purple-400' },
+  Yard: { icon: 'bg-green-900/40 border border-green-500/30', badge: 'bg-green-900/40 border-green-500/30', text: 'text-green-400' },
+  Other: { icon: 'bg-bark-700 border border-cream-400/10', badge: 'bg-bark-700 border-cream-400/10', text: 'text-cream-400/60' },
 };
 
 const HomeMaintenance: React.FC = () => {
@@ -185,12 +185,12 @@ const HomeMaintenance: React.FC = () => {
       <div className="space-y-2">
         {filtered.map(i => {
           const overdue = isOverdue(i.nextDue);
-          const color = CAT_COLORS[i.category];
+          const style = CAT_STYLES[i.category];
           return (
             <div key={i.id} className={`bg-bark-700/40 border rounded-xl px-4 py-3 ${overdue ? 'border-rose-500/40' : 'border-cream-400/10'}`}>
               <div className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-lg bg-${color}-900/40 border border-${color}-500/30 flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                  <Home className={`w-4 h-4 text-${color}-400`} />
+                <div className={`w-8 h-8 rounded-lg ${style.icon} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  <Home className={`w-4 h-4 ${style.text}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ const HomeMaintenance: React.FC = () => {
                     {overdue && <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />}
                   </div>
                   <div className="text-cream-400/50 text-xs mt-0.5">
-                    <span className={`text-${color}-400`}>{i.category}</span>
+                    <span className={style.text}>{i.category}</span>
                     {i.lastDone && <span> · Last: {i.lastDone}</span>}
                     {i.nextDue && <span className={overdue ? ' text-rose-400' : ''}> · Next: {i.nextDue}</span>}
                   </div>
