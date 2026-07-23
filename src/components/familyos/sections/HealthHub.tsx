@@ -59,7 +59,7 @@ const HealthHub: React.FC = () => {
           const Icon = t.icon;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${tab === t.id ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-rose-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
@@ -100,72 +100,72 @@ const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
       <div className="flex items-center justify-between">
         <div className="flex gap-1 overflow-x-auto">
           {['All', ...FAMILY_MEMBERS].map(p => (
-            <button key={p} onClick={() => setFilterPerson(p)} className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition ${filterPerson === p ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>{p}</button>
+            <button key={p} onClick={() => setFilterPerson(p)} className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition focus-ring ${filterPerson === p ? 'bg-rose-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>{p}</button>
           ))}
         </div>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition ml-2"><Plus className="w-3.5 h-3.5" /> Add</button>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition ml-2 focus-ring"><Plus className="w-3.5 h-3.5" /> Add</button>
       </div>
 
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Person</label>
-              <select value={person} onChange={e => setPerson(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+              <label className="text-cream-400/60 text-xs mb-1 block">Person</label>
+              <select value={person} onChange={e => setPerson(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring">
                 {FAMILY_MEMBERS.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Medication name</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Metformin" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" autoFocus />
+              <label className="text-cream-400/60 text-xs mb-1 block">Medication name</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Metformin" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" autoFocus />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Dosage</label>
-              <input value={dosage} onChange={e => setDosage(e.target.value)} placeholder="e.g. 500mg" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Dosage</label>
+              <input value={dosage} onChange={e => setDosage(e.target.value)} placeholder="e.g. 500mg" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Frequency</label>
-              <select value={frequency} onChange={e => setFrequency(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+              <label className="text-cream-400/60 text-xs mb-1 block">Frequency</label>
+              <select value={frequency} onChange={e => setFrequency(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring">
                 {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Next refill</label>
-              <input type="date" value={nextRefill} onChange={e => setNextRefill(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Next refill</label>
+              <input type="date" value={nextRefill} onChange={e => setNextRefill(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Notes</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No medications tracked.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No medications tracked.</div>}
 
       <div className="space-y-2">
         {active.map(med => {
           const refillSoon = med.nextRefill && new Date(med.nextRefill).getTime() - Date.now() < 7 * 86400000;
           return (
-            <div key={med.id} className="flex items-start gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-3 py-2.5">
+            <div key={med.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-3 py-2.5">
               <div className="w-8 h-8 rounded-lg bg-rose-900/40 border border-rose-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <Pill className="w-4 h-4 text-rose-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-white text-sm font-medium">{med.name}</div>
-                <div className="text-slate-400 text-xs">{med.person} · {med.dosage} · {med.frequency}</div>
+                <div className="text-cream-400/60 text-xs">{med.person} · {med.dosage} · {med.frequency}</div>
                 {med.nextRefill && (
-                  <div className={`text-xs mt-0.5 ${refillSoon ? 'text-amber-400' : 'text-slate-500'}`}>
+                  <div className={`text-xs mt-0.5 ${refillSoon ? 'text-honey-400' : 'text-cream-400/50'}`}>
                     Refill: {med.nextRefill}{refillSoon ? ' (soon!)' : ''}
                   </div>
                 )}
-                {med.notes && <div className="text-slate-500 text-xs">{med.notes}</div>}
+                {med.notes && <div className="text-cream-400/50 text-xs">{med.notes}</div>}
               </div>
-              {isAdm && <button onClick={() => del(med.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && <button onClick={() => del(med.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           );
         })}
@@ -200,60 +200,60 @@ const ApptTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-slate-400 text-sm">{upcoming.length} upcoming</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Add Appt</button>
+        <span className="text-cream-400/60 text-sm">{upcoming.length} upcoming</span>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Add Appt</button>
       </div>
 
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Who</label>
-              <select value={person} onChange={e => setPerson(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+              <label className="text-cream-400/60 text-xs mb-1 block">Who</label>
+              <select value={person} onChange={e => setPerson(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring">
                 {FAMILY_MEMBERS.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Type</label>
-              <input value={type} onChange={e => setType(e.target.value)} placeholder="Doctor, Dentist..." className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Type</label>
+              <input value={type} onChange={e => setType(e.target.value)} placeholder="Doctor, Dentist..." className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Doctor / Provider</label>
-              <input value={doctor} onChange={e => setDoctor(e.target.value)} placeholder="Dr. Smith" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Doctor / Provider</label>
+              <input value={doctor} onChange={e => setDoctor(e.target.value)} placeholder="Dr. Smith" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" autoFocus />
+              <label className="text-cream-400/60 text-xs mb-1 block">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring" autoFocus />
             </div>
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs mb-1 block">Notes</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No appointments.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No appointments.</div>}
 
       <div className="space-y-2">
         {upcoming.map(a => {
           const daysUntil = Math.round((new Date(a.date).getTime() - Date.now()) / 86400000);
           return (
-            <div key={a.id} className="flex items-start gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-3 py-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-900/40 border border-blue-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Calendar className="w-4 h-4 text-blue-400" />
+            <div key={a.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-3 py-2.5">
+              <div className="w-8 h-8 rounded-lg bg-berry-600/40 border border-berry-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Calendar className="w-4 h-4 text-berry-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-white text-sm font-medium">{a.type}</div>
-                <div className="text-slate-400 text-xs">{a.person}{a.doctor ? ` · ${a.doctor}` : ''}</div>
-                <div className="text-slate-400 text-xs">{a.date}{daysUntil === 0 ? ' · Today!' : daysUntil === 1 ? ' · Tomorrow' : daysUntil > 0 ? ` · ${daysUntil}d away` : ''}</div>
-                {a.notes && <div className="text-slate-500 text-xs">{a.notes}</div>}
+                <div className="text-cream-400/60 text-xs">{a.person}{a.doctor ? ` · ${a.doctor}` : ''}</div>
+                <div className="text-cream-400/60 text-xs">{a.date}{daysUntil === 0 ? ' · Today!' : daysUntil === 1 ? ' · Tomorrow' : daysUntil > 0 ? ` · ${daysUntil}d away` : ''}</div>
+                {a.notes && <div className="text-cream-400/50 text-xs">{a.notes}</div>}
               </div>
-              {isAdm && <button onClick={() => del(a.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && <button onClick={() => del(a.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           );
         })}
@@ -261,14 +261,14 @@ const ApptTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
 
       {past.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-600 text-xs uppercase tracking-wide">Past</div>
+          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Past</div>
           {past.slice(-5).reverse().map(a => (
-            <div key={a.id} className="flex items-center gap-3 bg-slate-900/30 border border-slate-800 rounded-xl px-3 py-2 opacity-50">
+            <div key={a.id} className="flex items-center gap-3 bg-bark-800/30 border border-cream-400/10 rounded-xl px-3 py-2 opacity-50">
               <div className="flex-1 min-w-0">
-                <div className="text-slate-400 text-sm">{a.person} · {a.type}</div>
-                <div className="text-slate-500 text-xs">{a.date}</div>
+                <div className="text-cream-400/60 text-sm">{a.person} · {a.type}</div>
+                <div className="text-cream-400/50 text-xs">{a.date}</div>
               </div>
-              {isAdm && <button onClick={() => del(a.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && <button onClick={() => del(a.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           ))}
         </div>
@@ -312,60 +312,60 @@ const LucyTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex gap-3 text-xs">
-          <span className="text-slate-400">Last flea: <span className="text-amber-300">{lastFlea?.date || 'Unknown'}</span>{lastFlea?.nextDue ? ` · Next: ${lastFlea.nextDue}` : ''}</span>
+          <span className="text-cream-400/60">Last flea: <span className="text-honey-200">{lastFlea?.date || 'Unknown'}</span>{lastFlea?.nextDue ? ` · Next: ${lastFlea.nextDue}` : ''}</span>
         </div>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Log</button>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Log</button>
       </div>
 
-      <div className="text-xs text-slate-400">
-        Last heartworm: <span className="text-amber-300">{lastHeartworm?.date || 'Unknown'}</span>{lastHeartworm?.nextDue ? ` · Next: ${lastHeartworm.nextDue}` : ''}
+      <div className="text-xs text-cream-400/60">
+        Last heartworm: <span className="text-honey-200">{lastHeartworm?.date || 'Unknown'}</span>{lastHeartworm?.nextDue ? ` · Next: ${lastHeartworm.nextDue}` : ''}
       </div>
 
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3 space-y-2">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Type</label>
-              <select value={type} onChange={e => setType(e.target.value as LucyEntry['type'])} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none">
+              <label className="text-cream-400/60 text-xs mb-1 block">Type</label>
+              <select value={type} onChange={e => setType(e.target.value as LucyEntry['type'])} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring">
                 {LUCY_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" autoFocus />
+              <label className="text-cream-400/60 text-xs mb-1 block">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring" autoFocus />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Next due (optional)</label>
-              <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Next due (optional)</label>
+              <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Notes</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-xs placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs mb-1 block">Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 text-xs hover:text-white transition">Cancel</button>
-            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition">Save</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
+            <button onClick={add} className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
           </div>
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-slate-500 py-6 text-sm">No records yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No records yet.</div>}
 
       <div className="space-y-2">
         {active.map(e => {
           const typeLabel = LUCY_TYPES.find(t => t.id === e.type)?.label || e.type;
           return (
-            <div key={e.id} className="flex items-start gap-3 bg-slate-800/40 border border-slate-700 rounded-xl px-3 py-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-900/40 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Heart className="w-4 h-4 text-amber-400" />
+            <div key={e.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-3 py-2.5">
+              <div className="w-8 h-8 rounded-lg bg-honey-700/40 border border-honey-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Heart className="w-4 h-4 text-honey-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-white text-sm">{typeLabel}</div>
-                <div className="text-slate-400 text-xs">{e.date}{e.nextDue ? ` · Next: ${e.nextDue}` : ''}</div>
-                {e.notes && <div className="text-slate-500 text-xs">{e.notes}</div>}
+                <div className="text-cream-400/60 text-xs">{e.date}{e.nextDue ? ` · Next: ${e.nextDue}` : ''}</div>
+                {e.notes && <div className="text-cream-400/50 text-xs">{e.notes}</div>}
               </div>
-              {isAdm && <button onClick={() => del(e.id)} className="text-slate-600 hover:text-rose-400 transition"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && <button onClick={() => del(e.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
             </div>
           );
         })}

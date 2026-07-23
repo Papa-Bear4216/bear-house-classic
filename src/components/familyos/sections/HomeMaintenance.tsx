@@ -121,10 +121,10 @@ const HomeMaintenance: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Home Maintenance</h2>
         <div className="flex gap-2">
-          <button onClick={() => setShowScanner(true)} className="flex items-center gap-1 bg-violet-600 hover:bg-violet-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
+          <button onClick={() => setShowScanner(true)} className="flex items-center gap-1 bg-berry-600 hover:bg-berry-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring">
             <ScanLine className="w-4 h-4" /> Scan Room
           </button>
-          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-sm px-3 py-1.5 rounded-lg transition">
+          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring">
             <Plus className="w-4 h-4" /> Add Item
           </button>
         </div>
@@ -138,7 +138,7 @@ const HomeMaintenance: React.FC = () => {
           <button
             key={cat}
             onClick={() => setFilterCat(cat)}
-            className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${filterCat === cat ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${filterCat === cat ? 'bg-sage-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}
           >
             {cat}
           </button>
@@ -146,40 +146,40 @@ const HomeMaintenance: React.FC = () => {
       </div>
 
       {showForm && (
-        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3">
+        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Item / Task</label>
-              <input value={item} onChange={e => setItem(e.target.value)} placeholder="e.g. Replace HVAC filter" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-green-500 outline-none" autoFocus />
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Item / Task</label>
+              <input value={item} onChange={e => setItem(e.target.value)} placeholder="e.g. Replace HVAC filter" className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/50 focus:border-sage-500 outline-none focus-ring" autoFocus />
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value as Category)} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none">
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value as Category)} className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus-ring">
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Last Done</label>
-              <input type="date" value={lastDone} onChange={e => setLastDone(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Last Done</label>
+              <input type="date" value={lastDone} onChange={e => setLastDone(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Next Due</label>
-              <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm outline-none" />
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Next Due</label>
+              <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus-ring" />
             </div>
             <div>
-              <label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Notes</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 outline-none" />
+              <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/50 outline-none focus-ring" />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white text-sm px-3 py-1.5 rounded transition">Cancel</button>
-            <button onClick={addItem} className="bg-green-600 hover:bg-green-500 text-white text-sm px-4 py-1.5 rounded-lg transition">Add</button>
+            <button onClick={() => setShowForm(false)} className="text-cream-400/60 hover:text-white text-sm px-3 py-1.5 rounded transition focus-ring">Cancel</button>
+            <button onClick={addItem} className="bg-sage-600 hover:bg-sage-500 text-white text-sm px-4 py-1.5 rounded-lg transition focus-ring">Add</button>
           </div>
         </div>
       )}
 
       {filtered.length === 0 && !showForm && (
-        <div className="text-center text-slate-500 py-8 text-sm">No maintenance items. Add one!</div>
+        <div className="text-center text-cream-400/60 py-8 text-sm">No maintenance items. Add one!</div>
       )}
 
       <div className="space-y-2">
@@ -187,7 +187,7 @@ const HomeMaintenance: React.FC = () => {
           const overdue = isOverdue(i.nextDue);
           const color = CAT_COLORS[i.category];
           return (
-            <div key={i.id} className={`bg-slate-800/40 border rounded-xl px-4 py-3 ${overdue ? 'border-rose-500/40' : 'border-slate-700'}`}>
+            <div key={i.id} className={`bg-bark-700/40 border rounded-xl px-4 py-3 ${overdue ? 'border-rose-500/40' : 'border-cream-400/10'}`}>
               <div className="flex items-start gap-3">
                 <div className={`w-8 h-8 rounded-lg bg-${color}-900/40 border border-${color}-500/30 flex items-center justify-center flex-shrink-0 mt-0.5`}>
                   <Home className={`w-4 h-4 text-${color}-400`} />
@@ -197,15 +197,15 @@ const HomeMaintenance: React.FC = () => {
                     <span className="text-white text-sm font-medium">{i.item}</span>
                     {overdue && <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />}
                   </div>
-                  <div className="text-slate-500 text-xs mt-0.5">
+                  <div className="text-cream-400/50 text-xs mt-0.5">
                     <span className={`text-${color}-400`}>{i.category}</span>
                     {i.lastDone && <span> · Last: {i.lastDone}</span>}
                     {i.nextDue && <span className={overdue ? ' text-rose-400' : ''}> · Next: {i.nextDue}</span>}
                   </div>
-                  {i.notes && <div className="text-slate-500 text-xs mt-1">{i.notes}</div>}
+                  {i.notes && <div className="text-cream-400/50 text-xs mt-1">{i.notes}</div>}
                 </div>
                 {isAdm && (
-                  <button onClick={() => softDelete(i.id)} className="text-slate-600 hover:text-rose-400 transition flex-shrink-0">
+                  <button onClick={() => softDelete(i.id)} className="text-cream-400/60 hover:text-rose-400 transition flex-shrink-0 focus-ring">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -217,11 +217,11 @@ const HomeMaintenance: React.FC = () => {
 
       {isAdm && deleted.length > 0 && (
         <div className="space-y-2">
-          <div className="text-slate-600 text-xs uppercase tracking-wide">Removed</div>
+          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Removed</div>
           {deleted.map(i => (
-            <div key={i.id} className="flex items-center gap-3 bg-slate-900/20 border border-slate-800/50 rounded-xl px-4 py-2 opacity-40">
-              <div className="flex-1 text-slate-500 text-sm line-through">{i.item}</div>
-              <button onClick={() => restore(i.id)} className="text-slate-600 hover:text-amber-400 transition"><RotateCcw className="w-3.5 h-3.5" /></button>
+            <div key={i.id} className="flex items-center gap-3 bg-bark-800/20 border border-cream-400/10 rounded-xl px-4 py-2 opacity-40">
+              <div className="flex-1 text-cream-400/50 text-sm line-through">{i.item}</div>
+              <button onClick={() => restore(i.id)} className="text-cream-400/60 hover:text-honey-400 transition focus-ring"><RotateCcw className="w-3.5 h-3.5" /></button>
             </div>
           ))}
         </div>
