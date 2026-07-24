@@ -2,9 +2,7 @@
 export const config = { runtime: 'edge' };
 
 import { runFix } from './ha-fix.js';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 // Integrations whose tokens expire on a known cadence and can be refreshed with a Tier-1 action.
 const PREEMPT_TARGETS = ['wyze_bridge'];

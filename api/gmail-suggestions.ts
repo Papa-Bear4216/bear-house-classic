@@ -7,9 +7,10 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, GmailSuggestionsBodySchema } from './_schemas.js';
+import { json as j } from './_responseHelpers.js';
 
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -122,6 +123,9 @@ export default async function handler(req: Request): Promise<Response> {
   const supabaseToken = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = supabaseToken ? await resolveHouseholdId(supabaseToken) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'gmail-suggestions', 10);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(GmailSuggestionsBodySchema, rawBody);

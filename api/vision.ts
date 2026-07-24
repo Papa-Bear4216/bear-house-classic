@@ -3,8 +3,7 @@ export const config = { runtime: 'edge' };
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, VisionBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);

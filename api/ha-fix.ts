@@ -3,10 +3,9 @@ export const config = { runtime: 'edge' };
 
 import { resolveFix } from './_integrationFixMap.js';
 import { resolveHouseholdId } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaFixBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 export type FixResult = {
   ok: boolean; tier: 1 | 2 | 3; action?: string; result?: unknown;
@@ -108,6 +107,9 @@ export default async function handler(req: Request): Promise<Response> {
   const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'ha-fix', 20);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(HaFixBodySchema, rawBody);

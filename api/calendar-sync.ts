@@ -1,9 +1,9 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, CalendarSyncBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -44,6 +44,9 @@ export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'calendar-sync', 20);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const parsed = parseBody(CalendarSyncBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);

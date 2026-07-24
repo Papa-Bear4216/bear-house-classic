@@ -6,11 +6,9 @@
 export const config = { runtime: 'edge' };
 
 import { getStripeClient } from './_stripe.js';
+import { json as j } from './_responseHelpers.js';
 
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 async function updateHousehold(householdId: string, fields: Record<string, string | null>) {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;

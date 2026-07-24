@@ -3,8 +3,7 @@ export const config = { runtime: 'edge' };
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 async function callGemini(
   messages: { role: string; content: string }[],

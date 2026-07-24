@@ -15,7 +15,9 @@ export const config = { runtime: 'edge' };
  */
 
 import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClassroomBodySchema } from './_schemas.js';
+import { json as j } from './_responseHelpers.js';
 
 const TASKS_KEY = 'household_tasks';
 
@@ -35,8 +37,6 @@ async function gFetch(url: string, token: string) {
   return res.json();
 }
 
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
-
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
@@ -44,6 +44,9 @@ export default async function handler(req: Request): Promise<Response> {
   const accessTokenSupabase = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = accessTokenSupabase ? await resolveHouseholdId(accessTokenSupabase) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'classroom', 20);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ClassroomBodySchema, rawBody);

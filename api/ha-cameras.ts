@@ -16,7 +16,7 @@
  */
 export const config = { runtime: 'edge' };
 
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 function bufToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
