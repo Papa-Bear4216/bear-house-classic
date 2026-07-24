@@ -114,13 +114,19 @@ Below is the investigation that led to this decision, kept for context.
 ## P2 - Medium (Next Quarter)
 
 ### 9. Observability & Monitoring
+**Status**: Structured logging + Speed Insights done (2026-07-24). Sentry-style error tracking, admin dashboard, and metrics collection scoped out — see below.
+**What was done**: Added `api/_log.ts` (`logError(route, err, context?)` — emits a structured JSON line via `console.error`, which Vercel's function log viewer captures automatically; no external service needed). Wired it into `serverError()` in `api/_responseHelpers.ts` (now `serverError(message, route?, err?)` — logs when `route` is passed) and updated every one of the 26 previously-silent 500-error sites across 16 route files to pass their route name and caught exception through. Before this, a caught exception's message went to the client but the exception itself — and any server-side trace of the failure — was discarded; a production 500 left zero trace in Vercel's logs. `weather.ts` (which intentionally keeps its own local response helper for custom CORS headers, per earlier session history) got an equivalent inline `console.error` at its one 500 site rather than importing `serverError`, to preserve that deliberate divergence. Also installed `@vercel/speed-insights@2.0.0` and called `injectSpeedInsights()` in `src/main.tsx` — a first-party, no-account-needed performance monitoring script (the app is already Vercel-deployed).
+**Not done, scoped out this pass**: Sentry/LogRocket error tracking needs a new external account (DSN, org signup) the user would have to create — asked, user chose logging + Speed Insights only, no new account. Admin health dashboard and metrics collection (API/DB response times) also not pursued — bigger, separate pieces of work not covered by the "structured logging + Speed Insights" scope the user approved.
+**Verified**: `npm test` (179 tests), `npm run lint`, `npm run build` all pass. No tsconfig in this repo actually covers `api/` (`tsconfig.app.json`'s `include` is `["src"]` only; `vite build` only compiles `src/`; the vitest suite covers only `_`-prefixed helpers, zero route files) — so the 26 new `serverError(message, route, err)` call sites have no type-checked or test-covered verification. Ran a standalone `tsc` pass over `api/*.ts` outside this repo's config to sanity-check anyway; it surfaced the same systemic `parsed.ok`-narrowing false positives documented earlier in this file for `weather.ts`/`briefing.ts` (an isolated-tsc-invocation artifact, not a real bug — same discriminated-union pattern used successfully elsewhere), across nearly every route, not just the ones touched here. Given that noise floor, verified correctness by hand instead: read every one of the 26 `serverError(...)` call sites and confirmed each second argument is a route-name string literal and each third argument (where present) is the actual caught exception or error-detail value, not swapped or malformed.
+**Speed Insights caveat**: `injectSpeedInsights()` only injects the collection script — actual data collection additionally requires Speed Insights being enabled for this project in the Vercel dashboard, which wasn't verified or enabled from here. Code is wired and will start collecting once you flip that on (Project → Speed Insights → Enable).
 **Actions**:
-- [ ] Add error tracking (Sentry, LogRocket, or Vercel's built-in error tracking)
-- [ ] Implement structured logging in API endpoints
-- [ ] Add performance monitoring (Vercel Speed Insights or custom)
-- [ ] Create admin dashboard for monitoring system health
-- [ ] Add metrics collection for key operations (API response times, DB query times, etc.)
-**Estimate**: 3 days
+- [x] Implement structured logging in API endpoints — all 26 previously-silent 500 sites across 16 files, plus `weather.ts`'s equivalent local pattern
+- [x] Add performance monitoring (Vercel Speed Insights) — code wired; requires enabling Speed Insights in the Vercel project dashboard to actually collect data
+- [ ] Add error tracking (Sentry, LogRocket) — needs a new external account; deferred
+- [ ] Create admin dashboard for monitoring system health — separate scope
+- [ ] Add metrics collection for key operations (API response times, DB query times, etc.) — separate scope
+**Files**: `api/_log.ts` (new), `api/_responseHelpers.ts`, `api/billing-checkout.ts`, `api/briefing.ts`, `api/calendar-sync.ts`, `api/chat.ts`, `api/classroom.ts`, `api/data-write.ts`, `api/finance.ts`, `api/gmail-suggestions.ts`, `api/ha-cameras.ts`, `api/ha-webhook.ts`, `api/health-check.ts`, `api/setup.ts`, `api/stripe-webhook.ts`, `api/vision.ts`, `api/walmart.ts`, `api/weather.ts`, `src/main.tsx`, `package.json`/`package-lock.json` (`@vercel/speed-insights`)
+**Estimate**: 3 days estimated; actual: same session for the logging + Speed Insights slice.
 
 ### 10. Documentation & Knowledge Transfer
 **Actions**:

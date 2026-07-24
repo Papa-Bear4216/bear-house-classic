@@ -2,7 +2,7 @@
 export const config = { runtime: 'edge' };
 
 import { parseBody, SetupBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
@@ -70,7 +70,7 @@ export default async function handler(req: Request): Promise<Response> {
     });
     if (!householdRes.ok) {
       const detail = await householdRes.text().catch(() => '');
-      return j({ error: `Failed to create household: ${detail}` }, 500);
+      return serverError(`Failed to create household: ${detail}`, 'setup:household', detail);
     }
     const [household] = await householdRes.json() as any[];
 
@@ -90,7 +90,7 @@ export default async function handler(req: Request): Promise<Response> {
       const detail = await memberRes.text().catch(() => '');
       // Roll back the orphaned household so retries don't pile up dead rows.
       await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${household.id}`, { method: 'DELETE', headers });
-      return j({ error: `Failed to create member: ${detail}` }, 500);
+      return serverError(`Failed to create member: ${detail}`, 'setup:member', detail);
     }
 
     return j({ ok: true, householdId: household.id });
@@ -140,7 +140,7 @@ export default async function handler(req: Request): Promise<Response> {
     });
     if (!memberRes.ok) {
       const detail = await memberRes.text().catch(() => '');
-      return j({ error: `Failed to create invite: ${detail}` }, 500);
+      return serverError(`Failed to create invite: ${detail}`, 'setup:invite', detail);
     }
 
     const inviteRes = await fetch(`${SUPABASE_URL}/auth/v1/invite`, {
@@ -187,7 +187,7 @@ export default async function handler(req: Request): Promise<Response> {
     });
     if (!claimRes.ok) {
       const detail = await claimRes.text().catch(() => '');
-      return j({ error: `Failed to claim invite: ${detail}` }, 500);
+      return serverError(`Failed to claim invite: ${detail}`, 'setup:claim', detail);
     }
 
     return j({ ok: true, householdId: pending.household_id });

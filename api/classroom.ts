@@ -17,7 +17,7 @@ export const config = { runtime: 'edge' };
 import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClassroomBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 const TASKS_KEY = 'household_tasks';
 
@@ -133,6 +133,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return j({ added, total: upcoming.length, courses: courses.length, assignments: upcoming.map((w: any) => ({ id: w.id, title: w.title, course: w.courseName, dueDate: w.dueDate })) });
   } catch (e: any) {
-    return j({ error: (e as any)?.message || 'Classroom sync failed' }, 500);
+    return serverError((e as any)?.message || 'Classroom sync failed', 'classroom', e);
   }
 }

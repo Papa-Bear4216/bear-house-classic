@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, CalendarSyncBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -60,6 +60,6 @@ export default async function handler(req: Request): Promise<Response> {
     await dbSet('familyos_appointments', householdId, [...newAppointments, ...nonGcal]);
     return j({ ok: true, synced: newAppointments.length });
   } catch (e: any) {
-    return j({ error: e?.message || 'Sync failed' }, 500);
+    return serverError(e?.message || 'Sync failed', 'calendar-sync', e);
   }
 }

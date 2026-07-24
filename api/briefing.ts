@@ -209,6 +209,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   } catch (e: any) {
-    return serverError((e as any)?.message);
+    return serverError((e as any)?.message || 'Briefing generation failed', 'briefing', e);
   }
 }

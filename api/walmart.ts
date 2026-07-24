@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' };
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, WalmartBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
@@ -101,7 +101,7 @@ export default async function handler(req: Request): Promise<Response> {
       const suggestions = await parseWalmartEmails(emails, person || 'Family');
       return j({ ok: true, suggestions, emailsScanned: emails.length });
     } catch (e: any) {
-      return j({ error: e?.message }, 500);
+      return serverError(e?.message || 'Gmail scan failed', 'walmart', e);
     }
   }
 

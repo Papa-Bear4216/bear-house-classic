@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 async function callGemini(
   messages: { role: string; content: string }[],
@@ -49,7 +49,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!anthropicKey && !geminiKey) return j({ error: 'API key not configured.' }, 500);
+  if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
@@ -76,7 +76,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
       if (!geminiKey) return j({ error: await response.text() }, response.status);
     } catch (e: any) {
-      if (!geminiKey) return j({ error: e?.message || 'Network error' }, 500);
+      if (!geminiKey) return serverError(e?.message || 'Network error', 'chat:claude', e);
     }
   }
 
@@ -85,6 +85,6 @@ export default async function handler(req: Request): Promise<Response> {
     const text = await callGemini(messages, system || '', geminiKey!, tokens);
     return j({ text });
   } catch (e: any) {
-    return j({ error: e?.message || 'Network error' }, 500);
+    return serverError(e?.message || 'Network error', 'chat:gemini', e);
   }
 }
