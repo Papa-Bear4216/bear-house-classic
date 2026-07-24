@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog } from 'lucide-react';
 import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
@@ -6,10 +6,13 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getColorCardStyle } from '@/lib/colorStyles';
 
 import AlertModal from './AlertModal';
-import Trends from './Trends';
 import WeatherWidget from './WeatherWidget';
 import SystemHealth from './SystemHealth';
 import MemberProfileModal from './MemberProfileModal';
+
+// recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
+// needed when the user opens the Trends tab — split it into its own chunk.
+const Trends = lazy(() => import('./Trends'));
 
 interface DashboardProps {
   onNav: (m: string) => void;
@@ -279,7 +282,9 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       </div>
 
       {tab === 'trends' ? (
-        <Trends />
+        <Suspense fallback={<div className="text-cream-400/70 text-sm px-1">Loading trends…</div>}>
+          <Trends />
+        </Suspense>
       ) : (
         <>
           {/* Household daily progress */}

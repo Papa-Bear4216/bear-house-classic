@@ -98,22 +98,17 @@ So the original recommendation is largely **moot as stated** — the architectur
 **Estimate**: 2 days for remaining unit gaps + CI verification; E2E scoped separately if pursued
 
 ### 8. Performance Optimization
-**Issue**: Potential bundle bloat from large dependencies
+**Status**: Code-splitting done (2026-07-24); image optimization and dependency audit not started.
+**Findings, corrected from the audit's guess**: The "likely candidates" list was wrong on two of three. `react-day-picker` (`calendar.tsx`) and `embla-carousel-react` (`carousel.tsx`) are shadcn/ui scaffold components that **no app code imports at all** — confirmed via repo-wide grep. Vite/Rollup already tree-shakes unreferenced modules, so neither was ever actually in the bundle; nothing to split there. `recharts` (via `Trends.tsx`) was the real offender, plus a much bigger one the audit missed entirely: **all 16 of `AppLayout.tsx`'s switch-rendered modules** (`HouseholdBrain`, `Shopping`, `MealPlanner`, `SettingsModal`, `FinanceHub`, etc. — ~7,000 lines total) were statically imported even though the app only ever renders one at a time based on user navigation.
+**What was done**: Converted `Trends` (Dashboard's chart tab) and all 16 `AppLayout.tsx` modules/modals to `React.lazy()` with `Suspense` boundaries (`Dashboard` stays eager since it's the default landing view — lazy-loading it would add a loading flash on every app open). Two follow-on fixes were needed because a shared constant/type import was pulling a whole lazy component back into the eager bundle: extracted `CARS_STORAGE_KEY` out of `CarMaintenance.tsx` into `carMaintenanceKeys.ts`, and `DAYS`/`MEALS`/`WeekPlan`/`defaultPlan`/`applyMealCooked` out of `MealPlanner.tsx` into `mealPlannerShared.ts`, since `HermesChat.tsx` and `hermesActions.ts` needed those without forcing the whole component in. `SettingsModal`/`HistoryModal` are now conditionally rendered (`{open && <Modal/>}`) inside their `Suspense` boundary rather than always-mounted-but-hidden — the latter would have fetched both chunks on every app load regardless of whether the user ever opens them, defeating the point of lazy-loading them. **Result: main chunk 1,375.32 kB → 688.52 kB gzipped 376.40 kB → 205.18 kB — a 50% reduction**, plus `Trends` now loads as its own 419 kB chunk only when that tab is opened. Verified via `npx tsc --noEmit -p tsconfig.app.json` (confirmed the 3 pre-existing type errors it surfaces — `HealthHub.tsx`/`MealPlanner.tsx` `UserRole`/`'pet'` comparisons and a `SuggestionResult.error` access — predate this session's changes, same errors present on a clean stash), `npm run build`, `npm test` (176 tests), `npm run lint` (couldn't do a full browser click-through — no browser extension connected this session).
+**Remaining gap noted, not fixed**: `src/lib/householdMemory.ts` still triggers a vite build warning (dynamically imported by `familyos.ts` to break a circular dependency, but also statically imported by `HermesChat.tsx` and `HouseholdMemory.tsx`) — investigated and left alone because both static importers are themselves either already-lazy (`HouseholdMemory.tsx`, handled above) or eager by necessity (`HermesChat.tsx`, always mounted), so splitting this one file wouldn't shrink anything further. Not a real gap, just a residual harmless warning.
 **Actions**:
-- [ ] Run `vite build --mode analyzer` to generate bundle report
-- [ ] Identify largest dependencies:
-  - Likely candidates: recharts, react-day-picker, embla-carousel-react
-- [ ] Implement code splitting for:
-  - Heavy charts (load only when charts page is visited)
-  - Calendar components (load only when needed)
-  - Carousels (load only when used)
-- [ ] Optimize image assets:
-  - Ensure proper sizing and compression
-  - Implement lazy loading for below-fold images
-  - Consider using next/image equivalent or custom lazy load component
-- [ ] Audit and remove unused dependencies
-**Files**: Update dynamic imports, optimize assets, potentially update vite.config.ts
-**Estimate**: 3 days
+- [x] Identify largest dependencies — recharts confirmed as real; react-day-picker/embla-carousel-react confirmed unused (audit's guess was wrong)
+- [x] Implement code splitting for heavy/conditionally-rendered components — recharts (Trends) + all 16 AppLayout modules, well beyond the audit's narrower "charts/calendar/carousel" scope
+- [ ] Optimize image assets (not investigated this pass)
+- [ ] Audit and remove unused dependencies — `react-day-picker` and `embla-carousel-react` are candidates for removal entirely (zero usage found), not just splitting; flagging as a follow-up rather than removing packages unprompted
+**Files**: `src/components/AppLayout.tsx`, `src/components/familyos/Dashboard.tsx`, new `src/components/familyos/sections/carMaintenanceKeys.ts` and `mealPlannerShared.ts`, plus `CarMaintenance.tsx`/`MealPlanner.tsx`/`HermesChat.tsx`/`hermesActions.ts` updated to use them
+**Estimate**: 3 days estimated; actual: same session for the code-splitting piece. Image optimization and unused-dependency removal still open.
 
 ## P2 - Medium (Next Quarter)
 

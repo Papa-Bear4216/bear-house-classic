@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
   ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2,
@@ -7,30 +7,36 @@ import {
 import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
 import { getVisibleModulesFor, type TopModule } from '@/lib/navVisibility';
 import { useAppContext } from '@/contexts/AppContext';
-import HouseholdBrain from '@/components/familyos/HouseholdBrain';
-import QualityTime from '@/components/familyos/QualityTime';
-import Promises from '@/components/familyos/Promises';
-import Emotions from '@/components/familyos/Emotions';
+// Dashboard is the default landing view — keep it eager to avoid a loading
+// flash on every app open. Everything below only renders behind user
+// navigation (the renderModule() switch, or a modal's `open` prop), so it's
+// lazy-loaded to keep the initial bundle from including code most sessions
+// never touch.
 import Dashboard from '@/components/familyos/Dashboard';
-import SettingsModal from '@/components/familyos/SettingsModal';
-import HistoryModal from '@/components/familyos/HistoryModal';
-import Shopping from '@/components/familyos/sections/Shopping';
-import MealPlanner from '@/components/familyos/sections/MealPlanner';
-import Pantry from '@/components/familyos/sections/Pantry';
-import BillTracker from '@/components/familyos/sections/BillTracker';
-import CarMaintenance from '@/components/familyos/sections/CarMaintenance';
-import HomeMaintenance from '@/components/familyos/sections/HomeMaintenance';
-import HouseholdMemory from '@/components/familyos/sections/HouseholdMemory';
-import KidsHub from '@/components/familyos/sections/KidsHub';
-import HealthHub from '@/components/familyos/sections/HealthHub';
-import FamilyHub from '@/components/familyos/sections/FamilyHub';
-import FinanceHub from '@/components/familyos/sections/FinanceHub';
-import RewardStore from '@/components/familyos/RewardStore';
-import QuickCapture from '@/components/familyos/QuickCapture';
 import HermesChat from '@/components/familyos/HermesChat';
+import QuickCapture from '@/components/familyos/QuickCapture';
 import WelcomeBackModal from '@/components/familyos/WelcomeBackModal';
-import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import MagicTrail from '@/components/familyos/MagicTrail';
+import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
+
+const HouseholdBrain = lazy(() => import('@/components/familyos/HouseholdBrain'));
+const QualityTime = lazy(() => import('@/components/familyos/QualityTime'));
+const Promises = lazy(() => import('@/components/familyos/Promises'));
+const Emotions = lazy(() => import('@/components/familyos/Emotions'));
+const SettingsModal = lazy(() => import('@/components/familyos/SettingsModal'));
+const HistoryModal = lazy(() => import('@/components/familyos/HistoryModal'));
+const Shopping = lazy(() => import('@/components/familyos/sections/Shopping'));
+const MealPlanner = lazy(() => import('@/components/familyos/sections/MealPlanner'));
+const Pantry = lazy(() => import('@/components/familyos/sections/Pantry'));
+const BillTracker = lazy(() => import('@/components/familyos/sections/BillTracker'));
+const CarMaintenance = lazy(() => import('@/components/familyos/sections/CarMaintenance'));
+const HomeMaintenance = lazy(() => import('@/components/familyos/sections/HomeMaintenance'));
+const HouseholdMemory = lazy(() => import('@/components/familyos/sections/HouseholdMemory'));
+const KidsHub = lazy(() => import('@/components/familyos/sections/KidsHub'));
+const HealthHub = lazy(() => import('@/components/familyos/sections/HealthHub'));
+const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'));
+const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'));
+const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
 
 type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'brain';
 
@@ -339,7 +345,9 @@ const AppLayout: React.FC = () => {
       {/* MAIN */}
       <main className="max-w-6xl mx-auto px-4 py-6 pb-28 transition-opacity duration-300" key={active}>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {renderModule()}
+          <Suspense fallback={<div className="text-center py-16 text-cream-400/60 text-lg">Loading…</div>}>
+            {renderModule()}
+          </Suspense>
         </div>
       </main>
 
@@ -405,8 +413,10 @@ const AppLayout: React.FC = () => {
         </div>
       </nav>
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />
+      <Suspense fallback={null}>
+        {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+        {historyOpen && <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />}
+      </Suspense>
       <QuickCapture />
       <HermesChat />
       {autobrief && (
