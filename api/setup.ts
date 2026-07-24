@@ -2,11 +2,9 @@
 export const config = { runtime: 'edge' };
 
 import { parseBody, SetupBodySchema } from './_schemas.js';
+import { json as j } from './_responseHelpers.js';
 
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 // Resolve the caller's auth.users id from their Supabase access token.
 // Never trust a client-supplied auth_user_id directly.
@@ -32,6 +30,14 @@ export default async function handler(req: Request): Promise<Response> {
 
   const authUser = await getAuthUserId(accessToken);
   if (!authUser) return j({ error: 'Invalid or expired session' }, 401);
+
+  // NOTE: checkRateLimit() writes to family_data, whose household_id column
+  // has a foreign-key constraint against households(id) — it cannot be keyed
+  // by an auth user id, and no household exists yet at this point (that's
+  // what this route creates). Rate limiting this route needs a separate
+  // mechanism (e.g. a dedicated non-FK-constrained table or in-memory store);
+  // left unrated-limited for now, same as before this pass. Real protection
+  // here is the Supabase session requirement itself.
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(SetupBodySchema, rawBody);

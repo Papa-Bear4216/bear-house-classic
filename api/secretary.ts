@@ -4,9 +4,9 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SecretaryBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
@@ -106,6 +106,9 @@ export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'secretary', 30);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const parsed = parseBody(SecretaryBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);

@@ -5,10 +5,9 @@ import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } fr
 import { claimAccessUrl, fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, FinanceBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
@@ -25,6 +24,9 @@ export default async function handler(req: Request): Promise<Response> {
     householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   }
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const rl = await checkRateLimit(householdId, 'finance', 20);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const parsed = parseBody(FinanceBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);

@@ -15,12 +15,11 @@ export const config = { runtime: 'edge' };
  * verify the caller's Google JWT server-side instead of a shared secret.
  */
 
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, DataWriteBodySchema } from './_schemas.js';
+import { json as j } from './_responseHelpers.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -39,6 +38,9 @@ export default async function handler(req: Request): Promise<Response> {
   const parsed = parseBody(DataWriteBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { key, value, householdId } = parsed.data;
+
+  const rl = await checkRateLimit(householdId, 'data-write', 60);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   // Write via PostgREST using the service_role key (bypasses RLS).
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {

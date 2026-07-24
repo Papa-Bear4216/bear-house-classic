@@ -20,6 +20,7 @@ export const config = { runtime: 'edge' };
  */
 
 import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { parseBody, WeatherParamsSchema } from './_schemas.js';
 
 // Default home coordinates if a household hasn't set its own in Settings.
 const HOME_LAT = process.env.HOME_LAT || '30.45';
@@ -59,10 +60,15 @@ const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, 
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const lat = url.searchParams.get('lat') || HOME_LAT;
-  const lon = url.searchParams.get('lon') || HOME_LON;
+  const parsed = parseBody(WeatherParamsSchema, {
+    lat: url.searchParams.get('lat') ?? HOME_LAT,
+    lon: url.searchParams.get('lon') ?? HOME_LON,
+    token: url.searchParams.get('token') ?? undefined,
+  });
+  if (!parsed.ok) return j({ error: parsed.error }, 400);
+  const { lat, lon, token: queryToken } = parsed.data;
 
-  const token = url.searchParams.get('token') || (req.headers.get('x-webhook-token') ?? '');
+  const token = queryToken || (req.headers.get('x-webhook-token') ?? '');
   const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const householdId = accessToken
     ? await resolveHouseholdId(accessToken)

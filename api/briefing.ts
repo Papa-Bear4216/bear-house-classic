@@ -10,6 +10,8 @@ export const config = { runtime: 'edge' };
  */
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { parseBody, BriefingParamsSchema } from './_schemas.js';
+import { error as jError, serverError } from './_responseHelpers.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -130,11 +132,14 @@ export default async function handler(req: Request): Promise<Response> {
 
   const token = isGet ? url.searchParams.get('token') : (req.headers.get('x-webhook-token') || bodyData?.token);
   const householdId = await resolveHouseholdIdByWebhookToken(token || '');
-  if (!householdId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  if (!householdId) return jError('Unauthorized', 401);
 
-  const person: string | null = isGet ? url.searchParams.get('person') : bodyData?.person;
-  if (!person) return new Response(JSON.stringify({ error: 'person required' }), { status: 400 });
-  const briefType: string = (isGet ? url.searchParams.get('type') : bodyData?.type) || 'morning';
+  const rawParams = isGet
+    ? { token: url.searchParams.get('token') ?? undefined, person: url.searchParams.get('person') ?? undefined, type: url.searchParams.get('type') ?? undefined }
+    : { token: bodyData?.token, person: bodyData?.person, type: bodyData?.type };
+  const parsed = parseBody(BriefingParamsSchema, rawParams);
+  if (!parsed.ok) return jError(parsed.error, 400);
+  const { person, type: briefType } = parsed.data;
 
   try {
     const [tasks, bills, appointments, promises, weatherRaw] = await Promise.all([
@@ -204,6 +209,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: (e as any)?.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return serverError((e as any)?.message);
   }
 }

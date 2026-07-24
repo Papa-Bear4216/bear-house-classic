@@ -2,10 +2,9 @@ export const config = { runtime: 'edge' };
 
 import { getStripeClient } from './_stripe.js';
 import { requireBillingRole } from './_billingAuth.js';
+import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, BillingActionBodySchema } from './_schemas.js';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -17,6 +16,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   const auth = await requireBillingRole(req, householdId);
   if (auth.ok === false) return j({ error: auth.error }, auth.status);
+
+  const rl = await checkRateLimit(householdId, 'billing-checkout', 10);
+  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const basePriceId = process.env.STRIPE_BASE_PRICE_ID;
   if (!basePriceId) return j({ error: 'Billing is not configured (missing STRIPE_BASE_PRICE_ID)' }, 500);

@@ -5,8 +5,8 @@ import { dbGet, dbSet, allHouseholdIds } from './_db.js';
 import { fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
+import { json as j } from './_responseHelpers.js';
 
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
 // True Vercel cron — no per-request session, so it fans out over every

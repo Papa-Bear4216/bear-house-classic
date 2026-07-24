@@ -5,9 +5,7 @@ import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
-
-const j = (d: unknown, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
+import { json as j } from './_responseHelpers.js';
 
 // Which entity_id prefixes / substrings map to each logical integration id.
 // Match on entity_id substrings specific to each integration. Keep these TIGHT —

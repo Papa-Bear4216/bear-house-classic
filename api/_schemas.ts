@@ -94,6 +94,18 @@ export const SetupBodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('claimInvite') }),
 ]);
 
+export const BriefingParamsSchema = z.object({
+  token: z.string().optional(),
+  person: z.string().min(1),
+  type: z.enum(['morning', 'evening']).default('morning'),
+});
+
+export const WeatherParamsSchema = z.object({
+  lat: z.string().refine(v => { const n = Number(v); return Number.isFinite(n) && n >= -90 && n <= 90; }, { message: 'lat must be a number between -90 and 90' }),
+  lon: z.string().refine(v => { const n = Number(v); return Number.isFinite(n) && n >= -180 && n <= 180; }, { message: 'lon must be a number between -180 and 180' }),
+  token: z.string().optional(),
+});
+
 export const WalmartBodySchema = z.object({
   action: z.string().optional(),
   items: z.union([z.string(), z.array(z.string())]).optional(),
