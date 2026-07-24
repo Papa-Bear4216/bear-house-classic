@@ -37,12 +37,34 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(DataWriteBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { key, value, householdId } = parsed.data;
+  const { key, value, householdId, expectedUpdatedAt } = parsed.data;
 
   const rl = await checkRateLimit(householdId, 'data-write', 60);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
+  // Optimistic concurrency: if the caller tells us what version it last saw,
+  // reject the write when the row has moved on since then. This closes the
+  // lost-update race (two devices editing the same key within the same
+  // push window) without attempting to merge the two edits — we only have
+  // whole-value blobs here, not deltas, so a real merge isn't possible. The
+  // loser gets a 409 and re-pulls the winner's value instead of silently
+  // clobbering it.
+  if (expectedUpdatedAt) {
+    const currentRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/family_data?household_id=eq.${encodeURIComponent(householdId)}&key=eq.${encodeURIComponent(key)}&select=value,updated_at`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    );
+    if (currentRes.ok) {
+      const rows = await currentRes.json().catch(() => []);
+      const current = rows[0];
+      if (current && current.updated_at !== expectedUpdatedAt) {
+        return j({ error: 'Version conflict', current: current.value, currentUpdatedAt: current.updated_at }, 409);
+      }
+    }
+  }
+
   // Write via PostgREST using the service_role key (bypasses RLS).
+  const writtenAt = new Date().toISOString();
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
     method: 'POST',
     headers: {
@@ -51,7 +73,7 @@ export default async function handler(req: Request): Promise<Response> {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
-    body: JSON.stringify({ key, value, household_id: householdId, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ key, value, household_id: householdId, updated_at: writtenAt }),
   });
 
   if (!res.ok) {
@@ -59,5 +81,5 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ error: `Supabase write failed: ${res.status} ${detail.slice(0, 200)}` }, 502);
   }
 
-  return j({ ok: true });
+  return j({ ok: true, updatedAt: writtenAt });
 }

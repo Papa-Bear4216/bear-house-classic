@@ -67,19 +67,14 @@ So the original recommendation is largely **moot as stated** — the architectur
 **Estimate**: Indexing verification: done. Table-splitting: 5 days if it proceeds (still recommend deferring until usage data justifies it — no new evidence found this pass that changes that recommendation).
 
 ### 6. State Management Refinement
-**Issue**: Hybrid localStorage + Supabase approach risks inconsistencies
-**Actions**:
-- [ ] Evaluate which data truly needs localStorage caching (offline support)
-- [ ] For data requiring offline:
-  - Implement proper conflict resolution (last-write-wins with timestamps or merge strategies)
-  - Consider using IndexedDB via a library like idb or dexie.js
-- [ ] For data that can be real-time:
-  - Migrate to Supabase real-time subscriptions where appropriate
-  - Use React Query's refetch intervals or websocket subscriptions
-- [ ] Create a unified data layer abstraction in `/src/lib/data.ts`
-- [ ] Migrate components to use this new layer
-**Files**: Create new data layer, update components using localStorage/saveJSON
-**Estimate**: 5 days
+**Status**: Targeted version-guard fix done (2026-07-24); full unified data layer explicitly not pursued (see below).
+**Findings, corrected from the audit's framing**: "Hybrid localStorage + Supabase risks inconsistencies" overstated the problem as originally scoped. Realtime subscriptions (`subscribeToRealtime` in `sync.ts`) already self-heal *divergence* — any server write propagates to other devices and overwrites their local copy. The actual gap is narrower: `saveJSON` writes the whole value to localStorage, then `pushToCloud` sends the whole value to `family_data` as a blob upsert (no delta, no merge) — so two writes to the *same key* within the same round-trip race, and whichever lands second at the server silently wins, dropping the other's edit with no indication anything was lost.
+**First attempt (reverted)**: tried a union-by-id merge in `pushToCloud` for array-shaped data — fetch the cloud's current value before pushing, add back any item present in cloud but not locally. This is wrong: it can't distinguish "cloud has an item I never saw" from "cloud has an item I just deleted," so it resurfaces every deleted item on the very next sync. Reverted before landing; a correct merge needs tombstones/delete-tracking, which is out of scope for a targeted fix (see "Full data layer" below).
+**What was done instead — optimistic concurrency (version guard)**: `api/data-write.ts` now accepts an optional `expectedUpdatedAt`; if the row's actual `updated_at` no longer matches, it rejects with 409 and returns the current cloud value instead of overwriting it. `sync.ts` tracks each key's last-known `updated_at` (from pull, realtime events, and its own successful pushes) and sends it on every push. On 409, the client adopts the cloud's value into localStorage rather than clobbering it, and logs a warning. Pushes to the same key are also now serialized/coalesced per key (`pending`/`queuedValue` maps in `sync.ts`) — without this, `saveJSON`'s fire-and-forget push meant two rapid edits to one key (e.g. fast typing, quick checkbox toggles) would both read the same stale version and the second would 409 against its *own* device's in-flight write, which is strictly worse than doing nothing. Caught this via a second advisor pass before committing; added `src/lib/sync.test.ts` (3 tests) covering the coalescing behavior and the 409 adopt-cloud-value path.
+**What this does and doesn't fix**: same-device rapid writes to one key are now fully serialized — no self-conflict, each carries the correct version. Cross-device concurrent writes are *detected*, not merged — the loser gets 409 and takes the winner's value instead of silently overwriting it, which is strictly better than before, but the two edits are never combined (only whole-value blobs exist, not deltas), so the loser's edit is still gone, just now visibly so instead of silently. The server's read-then-write check also has a small TOCTOU window (two requests can both read "no conflict" before either writes) — narrows the race, doesn't fully close it.
+**Full data layer (IndexedDB, unified `/src/lib/data.ts` abstraction, item-level merge/tombstones)**: explicitly not pursued this pass — scoped down from the original 5-day estimate after confirming with the user that the actual failure mode (occasional same-second concurrent edits to one list) didn't justify the bigger rewrite. Revisit if lost cross-device edits become a reported problem in practice.
+**Files**: `api/_schemas.ts` (`DataWriteBodySchema.expectedUpdatedAt`), `api/data-write.ts` (409 check + `updatedAt` in response), `src/lib/sync.ts` (version tracking, per-key serialization), `src/lib/sync.test.ts` (new)
+**Estimate**: 5 days estimated for the full scope; actual for the targeted version-guard fix: same session.
 
 ### 7. Testing Expansion
 **Status**: CI added and one hook partially tested (2026-07-24); remaining hook coverage needs an infra decision (see below).
