@@ -16,7 +16,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   turbopack: {},
-  serverExternalPackages: ['plaid'],
   // Allow access to remote image placeholder.
   images: {
     remotePatterns: [

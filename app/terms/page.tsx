@@ -27,7 +27,7 @@ export default function TermsPage() {
           </section>
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">Financial Data</h2>
-            <p>Bank account connections are established through Plaid, a secure financial data service. By connecting a bank account, you authorize Plaid to retrieve your financial data on your behalf. We never store card numbers, passwords, or credentials.</p>
+            <p>Bank account connections are established through SimpleFIN, a secure financial data service. By connecting a bank account, you authorize SimpleFIN to retrieve your financial data on your behalf. We never store card numbers, passwords, or credentials.</p>
           </section>
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">User Content</h2>

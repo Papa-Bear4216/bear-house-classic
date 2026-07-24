@@ -27,7 +27,7 @@ export default function PrivacyPage() {
               <li>Google account name and email (authentication only)</li>
               <li>Profile information you provide (display name, avatar, role)</li>
               <li>Tasks, events, messages, and content you create</li>
-              <li>Financial data from connected bank accounts via Plaid</li>
+              <li>Financial data from connected bank accounts via SimpleFIN</li>
               <li>Google Calendar events (read-only)</li>
               <li>Photos uploaded to the family gallery</li>
             </ul>
@@ -38,13 +38,13 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">Data Storage</h2>
-            <p>Data is stored in Google Firebase with enterprise-grade encryption at rest and in transit. Financial access tokens are stored securely in Firestore and never exposed client-side.</p>
+            <p>Data is stored in Google Firebase with enterprise-grade encryption at rest and in transit. Financial access credentials are stored in a Firestore location that only the server can read, and are never sent to the client — including to other family members.</p>
           </section>
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">Third-Party Services</h2>
             <ul className="list-disc list-inside space-y-2 text-slate-400">
               <li><strong className="text-slate-300">Google Firebase</strong> — authentication and database</li>
-              <li><strong className="text-slate-300">Plaid</strong> — secure bank account connection</li>
+              <li><strong className="text-slate-300">SimpleFIN</strong> — secure bank account connection</li>
               <li><strong className="text-slate-300">Google Calendar API</strong> — read-only calendar access</li>
               <li><strong className="text-slate-300">Google Gemini AI</strong> — AI assistant</li>
               <li><strong className="text-slate-300">Vercel</strong> — application hosting</li>

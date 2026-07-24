@@ -364,7 +364,7 @@ export default function SettingsPage() {
               <Toggle
                 checked={settings.features.showBudget}
                 onChange={v => isAdmin && updateFeatureSettings({ showBudget: v })}
-                label="Budget / Plaid"
+                label="Budget / SimpleFIN"
               />
               <Toggle
                 checked={settings.features.showScanner}

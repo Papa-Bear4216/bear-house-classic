@@ -121,10 +121,18 @@ service cloud.firestore {
       allow read, write: if isAllowed();
     }
 
+    // === BANK SECRETS (SimpleFIN access URLs — server/Admin SDK only, never client-readable) ===
+    // Firestore ORs every matching `match` block together for a given path, so this deny-all
+    // block on its own would NOT override the broader households allow below — the wildcard
+    // rule itself must also exclude this subcollection (checked via the path segment).
+    match /households/{uid}/bankSecrets/{document=**} {
+      allow read, write: if false;
+    }
+
     // === HOUSEHOLD DATA (per-user private + family-shared) ===
     match /households/{uid}/{document=**} {
-      allow read: if isAllowed();
-      allow write: if isAllowed() && isOwner(uid);
+      allow read: if isAllowed() && request.path[5] != 'bankSecrets';
+      allow write: if isAllowed() && isOwner(uid) && request.path[5] != 'bankSecrets';
     }
 
     // === FAMILY MESSAGES ===

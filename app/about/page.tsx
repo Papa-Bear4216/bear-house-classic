@@ -14,7 +14,7 @@ const features = [
     icon: Wallet,
     color: 'bg-emerald-600',
     title: 'Budget & Banking',
-    desc: 'Connect bank accounts via Plaid to see real spending. View transaction history, breakdowns by category, and automatically detect recurring subscriptions.',
+    desc: 'Connect bank accounts via SimpleFIN to see real spending. View transaction history, breakdowns by category, and automatically detect recurring subscriptions.',
   },
   {
     icon: Cpu,

@@ -255,4 +255,30 @@ describe('Firestore Security Rules', () => {
     });
     await assertFails(promise);
   });
+
+  test('12. Reading a SimpleFIN bank secret should FAIL even for the owning user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
+      await context.firestore()
+        .collection('households').doc('admin-id').collection('bankSecrets').doc('conn-1')
+        .set({ accessUrl: 'https://user:pass@bridge.simplefin.org/simplefin' });
+    });
+
+    const adminContext = getAuthContext('admin-id');
+    const promise = adminContext.firestore()
+      .collection('households').doc('admin-id').collection('bankSecrets').doc('conn-1').get();
+    await assertFails(promise);
+  });
+
+  test('12b. Reading SimpleFIN bank connection metadata should SUCCEED for family members', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context: any) => {
+      await context.firestore()
+        .collection('households').doc('admin-id').collection('bankConnections').doc('conn-1')
+        .set({ institutionName: 'Wells Fargo', linkedAt: '2026-07-24' });
+    });
+
+    const childContext = getAuthContext('child-id');
+    const promise = childContext.firestore()
+      .collection('households').doc('admin-id').collection('bankConnections').doc('conn-1').get();
+    await assertSucceeds(promise);
+  });
 });

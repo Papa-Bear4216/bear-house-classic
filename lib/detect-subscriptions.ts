@@ -1,4 +1,4 @@
-import { PlaidTransaction } from '@/hooks/use-plaid';
+import type { BankTransaction } from '@/lib/bank-data';
 
 export interface Subscription {
   id: string;
@@ -6,7 +6,7 @@ export interface Subscription {
   amount: number;
   frequency: 'weekly' | 'monthly' | 'annual';
   lastCharged: string;
-  transactions: PlaidTransaction[];
+  transactions: BankTransaction[];
   category: string;
   monthlyEquivalent: number;
 }
@@ -21,10 +21,10 @@ function normalizeMerchant(name: string): string {
     .trim();
 }
 
-export function detectSubscriptions(transactions: PlaidTransaction[]): Subscription[] {
+export function detectSubscriptions(transactions: BankTransaction[]): Subscription[] {
   const charges = transactions.filter(t => t.amount > 0 && !t.pending);
 
-  const byMerchant = new Map<string, PlaidTransaction[]>();
+  const byMerchant = new Map<string, BankTransaction[]>();
   for (const tx of charges) {
     const key = normalizeMerchant(tx.merchant_name ?? tx.name);
     if (!key) continue;
