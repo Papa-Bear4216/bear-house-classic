@@ -4,14 +4,13 @@ import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferen
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 import { getColorCardStyle } from '@/lib/colorStyles';
+import { DAYS, MEALS, MEALS_STORAGE_KEY, defaultPlan, applyMealCooked, type Day, type MealType, type WeekPlan } from './mealPlannerShared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'familyos_meals';
-export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
-export type Day = typeof DAYS[number];
-export const MEALS = ['Breakfast', 'Lunch', 'Dinner'] as const;
-export type MealType = typeof MEALS[number];
+const STORAGE_KEY = MEALS_STORAGE_KEY;
+export { DAYS, MEALS, MEALS_STORAGE_KEY, defaultPlan, applyMealCooked };
+export type { Day, MealType, WeekPlan };
 
 interface CookProfile {
   skill: 'expert' | 'skilled' | 'intermediate' | 'beginner' | null;
@@ -51,7 +50,6 @@ interface DayPlan {
   // recipe drawer render identically regardless of who filled it in.
   recipeDetail?: Partial<Record<MealType, RecipeDetail>>;
 }
-export type WeekPlan = Record<Day, DayPlan>;
 const EMPTY_DAY: DayPlan = { Breakfast: '', Lunch: '', Dinner: '', cook: '' };
 
 interface Recipe {
@@ -66,14 +64,6 @@ type SuggestionKey = string; // "Monday-Dinner"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function defaultPlan(): WeekPlan {
-  const plan = {} as WeekPlan;
-  DAYS.forEach(d => { plan[d] = { ...EMPTY_DAY }; });
-  return plan;
-}
-
-export const MEALS_STORAGE_KEY = STORAGE_KEY;
-
 function suggestionKey(day: Day, meal: MealType): SuggestionKey { return `${day}-${meal}`; }
 
 export function scaleIngredients(
@@ -84,23 +74,6 @@ export function scaleIngredients(
   const from = fromServings || 1;
   const factor = toServings / from;
   return ingredients.map((ing) => ({ ...ing, quantity: Math.round(ing.quantity * factor * 100) / 100 }));
-}
-
-/** Pure plan transform — stamps cookedAt for one day/meal. Does not touch
- * pantry; callers scale ingredients and decrement pantry separately before
- * calling this, exactly as the UI's markCooked handler already does. */
-export function applyMealCooked(
-  plan: WeekPlan,
-  day: Day,
-  meal: MealType,
-  ingredients: { name: string; quantity: number; unit: string }[],
-  fromServings: number,
-  toServings: number
-): WeekPlan {
-  return {
-    ...plan,
-    [day]: { ...plan[day], cookedAt: { ...plan[day].cookedAt, [meal]: Date.now() } },
-  };
 }
 
 type SuggestionResult = { ok: true; recipe: Recipe } | { ok: false; error: string };

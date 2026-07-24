@@ -1,5 +1,5 @@
 import { loadJSON, saveJSON, uid } from './familyos';
-import { MEALS_STORAGE_KEY } from '@/components/familyos/sections/MealPlanner';
+import { MEALS_STORAGE_KEY } from '@/components/familyos/sections/mealPlannerShared';
 
 export interface DomainSpec {
   domain: string;

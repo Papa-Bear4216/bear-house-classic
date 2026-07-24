@@ -4,8 +4,8 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
-import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/MealPlanner';
-import { CARS_STORAGE_KEY } from '@/components/familyos/sections/CarMaintenance';
+import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/mealPlannerShared';
+import { CARS_STORAGE_KEY } from '@/components/familyos/sections/carMaintenanceKeys';
 import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 
