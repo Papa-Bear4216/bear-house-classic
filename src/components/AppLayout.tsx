@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2,
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone,
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
@@ -31,6 +31,7 @@ const Pantry = lazy(() => import('@/components/familyos/sections/Pantry'));
 const BillTracker = lazy(() => import('@/components/familyos/sections/BillTracker'));
 const CarMaintenance = lazy(() => import('@/components/familyos/sections/CarMaintenance'));
 const HomeMaintenance = lazy(() => import('@/components/familyos/sections/HomeMaintenance'));
+const DeviceWarranty = lazy(() => import('@/components/familyos/sections/DeviceWarranty'));
 const HouseholdMemory = lazy(() => import('@/components/familyos/sections/HouseholdMemory'));
 const KidsHub = lazy(() => import('@/components/familyos/sections/KidsHub'));
 const HealthHub = lazy(() => import('@/components/familyos/sections/HealthHub'));
@@ -38,7 +39,7 @@ const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'))
 const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'));
 const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
 
-type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'brain';
+type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'warranty' | 'brain';
 
 const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentType<{ className?: string }>; adminOnly?: boolean; }[] = [
   { id: 'tasks', label: 'Tasks', icon: Home },
@@ -48,6 +49,7 @@ const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentTy
   { id: 'bills', label: 'Bills', icon: Receipt },
   { id: 'home', label: 'Home', icon: Wrench },
   { id: 'cars', label: 'Cars', icon: Car },
+  { id: 'warranty', label: 'Warranty', icon: Smartphone },
   { id: 'brain', label: 'Brain', icon: Brain },
 ];
 
@@ -229,6 +231,7 @@ const AppLayout: React.FC = () => {
             {householdTab === 'bills' && <BillTracker />}
             {householdTab === 'home' && <HomeMaintenance />}
             {householdTab === 'cars' && <CarMaintenance />}
+            {householdTab === 'warranty' && <DeviceWarranty />}
             {householdTab === 'brain' && <HouseholdMemory />}
           </div>
         );
