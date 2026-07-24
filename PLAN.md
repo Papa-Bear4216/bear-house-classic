@@ -10,10 +10,12 @@ Based on the audit of the bear-house-classic codebase (AUDIT.md), here is a prio
 - **P2**: Medium - Nice-to-have enhancements
 - **P3**: Low - Future considerations
 
-## Open Decision (not a task — needs a call before any P0 work proceeds)
+## Resolved Decision (kept for history — no longer blocks P0 work)
 
-### Service role vs. RLS-backed reads — resolved for the browser, still open for `api/`
-**Update (2026-07-24)**: re-verified this against actual code, and it splits into two paths that were being conflated.
+### Service role vs. RLS-backed reads — decided 2026-07-24: keep `api/` as service_role-only
+**Decision**: keep the current model. `resolveHouseholdId` verifying the caller's token against `/auth/v1/user` before every `api/` data fetch is accepted as the trust boundary; not adding an RLS backstop on top of it. Rationale: the threat model this would guard against — a bug in `resolveHouseholdId` specifically — is narrow, and the added latency/complexity of forwarding tokens through every `_db.ts` read helper wasn't judged worth it for that narrow a risk. Revisit only if `resolveHouseholdId` itself changes materially or a real incident suggests otherwise.
+
+Below is the investigation that led to this decision, kept for context.
 
 **Browser reads (`src/lib/sync.ts`) — already have defense-in-depth, no action needed.** Confirmed `householdAuth.ts` calls `supabase.auth.setSession()` after Google OAuth completes, and `sync.ts` shares that same client instance — so browser reads run as `authenticated`, not `anon`, contrary to what CLAUDE.md said before this pass (now fixed). The live RLS policy (`supabase/migrations/20260714064504_tighten_family_data_rls.sql`) scopes `family_data` selects to `household_id in (select household_id from household_members where auth_user_id = auth.uid())` — real, database-enforced tenant isolation, verified independent of any application code. This is exactly the defense-in-depth the audit's original #1 P0 was asking for; it already exists for this path.
 
