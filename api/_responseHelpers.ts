@@ -13,6 +13,8 @@
  * calling these routes today.
  */
 
+import { logError } from './_log.js';
+
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 /** Generic JSON response — direct replacement for each route's local `j()`. */
@@ -48,6 +50,7 @@ export function rateLimitExceeded(retryAfterSeconds: number): Response {
   return json({ error: `Rate limit exceeded, try again in ${retryAfterSeconds}s` }, 429);
 }
 
-export function serverError(message = 'Internal server error'): Response {
+export function serverError(message = 'Internal server error', route?: string, err?: unknown): Response {
+  if (route) logError(route, err ?? message);
   return json({ error: message }, 500);
 }

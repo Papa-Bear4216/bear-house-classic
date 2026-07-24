@@ -16,7 +16,7 @@
  */
 export const config = { runtime: 'edge' };
 
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 function bufToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
@@ -38,7 +38,7 @@ export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const clientToken = req.headers.get('x-camera-token') || url.searchParams.get('token');
   if (!CAMERA_ACCESS_TOKEN || clientToken !== CAMERA_ACCESS_TOKEN) return j({ error: 'Unauthorized' }, 401);
-  if (!HA_URL || !HA_TOKEN) return j({ error: 'Home Assistant not configured (HOME_ASSISTANT_URL / HOME_ASSISTANT_TOKEN missing)' }, 500);
+  if (!HA_URL || !HA_TOKEN) return serverError('Home Assistant not configured (HOME_ASSISTANT_URL / HOME_ASSISTANT_TOKEN missing)', 'ha-cameras');
 
   const haHeaders = { Authorization: `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' };
   const entity = url.searchParams.get('entity');
@@ -61,6 +61,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return j({ cameras });
   } catch (e: any) {
-    return j({ error: e?.message || 'Home Assistant request failed' }, 500);
+    return serverError(e?.message || 'Home Assistant request failed', 'ha-cameras', e);
   }
 }

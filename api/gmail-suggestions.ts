@@ -9,7 +9,7 @@ export const config = { runtime: 'edge' };
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, GmailSuggestionsBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -155,6 +155,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return j({ suggestions, emailsScanned: unique.length });
   } catch (e: any) {
-    return j({ error: e?.message || 'Gmail scan failed' }, 500);
+    return serverError(e?.message || 'Gmail scan failed', 'gmail-suggestions', e);
   }
 }

@@ -6,7 +6,7 @@
 export const config = { runtime: 'edge' };
 
 import { getStripeClient } from './_stripe.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
@@ -69,6 +69,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     return j({ received: true });
   } catch (err: any) {
-    return j({ error: err.message }, 500);
+    return serverError(err.message || 'Webhook processing failed', 'stripe-webhook', err);
   }
 }

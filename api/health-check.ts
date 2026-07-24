@@ -5,7 +5,7 @@ import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { notifyIFTTT } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 // Which entity_id prefixes / substrings map to each logical integration id.
 // Match on entity_id substrings specific to each integration. Keep these TIGHT —
@@ -31,7 +31,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const HA_URL = process.env.HOME_ASSISTANT_URL;
   const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
-  if (!HA_URL || !HA_TOKEN) return j({ error: 'HA not configured' }, 500);
+  if (!HA_URL || !HA_TOKEN) return serverError('HA not configured', 'health-check');
 
   // This HA instance is one physical house — the household that owns it must
   // be pinned explicitly, not guessed. The scheduled cron carries no
@@ -40,7 +40,7 @@ export default async function handler(req: Request): Promise<Response> {
   const householdId = isWebhookCaller
     ? (await resolveHouseholdIdByWebhookToken(suppliedToken)) ?? HA_HOUSEHOLD_ID
     : HA_HOUSEHOLD_ID;
-  if (!householdId) return j({ error: 'HOME_ASSISTANT_HOUSEHOLD_ID not configured' }, 500);
+  if (!householdId) return serverError('HOME_ASSISTANT_HOUSEHOLD_ID not configured', 'health-check');
 
   let states: any[];
   try {

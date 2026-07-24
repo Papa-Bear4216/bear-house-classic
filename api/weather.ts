@@ -158,6 +158,8 @@ export default async function handler(req: Request): Promise<Response> {
   } catch (e: any) {
     const stale = await dbGet(CACHE_KEY, householdId);
     if (stale) return j({ ...stale, stale: true });
-    return j({ error: (e as any)?.message || 'Weather fetch failed' }, 500);
+    const message = (e as any)?.message || 'Weather fetch failed';
+    console.error(JSON.stringify({ level: 'error', route: 'weather', message, stack: e?.stack, timestamp: new Date().toISOString() }));
+    return j({ error: message }, 500);
   }
 }

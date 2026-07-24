@@ -7,7 +7,7 @@ import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, FinanceBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
@@ -46,7 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
       });
       return j({ ok: true, institutions: [] });
     } catch (e: any) {
-      return j({ error: e?.message || 'connect failed' }, 500);
+      return serverError(e?.message || 'connect failed', 'finance:connect', e);
     }
   }
 
@@ -77,7 +77,7 @@ export default async function handler(req: Request): Promise<Response> {
       await dbSet('simplefin_access', householdId, {});
       return j({ ok: true });
     } catch (e: any) {
-      return j({ error: e?.message || 'disconnect failed' }, 500);
+      return serverError(e?.message || 'disconnect failed', 'finance:disconnect', e);
     }
   }
 
@@ -152,7 +152,7 @@ export default async function handler(req: Request): Promise<Response> {
 
       return j({ synced: transactions.length, transactions, recurringBills, accounts: accounts.length });
     } catch (e: any) {
-      return j({ error: e?.message || 'sync failed' }, 500);
+      return serverError(e?.message || 'sync failed', 'finance:sync', e);
     }
   }
 

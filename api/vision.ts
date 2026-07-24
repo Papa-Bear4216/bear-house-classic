@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, VisionBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -17,7 +17,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return j({ error: 'API key not configured.' }, 500);
+  if (!apiKey) return serverError('API key not configured.', 'vision');
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(VisionBodySchema, rawBody);
@@ -44,6 +44,6 @@ export default async function handler(req: Request): Promise<Response> {
     const data = await response.json() as any;
     return j({ text: data?.content?.[0]?.text || '' });
   } catch (e: any) {
-    return j({ error: e?.message || 'Network error' }, 500);
+    return serverError(e?.message || 'Network error', 'vision', e);
   }
 }

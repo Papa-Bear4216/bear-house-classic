@@ -17,7 +17,7 @@ export const config = { runtime: 'edge' };
 
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, DataWriteBodySchema } from './_schemas.js';
-import { json as j } from './_responseHelpers.js';
+import { json as j, serverError } from './_responseHelpers.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
 
@@ -26,8 +26,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
   const writeSecret = process.env.DATA_WRITE_SECRET;
-  if (!serviceKey) return j({ error: 'Server not configured: SUPABASE_SERVICE_KEY missing' }, 500);
-  if (!writeSecret) return j({ error: 'Server not configured: DATA_WRITE_SECRET missing' }, 500);
+  if (!serviceKey) return serverError('Server not configured: SUPABASE_SERVICE_KEY missing', 'data-write');
+  if (!writeSecret) return serverError('Server not configured: DATA_WRITE_SECRET missing', 'data-write');
 
   // Guard: reject callers without the shared secret.
   if (req.headers.get('x-write-secret') !== writeSecret) {
