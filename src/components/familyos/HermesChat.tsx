@@ -8,6 +8,7 @@ import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, type Day, type MealTyp
 import { CARS_STORAGE_KEY } from '@/components/familyos/sections/carMaintenanceKeys';
 import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
+import { apiUrl } from '@/lib/api';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -374,7 +375,7 @@ genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...f
 async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
-    const res = await fetch('/api/chat', {
+    const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

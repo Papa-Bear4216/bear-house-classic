@@ -3,6 +3,7 @@ import { X, Loader2, Bot, Home, MapPin } from 'lucide-react';
 import { KEYS, loadJSON } from '@/lib/familyos';
 import { markBriefed } from '@/lib/presenceTracker';
 import { getAccessToken } from '@/lib/householdAuth';
+import { apiUrl } from '@/lib/api';
 
 interface Props {
   days: number;
@@ -49,7 +50,7 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
     setLoading(true);
     try {
       // Try Gemini first if key available
-      const geminiKey = localStorage.getItem(KEYS.geminiApiKey) || '';
+      const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
       const context = buildReturnContext(days);
 
       if (geminiKey) {
@@ -73,7 +74,7 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
 
       // Fall back to Claude
       const token = await getAccessToken();
-      const res = await fetch('/api/chat', {
+      const res = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

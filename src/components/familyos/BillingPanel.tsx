@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CreditCard } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
+import { apiUrl } from '@/lib/api';
 
 export function BillingPanel() {
   const { currentRole, householdId, bypassBilling } = useAppContext();
@@ -13,7 +14,7 @@ export function BillingPanel() {
     if (!householdId) return;
     const token = await getAccessToken();
     if (!token) return;
-    const res = await fetch('/api/billing-seats', {
+    const res = await fetch(apiUrl('/api/billing-seats'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ householdId }),
@@ -35,7 +36,7 @@ export function BillingPanel() {
     try {
       const token = await getAccessToken();
       if (!token) return;
-      const res = await fetch('/api/billing-portal', {
+      const res = await fetch(apiUrl('/api/billing-portal'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ householdId }),

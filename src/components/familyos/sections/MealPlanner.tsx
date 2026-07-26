@@ -3,6 +3,7 @@ import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCar
 import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, savePantry, calculateShortfall, decrementPantry } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
+import { apiUrl } from '@/lib/api';
 import { getColorCardStyle } from '@/lib/colorStyles';
 import { DAYS, MEALS, MEALS_STORAGE_KEY, defaultPlan, applyMealCooked, type Day, type MealType, type WeekPlan } from './mealPlannerShared';
 
@@ -106,7 +107,7 @@ Rules:
 - Return ingredients as a structured array with numeric quantity and a short unit string (e.g. "cups", "lb", "" for count-only items like eggs) — not free-text lines`;
 
   try {
-    const geminiKey = localStorage.getItem(KEYS.geminiApiKey) || '';
+    const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
     if (geminiKey) {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
@@ -136,7 +137,7 @@ Rules:
     }
 
     const token = await getAccessToken();
-    const res = await fetch('/api/chat', {
+    const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -191,7 +192,7 @@ Return ONLY valid JSON (no markdown):
 Keep meal names short (2-4 words). Vary it — don't repeat meals. Make Monday dinner something special.`;
 
   try {
-    const geminiKey = localStorage.getItem(KEYS.geminiApiKey) || '';
+    const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
     if (geminiKey) {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
@@ -211,7 +212,7 @@ Keep meal names short (2-4 words). Vary it — don't repeat meals. Make Monday d
       }
     }
     const token = await getAccessToken();
-    const res = await fetch('/api/chat', {
+    const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
