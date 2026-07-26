@@ -13,6 +13,7 @@ import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
 import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
+import { apiUrl } from "@/lib/api";
 import { AppProvider, useAppContext } from "@/contexts/AppContext";
 
 const queryClient = new QueryClient();
@@ -143,7 +144,7 @@ const App = () => {
       const token = await getAccessToken();
       if (token) {
         try {
-          const res = await fetch('/api/setup', {
+          const res = await fetch(apiUrl('/api/setup'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ action: 'claimInvite' }),

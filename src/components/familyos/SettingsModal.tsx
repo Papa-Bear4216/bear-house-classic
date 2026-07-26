@@ -178,9 +178,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
   useEffect(() => {
     if (open) {
-      setApiKey(localStorage.getItem(KEYS.apiKey) || '');
-      setGeminiKey(localStorage.getItem(KEYS.geminiApiKey) || '');
-      setCameraToken(localStorage.getItem(KEYS.cameraToken) || '');
+      setApiKey(sessionStorage.getItem(KEYS.apiKey) || '');
+      setGeminiKey(sessionStorage.getItem(KEYS.geminiApiKey) || '');
+      setCameraToken(sessionStorage.getItem(KEYS.cameraToken) || '');
       setSettings(loadJSON(KEYS.settings, DEFAULT_SETTINGS));
       setZones(loadJSON(KEYS.presenceZones, DEFAULT_PRESENCE_ZONES));
       setHomeLat(localStorage.getItem('home_lat') || '30.45');
@@ -191,9 +191,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
   const saveAll = () => {
     if (isAdmin) {
-      localStorage.setItem(KEYS.apiKey, apiKey);
-      localStorage.setItem(KEYS.geminiApiKey, geminiKey);
-      localStorage.setItem(KEYS.cameraToken, cameraToken);
+      sessionStorage.setItem(KEYS.apiKey, apiKey);
+      sessionStorage.setItem(KEYS.geminiApiKey, geminiKey);
+      sessionStorage.setItem(KEYS.cameraToken, cameraToken);
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
       window.dispatchEvent(new Event(HOME_LOCATION_CHANGED_EVENT));

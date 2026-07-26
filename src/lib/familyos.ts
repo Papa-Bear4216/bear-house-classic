@@ -1,5 +1,6 @@
 // Family OS shared utilities, constants, and storage helpers
 import type { TopModule } from './navVisibility';
+import { apiUrl } from './api';
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────
 export type UserRole = 'superadmin' | 'admin' | 'child';
@@ -462,7 +463,7 @@ export async function callClaude(
       } catch { /* memory optional — proceed without it */ }
     }
     const token = await getAccessToken();
-    const res = await fetch('/api/chat', {
+    const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -485,7 +486,7 @@ export async function callClaudeVision(imageBase64: string, mediaType: string, p
   try {
     // Route through server-side proxy so the API key is never exposed in the browser bundle
     const token = await getAccessToken();
-    const res = await fetch('/api/vision', {
+    const res = await fetch(apiUrl('/api/vision'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -574,7 +575,7 @@ async function uploadGeminiFile(imageBase64: string, mediaType: string, apiKey: 
 }
 
 export async function callGeminiVision(imageBase64: string, mediaType: string, prompt: string): Promise<{ ok: boolean; text: string }> {
-  const apiKey = localStorage.getItem(KEYS.geminiApiKey) || '';
+  const apiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
   if (!apiKey) return { ok: false, text: 'No Gemini API key set. Add one in Settings.' };
 
   const { count, limit } = getGeminiDailyUsage();

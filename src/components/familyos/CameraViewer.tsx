@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Camera, RefreshCw, ChevronDown } from 'lucide-react';
 import { KEYS } from '@/lib/familyos';
+import { apiUrl } from '@/lib/api';
 
 interface CameraEntity {
   entityId: string;
@@ -15,12 +16,12 @@ const CameraViewer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cameraToken = () => localStorage.getItem(KEYS.cameraToken) || '';
+  const cameraToken = () => sessionStorage.getItem(KEYS.cameraToken) || '';
 
   useEffect(() => {
     const token = cameraToken();
     if (!token) { setError('Add a camera token in Settings to view cameras.'); return; }
-    fetch('/api/ha-cameras', { headers: { 'x-camera-token': token } })
+    fetch(apiUrl('/api/ha-cameras'), { headers: { 'x-camera-token': token } })
       .then(r => r.json())
       .then(d => {
         if (d.error) { setError(d.error); return; }
@@ -37,7 +38,7 @@ const CameraViewer: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/ha-cameras?entity=${encodeURIComponent(entityId)}`, { headers: { 'x-camera-token': token } });
+      const res = await fetch(apiUrl(`/api/ha-cameras?entity=${encodeURIComponent(entityId)}`), { headers: { 'x-camera-token': token } });
       const d = await res.json();
       if (d.error) { setError(d.error); setImage(null); }
       else setImage(d.image);

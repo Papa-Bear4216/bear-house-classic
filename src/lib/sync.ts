@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { apiUrl } from './api';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -86,7 +87,7 @@ export function pushToCloud(key: string, value: unknown): Promise<boolean> {
 async function doPush(key: string, value: unknown): Promise<boolean> {
   if (!syncEnabled || !currentHouseholdId) return false;
   try {
-    const res = await fetch('/api/data-write', {
+    const res = await fetch(apiUrl('/api/data-write'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-write-secret': WRITE_SECRET },
       body: JSON.stringify({

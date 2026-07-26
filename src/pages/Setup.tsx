@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAccessToken, signOut } from '@/lib/householdAuth';
+import { apiUrl } from '@/lib/api';
 
 interface SetupProps {
   onHouseholdCreated: () => void;
@@ -35,7 +36,7 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
         return;
       }
 
-      const res = await fetch('/api/setup', {
+      const res = await fetch(apiUrl('/api/setup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'createHousehold', householdName, memberName }),
@@ -48,7 +49,7 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
         return;
       }
 
-      const checkoutRes = await fetch('/api/billing-checkout', {
+      const checkoutRes = await fetch(apiUrl('/api/billing-checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ householdId: data.householdId }),

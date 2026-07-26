@@ -14,8 +14,9 @@
  */
 
 import { logError } from './_log.js';
+import { CORS_HEADERS } from './_cors.js';
 
-const jsonHeaders = { 'Content-Type': 'application/json' };
+const jsonHeaders = { 'Content-Type': 'application/json', ...CORS_HEADERS };
 
 /** Generic JSON response — direct replacement for each route's local `j()`. */
 export function json(data: unknown, status = 200): Response {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
+import { apiUrl } from '@/lib/api';
 
 export default function BillingLockedPage() {
   const { currentRole, householdId } = useAppContext();
@@ -19,7 +20,7 @@ export default function BillingLockedPage() {
         setBusy(false);
         return;
       }
-      const res = await fetch('/api/billing-checkout', {
+      const res = await fetch(apiUrl('/api/billing-checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ householdId }),
