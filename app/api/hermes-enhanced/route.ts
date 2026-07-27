@@ -18,7 +18,6 @@ import {
 import { SpotifyIntegration, MOOD_PRESETS } from '@/lib/integrations/spotify-integration';
 import { VoiceAssistantIntegration } from '@/lib/integrations/voice-assistant';
 import { WeatherIntegration } from '@/lib/integrations/weather-integration';
-import { BankingIntegration } from '@/lib/integrations/banking-integration';
 
 // Initialize integrations (would use env vars in production)
 const integrations = {
@@ -38,12 +37,6 @@ const integrations = {
       lat: parseFloat(process.env.HOME_LAT || '40.7128'), 
       lon: parseFloat(process.env.HOME_LON || '-74.0060') 
     }
-  ) : null,
-  
-  banking: process.env.PLAID_CLIENT_ID ? new BankingIntegration(
-    process.env.PLAID_CLIENT_ID,
-    process.env.PLAID_SECRET!,
-    process.env.PLAID_ACCESS_TOKEN!
   ) : null,
 };
 
@@ -104,9 +97,6 @@ export async function POST(req: NextRequest) {
       
       case 'weather':
         return handleWeather(data);
-      
-      case 'banking':
-        return handleBanking(data);
 
       // ===== FULL ORCHESTRATION =====
       case 'orchestrate':
@@ -297,44 +287,12 @@ async function handleWeather(data: any) {
   }
 }
 
-async function handleBanking(data: any) {
-  if (!integrations.banking) {
-    return NextResponse.json({ error: 'Banking not configured' }, { status: 503 });
-  }
-
-  switch (data.command) {
-    case 'balance':
-      const balance = await integrations.banking.getRealTimeBalance();
-      return NextResponse.json(balance);
-    
-    case 'alerts':
-      const alerts = await integrations.banking.getSmartAlerts(data.location);
-      return NextResponse.json({ alerts });
-    
-    case 'budgets':
-      const budgets = await integrations.banking.getCategoryBudgets();
-      return NextResponse.json({ budgets });
-    
-    case 'shoppingMode':
-      const shopping = await integrations.banking.activateShoppingMode(data.userId);
-      return NextResponse.json(shopping);
-    
-    case 'predictions':
-      const predictions = await integrations.banking.getPredictiveAlerts();
-      return NextResponse.json({ predictions });
-    
-    default:
-      return NextResponse.json({ error: 'Unknown banking command' }, { status: 400 });
-  }
-}
-
 async function handleFullOrchestration(userId: string, context: any) {
   // Run all proactive systems in parallel
   const results = await Promise.allSettled([
     predictChaos(context),
     anticipation.anticipateNeeds(context),
     integrations.weather?.getWeatherBriefing(),
-    integrations.banking?.getSmartAlerts(),
     integrations.weather?.getActivitySuggestions(),
   ]);
 
@@ -342,7 +300,6 @@ async function handleFullOrchestration(userId: string, context: any) {
     chaos: any;
     anticipations: any;
     weather: any;
-    financialAlerts: any;
     activities: any;
     timestamp: string;
     emergencyProtocols?: any[];
@@ -350,19 +307,13 @@ async function handleFullOrchestration(userId: string, context: any) {
     chaos: results[0].status === 'fulfilled' ? results[0].value : [],
     anticipations: results[1].status === 'fulfilled' ? results[1].value : {},
     weather: results[2].status === 'fulfilled' ? results[2].value : null,
-    financialAlerts: results[3].status === 'fulfilled' ? results[3].value : [],
-    activities: results[4].status === 'fulfilled' ? results[4].value : {},
+    activities: results[3].status === 'fulfilled' ? results[3].value : {},
     timestamp: new Date().toISOString(),
   };
 
   // Check for emergency conditions
   const emergencyTriggers = [];
-  
-  // Financial emergency
-  if (orchestration.financialAlerts?.some((a: any) => a.severity === 'critical')) {
-    emergencyTriggers.push('financial_stress');
-  }
-  
+
   // Schedule chaos
   if (orchestration.chaos?.filter((c: any) => c.severity === 'high').length > 2) {
     emergencyTriggers.push('schedule_overload');

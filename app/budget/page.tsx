@@ -6,8 +6,7 @@ import {
   CreditCard, Landmark, X, AlertCircle, RotateCcw, CalendarClock, Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { usePlaidLink } from 'react-plaid-link';
-import { usePlaid } from '@/hooks/use-plaid';
+import { useSimpleFin } from '@/hooks/use-simplefin';
 import { useFamilyMembers } from '@/hooks/use-family';
 import { askHermes } from '@/lib/hermes';
 import { detectSubscriptions, totalMonthlySubscriptionCost } from '@/lib/detect-subscriptions';
@@ -46,35 +45,72 @@ const CATEGORY_BAR: Record<string, string> = {
   'Subscription': 'bg-violet-500',
 };
 
-function PlaidLinkButton({ onSuccess, children }: { onSuccess: (t: string, m: unknown) => void; children: React.ReactNode }) {
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [fetching, setFetching] = useState(false);
+function SimpleFinConnectButton({
+  onConnect, children,
+}: { onConnect: (setupToken: string, label: string) => Promise<void>; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [setupToken, setSetupToken] = useState('');
+  const [label, setLabel] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const { open, ready } = usePlaidLink({
-    token: linkToken ?? '',
-    onSuccess: (public_token, metadata) => { onSuccess(public_token, metadata); setLinkToken(null); },
-    onExit: () => setLinkToken(null),
-  });
-
-  if (linkToken && ready) open();
-
-  async function handleClick() {
-    setFetching(true);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setConnecting(true);
+    setLocalError(null);
     try {
-      const res = await fetch('/api/plaid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const data = await res.json();
-      if (data.link_token) setLinkToken(data.link_token);
-    } catch (e) { console.error(e); }
-    finally { setFetching(false); }
+      await onConnect(setupToken.trim(), label.trim());
+      setOpen(false);
+      setSetupToken('');
+      setLabel('');
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to connect');
+    } finally {
+      setConnecting(false);
+    }
   }
 
   return (
-    <button onClick={handleClick} disabled={fetching}
-      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
-    >
-      {fetching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-      {children}
-    </button>
+    <>
+      <button onClick={() => setOpen(true)}
+        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+      >
+        <Plus className="w-4 h-4" />
+        {children}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          >
+            <motion.form onSubmit={handleSubmit} initial={{ scale: 0.95 }} animate={{ scale: 1 }}
+              className="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-sm space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-white">Connect via SimpleFIN</h3>
+                <button type="button" onClick={() => setOpen(false)} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-xs text-slate-500">
+                Paste the setup token from your SimpleFIN Bridge account. It&apos;s single-use and gets exchanged for a permanent connection immediately.
+              </p>
+              {localError && <p className="text-xs text-red-400">{localError}</p>}
+              <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Nickname (e.g. Wells Fargo)"
+                className="w-full px-3 py-2 rounded-xl bg-slate-700/50 border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+              <textarea required value={setupToken} onChange={e => setSetupToken(e.target.value)} placeholder="Setup token" rows={3}
+                className="w-full px-3 py-2 rounded-xl bg-slate-700/50 border border-slate-600 text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-indigo-500"
+              />
+              <button type="submit" disabled={connecting || !setupToken.trim()}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {connecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                {connecting ? 'Connecting…' : 'Connect'}
+              </button>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -84,8 +120,8 @@ export default function BudgetPage() {
   const {
     linkedBanks, accounts, transactions, spendingByCategory,
     totalSpent, totalBalance, loadingBanks, loadingData, error,
-    exchangeAndSave, fetchAll, removeBank,
-  } = usePlaid();
+    claim, fetchAll, removeBank,
+  } = useSimpleFin();
   const { users } = useFamilyMembers();
 
   const [hermesLoading, setHermesLoading] = useState(false);
@@ -116,8 +152,8 @@ export default function BudgetPage() {
     }, {});
   const sortedCategories = Object.entries(displaySpendingByCategory).sort((a, b) => b[1] - a[1]);
 
-  async function handleLinkSuccess(publicToken: string, metadata: unknown) {
-    await exchangeAndSave(publicToken, (metadata as { institution?: { name?: string } })?.institution?.name);
+  async function handleConnect(setupToken: string, label: string) {
+    await claim(setupToken, label);
   }
 
   async function askHermesInsights() {
@@ -198,7 +234,7 @@ export default function BudgetPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Budget</h1>
-            <p className="text-xs text-slate-500">Powered by Plaid · {linkedBanks.length} bank{linkedBanks.length !== 1 ? 's' : ''} linked</p>
+            <p className="text-xs text-slate-500">Powered by SimpleFIN · {linkedBanks.length} bank{linkedBanks.length !== 1 ? 's' : ''} linked</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -223,9 +259,9 @@ export default function BudgetPage() {
               </button>
             </>
           )}
-          <PlaidLinkButton onSuccess={handleLinkSuccess}>
+          <SimpleFinConnectButton onConnect={handleConnect}>
             {linkedBanks.length === 0 ? 'Connect Bank' : 'Add Bank'}
-          </PlaidLinkButton>
+          </SimpleFinConnectButton>
         </div>
       </div>
 
@@ -244,7 +280,7 @@ export default function BudgetPage() {
           <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto">
             Link accounts to track spending, balances, subscriptions, and get AI budget insights.
           </p>
-          <PlaidLinkButton onSuccess={handleLinkSuccess}>Connect Bank Account</PlaidLinkButton>
+          <SimpleFinConnectButton onConnect={handleConnect}>Connect Bank Account</SimpleFinConnectButton>
         </div>
       )}
 
@@ -350,12 +386,12 @@ export default function BudgetPage() {
               )}
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider pt-2">Linked Banks</h3>
               {linkedBanks.map(bank => (
-                <div key={bank.itemId} className="flex items-center justify-between px-3 py-2.5 bg-slate-800/40 rounded-xl">
+                <div key={bank.connectionId} className="flex items-center justify-between px-3 py-2.5 bg-slate-800/40 rounded-xl">
                   <div>
                     <p className="text-sm font-semibold text-white">{bank.institutionName}</p>
                     <p className="text-xs text-slate-500">Linked {format(parseISO(bank.linkedAt), 'MMM d, yyyy')}</p>
                   </div>
-                  <button onClick={() => removeBank(bank.itemId)} className="p-1.5 text-slate-600 hover:text-red-400 transition-colors">
+                  <button onClick={() => removeBank(bank.connectionId)} className="p-1.5 text-slate-600 hover:text-red-400 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

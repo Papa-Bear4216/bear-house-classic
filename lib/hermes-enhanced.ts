@@ -333,10 +333,8 @@ export interface IntegrationConfig {
     clientId: string;
     refreshToken: string;
   };
-  plaid?: {
-    clientId: string;
-    secret: string;
-    accessToken: string;
+  simplefin?: {
+    accessUrl: string;
   };
   weather?: {
     apiKey: string;
