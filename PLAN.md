@@ -107,7 +107,7 @@ Below is the investigation that led to this decision, kept for context.
 - [x] Identify largest dependencies — recharts confirmed as real; react-day-picker/embla-carousel-react confirmed unused (audit's guess was wrong)
 - [x] Implement code splitting for heavy/conditionally-rendered components — recharts (Trends) + all 16 AppLayout modules, well beyond the audit's narrower "charts/calendar/carousel" scope
 - [ ] Optimize image assets (not investigated this pass)
-- [ ] Audit and remove unused dependencies — `react-day-picker` and `embla-carousel-react` are candidates for removal entirely (zero usage found), not just splitting; flagging as a follow-up rather than removing packages unprompted
+- [x] Audit and remove unused dependencies — `react-day-picker` and `embla-carousel-react` removed entirely (2026-07-26), along with their now-orphaned scaffold components `src/components/ui/calendar.tsx`/`carousel.tsx`. Re-confirmed zero app-code imports before removing. `npm run build`, `npm test` (179 tests), `npm run lint` all pass after removal.
 **Files**: `src/components/AppLayout.tsx`, `src/components/familyos/Dashboard.tsx`, new `src/components/familyos/sections/carMaintenanceKeys.ts` and `mealPlannerShared.ts`, plus `CarMaintenance.tsx`/`MealPlanner.tsx`/`HermesChat.tsx`/`hermesActions.ts` updated to use them
 **Estimate**: 3 days estimated; actual: same session for the code-splitting piece. Image optimization and unused-dependency removal still open.
 
