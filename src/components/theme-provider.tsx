@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { ThemeProviderProps } from "next-themes/dist/types"
+import { ThemeProviderProps } from "next-themes"
 
 type Theme = "dark" | "light" | "system"
 
