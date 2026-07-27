@@ -25,6 +25,13 @@ export const VisionBodySchema = z.object({
   prompt: z.string().min(1),
 });
 
+export const ClientMetricBodySchema = z.object({
+  event: z.string().min(1),
+  totalMs: z.number().nonnegative(),
+  detail: z.record(z.string(), z.number()).optional(),
+  householdId: z.string().min(1).optional(),
+});
+
 export const DataWriteBodySchema = z.object({
   key: z.string().min(1),
   value: z.unknown().refine(v => v !== undefined, { message: 'Missing value' }),
