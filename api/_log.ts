@@ -22,3 +22,17 @@ export function logError(route: string, err: unknown, context?: Record<string, u
     timestamp: new Date().toISOString(),
   }));
 }
+
+/**
+ * Structured info-level logging for client-reported metrics (e.g. page load
+ * timing) that need to land in Vercel's log viewer without being an error.
+ */
+export function logInfo(route: string, event: string, context?: Record<string, unknown>): void {
+  console.log(JSON.stringify({
+    level: 'info',
+    route,
+    event,
+    ...context,
+    timestamp: new Date().toISOString(),
+  }));
+}

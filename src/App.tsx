@@ -73,6 +73,7 @@ const App = () => {
   const initialCheckDone = useRef(false);
 
   const loadSession = useCallback(() => {
+    const loadStart = performance.now();
     getHouseholdSession().then((result) => {
       initialCheckDone.current = true;
       if (!result) {
@@ -80,8 +81,25 @@ const App = () => {
         setSyncReady(true);
         return;
       }
+      const sessionMs = performance.now() - loadStart;
       setAuthState('ready');
-      pullFromCloud(result.householdId).finally(() => setSyncReady(true));
+      pullFromCloud(result.householdId).finally(() => {
+        setSyncReady(true);
+        const totalMs = performance.now() - loadStart;
+        fetch(apiUrl('/api/client-metric'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'household_load',
+            totalMs: Math.round(totalMs),
+            detail: {
+              sessionMs: Math.round(sessionMs),
+              pullFromCloudMs: Math.round(totalMs - sessionMs),
+            },
+            householdId: result.householdId,
+          }),
+        }).catch(() => {}); // best-effort — never let a metric report block or error the UI
+      });
       unsubRealtimeRef.current?.();
       unsubRealtimeRef.current = subscribeToRealtime(result.householdId);
     });
