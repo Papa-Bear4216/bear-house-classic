@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, RotateCcw, ShoppingCart } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { openAmazonSearch, createAmazonSendQueue } from '@/lib/amazonCart';
 
 const STORAGE_KEY = 'familyos_shopping';
 const CATEGORIES = ['Groceries', 'Household', 'School', 'Other'] as const;
@@ -29,6 +30,8 @@ const Shopping: React.FC = () => {
   const [quantity, setQuantity] = useState('1');
   const [assignedTo, setAssignedTo] = useState('Anyone');
   const [showForm, setShowForm] = useState(false);
+  const [sendQueue, setSendQueue] = useState<{ remaining: string[]; openNext: () => string | null } | null>(null);
+  const [lastSent, setLastSent] = useState('');
 
   const save = (next: ShoppingItem[]) => {
     setItems(next);
@@ -87,11 +90,56 @@ const Shopping: React.FC = () => {
               Clear completed
             </button>
           )}
+          {active.length > 0 && !sendQueue && (
+            <button
+              onClick={() => setSendQueue(createAmazonSendQueue(active.map(i => i.name)))}
+              title="Step through your list, opening one Amazon search tab at a time — pick the exact product yourself"
+              className="flex items-center gap-1 bg-orange-700 hover:bg-orange-600 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring"
+            >
+              <ShoppingCart className="w-4 h-4" /> Send list to Amazon
+            </button>
+          )}
           <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-sage-600 hover:bg-sage-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring">
             <Plus className="w-4 h-4" /> Add
           </button>
         </div>
       </div>
+
+      {/* Amazon send-list step-through — one tab at a time, browsers block
+          rapid multi-tab opens as popup spam */}
+      {sendQueue && (
+        <div className="bg-orange-950/40 border border-orange-700/40 rounded-xl p-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-orange-200">
+            {lastSent && <span className="block text-xs text-orange-300/70 mb-0.5">Opened: {lastSent}</span>}
+            {sendQueue.remaining.length > 0
+              ? `${sendQueue.remaining.length} item(s) left to send`
+              : 'All items sent.'}
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            {sendQueue.remaining.length > 0 ? (
+              <button
+                onClick={() => { const sent = sendQueue.openNext(); if (sent) setLastSent(sent); setSendQueue({ ...sendQueue }); }}
+                className="bg-orange-600 hover:bg-orange-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring"
+              >
+                Open next
+              </button>
+            ) : (
+              <button
+                onClick={() => { setSendQueue(null); setLastSent(''); }}
+                className="bg-bark-700 hover:bg-bark-600 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring"
+              >
+                Done
+              </button>
+            )}
+            <button
+              onClick={() => { setSendQueue(null); setLastSent(''); }}
+              className="text-orange-300/60 hover:text-white text-sm px-2 py-1.5 transition focus-ring"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Category tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1">
@@ -166,6 +214,13 @@ const Shopping: React.FC = () => {
                 {item.assignedTo !== 'Anyone' && <span>For: {item.assignedTo}</span>}
               </div>
             </div>
+            <button
+              onClick={() => openAmazonSearch(item.name)}
+              title="Search this item on Amazon"
+              className="text-cream-400/40 hover:text-orange-400 transition flex-shrink-0 focus-ring"
+            >
+              <ShoppingCart className="w-4 h-4" />
+            </button>
             {isAdm && (
               <button onClick={() => softDelete(item.id)} className="text-cream-400/40 hover:text-rose-400 transition flex-shrink-0 focus-ring">
                 <Trash2 className="w-4 h-4" />
