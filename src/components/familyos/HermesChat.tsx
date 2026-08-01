@@ -433,7 +433,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
 };
 
 const HermesChat: React.FC = () => {
-  const { currentUser, householdMembers } = useAppContext();
+  const { currentUser, householdMembers, voiceUnlocked } = useAppContext();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -442,9 +442,12 @@ const HermesChat: React.FC = () => {
   const [memoryCount, setMemoryCount] = useState(0);
   const [listening, setListening] = useState(false);
   const [voiceOutput, setVoiceOutput] = useState(() => localStorage.getItem('hermes_voice_output') === '1');
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [unlockCode, setUnlockCode] = useState('');
+  const [unlockStatus, setUnlockStatus] = useState<'idle' | 'checking' | 'error'>('idle');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const voice = getVoiceProvider();
+  const voice = getVoiceProvider(voiceUnlocked);
 
   useEffect(() => {
     const mem = localStorage.getItem('hermes_memory') || '';
@@ -529,6 +532,28 @@ const HermesChat: React.FC = () => {
     });
   };
 
+  const redeemVoiceCode = async () => {
+    if (!/^\d{6}$/.test(unlockCode)) { setUnlockStatus('error'); return; }
+    setUnlockStatus('checking');
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(apiUrl('/api/voice-unlock'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ code: unlockCode }),
+      });
+      if (!res.ok) { setUnlockStatus('error'); return; }
+      // Full unlock takes effect on next session load (AppContext reads it
+      // from Supabase); reload so the whole household sees it immediately.
+      window.location.reload();
+    } catch {
+      setUnlockStatus('error');
+    }
+  };
+
   const clearMemory = () => {
     if (confirm('Clear Hermes memory? He will forget all learned preferences.')) {
       localStorage.removeItem('hermes_memory');
@@ -590,11 +615,43 @@ const HermesChat: React.FC = () => {
               >
                 {voiceOutput ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
+              {!voiceUnlocked && (
+                <button
+                  onClick={() => setUnlockOpen(o => !o)}
+                  title="Unlock premium voice"
+                  className="text-[10px] text-honey-400/70 hover:text-honey-300 px-1 py-1 rounded transition focus-ring"
+                >
+                  upgrade
+                </button>
+              )}
               <button onClick={() => setOpen(false)} className="text-cream-400/60 hover:text-white p-1 focus-ring">
                 <ChevronDown className="w-5 h-5" />
               </button>
             </div>
           </div>
+
+          {/* Voice unlock */}
+          {unlockOpen && !voiceUnlocked && (
+            <div className="px-4 py-2.5 border-b border-cream-400/10 flex-shrink-0 flex items-center gap-2">
+              <input
+                value={unlockCode}
+                onChange={e => { setUnlockCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setUnlockStatus('idle'); }}
+                placeholder="6-digit code"
+                inputMode="numeric"
+                maxLength={6}
+                className={`flex-1 bg-bark-700 border rounded-lg px-3 py-1.5 text-xs text-white placeholder-cream-400/40 outline-none ${
+                  unlockStatus === 'error' ? 'border-rose-500' : 'border-cream-400/10 focus:border-honey-500'
+                }`}
+              />
+              <button
+                onClick={redeemVoiceCode}
+                disabled={unlockStatus === 'checking' || unlockCode.length !== 6}
+                className="text-xs bg-honey-500 hover:bg-honey-400 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg transition focus-ring"
+              >
+                {unlockStatus === 'checking' ? '...' : 'Unlock'}
+              </button>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">

@@ -171,6 +171,19 @@ export async function dbGetHouseholdMembersByHouseholdId(householdId: string): P
   return await res.json() as any[];
 }
 
+/** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
+export async function dbSetVoiceUnlocked(householdId: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    { method: 'PATCH', headers: headers(serviceKey), body: JSON.stringify({ voice_unlocked: true }) }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetVoiceUnlocked failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Create a new household member */
 export async function dbCreateHouseholdMember(member: {
   id: string;
