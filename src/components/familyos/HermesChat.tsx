@@ -447,7 +447,7 @@ const HermesChat: React.FC = () => {
   const [unlockStatus, setUnlockStatus] = useState<'idle' | 'checking' | 'error'>('idle');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const voice = getVoiceProvider(voiceUnlocked);
+  const voice = getVoiceProvider(voiceUnlocked, getAccessToken, apiUrl);
 
   useEffect(() => {
     const mem = localStorage.getItem('hermes_memory') || '';
