@@ -10,6 +10,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
+import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
 interface Props { open: boolean; onClose: () => void; }
@@ -300,12 +301,14 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
           {tab === 'general' && (
             <div className="space-y-4">
 
-              {/* API Keys — admins only */}
+              {/* Device-local API Keys — admins only. Used only by client-side
+                  direct calls (e.g. MealPlanner's barcode scanner) — NOT the
+                  same as the household-wide server-side keys below. */}
               {isAdmin && (
                 <div className="rounded-xl border border-slate-700 overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 bg-slate-900">
                     <Key className="w-4 h-4 text-amber-400" />
-                    <span className="font-semibold text-white text-sm">API Keys</span>
+                    <span className="font-semibold text-white text-sm">Device API Keys</span>
                     <span className="ml-auto text-xs text-slate-500">stored on this device only</span>
                   </div>
                   <div className="divide-y divide-slate-700/50">
@@ -315,6 +318,11 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   </div>
                 </div>
               )}
+
+              {/* Household-wide server-side BYO keys — used by every AI
+                  route (chat, secretary, briefing, gmail-suggestions,
+                  walmart, vision) for the whole family, not just this device. */}
+              {isAdmin && <HouseholdAiKeysPanel />}
 
               {/* AI toggle — big and obvious */}
               <label className={`flex items-center justify-between rounded-xl border px-5 py-4 cursor-pointer transition ${settings.aiEnabled ? 'border-indigo-500/50 bg-indigo-950/30' : 'border-slate-700 bg-slate-900'}`}>

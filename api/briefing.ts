@@ -10,11 +10,9 @@ export const config = { runtime: 'edge' };
  */
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
 import { parseBody, BriefingParamsSchema } from './_schemas.js';
 import { error as jError, serverError } from './_responseHelpers.js';
-
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 async function getKey(key: string, householdId: string) {
   return (await dbGet(key, householdId)) ?? [];
@@ -43,10 +41,10 @@ function isTomorrow(ts: number | null | undefined): boolean {
   return d.getFullYear() === tomorrow.getFullYear() && d.getMonth() === tomorrow.getMonth() && d.getDate() === tomorrow.getDate();
 }
 
-async function callHaiku(prompt: string): Promise<string> {
+async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -54,9 +52,9 @@ async function callHaiku(prompt: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string): Promise<string> {
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -74,16 +72,16 @@ async function callGemini(prompt: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function generateBriefing(prompt: string): Promise<string> {
-  if (ANTHROPIC_API_KEY) {
+async function generateBriefing(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+  if (anthropicKey) {
     try {
-      return await callHaiku(prompt);
+      return await callHaiku(prompt, anthropicKey);
     } catch (e: any) {
-      if (!GEMINI_API_KEY) throw e;
+      if (!geminiKey) throw e;
       console.warn('Claude briefing failed, trying Gemini:', e.message);
     }
   }
-  if (GEMINI_API_KEY) return await callGemini(prompt);
+  if (geminiKey) return await callGemini(prompt, geminiKey);
   throw new Error('No working AI model configurations found.');
 }
 
@@ -142,6 +140,7 @@ export default async function handler(req: Request): Promise<Response> {
   const { person, type: briefType } = parsed.data;
 
   try {
+    const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
     const [tasks, bills, appointments, promises, weatherRaw] = await Promise.all([
       getKey('household_tasks', householdId),
       getKey('familyos_bills', householdId),
@@ -202,9 +201,9 @@ export default async function handler(req: Request): Promise<Response> {
         tomorrowAppts: myAppts.filter((a: any) => isTomorrow(a.date)).slice(0, 2).map((a: any) => ({ type: a.type, notes: a.notes })),
         moodFlags: moodFlags.slice(0, 2).map((e: any) => ({ person: e.person, category: e.category })),
       };
-      briefing = await generateBriefing(EVENING_PROMPT(person, eveningData, tomorrowName));
+      briefing = await generateBriefing(EVENING_PROMPT(person, eveningData, tomorrowName), anthropicKey, geminiKey);
     } else {
-      briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName));
+      briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName), anthropicKey, geminiKey);
     }
 
     return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });

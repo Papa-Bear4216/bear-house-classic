@@ -4,6 +4,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SecretaryBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
@@ -99,13 +100,12 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'GET') return j({ ok: true, agent: 'Hermes', status: 'ready' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
-
   const rawBody = await req.json().catch(() => ({})) as any;
   const token = req.headers.get('x-webhook-token') || rawBody?.token;
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
+  const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
 
   const rl = await checkRateLimit(householdId, 'secretary', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
