@@ -56,6 +56,10 @@ export const VoiceUnlockBodySchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, 'Code must be 6 digits'),
 });
 
+export const TtsBodySchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+});
+
 export const CalendarSyncBodySchema = z.object({
   accessToken: z.string().min(1),
   person: z.string().min(1),

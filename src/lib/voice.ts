@@ -1,12 +1,21 @@
 // Voice provider seam for Hermes voice input/output.
 //
-// TIER 1 (current): browser-native Web Speech API. Free, no API key, no
-// network round-trip. Voice quality is the OS/browser default.
+// FREE TIER: browser-native Web Speech API for both input and output. No API
+// key, no network round-trip. Output voice quality is the OS/browser default
+// (robotic).
 //
-// UPGRADE PATH: a paid provider (Google Neural2, ElevenLabs, etc.) can
-// implement the same VoiceProvider interface via an api/tts.ts + api/stt.ts
-// route, then getVoiceProvider() picks it based on subscriptionStatus —
-// nothing in HermesChat.tsx needs to change.
+// PREMIUM TIER (households with voice_unlocked=true, via api/voice-unlock.ts):
+// speech OUTPUT swaps to Google Cloud TTS Neural2 (api/tts.ts) for natural-
+// sounding audio, at real per-call cost. Speech INPUT stays the free browser
+// SpeechRecognition either way — recognition accuracy isn't the pain point,
+// robotic output is.
+//
+// FUTURE UPGRADE: real-time voice-to-voice (Gemini Live / OpenAI Realtime)
+// would replace this whole request/response model with a persistent
+// WebSocket session — meaningfully more expensive (~$1-3 per 5-minute
+// conversation) and architecturally different. Deliberately not built yet;
+// revisit only when actually wanted, gated behind its own decision, not
+// silently bundled into this unlock.
 
 export interface VoiceProvider {
   readonly supported: boolean;
@@ -78,22 +87,66 @@ class BrowserVoiceProvider implements VoiceProvider {
   }
 }
 
+/**
+ * Speech output via api/tts.ts (Google Neural2). Falls back silently to the
+ * free browser voice if the network call fails, so a flaky connection never
+ * leaves Hermes mute.
+ */
+class PremiumVoiceProvider extends BrowserVoiceProvider {
+  private audio: HTMLAudioElement | null = null;
+  constructor(private getAuthToken: () => Promise<string | null>, private apiUrl: (path: string) => string) {
+    super();
+  }
+
+  speak(text: string): void {
+    this.stopSpeaking();
+    (async () => {
+      try {
+        const token = await this.getAuthToken();
+        const res = await fetch(this.apiUrl('/api/tts'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) throw new Error(`tts ${res.status}`);
+        const data = await res.json();
+        if (!data.audioBase64) throw new Error('empty audio');
+
+        this.audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
+        this.audio.play();
+      } catch {
+        super.speak(text); // fall back to free browser voice
+      }
+    })();
+  }
+
+  stopSpeaking(): void {
+    this.audio?.pause();
+    this.audio = null;
+    super.stopSpeaking();
+  }
+}
+
 let cachedFreeProvider: VoiceProvider | null = null;
+let cachedPremiumProvider: VoiceProvider | null = null;
 
 /**
  * Returns the active voice provider for this household. `voiceUnlocked`
  * comes from AppContext (households.voice_unlocked, redeemed via a
  * developer-distributed 6-digit code through api/voice-unlock.ts) — a
  * household-wide flag, not per-device.
- *
- * Today both branches return the free browser provider; once a paid
- * provider exists (e.g. Google Neural2 TTS via an api/tts.ts route), swap
- * the `voiceUnlocked` branch below — HermesChat.tsx and every other caller
- * stays unchanged.
  */
-export function getVoiceProvider(voiceUnlocked: boolean): VoiceProvider {
+export function getVoiceProvider(
+  voiceUnlocked: boolean,
+  getAuthToken: () => Promise<string | null>,
+  apiUrl: (path: string) => string
+): VoiceProvider {
   if (voiceUnlocked) {
-    // TODO: return a PremiumVoiceProvider once a paid backend is wired up.
+    if (!cachedPremiumProvider) cachedPremiumProvider = new PremiumVoiceProvider(getAuthToken, apiUrl);
+    return cachedPremiumProvider;
   }
   if (!cachedFreeProvider) cachedFreeProvider = new BrowserVoiceProvider();
   return cachedFreeProvider;
