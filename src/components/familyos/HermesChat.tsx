@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain } from 'lucide-react';
+import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
@@ -9,6 +9,7 @@ import { CARS_STORAGE_KEY } from '@/components/familyos/sections/carMaintenanceK
 import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 import { apiUrl } from '@/lib/api';
+import { getVoiceProvider } from '@/lib/voice';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -439,8 +440,11 @@ const HermesChat: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
   const [memoryCount, setMemoryCount] = useState(0);
+  const [listening, setListening] = useState(false);
+  const [voiceOutput, setVoiceOutput] = useState(() => localStorage.getItem('hermes_voice_output') === '1');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const voice = getVoiceProvider();
 
   useEffect(() => {
     const mem = localStorage.getItem('hermes_memory') || '';
@@ -499,6 +503,30 @@ const HermesChat: React.FC = () => {
     setMessages(prev => [...prev, assistantMsg]);
     setLoading(false);
     if (!open) setUnread(n => n + 1);
+    if (voiceOutput) voice.speak(response.text);
+  };
+
+  const toggleListening = () => {
+    if (listening) {
+      voice.stopListening();
+      setListening(false);
+      return;
+    }
+    if (!voice.supported) return;
+    setListening(true);
+    voice.startListening(
+      (transcript) => { setInput(transcript); send(transcript); },
+      () => setListening(false)
+    );
+  };
+
+  const toggleVoiceOutput = () => {
+    setVoiceOutput(v => {
+      const next = !v;
+      localStorage.setItem('hermes_voice_output', next ? '1' : '0');
+      if (!next) voice.stopSpeaking();
+      return next;
+    });
   };
 
   const clearMemory = () => {
@@ -555,6 +583,13 @@ const HermesChat: React.FC = () => {
                   clear memory
                 </button>
               )}
+              <button
+                onClick={toggleVoiceOutput}
+                title={voiceOutput ? 'Voice replies on' : 'Voice replies off'}
+                className={`p-1.5 rounded transition focus-ring ${voiceOutput ? 'text-honey-400' : 'text-cream-400/40 hover:text-cream-200'}`}
+              >
+                {voiceOutput ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
               <button onClick={() => setOpen(false)} className="text-cream-400/60 hover:text-white p-1 focus-ring">
                 <ChevronDown className="w-5 h-5" />
               </button>
@@ -626,9 +661,20 @@ const HermesChat: React.FC = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask or tell Hermes anything…"
+              placeholder={listening ? 'Listening…' : 'Ask or tell Hermes anything…'}
               className="flex-1 bg-bark-700 border border-cream-400/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-cream-400/40 focus:border-honey-500 outline-none"
             />
+            {voice.supported && (
+              <button
+                onClick={toggleListening}
+                title={listening ? 'Stop listening' : 'Speak to Hermes'}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition focus-ring ${
+                  listening ? 'bg-rose-500 hover:bg-rose-400' : 'bg-bark-700 border border-cream-400/10 hover:border-honey-500/40'
+                }`}
+              >
+                {listening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-cream-300" />}
+              </button>
+            )}
             <button
               onClick={() => send()}
               disabled={!input.trim() || loading}

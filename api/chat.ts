@@ -58,39 +58,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const messages = msgArray || [{ role: 'user', content: prompt }];
   const tokens = maxTokens || 512;
-  
-  let augmentedSystem = system || '';
-  const mem0Key = process.env.MEM0_API_KEY;
-  if (mem0Key && messages.length > 0) {
-    const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
-    if (lastUserMessage) {
-      try {
-        // 1. Search for relevant past context
-        const searchRes = await fetch('https://api.mem0.ai/v1/search', {
-          method: 'POST',
-          headers: { 'Authorization': `Token ${mem0Key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: lastUserMessage, user_id: householdId })
-        });
-        if (searchRes.ok) {
-          const results = await searchRes.json();
-          if (results && results.length > 0) {
-            const context = results.map((r: any) => r.memory).join('\n- ');
-            augmentedSystem += `\n\nRelevant past context about this user/household:\n- ${context}`;
-          }
-        }
-        
-        // 2. Fire-and-forget: add the new user message to Mem0 for future recall
-        // (We don't await this so it doesn't slow down the chat response)
-        fetch('https://api.mem0.ai/v1/memories', {
-          method: 'POST',
-          headers: { 'Authorization': `Token ${mem0Key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: lastUserMessage }], user_id: householdId })
-        }).catch(() => {});
-      } catch (err) {
-        console.error('Mem0 integration error:', err);
-      }
-    }
-  }
+  const augmentedSystem = system || '';
 
   if (anthropicKey) {
     const chosenModel = model || (tokens > 512 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001');
