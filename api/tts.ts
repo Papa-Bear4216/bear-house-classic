@@ -36,7 +36,7 @@ export default async function handler(req: Request): Promise<Response> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { text },
-          voice: { languageCode: 'en-US', name: 'en-US-Neural2-D' },
+          voice: { languageCode: 'en-US', name: 'en-US-Neural2-J' },
           audioConfig: { audioEncoding: 'MP3' },
         }),
       }
