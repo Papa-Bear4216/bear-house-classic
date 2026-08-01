@@ -52,6 +52,10 @@ export const FinanceBodySchema = z.discriminatedUnion('action', [
 
 export const BillingActionBodySchema = z.object({ householdId: z.string().min(1) });
 
+export const VoiceUnlockBodySchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, 'Code must be 6 digits'),
+});
+
 export const CalendarSyncBodySchema = z.object({
   accessToken: z.string().min(1),
   person: z.string().min(1),

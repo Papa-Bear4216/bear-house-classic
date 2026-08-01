@@ -11,6 +11,7 @@ interface AppContextType {
   householdId: string | null;
   subscriptionStatus: string | null;
   bypassBilling: boolean;
+  voiceUnlocked: boolean;
   logout: () => void;
   setCurrentUser: (user: User | null) => void;
 }
@@ -24,6 +25,7 @@ const defaultAppContext: AppContextType = {
   householdId: null,
   subscriptionStatus: null,
   bypassBilling: false,
+  voiceUnlocked: false,
   logout: () => {},
   setCurrentUser: () => {},
 };
@@ -40,6 +42,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [bypassBilling, setBypassBilling] = useState(false);
+  const [voiceUnlocked, setVoiceUnlocked] = useState(false);
 
   useEffect(() => {
     const loadUserAndHousehold = async () => {
@@ -51,6 +54,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         setHouseholdId(null);
         setSubscriptionStatus(null);
         setBypassBilling(false);
+        setVoiceUnlocked(false);
         return;
       }
 
@@ -66,6 +70,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setHouseholdId(session.householdId);
       setSubscriptionStatus(session.subscriptionStatus);
       setBypassBilling(session.bypassBilling);
+      setVoiceUnlocked(session.voiceUnlocked);
 
       const roster = await getHouseholdRoster(session.householdId);
       const users: User[] = roster.map(m => ({
@@ -93,6 +98,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
     setHouseholdId(null);
     setSubscriptionStatus(null);
     setBypassBilling(false);
+    setVoiceUnlocked(false);
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -116,6 +122,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         householdId,
         subscriptionStatus,
         bypassBilling,
+        voiceUnlocked,
         logout,
         setCurrentUser,
       }}

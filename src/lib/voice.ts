@@ -78,14 +78,23 @@ class BrowserVoiceProvider implements VoiceProvider {
   }
 }
 
-let cachedProvider: VoiceProvider | null = null;
+let cachedFreeProvider: VoiceProvider | null = null;
 
 /**
- * Returns the active voice provider. Today always the free browser-native
- * one. Once a paid provider exists, gate the choice here on
- * AppContext's subscriptionStatus — everything else stays the same.
+ * Returns the active voice provider for this household. `voiceUnlocked`
+ * comes from AppContext (households.voice_unlocked, redeemed via a
+ * developer-distributed 6-digit code through api/voice-unlock.ts) — a
+ * household-wide flag, not per-device.
+ *
+ * Today both branches return the free browser provider; once a paid
+ * provider exists (e.g. Google Neural2 TTS via an api/tts.ts route), swap
+ * the `voiceUnlocked` branch below — HermesChat.tsx and every other caller
+ * stays unchanged.
  */
-export function getVoiceProvider(): VoiceProvider {
-  if (!cachedProvider) cachedProvider = new BrowserVoiceProvider();
-  return cachedProvider;
+export function getVoiceProvider(voiceUnlocked: boolean): VoiceProvider {
+  if (voiceUnlocked) {
+    // TODO: return a PremiumVoiceProvider once a paid backend is wired up.
+  }
+  if (!cachedFreeProvider) cachedFreeProvider = new BrowserVoiceProvider();
+  return cachedFreeProvider;
 }
