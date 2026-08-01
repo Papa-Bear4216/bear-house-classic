@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, VisionBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -16,7 +17,7 @@ export default async function handler(req: Request): Promise<Response> {
   const rl = await checkRateLimit(householdId, 'vision', 15);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const { anthropicKey: apiKey } = await resolveAiKeys(householdId);
   if (!apiKey) return serverError('API key not configured.', 'vision');
 
   const rawBody = await req.json().catch(() => ({}));

@@ -60,6 +60,18 @@ export const TtsBodySchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 
+export const SettingsKeysBodySchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('set'),
+    provider: z.enum(['anthropic', 'gemini']),
+    apiKey: z.string().trim().min(1).max(500),
+  }),
+  z.object({
+    action: z.literal('clear'),
+    provider: z.enum(['anthropic', 'gemini']),
+  }),
+]);
+
 export const CalendarSyncBodySchema = z.object({
   accessToken: z.string().min(1),
   person: z.string().min(1),

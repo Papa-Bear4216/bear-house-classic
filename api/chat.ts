@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -47,8 +48,7 @@ export default async function handler(req: Request): Promise<Response> {
   const rl = await checkRateLimit(householdId, 'chat', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
   if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
 
   const rawBody = await req.json().catch(() => ({}));

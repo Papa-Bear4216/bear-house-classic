@@ -7,12 +7,10 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, GmailSuggestionsBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
-
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 async function fetchGmailMessages(accessToken: string, query: string, maxResults = 10) {
   const listRes = await fetch(
@@ -72,10 +70,10 @@ Rules:
 - Maximum 8 items
 `.trim();
 
-async function callHaiku(prompt: string): Promise<string> {
+async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -83,9 +81,9 @@ async function callHaiku(prompt: string): Promise<string> {
   return data?.content?.[0]?.text || '[]';
 }
 
-async function callGemini(prompt: string): Promise<string> {
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,16 +101,16 @@ async function callGemini(prompt: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 }
 
-async function callAI(prompt: string): Promise<string> {
-  if (ANTHROPIC_API_KEY) {
+async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+  if (anthropicKey) {
     try {
-      return await callHaiku(prompt);
+      return await callHaiku(prompt, anthropicKey);
     } catch (e: any) {
-      if (!GEMINI_API_KEY) throw e;
+      if (!geminiKey) throw e;
       console.warn('Claude gmail-suggestions failed, trying Gemini:', e.message);
     }
   }
-  if (GEMINI_API_KEY) return await callGemini(prompt);
+  if (geminiKey) return await callGemini(prompt, geminiKey);
   throw new Error('No working AI model configurations found.');
 }
 
@@ -147,8 +145,9 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (allEmails.length === 0) return j({ suggestions: [] });
 
+    const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
     const unique = Array.from(new Map(allEmails.map((e: any) => [e.id, e])).values());
-    const raw = await callAI(PARSE_PROMPT(unique, person || 'General'));
+    const raw = await callAI(PARSE_PROMPT(unique, person || 'General'), anthropicKey, geminiKey);
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const arrMatch = clean.match(/\[[\s\S]*\]/);
     const suggestions = arrMatch ? JSON.parse(arrMatch[0]) : [];

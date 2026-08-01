@@ -171,6 +171,39 @@ export async function dbGetHouseholdMembersByHouseholdId(householdId: string): P
   return await res.json() as any[];
 }
 
+/** Get a household's own encrypted BYO API keys (raw, still encrypted) */
+export async function dbGetHouseholdKeys(householdId: string): Promise<{
+  byo_anthropic_key_encrypted: string | null;
+  byo_gemini_key_encrypted: string | null;
+}> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=byo_anthropic_key_encrypted,byo_gemini_key_encrypted`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return { byo_anthropic_key_encrypted: null, byo_gemini_key_encrypted: null };
+  const rows = await res.json() as any[];
+  return rows[0] ?? { byo_anthropic_key_encrypted: null, byo_gemini_key_encrypted: null };
+}
+
+/** Set (or clear, with value=null) a household's own encrypted API key for one provider */
+export async function dbSetHouseholdKey(
+  householdId: string,
+  provider: 'anthropic' | 'gemini',
+  encryptedValue: string | null
+): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const column = provider === 'anthropic' ? 'byo_anthropic_key_encrypted' : 'byo_gemini_key_encrypted';
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    { method: 'PATCH', headers: headers(serviceKey), body: JSON.stringify({ [column]: encryptedValue }) }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetHouseholdKey(${provider}) failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
 export async function dbSetVoiceUnlocked(householdId: string): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
