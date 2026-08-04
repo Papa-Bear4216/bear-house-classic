@@ -60,6 +60,11 @@ export const TtsBodySchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 
+export const MemoryBodySchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('add'), text: z.string().trim().min(1).max(500) }),
+  z.object({ action: z.literal('clear') }),
+]);
+
 export const SettingsKeysBodySchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('set'),

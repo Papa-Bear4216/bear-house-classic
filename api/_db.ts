@@ -204,6 +204,44 @@ export async function dbSetHouseholdKey(
   }
 }
 
+/** Get a household's recent Hermes memory notes, newest first (service role) */
+export async function dbGetHouseholdMemory(householdId: string, limit = 100): Promise<Array<{id: string; text: string; source: string; created_at: string}>> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&select=id,text,source,created_at&order=created_at.desc&limit=${limit}`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  return await res.json() as any[];
+}
+
+/** Append one memory note for a household (service role) */
+export async function dbAddHouseholdMemory(householdId: string, text: string, source: 'auto' | 'manual' = 'auto'): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/household_memory`, {
+    method: 'POST',
+    headers: headers(serviceKey),
+    body: JSON.stringify({ household_id: householdId, text, source }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbAddHouseholdMemory failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Clear all memory notes for a household (service role) */
+export async function dbClearHouseholdMemory(householdId: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}`,
+    { method: 'DELETE', headers: headers(serviceKey) }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbClearHouseholdMemory failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
 export async function dbSetVoiceUnlocked(householdId: string): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
