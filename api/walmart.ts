@@ -14,6 +14,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, WalmartBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
 async function getShoppingList(householdId: string) {
@@ -71,6 +72,9 @@ Return [] if nothing relevant.`;
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method === 'GET') return j({ ok: true, service: 'Bear House Walmart + Voice Assistant bridge' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 

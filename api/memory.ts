@@ -5,10 +5,14 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, MemoryBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 // Household-wide Hermes memory (replaces per-device localStorage
 // 'hermes_memory'). Any member's device can add a note; every device in
 // the household sees it, via household_memory (see api/_db.ts).
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;

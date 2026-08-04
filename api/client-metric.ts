@@ -12,7 +12,11 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClientMetricBodySchema } from './_schemas.js';
 import { logInfo } from './_log.js';
 
+import { handleCorsPreflight } from './_cors.js';
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return new Response(null, { status: 405 });
 
   const rawBody = await req.json().catch(() => ({}));

@@ -9,7 +9,7 @@
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-camera-token, x-webhook-token, x-write-secret',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-camera-token, x-webhook-token, x-write-secret',
 };
 
 /** Call at the top of a handler; returns a response for OPTIONS preflight, or null otherwise. */

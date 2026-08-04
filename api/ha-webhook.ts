@@ -9,6 +9,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaWebhookBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
 async function appendTask(householdId: string, task: object) {
@@ -25,6 +26,9 @@ async function logPresence(householdId: string, entry: object) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method === 'GET') return j({ ok: true, supported_events: ['person_arrived','person_left','package_delivered','door_left_open','low_battery','motion_detected','wyze_alert','custom'] });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 

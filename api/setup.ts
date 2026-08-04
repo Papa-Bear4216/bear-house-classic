@@ -4,6 +4,7 @@ export const config = { runtime: 'edge' };
 import { parseBody, SetupBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
 // Resolve the caller's auth.users id from their Supabase access token.
@@ -22,6 +23,9 @@ async function getAuthUserId(accessToken: string): Promise<{ id: string; email: 
 // can't reuse resolveHouseholdId() (which looks one up and returns null if missing).
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const authHeader = req.headers.get('authorization') || '';
