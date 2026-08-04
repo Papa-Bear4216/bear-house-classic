@@ -79,13 +79,13 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   return fetch(url, { ...init, headers });
 }
 
-export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string; subscriptionStatus: string; bypassBilling: boolean; voiceUnlocked: boolean } | null> {
+export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string; subscriptionStatus: string; bypassBilling: boolean; voiceUnlocked: boolean; hermesModelTier: 'haiku' | 'sonnet' } | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
 
   const { data, error } = await supabase
     .from('household_members')
-    .select('id, household_id, name, email, role, color, households(subscription_status, bypass_billing, voice_unlocked)')
+    .select('id, household_id, name, email, role, color, households(subscription_status, bypass_billing, voice_unlocked, hermes_model_tier)')
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
 
@@ -97,6 +97,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
     subscriptionStatus: (data as any).households?.subscription_status ?? 'none',
     bypassBilling: (data as any).households?.bypass_billing ?? false,
     voiceUnlocked: (data as any).households?.voice_unlocked ?? false,
+    hermesModelTier: ((data as any).households?.hermes_model_tier ?? 'haiku') as 'haiku' | 'sonnet',
     member: {
       id: data.id,
       householdId: data.household_id,

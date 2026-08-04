@@ -11,6 +11,7 @@ import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
+import { HermesModelPanel } from './HermesModelPanel';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
 interface Props { open: boolean; onClose: () => void; }
@@ -322,6 +323,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               {/* Household-wide server-side BYO keys — used by every AI
                   route (chat, secretary, briefing, gmail-suggestions,
                   walmart, vision) for the whole family, not just this device. */}
+              {isAdmin && <HermesModelPanel />}
+
               {isAdmin && <HouseholdAiKeysPanel />}
 
               {/* AI toggle — big and obvious */}
