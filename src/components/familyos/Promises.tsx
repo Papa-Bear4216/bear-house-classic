@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, CheckCircle2, Trash2, Sparkles, AlertTriangle, Heart, Repeat, ChevronDown, Calendar as CalendarIcon, X } from 'lucide-react';
 import {
   KEYS,
@@ -21,6 +21,7 @@ import {
   householdPersons,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { onSyncUpdate } from '@/lib/sync';
 import AlertModal from './AlertModal';
 
 interface Promise {
@@ -65,7 +66,21 @@ const Promises: React.FC = () => {
   const [customDays, setCustomDays] = useState<number[]>([]);
   const [showRecur, setShowRecur] = useState(false);
 
-  useEffect(() => saveJSON(KEYS.promises, promises), [promises]);
+  const lastAppliedJSON = useRef<string>(JSON.stringify(promises));
+
+  useEffect(() => {
+    const json = JSON.stringify(promises);
+    if (json === lastAppliedJSON.current) return;
+    lastAppliedJSON.current = json;
+    saveJSON(KEYS.promises, promises);
+  }, [promises]);
+
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== KEYS.promises && key !== '*') return;
+    const next = loadJSON<Promise[]>(KEYS.promises, []);
+    lastAppliedJSON.current = JSON.stringify(next);
+    setPromises(next);
+  }), []);
 
   const buildRecurrence = (): Recurrence | null => {
     if (recurType === 'none') return null;

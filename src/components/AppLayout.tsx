@@ -13,11 +13,14 @@ import { useAppContext } from '@/contexts/AppContext';
 // lazy-loaded to keep the initial bundle from including code most sessions
 // never touch.
 import Dashboard from '@/components/familyos/Dashboard';
-import HermesChat from '@/components/familyos/HermesChat';
-import QuickCapture from '@/components/familyos/QuickCapture';
-import WelcomeBackModal from '@/components/familyos/WelcomeBackModal';
 import MagicTrail from '@/components/familyos/MagicTrail';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
+
+// Floating widgets rendered on every page, not the initial view itself —
+// lazy per the rule above so Dashboard can paint before these hydrate.
+const HermesChat = lazy(() => import('@/components/familyos/HermesChat'));
+const QuickCapture = lazy(() => import('@/components/familyos/QuickCapture'));
+const WelcomeBackModal = lazy(() => import('@/components/familyos/WelcomeBackModal'));
 
 const HouseholdBrain = lazy(() => import('@/components/familyos/HouseholdBrain'));
 const QualityTime = lazy(() => import('@/components/familyos/QualityTime'));
@@ -420,16 +423,18 @@ const AppLayout: React.FC = () => {
         {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
         {historyOpen && <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />}
       </Suspense>
-      <QuickCapture />
-      <HermesChat />
-      {autobrief && (
-        <WelcomeBackModal
-          days={autobrief.days}
-          reason={autobrief.reason}
-          miles={autobrief.miles}
-          onClose={() => setAutobrief(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        <QuickCapture />
+        <HermesChat />
+        {autobrief && (
+          <WelcomeBackModal
+            days={autobrief.days}
+            reason={autobrief.reason}
+            miles={autobrief.miles}
+            onClose={() => setAutobrief(null)}
+          />
+        )}
+      </Suspense>
       <MagicTrail />
     </div>
   );

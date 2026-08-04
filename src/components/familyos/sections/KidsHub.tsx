@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
@@ -99,6 +100,10 @@ const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids
   const [filterKid, setFilterKid] = useState<string>('All');
 
   const save = (next: HWItem[]) => { setItems(next); saveJSON('familyos_homework', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_homework' && key !== '*') return;
+    setItems(loadJSON('familyos_homework', []));
+  }), []);
 
   const add = () => {
     if (!task.trim()) return;
@@ -197,6 +202,10 @@ const GradesTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: 
   const [filterKid, setFilterKid] = useState('All');
 
   const save = (next: GradeEntry[]) => { setEntries(next); saveJSON('familyos_grades', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_grades' && key !== '*') return;
+    setEntries(loadJSON('familyos_grades', []));
+  }), []);
   const add = () => {
     if (!grade.trim()) return;
     save([{ id: uid(), kid, subject, grade: grade.trim(), date, notes, createdAt: Date.now() }, ...entries]);
@@ -296,6 +305,10 @@ const ActivitiesTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, ki
   const [location, setLocation] = useState('');
 
   const save = (next: ActivityEntry[]) => { setEntries(next); saveJSON('familyos_activities_kids', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_activities_kids' && key !== '*') return;
+    setEntries(loadJSON('familyos_activities_kids', []));
+  }), []);
   const add = () => {
     if (!name.trim()) return;
     save([...entries, { id: uid(), kid, name: name.trim(), day, time, location, createdAt: Date.now() }]);
@@ -384,6 +397,10 @@ const AllowanceTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kid
   const [filterKid, setFilterKid] = useState(KIDS[0] || '');
 
   const save = (next: AllowanceEntry[]) => { setEntries(next); saveJSON('familyos_allowance', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_allowance' && key !== '*') return;
+    setEntries(loadJSON('familyos_allowance', []));
+  }), []);
   const add = () => {
     if (!amount || !reason.trim()) return;
     save([{ id: uid(), kid, amount: parseFloat(amount), type, reason: reason.trim(), date, createdAt: Date.now() }, ...entries]);

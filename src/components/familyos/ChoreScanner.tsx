@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ScanLine, StopCircle, Plus, CheckCircle2, Camera } from 'lucide-react';
-import { callClaudeVision, callGeminiVision, getGeminiDailyUsage, resetGeminiCount } from '@/lib/familyos';
+import { callClaudeVision, callGeminiVision, getGeminiDailyUsage, resetGeminiCount, ROOMS } from '@/lib/familyos';
 import { tryOnDeviceVision } from '@/lib/onDeviceVision';
 
 interface DetectedChore {
@@ -13,7 +13,7 @@ interface DetectedChore {
 
 interface Props {
   onClose: () => void;
-  onSave: (chores: DetectedChore[]) => void;
+  onSave: (chores: DetectedChore[], room: string) => void;
 }
 
 type ScanMode = 'live' | 'capture';
@@ -46,6 +46,7 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [mode, setMode] = useState<ScanMode>('capture');
+  const [room, setRoom] = useState<string>(ROOMS[0]);
   const [provider, setProvider] = useState<Provider>('claude');
   const [lastSource, setLastSource] = useState<'on-device' | 'cloud' | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -217,7 +218,13 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X className="w-6 h-6" />
           </button>
-          <span className="text-white font-semibold text-sm">Chore Scanner</span>
+          <select
+            value={room}
+            onChange={e => setRoom(e.target.value)}
+            className="bg-black/40 border border-white/20 rounded-lg text-white text-xs font-semibold px-2 py-1 outline-none"
+          >
+            {ROOMS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
           <div className="w-6" />
         </div>
 
@@ -342,7 +349,7 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
 
           {chores.length > 0 && (
             <button
-              onClick={() => { onSave(chores); onClose(); }}
+              onClick={() => { onSave(chores, room); onClose(); }}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white transition"
             >
               <Plus className="w-4 h-4" /> Save All

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Pill, Calendar, Heart } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 
 const FREQUENCIES = ['Daily', 'Twice daily', 'Weekly', 'As needed', 'Other'];
@@ -84,6 +85,10 @@ const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
   const [filterPerson, setFilterPerson] = useState('All');
 
   const save = (next: Medication[]) => { setMeds(next); saveJSON('familyos_medications', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_medications' && key !== '*') return;
+    setMeds(loadJSON('familyos_medications', []));
+  }), []);
   const add = () => {
     if (!name.trim()) return;
     save([...meds, { id: uid(), person, name: name.trim(), dosage, frequency, nextRefill, notes, createdAt: Date.now() }]);
@@ -184,6 +189,10 @@ const ApptTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
   const [notes, setNotes] = useState('');
 
   const save = (next: Appointment[]) => { setAppts(next); saveJSON('familyos_appointments', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_appointments' && key !== '*') return;
+    setAppts(loadJSON('familyos_appointments', []));
+  }), []);
   const add = () => {
     if (!date) return;
     save([...appts, { id: uid(), person, type, doctor, date, notes, createdAt: Date.now() }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -294,6 +303,10 @@ const LucyTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const [nextDue, setNextDue] = useState('');
 
   const save = (next: LucyEntry[]) => { setEntries(next); saveJSON('familyos_lucy', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_lucy' && key !== '*') return;
+    setEntries(loadJSON('familyos_lucy', []));
+  }), []);
   const add = () => {
     if (!date) return;
     save([{ id: uid(), type, date, notes, nextDue, createdAt: Date.now() }, ...entries]);

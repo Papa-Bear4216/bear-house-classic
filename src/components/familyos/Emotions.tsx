@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Sparkles, Trash2, AlertTriangle, Heart } from 'lucide-react';
 import { KEYS, EMOTION_CATEGORIES, NEGATIVE_EMOTIONS, loadJSON, saveJSON, uid, callClaude, tryParseJSON, formatDate, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { onSyncUpdate } from '@/lib/sync';
 import AlertModal from './AlertModal';
 
 interface Entry {
@@ -26,7 +27,21 @@ const Emotions: React.FC = () => {
   const [aiBusy, setAiBusy] = useState(false);
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
 
-  useEffect(() => saveJSON(KEYS.emotions, entries), [entries]);
+  const lastAppliedJSON = useRef<string>(JSON.stringify(entries));
+
+  useEffect(() => {
+    const json = JSON.stringify(entries);
+    if (json === lastAppliedJSON.current) return;
+    lastAppliedJSON.current = json;
+    saveJSON(KEYS.emotions, entries);
+  }, [entries]);
+
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== KEYS.emotions && key !== '*') return;
+    const next = loadJSON<Entry[]>(KEYS.emotions, []);
+    lastAppliedJSON.current = JSON.stringify(next);
+    setEntries(next);
+  }), []);
 
   // Seed the selected person once the household roster loads.
   useEffect(() => {

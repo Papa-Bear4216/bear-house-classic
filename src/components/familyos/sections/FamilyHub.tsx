@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, User } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 
 const FamilyHub: React.FC = () => {
@@ -48,6 +49,10 @@ const MessagesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const [messages, setMessages] = useState<Message[]>(() => loadJSON('familyos_messages', []));
   const [text, setText] = useState('');
   const save = (next: Message[]) => { setMessages(next); saveJSON('familyos_messages', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_messages' && key !== '*') return;
+    setMessages(loadJSON('familyos_messages', []));
+  }), []);
   const post = () => {
     if (!text.trim() || !currentUser) return;
     save([...messages, { id: uid(), author: currentUser.name, text: text.trim(), createdAt: Date.now() }]);
@@ -88,6 +93,10 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const [items, setItems] = useState<AskItem[]>(() => loadJSON('familyos_ask_parents', []));
   const [request, setRequest] = useState('');
   const save = (next: AskItem[]) => { setItems(next); saveJSON('familyos_ask_parents', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_ask_parents' && key !== '*') return;
+    setItems(loadJSON('familyos_ask_parents', []));
+  }), []);
   const submit = () => {
     if (!request.trim() || !currentUser) return;
     save([...items, { id: uid(), kid: currentUser.name, request: request.trim(), status: 'pending', createdAt: Date.now() }]);
@@ -155,6 +164,10 @@ interface Moment { id: string; caption: string; emoji: string; date: string; aut
 const MomentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const { currentUser } = useAppContext();
   const [moments, setMoments] = useState<Moment[]>(() => loadJSON('familyos_moments', []));
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_moments' && key !== '*') return;
+    setMoments(loadJSON('familyos_moments', []));
+  }), []);
   const [caption, setCaption] = useState('');
   const [emoji, setEmoji] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -219,6 +232,10 @@ const BucketListTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const [items, setItems] = useState<BucketItem[]>(() => loadJSON('familyos_bucket_list', []));
   const [text, setText] = useState('');
   const save = (next: BucketItem[]) => { setItems(next); saveJSON('familyos_bucket_list', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_bucket_list' && key !== '*') return;
+    setItems(loadJSON('familyos_bucket_list', []));
+  }), []);
   const add = () => {
     if (!text.trim()) return;
     save([...items, { id: uid(), text: text.trim(), completed: false, createdAt: Date.now() }]);
@@ -270,6 +287,10 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'movie' | 'show'>('movie');
   const save = (next: WatchItem[]) => { setItems(next); saveJSON('familyos_watchlist', next); };
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_watchlist' && key !== '*') return;
+    setItems(loadJSON('familyos_watchlist', []));
+  }), []);
   const add = () => {
     if (!title.trim() || !currentUser) return;
     save([...items, { id: uid(), title: title.trim(), type, wantsToWatch: [currentUser.name], watched: false, createdAt: Date.now() }]);
@@ -337,6 +358,10 @@ interface Game { id: string; name: string; scores: { player: string; score: numb
 const GameNightTab: React.FC<{ isAdm: boolean; householdMembers: User[] }> = ({ isAdm, householdMembers }) => {
   const { currentUser } = useAppContext();
   const [games, setGames] = useState<Game[]>(() => loadJSON('familyos_games', []));
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_games' && key !== '*') return;
+    setGames(loadJSON('familyos_games', []));
+  }), []);
   const [gameName, setGameName] = useState('');
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
   const [scorePlayer, setScorePlayer] = useState(householdMembers.length > 0 ? householdMembers[0].name : '');

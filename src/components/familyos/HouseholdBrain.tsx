@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer } from 'lucide-react';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import {
   KEYS,
   householdPersons,
   PRIORITIES,
   TASK_CATEGORIES,
+  ROOMS,
   RECURRENCE_OPTIONS,
   loadJSON,
   saveJSON,
@@ -25,8 +26,10 @@ import {
   POINT_VALUES,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { onSyncUpdate } from '@/lib/sync';
 import AlertModal from './AlertModal';
 import FocusMode from './FocusMode';
+import ExportChoresModal from './ExportChoresModal';
 
 interface Task {
   id: string;
@@ -34,6 +37,7 @@ interface Task {
   person: string;
   priority: string;
   category: string;
+  room?: string;
   dueEstimate?: string; // legacy
   dueDate?: number | null;
   completed: boolean;
@@ -85,6 +89,8 @@ const HouseholdBrain: React.FC = () => {
   const [showRecur, setShowRecur] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [roomInput, setRoomInput] = useState<string>('');
+  const [showExport, setShowExport] = useState(false);
 
   // No signal to prefer one household member over another for a given chore type,
   // so spread new chores evenly across the roster rather than guessing.
@@ -96,13 +102,14 @@ const HouseholdBrain: React.FC = () => {
     return assignee;
   };
 
-  const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>) => {
+  const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>, room: string) => {
     const newTasks: Task[] = detected.map(d => ({
       id: uid(),
       text: d.chore,
       person: autoAssign(),
       priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
       category: 'Maintenance',
+      room,
       dueEstimate: 'Today',
       dueDate: null,
       completed: false,
@@ -121,7 +128,30 @@ const HouseholdBrain: React.FC = () => {
     return { yes, no };
   });
 
-  useEffect(() => saveJSON(KEYS.tasks, tasks), [tasks]);
+  // Tracks the JSON we last wrote (whether from a local edit or an incoming
+  // sync update) so the save-effect below can skip re-pushing a value that
+  // just arrived from another device — otherwise every realtime update would
+  // bounce straight back to the server as a redundant write.
+  const lastAppliedJSON = useRef<string>(JSON.stringify(tasks));
+
+  useEffect(() => {
+    const json = JSON.stringify(tasks);
+    if (json === lastAppliedJSON.current) return;
+    lastAppliedJSON.current = json;
+    saveJSON(KEYS.tasks, tasks);
+  }, [tasks]);
+
+  // Cross-device sync: another device's edit lands in localStorage (via
+  // pullFromCloud or the realtime subscription in sync.ts), then this
+  // listener re-reads it into state so the list actually updates on screen.
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== KEYS.tasks && key !== '*') return;
+      const next = loadJSON<Task[]>(KEYS.tasks, []);
+      lastAppliedJSON.current = JSON.stringify(next);
+      setTasks(next);
+    });
+  }, []);
 
   useEffect(() => {
     setFocusMode(false);
@@ -163,6 +193,7 @@ const HouseholdBrain: React.FC = () => {
       person: 'General',
       priority: 'Medium',
       category: 'General',
+      room: roomInput || undefined,
       dueDate,
       completed: false,
       createdAt: Date.now(),
@@ -171,6 +202,7 @@ const HouseholdBrain: React.FC = () => {
     setTasks((prev) => [baseTask, ...prev]);
     setText('');
     setDueDateInput('');
+    setRoomInput('');
     setShowRecur(false);
     setRecurType('none');
     setCustomDays([]);
@@ -317,7 +349,7 @@ const HouseholdBrain: React.FC = () => {
       {showScanner && (
         <ChoreScanner
           onClose={() => setShowScanner(false)}
-          onSave={(chores) => { handleScanSave(chores); setShowScanner(false); }}
+          onSave={(chores, room) => { handleScanSave(chores, room); setShowScanner(false); }}
         />
       )}
 
@@ -329,10 +361,21 @@ const HouseholdBrain: React.FC = () => {
         <button onClick={() => setShowScanner(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
           <ScanLine className="w-4 h-4" /> Scan Room
         </button>
+        <button onClick={() => setShowExport(true)} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+          <Printer className="w-4 h-4" /> Export
+        </button>
         <button onClick={morningBrief} className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> Brief
         </button>
       </div>
+
+      {showExport && (
+        <ExportChoresModal
+          tasks={tasks}
+          defaultTab={tab}
+          onClose={() => setShowExport(false)}
+        />
+      )}
 
       {/* Presence */}
       <div className="bg-gradient-to-br from-orange-900/40 to-slate-800 border border-orange-500/30 rounded-2xl p-4 flex items-center gap-4">
@@ -372,6 +415,18 @@ const HouseholdBrain: React.FC = () => {
 
         {/* Due date + Recurrence pickers */}
         <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <select
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+            className={`text-xs px-2.5 py-1.5 rounded-md border transition outline-none ${
+              roomInput
+                ? 'bg-orange-900/40 border-orange-500/40 text-orange-200'
+                : 'bg-slate-900 border-slate-700 text-slate-300'
+            }`}
+          >
+            <option value="">Room (optional)</option>
+            {ROOMS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
           <label
             className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition cursor-pointer ${
               dueDateInput
@@ -532,6 +587,9 @@ const HouseholdBrain: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.person}</span>
                     <span className="text-[10px] uppercase tracking-wide bg-orange-900/40 text-orange-300 px-1.5 py-0.5 rounded">{t.category}</span>
+                    {t.room && (
+                      <span className="text-[10px] uppercase tracking-wide bg-teal-900/40 text-teal-300 px-1.5 py-0.5 rounded">{t.room}</span>
+                    )}
                     {t.steps && t.steps.length > 0 && (
                       <span className="text-[10px] uppercase tracking-wide bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded">
                         {t.stepsCompleted?.filter(Boolean).length ?? 0}/{t.steps.length} steps

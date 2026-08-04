@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, RotateCcw, AlertTriangle, Home, ScanLine } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import CameraViewer from '@/components/familyos/CameraViewer';
@@ -46,6 +47,13 @@ const HomeMaintenance: React.FC = () => {
 
   const isAdm = currentRole && canDelete(currentRole);
   const save = (next: HomeItem[]) => { setItems(next); saveJSON(STORAGE_KEY, next); };
+
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== STORAGE_KEY && key !== '*') return;
+      setItems(loadJSON(STORAGE_KEY, []));
+    });
+  }, []);
 
   const addItem = () => {
     if (!item.trim()) return;
