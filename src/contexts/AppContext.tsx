@@ -12,6 +12,7 @@ interface AppContextType {
   subscriptionStatus: string | null;
   bypassBilling: boolean;
   voiceUnlocked: boolean;
+  hermesModelTier: 'haiku' | 'sonnet';
   logout: () => void;
   setCurrentUser: (user: User | null) => void;
 }
@@ -26,6 +27,7 @@ const defaultAppContext: AppContextType = {
   subscriptionStatus: null,
   bypassBilling: false,
   voiceUnlocked: false,
+  hermesModelTier: 'haiku',
   logout: () => {},
   setCurrentUser: () => {},
 };
@@ -43,6 +45,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [bypassBilling, setBypassBilling] = useState(false);
   const [voiceUnlocked, setVoiceUnlocked] = useState(false);
+  const [hermesModelTier, setHermesModelTier] = useState<'haiku' | 'sonnet'>('haiku');
 
   useEffect(() => {
     const loadUserAndHousehold = async () => {
@@ -55,6 +58,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         setSubscriptionStatus(null);
         setBypassBilling(false);
         setVoiceUnlocked(false);
+        setHermesModelTier('haiku');
         return;
       }
 
@@ -71,6 +75,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setSubscriptionStatus(session.subscriptionStatus);
       setBypassBilling(session.bypassBilling);
       setVoiceUnlocked(session.voiceUnlocked);
+      setHermesModelTier(session.hermesModelTier);
 
       const roster = await getHouseholdRoster(session.householdId);
       const users: User[] = roster.map(m => ({
@@ -99,6 +104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
     setSubscriptionStatus(null);
     setBypassBilling(false);
     setVoiceUnlocked(false);
+    setHermesModelTier('haiku');
     if (onLogout) onLogout();
   }, [onLogout]);
 
@@ -123,6 +129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         subscriptionStatus,
         bypassBilling,
         voiceUnlocked,
+        hermesModelTier,
         logout,
         setCurrentUser,
       }}

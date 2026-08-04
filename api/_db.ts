@@ -242,6 +242,19 @@ export async function dbClearHouseholdMemory(householdId: string): Promise<void>
   }
 }
 
+/** Set a household's Hermes chat model tier (service role, bypasses RLS) */
+export async function dbSetHermesModelTier(householdId: string, tier: 'haiku' | 'sonnet'): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    { method: 'PATCH', headers: headers(serviceKey), body: JSON.stringify({ hermes_model_tier: tier }) }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetHermesModelTier failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
 export async function dbSetVoiceUnlocked(householdId: string): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;

@@ -371,7 +371,7 @@ genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...f
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet'): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
     const res = await fetch(apiUrl('/api/chat'), {
@@ -384,7 +384,7 @@ async function callHermes(history: { role: string; content: string }[], househol
         messages: history,
         system: buildSystemPrompt(householdMembers, currentUserName),
         maxTokens: 600,
-        model: 'claude-haiku-4-5-20251001',
+        model: modelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
       }),
     });
     if (!res.ok) return { text: 'Something went wrong. Try again.' };
@@ -431,7 +431,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
 };
 
 const HermesChat: React.FC = () => {
-  const { currentUser, householdMembers, voiceUnlocked } = useAppContext();
+  const { currentUser, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -491,7 +491,7 @@ const HermesChat: React.FC = () => {
       content: m.text,
     }));
 
-    const response = await callHermes(history, householdMembers, currentUser?.name);
+    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier);
 
     // Execute any actions
     const executed: ExecutedAction[] = [];
