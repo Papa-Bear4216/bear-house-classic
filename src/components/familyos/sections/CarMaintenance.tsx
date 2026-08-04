@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Car, ChevronDown, ChevronUp } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { CARS_STORAGE_KEY } from './carMaintenanceKeys';
 
@@ -51,6 +52,13 @@ const CarMaintenance: React.FC = () => {
 
   const isAdm = currentRole && canDelete(currentRole);
   const save = (next: CarRecord[]) => { setCars(next); saveJSON(STORAGE_KEY, next); };
+
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== STORAGE_KEY && key !== '*') return;
+      setCars(loadJSON(STORAGE_KEY, []));
+    });
+  }, []);
 
   const addCar = () => {
     if (!carName.trim()) return;

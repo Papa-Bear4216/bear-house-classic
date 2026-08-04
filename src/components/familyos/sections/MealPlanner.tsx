@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Edit3, Check, X, ChefHat, Sparkles, Loader2, ClipboardList, ShoppingCart, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { loadJSON, saveJSON, uid, KEYS, loadMemberPreferences, buildFoodPreferencePrompt, loadPantry, savePantry, calculateShortfall, decrementPantry } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
@@ -293,13 +294,15 @@ const MealPlanner: React.FC = () => {
     return map;
   }, [householdMembers]);
 
-  const [plan, setPlan] = useState<WeekPlan>(() => {
+  const loadPlan = (): WeekPlan => {
     const saved = loadJSON<WeekPlan | null>(STORAGE_KEY, null);
     if (!saved) return defaultPlan();
     const full = defaultPlan();
     DAYS.forEach(d => { if (saved[d]) full[d] = { ...EMPTY_DAY, ...saved[d] }; });
     return full;
-  });
+  };
+
+  const [plan, setPlan] = useState<WeekPlan>(loadPlan);
 
   const [editing, setEditing] = useState<{ day: Day; meal: MealType } | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -316,6 +319,13 @@ const MealPlanner: React.FC = () => {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as Day;
 
   const save = (next: WeekPlan) => { setPlan(next); saveJSON(STORAGE_KEY, next); };
+
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== STORAGE_KEY && key !== '*') return;
+      setPlan(loadPlan());
+    });
+  }, []);
 
   const startEdit = (day: Day, meal: MealType) => {
     setEditing({ day, meal }); setEditValue(plan[day][meal]); setEditingCook(null);

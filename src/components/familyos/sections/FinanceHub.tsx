@@ -3,6 +3,7 @@ import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw,
 import { loadJSON, saveJSON, uid, canDelete, isAdmin, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
+import { onSyncUpdate } from '@/lib/sync';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
 
@@ -213,6 +214,11 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   const persistExpenses = (next: Expense[]) => { setExpenses(next); saveJSON('familyos_expenses', next); };
 
+  useEffect(() => onSyncUpdate((key) => {
+    if (key !== 'familyos_expenses' && key !== '*') return;
+    setExpenses(loadJSON('familyos_expenses', []));
+  }), []);
+
   const handleBankSync = useCallback((transactions: Expense[], recurringBills: any[]) => {
     setExpenses(prev => {
       const existingIds = new Set(prev.filter(e => e.extId).map(e => e.extId));
@@ -388,13 +394,18 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
 const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const [cats, setCats]       = useState<BudgetCategory[]>(() => loadJSON('familyos_budget', []));
-  const [expenses]            = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
+  const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm] = useState(false);
   const [name, setName]       = useState(BUDGET_CATEGORIES[0]);
   const [budgeted, setBudgeted] = useState('');
   const [month]               = useState(currentMonth());
 
   const save = (next: BudgetCategory[]) => { setCats(next); saveJSON('familyos_budget', next); };
+
+  useEffect(() => onSyncUpdate((key) => {
+    if (key === 'familyos_budget' || key === '*') setCats(loadJSON('familyos_budget', []));
+    if (key === 'familyos_expenses' || key === '*') setExpenses(loadJSON('familyos_expenses', []));
+  }), []);
   const add = () => {
     if (!budgeted) return;
     const existing = cats.find(c => c.name === name && c.month === month);

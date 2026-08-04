@@ -8,7 +8,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let syncEnabled = false;
 let currentHouseholdId: string | null = null;
-const listeners: Set<() => void> = new Set();
+const listeners: Set<(key: string) => void> = new Set();
 
 // Last updated_at we've seen per key, from either a pull, a realtime event,
 // or our own successful push. Sent back as expectedUpdatedAt on the next
@@ -16,13 +16,15 @@ const listeners: Set<() => void> = new Set();
 // saw it" instead of silently overwriting their change (see api/data-write.ts).
 const knownVersions = new Map<string, string>();
 
-export function onSyncUpdate(cb: () => void) {
+// cb receives the storage key that changed, so listeners can ignore updates
+// to keys they don't care about instead of re-reading on every sync event.
+export function onSyncUpdate(cb: (key: string) => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
 }
 
-function notifyListeners() {
-  listeners.forEach(cb => cb());
+function notifyListeners(key: string) {
+  listeners.forEach(cb => cb(key));
 }
 
 // Pull all keys for one household from Supabase into localStorage
@@ -39,7 +41,7 @@ export async function pullFromCloud(householdId: string): Promise<void> {
     }
     currentHouseholdId = householdId;
     syncEnabled = true;
-    notifyListeners();
+    notifyListeners('*'); // bulk load — listeners should treat this as "reread everything"
   } catch (e) {
     console.warn('Sync unavailable, running offline');
   }
@@ -105,7 +107,7 @@ async function doPush(key: string, value: unknown): Promise<boolean> {
       if (detail?.current !== undefined) {
         localStorage.setItem(key, JSON.stringify(detail.current));
         if (detail.currentUpdatedAt) knownVersions.set(key, detail.currentUpdatedAt);
-        notifyListeners();
+        notifyListeners(key);
       }
       console.warn(`Sync push for "${key}" lost a version conflict — took the cloud's value instead`);
       return false;
@@ -138,7 +140,7 @@ export function subscribeToRealtime(householdId: string): () => void {
           const row = payload.new as { key: string; value: unknown; updated_at?: string };
           localStorage.setItem(row.key, JSON.stringify(row.value));
           if (row.updated_at) knownVersions.set(row.key, row.updated_at);
-          notifyListeners();
+          notifyListeners(row.key);
         }
       }
     )

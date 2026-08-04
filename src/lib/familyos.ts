@@ -80,6 +80,7 @@ export const EMOTION_CATEGORIES = ['Connection', 'Frustration', 'Concern', 'Joy'
 export const NEGATIVE_EMOTIONS = ['Frustration', 'Concern', 'Anxiety', 'Confusion'];
 export const PRIORITIES = ['High', 'Medium', 'Low'];
 export const DUE_ESTIMATES = ['Today', 'This Week', 'This Month', 'No Deadline'];
+export const ROOMS = ['Kitchen', 'Living Room', 'Dining Room', 'Bathroom', 'Master', 'Julias', 'Abrianas', 'Spare', 'Office', 'Bar', 'Shop'];
 
 // Last-resort fallback only — see FALLBACK_PILLARS above.
 export const FALLBACK_PERSONS = ['Family', 'General'];

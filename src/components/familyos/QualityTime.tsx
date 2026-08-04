@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Calendar, CheckCircle2, Sparkles, Trash2, Timer, X, Pencil, Check } from 'lucide-react';
 import { KEYS, householdPillars, householdActivityTemplates, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { onSyncUpdate } from '@/lib/sync';
 import AlertModal from './AlertModal';
 
 interface Activity {
@@ -63,8 +64,34 @@ const QualityTime: React.FC = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ interests: string; favoriteColors: string[] }>({ interests: '', favoriteColors: [] });
 
-  useEffect(() => saveJSON(KEYS.pillars, pillars), [pillars]);
-  useEffect(() => saveJSON(KEYS.activities, activities), [activities]);
+  const lastAppliedPillarsJSON = useRef<string>(JSON.stringify(pillars));
+  const lastAppliedActivitiesJSON = useRef<string>(JSON.stringify(activities));
+
+  useEffect(() => {
+    const json = JSON.stringify(pillars);
+    if (json === lastAppliedPillarsJSON.current) return;
+    lastAppliedPillarsJSON.current = json;
+    saveJSON(KEYS.pillars, pillars);
+  }, [pillars]);
+  useEffect(() => {
+    const json = JSON.stringify(activities);
+    if (json === lastAppliedActivitiesJSON.current) return;
+    lastAppliedActivitiesJSON.current = json;
+    saveJSON(KEYS.activities, activities);
+  }, [activities]);
+
+  useEffect(() => onSyncUpdate((key) => {
+    if (key === KEYS.pillars || key === '*') {
+      const next = loadJSON<Pillar[]>(KEYS.pillars, householdPillars(householdMembers));
+      lastAppliedPillarsJSON.current = JSON.stringify(next);
+      setPillars(next);
+    }
+    if (key === KEYS.activities || key === '*') {
+      const next = loadJSON<Activity[]>(KEYS.activities, []);
+      lastAppliedActivitiesJSON.current = JSON.stringify(next);
+      setActivities(next);
+    }
+  }), [householdMembers]);
 
   useEffect(() => {
     if (!transition.open || transition.secondsLeft <= 0) return;

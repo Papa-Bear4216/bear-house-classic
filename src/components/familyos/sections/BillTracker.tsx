@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, RotateCcw, RefreshCw } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, dateInputValue, parseDateInput } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 
 const STORAGE_KEY = 'familyos_bills';
@@ -30,6 +31,13 @@ const BillTracker: React.FC = () => {
   const isAdm = currentRole && canDelete(currentRole);
 
   const save = (next: Bill[]) => { setBills(next); saveJSON(STORAGE_KEY, next); };
+
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== STORAGE_KEY && key !== '*') return;
+      setBills(loadJSON(STORAGE_KEY, []));
+    });
+  }, []);
 
   const addBill = () => {
     if (!name.trim() || !amount) return;
