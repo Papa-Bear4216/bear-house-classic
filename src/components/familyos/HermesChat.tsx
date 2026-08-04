@@ -4,7 +4,7 @@ import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptF
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
-import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/mealPlannerShared';
+import { defaultPlan, MEALS_STORAGE_KEY, applyMealCooked, DAYS, type Day, type MealType, type WeekPlan } from '@/components/familyos/sections/mealPlannerShared';
 import { CARS_STORAGE_KEY } from '@/components/familyos/sections/carMaintenanceKeys';
 import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
@@ -22,7 +22,7 @@ type ActionType =
   | 'logEmotion'
   | 'updateMemory'
   | 'clearWeekMeals' | 'setMealPlan'
-  | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry';
+  | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry' | 'controlDevice';
 
 interface ActionParams extends Record<string, any> {}
 
@@ -49,7 +49,7 @@ interface HermesResponse {
 }
 
 // ─── Action executor ─────────────────────────────────────────────────────────
-function executeAction(action: Action, defaultPerson: string): { result: string; ok: boolean } {
+async function executeAction(action: Action, defaultPerson: string): Promise<{ result: string; ok: boolean }> {
   try {
     const p = action.params;
 
@@ -250,6 +250,24 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
       return runGenericAction(p.domain, p.op, p.params ?? p);
     }
 
+    // ── Home Assistant device control ─────────────────────────────────────
+    if (action.type === 'controlDevice') {
+      const token = await getAccessToken();
+      const res = await fetch(apiUrl('/api/ha-control'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ domain: p.domain, service: p.service, entityId: p.entityId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { result: `Couldn't control ${p.entityId}: ${data.error || res.statusText}`, ok: false };
+      }
+      return { result: `${p.service.replace('_', ' ')}: ${p.entityId}`, ok: true };
+    }
+
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
       const note = `[${new Date().toLocaleDateString()}] ${p.memory}`;
@@ -277,6 +295,14 @@ function buildSystemPrompt(householdMembers: { id: string; name: string; role: s
   const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 6);
   const memory = cachedHermesMemory().join('\n');
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const todayDayName = DAYS[(new Date().getDay() + 6) % 7]; // getDay() is Sun=0; DAYS starts Monday
+
+  const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
+  const todayMeals = weekPlan[todayDayName as Day];
+  const pantry = loadPantry();
+  const lowPantry = pantry.filter((p: PantryItem) => p.quantity <= 1);
+  const medications = loadJSON<any[]>('familyos_medications', []);
+  const homework = loadJSON<any[]>('familyos_homework', []).filter((h: any) => h.status !== 'done' && h.status !== 'complete');
 
   const familyLine = householdMembers.length > 0
     ? householdMembers.map((m) => `${m.name} (${m.role})`).join(', ')
@@ -314,6 +340,14 @@ APPOINTMENTS: ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}
 OPEN PROMISES: ${promises.length ? promises.map(p => `${p.person}: "${p.text}"`).join(' | ') : 'none'}
 
 RECENT EMOTIONS: ${emotions.length ? emotions.map(e => `${e.person} felt ${e.emotion} (${e.intensity}/5)`).join(' | ') : 'none'}
+
+TODAY'S MEALS (${todayDayName}): Breakfast: ${todayMeals?.Breakfast || 'not planned'} | Lunch: ${todayMeals?.Lunch || 'not planned'} | Dinner: ${todayMeals?.Dinner || 'not planned'}${todayMeals?.cook ? ` (cook: ${todayMeals.cook})` : ''}
+
+PANTRY LOW/OUT (${lowPantry.length}): ${lowPantry.length ? lowPantry.slice(0, 10).map((p: PantryItem) => `${p.name} (${p.quantity}${p.unit})`).join(', ') : 'nothing low'}
+
+MEDICATIONS (${medications.length}): ${medications.length ? medications.slice(0, 6).map((m: any) => `${m.person}: ${m.name}${m.nextRefill ? ` (refill ${m.nextRefill})` : ''}`).join(' | ') : 'none tracked'}
+
+HOMEWORK OPEN (${homework.length}): ${homework.length ? homework.slice(0, 6).map((h: any) => `${h.kid}: ${h.subject} - ${h.task}${h.dueDate ? ` (due ${h.dueDate})` : ''}`).join(' | ') : 'none'}
 
 ${memory ? `═══ MY MEMORY ═══\n${memory}\n` : ''}
 ${(() => { const hb = memoryFactBlock(); return hb ? `═══ HOUSEHOLD BRAIN (rules/inventory/procedures set by the family) ═══\n${hb}\n` : ''; })()}
@@ -358,6 +392,8 @@ genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...f
   homeMaintenance(item,category,lastDone,nextDue,notes) · qualityActivities(name,person,duration,scheduledAt) ·
   promises(text,person,priority,dueDate) · emotions(person,feeling,context,intensity,category)
   For update/delete, pass {match: "partial text to find the item"} instead of full fields.
+controlDevice: {type, params: {domain: "light"|"switch"|"lock"|"climate"|"fan"|"cover", service: "turn_on"|"turn_off"|"toggle"|"lock"|"unlock"|"open_cover"|"close_cover", entityId: "domain.entity_name e.g. light.living_room"}}
+  Controls a real Home Assistant device. Only use an entityId the user has actually mentioned or that you've seen referenced in prior conversation — never invent one. If unsure of the exact entity ID, ask the user first instead of guessing.
 
 ═══ RULES ═══
 - Use actions whenever the user asks you to DO something (add, complete, mark, log, remove, etc.)
@@ -366,8 +402,10 @@ genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...f
 - Always confirm what you did in the text
 - When recalling data, read it from the live data above and format it clearly in text
 - Be proactive: if you see something concerning (many overdue tasks, broken promises, low-energy emotions), mention it
+- Cross-reference data before answering: if asked about dinner, check TODAY'S MEALS and PANTRY LOW/OUT together — if a planned meal needs something that's low/out, say so and offer to add it to the shopping list
+- If a bill is due soon and finance data shows a tight month, flag the collision instead of just answering the literal question
 - Learn from patterns: note them in memory
-- Suggest things when relevant ("You have 3 overdue tasks, want me to clear the old ones?")`.trim();
+- Suggest things when relevant ("You have 3 overdue tasks, want me to clear the old ones?", "Tonight's dinner needs eggs and you're out — want me to add it to shopping?")`.trim();
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
@@ -428,6 +466,7 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   markMealCooked: '✅',
   addCarMaintenanceEntry: '🚗',
   genericAction: '⚡',
+  controlDevice: '🏠',
 };
 
 const HermesChat: React.FC = () => {
@@ -497,7 +536,7 @@ const HermesChat: React.FC = () => {
     const executed: ExecutedAction[] = [];
     const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
     for (const action of response.actions || []) {
-      const { result, ok } = executeAction(action, defaultPerson);
+      const { result, ok } = await executeAction(action, defaultPerson);
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated
       if (action.type === 'updateMemory') {

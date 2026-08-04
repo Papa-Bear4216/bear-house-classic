@@ -60,6 +60,16 @@ export const HermesModelTierBodySchema = z.object({
   tier: z.enum(['haiku', 'sonnet']),
 });
 
+// Allowlist of HA service domains/services Hermes can call — deliberately
+// narrow (lights/switches/locks/climate on-off-style controls only), no
+// domain that could do something destructive (no scripts, no automations,
+// no media_player with arbitrary URLs).
+export const HaControlBodySchema = z.object({
+  domain: z.enum(['light', 'switch', 'lock', 'climate', 'fan', 'cover']),
+  service: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover']),
+  entityId: z.string().trim().min(1).max(200),
+});
+
 export const TtsBodySchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
