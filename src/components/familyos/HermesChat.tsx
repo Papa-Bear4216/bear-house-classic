@@ -10,6 +10,7 @@ import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 import { apiUrl } from '@/lib/api';
 import { getVoiceProvider } from '@/lib/voice';
+import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -251,11 +252,8 @@ function executeAction(action: Action, defaultPerson: string): { result: string;
 
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
-      const existing = localStorage.getItem('hermes_memory') || '';
       const note = `[${new Date().toLocaleDateString()}] ${p.memory}`;
-      const updated = existing ? `${existing}\n${note}` : note;
-      // Keep last 3000 chars to avoid bloat
-      localStorage.setItem('hermes_memory', updated.slice(-3000));
+      addHermesMemory(note); // household-wide, fire-and-forget
       return { result: `Memory updated`, ok: true };
     }
 
@@ -277,7 +275,7 @@ function buildSystemPrompt(householdMembers: { id: string; name: string; role: s
   const appts = loadJSON<any[]>('familyos_appointments', []).slice(0, 6);
   const emotions = loadJSON<any[]>(KEYS.emotions, []).slice(0, 6);
   const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 6);
-  const memory = localStorage.getItem('hermes_memory') || '';
+  const memory = cachedHermesMemory().join('\n');
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   const familyLine = householdMembers.length > 0
@@ -450,8 +448,20 @@ const HermesChat: React.FC = () => {
   const voice = getVoiceProvider(voiceUnlocked, getAccessToken, apiUrl);
 
   useEffect(() => {
-    const mem = localStorage.getItem('hermes_memory') || '';
-    setMemoryCount(mem ? mem.split('\n').filter(Boolean).length : 0);
+    (async () => {
+      // One-time migration: if this device has an old localStorage memory
+      // blob and the household hasn't got any server-side memory yet,
+      // import it, then remove the local copy so it doesn't re-import.
+      const legacy = localStorage.getItem('hermes_memory');
+      const notes = await loadHermesMemory();
+      if (legacy && notes.length === 0) {
+        for (const line of legacy.split('\n').filter(Boolean)) addHermesMemory(line);
+        localStorage.removeItem('hermes_memory');
+        setMemoryCount(legacy.split('\n').filter(Boolean).length);
+      } else {
+        setMemoryCount(notes.length);
+      }
+    })();
   }, [open]);
 
   useEffect(() => {
@@ -491,8 +501,7 @@ const HermesChat: React.FC = () => {
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated
       if (action.type === 'updateMemory') {
-        const mem = localStorage.getItem('hermes_memory') || '';
-        setMemoryCount(mem.split('\n').filter(Boolean).length);
+        setMemoryCount(cachedHermesMemory().length);
       }
     }
 
@@ -554,9 +563,9 @@ const HermesChat: React.FC = () => {
     }
   };
 
-  const clearMemory = () => {
-    if (confirm('Clear Hermes memory? He will forget all learned preferences.')) {
-      localStorage.removeItem('hermes_memory');
+  const clearMemory = async () => {
+    if (confirm('Clear Hermes memory for the whole household? He will forget all learned preferences on every device.')) {
+      await clearHermesMemory();
       setMemoryCount(0);
     }
   };
