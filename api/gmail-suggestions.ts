@@ -12,6 +12,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, GmailSuggestionsBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 async function fetchGmailMessages(accessToken: string, query: string, maxResults = 10) {
   const listRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
@@ -115,6 +116,9 @@ async function callAI(prompt: string, anthropicKey: string | undefined, geminiKe
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const authHeader = req.headers.get('authorization') || '';

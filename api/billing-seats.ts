@@ -6,6 +6,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, BillingActionBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
 async function countAuthenticatingMembers(householdId: string): Promise<number> {
@@ -29,6 +30,9 @@ async function getHousehold(householdId: string): Promise<{ stripe_subscription_
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const rawBody = await req.json().catch(() => ({}));

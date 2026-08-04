@@ -7,6 +7,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaFixBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 export type FixResult = {
   ok: boolean; tier: 1 | 2 | 3; action?: string; result?: unknown;
   needsKey?: boolean; assisted?: boolean;
@@ -103,6 +104,9 @@ export async function runFix(integration: string, key?: string): Promise<FixResu
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
   const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;

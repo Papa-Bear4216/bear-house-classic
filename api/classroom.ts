@@ -19,6 +19,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClassroomBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 const TASKS_KEY = 'household_tasks';
 
 async function getKey(key: string, householdId: string) {
@@ -38,6 +39,9 @@ async function gFetch(url: string, token: string) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const authHeader = req.headers.get('authorization') || '';

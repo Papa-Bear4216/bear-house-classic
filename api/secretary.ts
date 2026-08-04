@@ -9,6 +9,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SecretaryBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
@@ -97,6 +98,9 @@ Rules: skip if very similar task exists. Default to the first family member for 
 `.trim();
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method === 'GET') return j({ ok: true, agent: 'Hermes', status: 'ready' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 

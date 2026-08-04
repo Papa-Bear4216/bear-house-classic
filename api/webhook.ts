@@ -6,6 +6,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, WebhookBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 const BASE_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.hotmessexpress.lol';
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
@@ -54,6 +55,9 @@ async function appendToKey(householdId: string, key: string, item: object) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method === 'GET') return j({ ok: true, message: 'Bear House webhook + Hermes is live.' });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 

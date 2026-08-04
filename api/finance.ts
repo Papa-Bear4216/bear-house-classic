@@ -9,9 +9,13 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, FinanceBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const rawBody = (await req.json().catch(() => ({}))) as any;

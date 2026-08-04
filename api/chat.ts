@@ -6,6 +6,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
+import { handleCorsPreflight } from './_cors.js';
 async function callGemini(
   messages: { role: string; content: string }[],
   system: string,
@@ -38,6 +39,9 @@ async function callGemini(
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const authHeader = req.headers.get('authorization') || '';
