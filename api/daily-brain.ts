@@ -6,7 +6,7 @@
  * existing daily cron, one household at a time, right after that household's
  * finance sync. No new cron slot, no new schedule to manage.
  *
- * Three checks per household, each idempotent (safe to run daily without
+ * Four checks per household, each idempotent (safe to run daily without
  * creating duplicates):
  *   1. Pantry vs. today/tomorrow's planned meals -> missing ingredients
  *      auto-added to the shopping list.
@@ -14,8 +14,18 @@
  *   3. 3+ negative emotions logged for the same person in the last 7 days
  *      -> a household_memory note, so Hermes already knows next time
  *      without anyone telling it.
+ *   4. Car maintenance due within 7 days (per car's most recent logged
+ *      entry's nextDueDate) with no matching open task -> task created.
+ *   5. For each member who's connected Gmail (api/gmail-server-scan.ts),
+ *      bill/appointment-shaped emails become tasks ASSIGNED TO THAT MEMBER
+ *      specifically — never anonymized to "General" and never written to
+ *      household_memory. See gmail-server-scan.ts's PRIVACY BOUNDARY
+ *      comment: a task text derived from one member's inbox is that
+ *      member's own actionable item (same as if they'd typed it
+ *      themselves), not a household-wide broadcast of their email content.
  */
-import { dbGet, dbSet, dbAddHouseholdMemory } from './_db.js';
+import { dbGet, dbSet, dbAddHouseholdMemory, dbGetHouseholdMembersByHouseholdId, dbGetHouseholdGmailStatus } from './_db.js';
+import { scanMemberGmail } from './gmail-server-scan.js';
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
@@ -91,6 +101,77 @@ async function checkBillsDueSoon(householdId: string): Promise<string[]> {
   return added;
 }
 
+async function checkCarMaintenanceDue(householdId: string): Promise<string[]> {
+  const cars: any[] = (await dbGet('familyos_cars', householdId)) ?? [];
+  const tasks: any[] = (await dbGet('household_tasks', householdId)) ?? [];
+  const now = Date.now();
+  const soon = now + 7 * 86400000;
+
+  const added: string[] = [];
+  const newTasks: any[] = [];
+
+  for (const car of cars) {
+    if (car.deletedAt) continue;
+    // Most recent entry with a nextDueDate set — entries are already
+    // stored newest-first (see CarMaintenance.tsx addEntry).
+    const entryWithDue = (car.entries || []).find((e: any) => e.nextDueDate);
+    if (!entryWithDue?.nextDueDate) continue;
+    const dueTs = new Date(entryWithDue.nextDueDate).getTime();
+    if (isNaN(dueTs) || dueTs > soon || dueTs < now) continue;
+
+    const taskText = `${entryWithDue.type} due for ${car.name}`;
+    const alreadyExists = tasks.some((t: any) => !t.completed && t.text?.toLowerCase() === taskText.toLowerCase());
+    if (alreadyExists) continue;
+    newTasks.push({
+      id: uid(), createdAt: Date.now(), completed: false, source: 'daily-brain',
+      text: taskText, person: 'General', priority: 'Medium', category: 'Maintenance',
+      dueEstimate: 'This Week', dueDate: dueTs,
+    });
+    added.push(car.name);
+  }
+
+  if (newTasks.length) await dbSet('household_tasks', householdId, [...newTasks, ...tasks]);
+  return added;
+}
+
+async function checkConnectedGmail(householdId: string): Promise<string[]> {
+  const gmailStatus = await dbGetHouseholdGmailStatus(householdId);
+  const connectedIds = gmailStatus.filter(m => m.gmail_connected_email).map(m => m.id);
+  if (!connectedIds.length) return [];
+
+  const members = await dbGetHouseholdMembersByHouseholdId(householdId);
+  const memberById = new Map(members.map(m => [m.id, m]));
+  const tasks: any[] = (await dbGet('household_tasks', householdId)) ?? [];
+  const newTasks: any[] = [];
+  const added: string[] = [];
+
+  for (const memberId of connectedIds) {
+    const member = memberById.get(memberId);
+    if (!member) continue;
+    const hits = await scanMemberGmail(memberId);
+    if (!hits) continue; // token revoked or not actually connected
+
+    for (const hit of hits.slice(0, 5)) { // cap per member per run
+      // Task text derived from THIS member's own email, assigned to THEM —
+      // not anonymized to General, not written anywhere household-shared
+      // beyond the task itself (which is already visible household-wide,
+      // same as any task any member creates by hand).
+      const taskText = hit.subject.slice(0, 120) || 'Check email';
+      const alreadyExists = tasks.some((t: any) => !t.completed && t.text?.toLowerCase() === taskText.toLowerCase());
+      if (alreadyExists) continue;
+      newTasks.push({
+        id: uid(), createdAt: Date.now(), completed: false, source: 'daily-brain-gmail',
+        text: taskText, person: member.name, priority: 'Medium', category: 'General',
+        dueEstimate: 'This Week',
+      });
+      added.push(`${member.name}: ${taskText}`);
+    }
+  }
+
+  if (newTasks.length) await dbSet('household_tasks', householdId, [...newTasks, ...tasks]);
+  return added;
+}
+
 async function checkEmotionPatterns(householdId: string): Promise<string[]> {
   const emotions: any[] = (await dbGet('emotion_logs', householdId)) ?? [];
   const NEGATIVE = ['Frustration', 'Concern', 'Anxiety', 'Confusion'];
@@ -111,15 +192,17 @@ async function checkEmotionPatterns(householdId: string): Promise<string[]> {
 }
 
 export async function runDailyBrainChecks(householdId: string): Promise<{
-  shoppingAdded: string[]; tasksAdded: string[]; emotionsFlagged: string[];
+  shoppingAdded: string[]; tasksAdded: string[]; carMaintenanceAdded: string[]; gmailTasksAdded: string[]; emotionsFlagged: string[];
 } | { error: string }> {
   try {
-    const [shoppingAdded, tasksAdded, emotionsFlagged] = await Promise.all([
+    const [shoppingAdded, tasksAdded, carMaintenanceAdded, gmailTasksAdded, emotionsFlagged] = await Promise.all([
       checkPantryVsMeals(householdId),
       checkBillsDueSoon(householdId),
+      checkCarMaintenanceDue(householdId),
+      checkConnectedGmail(householdId),
       checkEmotionPatterns(householdId),
     ]);
-    return { shoppingAdded, tasksAdded, emotionsFlagged };
+    return { shoppingAdded, tasksAdded, carMaintenanceAdded, gmailTasksAdded, emotionsFlagged };
   } catch (e: any) {
     return { error: e?.message || 'unknown error' };
   }

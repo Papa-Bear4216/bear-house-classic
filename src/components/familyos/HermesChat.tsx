@@ -11,6 +11,7 @@ import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 import { apiUrl } from '@/lib/api';
 import { getVoiceProvider } from '@/lib/voice';
 import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
+import { loadHermesWeather, cachedHermesWeather } from '@/lib/hermesWeather';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -303,6 +304,7 @@ function buildSystemPrompt(householdMembers: { id: string; name: string; role: s
   const lowPantry = pantry.filter((p: PantryItem) => p.quantity <= 1);
   const medications = loadJSON<any[]>('familyos_medications', []);
   const homework = loadJSON<any[]>('familyos_homework', []).filter((h: any) => h.status !== 'done' && h.status !== 'complete');
+  const weather = cachedHermesWeather();
 
   const familyLine = householdMembers.length > 0
     ? householdMembers.map((m) => `${m.name} (${m.role})`).join(', ')
@@ -340,6 +342,8 @@ APPOINTMENTS: ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}
 OPEN PROMISES: ${promises.length ? promises.map(p => `${p.person}: "${p.text}"`).join(' | ') : 'none'}
 
 RECENT EMOTIONS: ${emotions.length ? emotions.map(e => `${e.person} felt ${e.emotion} (${e.intensity}/5)`).join(' | ') : 'none'}
+
+WEATHER: ${weather ? `${weather.todayForecast}, high ${weather.todayHigh}°/low ${weather.todayLow}°, ${weather.precipChance}% chance of rain${weather.alerts.length ? ` — ALERTS: ${weather.alerts.join(', ')}` : ''}` : 'not loaded yet'}
 
 TODAY'S MEALS (${todayDayName}): Breakfast: ${todayMeals?.Breakfast || 'not planned'} | Lunch: ${todayMeals?.Lunch || 'not planned'} | Dinner: ${todayMeals?.Dinner || 'not planned'}${todayMeals?.cook ? ` (cook: ${todayMeals.cook})` : ''}
 
@@ -403,6 +407,7 @@ controlDevice: {type, params: {domain: "light"|"switch"|"lock"|"climate"|"fan"|"
 - When recalling data, read it from the live data above and format it clearly in text
 - Be proactive: if you see something concerning (many overdue tasks, broken promises, low-energy emotions), mention it
 - Cross-reference data before answering: if asked about dinner, check TODAY'S MEALS and PANTRY LOW/OUT together — if a planned meal needs something that's low/out, say so and offer to add it to the shopping list
+- If WEATHER shows rain/severe conditions and an appointment or plan looks outdoor-related, mention the conflict — don't wait to be asked
 - If a bill is due soon and finance data shows a tight month, flag the collision instead of just answering the literal question
 - Learn from patterns: note them in memory
 - Suggest things when relevant ("You have 3 overdue tasks, want me to clear the old ones?", "Tonight's dinner needs eggs and you're out — want me to add it to shopping?")`.trim();
@@ -487,6 +492,7 @@ const HermesChat: React.FC = () => {
   const voice = getVoiceProvider(voiceUnlocked, getAccessToken, apiUrl);
 
   useEffect(() => {
+    loadHermesWeather(); // fire-and-forget, cachedHermesWeather() reads whatever lands
     (async () => {
       // One-time migration: if this device has an old localStorage memory
       // blob and the household hasn't got any server-side memory yet,
