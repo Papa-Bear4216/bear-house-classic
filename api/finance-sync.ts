@@ -5,6 +5,7 @@ import { dbGet, dbSet, allHouseholdIds } from './_db.js';
 import { fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
+import { runDailyBrainChecks } from './daily-brain.js';
 import { json as j } from './_responseHelpers.js';
 
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
@@ -14,7 +15,12 @@ function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().
 export default async function handler(req: Request): Promise<Response> {
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const householdIds = await allHouseholdIds();
-  const results = await Promise.all(householdIds.map((householdId) => syncHousehold(baseUrl, householdId)));
+  const results = await Promise.all(householdIds.map(async (householdId) => {
+    const sync = await syncHousehold(baseUrl, householdId);
+    // Piggybacks on this cron rather than getting its own — see daily-brain.ts.
+    const dailyBrain = await runDailyBrainChecks(householdId);
+    return { ...sync, dailyBrain };
+  }));
   return j({ households: results });
 }
 
