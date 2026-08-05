@@ -3,6 +3,11 @@
  * refresh token for a short-lived access token on demand — refresh tokens
  * don't expire (until revoked), so this is what lets a background job or
  * Hermes route read a member's Gmail without their browser being open.
+ *
+ * PRIVACY: this token belongs to ONE member. Anything read using it is that
+ * member's personal inbox data — never fan it out to household-shared
+ * storage (household_memory, etc). See gmail-server-scan.ts's header for
+ * the full boundary.
  */
 import { dbGetMemberGmailToken } from './_db.js';
 import { decryptSecret } from './_crypto.js';
