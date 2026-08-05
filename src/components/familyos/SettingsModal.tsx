@@ -12,6 +12,7 @@ import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HermesModelPanel } from './HermesModelPanel';
+import { GmailIntegrationPanel } from './GmailIntegrationPanel';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
 interface Props { open: boolean; onClose: () => void; }
@@ -326,6 +327,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               {isAdmin && <HermesModelPanel />}
 
               {isAdmin && <HouseholdAiKeysPanel />}
+
+              {isAdmin && <GmailIntegrationPanel />}
 
               {/* AI toggle — big and obvious */}
               <label className={`flex items-center justify-between rounded-xl border px-5 py-4 cursor-pointer transition ${settings.aiEnabled ? 'border-indigo-500/50 bg-indigo-950/30' : 'border-slate-700 bg-slate-900'}`}>

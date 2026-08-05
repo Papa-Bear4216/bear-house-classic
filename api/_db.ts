@@ -149,10 +149,10 @@ export async function dbGetHouseholdMemberByEmail(email: string): Promise<{id: s
 }
 
 /** Get a household member by id (uses service role to bypass RLS) */
-export async function dbGetHouseholdMemberById(id: string): Promise<{id: string; name: string; email: string | null; role: string; color: string; pin_hash: string | null} | null> {
+export async function dbGetHouseholdMemberById(id: string): Promise<{id: string; name: string; email: string | null; role: string; color: string; pin_hash: string | null; household_id: string} | null> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(id)}&select=id,name,email,role,color,pin_hash`,
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(id)}&select=id,name,email,role,color,pin_hash,household_id`,
     { headers: headers(serviceKey) }
   );
   if (!res.ok) return null;
@@ -253,6 +253,71 @@ export async function dbSetHermesModelTier(householdId: string, tier: 'haiku' | 
     const detail = await res.text().catch(() => '');
     throw new Error(`dbSetHermesModelTier failed: ${res.status} ${detail}`);
   }
+}
+
+/** Store a member's Gmail server-side refresh token (encrypted by the caller) */
+export async function dbSetMemberGmailToken(
+  memberId: string,
+  encryptedRefreshToken: string,
+  connectedEmail: string
+): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(memberId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({
+        gmail_refresh_token_encrypted: encryptedRefreshToken,
+        gmail_connected_email: connectedEmail,
+        gmail_connected_at: new Date().toISOString(),
+      }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetMemberGmailToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Clear a member's stored Gmail token (disconnect) */
+export async function dbClearMemberGmailToken(memberId: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(memberId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({ gmail_refresh_token_encrypted: null, gmail_connected_email: null, gmail_connected_at: null }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbClearMemberGmailToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Get connected-email status for every member in a household (no tokens) */
+export async function dbGetHouseholdGmailStatus(householdId: string): Promise<Array<{ id: string; gmail_connected_email: string | null }>> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(householdId)}&select=id,gmail_connected_email`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  return await res.json() as any[];
+}
+
+/** Get a member's encrypted Gmail refresh token + connected email, if any */
+export async function dbGetMemberGmailToken(memberId: string): Promise<{ encryptedRefreshToken: string; connectedEmail: string } | null> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(memberId)}&select=gmail_refresh_token_encrypted,gmail_connected_email`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json() as any[];
+  const row = rows[0];
+  if (!row?.gmail_refresh_token_encrypted) return null;
+  return { encryptedRefreshToken: row.gmail_refresh_token_encrypted, connectedEmail: row.gmail_connected_email };
 }
 
 /** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
