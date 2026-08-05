@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Trash2, Package, ScanLine } from 'lucide-react';
 import { loadPantry, savePantry, uid, PANTRY_CATEGORY_EMOJI, mergeIntoPantry, isAdmin, type PantryItem, type PantryCategory } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
+import { useWriteQueued } from '@/lib/useWriteQueued';
 import { useAppContext } from '@/contexts/AppContext';
 import ReceiptScanner from '@/components/familyos/ReceiptScanner';
+
+const STORAGE_KEY = 'familyos_pantry';
 
 const CATEGORY_ORDER: PantryCategory[] = [
   'produce', 'meat', 'dairy', 'bakery', 'pantry', 'frozen', 'beverages', 'household', 'personal-care', 'other',
@@ -20,6 +24,16 @@ const Pantry: React.FC = () => {
   const [category, setCategory] = useState<PantryCategory>('pantry');
 
   const save = (next: PantryItem[]) => { setItems(next); savePantry(next); };
+
+  // Reconcile with cross-device updates and offline-queue flushes.
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key !== STORAGE_KEY && key !== '*') return;
+      setItems(loadPantry());
+    });
+  }, []);
+
+  const pendingSync = useWriteQueued(STORAGE_KEY);
 
   const addItem = () => {
     if (!name.trim()) return;
@@ -54,8 +68,13 @@ const Pantry: React.FC = () => {
       )}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Package className="w-5 h-5 text-sage-400" /> Pantry
-        </h2>
+                  <Package className="w-5 h-5 text-sage-400" /> Pantry
+                  {pendingSync && (
+                    <span className="inline-flex items-center gap-1 text-xs text-honey-400/90 bg-honey-400/10 border border-honey-400/30 px-2 py-0.5 rounded-full ml-2" title="You're offline — this will sync when you reconnect.">
+                      <span className="w-1.5 h-1.5 rounded-full bg-honey-400 animate-pulse" /> Offline — will sync
+                    </span>
+                  )}
+                </h2>
         {canEdit && (
           <div className="flex gap-2">
             <button onClick={() => setShowScanner(true)} className="flex items-center gap-1 bg-berry-600 hover:bg-berry-500 text-white text-sm px-3 py-1.5 rounded-lg transition focus-ring">

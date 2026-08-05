@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullFromCloud, pushToCloud } from './sync';
+import { pullFromCloud, pushToCloud, queueOfflineWrite, isWriteQueued } from './sync';
 
 // pullFromCloud goes through the Supabase JS client, not fetch — stub the
 // client's query chain so pushToCloud has a currentHouseholdId to work with
@@ -23,8 +23,7 @@ function deferred<T>() {
 }
 
 // environment: 'node' in vitest.config.ts means there's no DOM localStorage;
-// sync.ts calls it directly, so stub a minimal in-memory version for tests
-// that exercise the 409 path (which writes to localStorage on conflict).
+// sync.ts calls it directly, so stub a minimal in-memory version for tests.
 const store = new Map<string, string>();
 vi.stubGlobal('localStorage', {
   getItem: (k: string) => store.get(k) ?? null,
@@ -113,5 +112,55 @@ describe('pushToCloud write serialization', () => {
     vi.stubGlobal('fetch', fetchMock2);
     await pushToCloud('bills', ['retry']);
     expect(JSON.parse(fetchMock2.mock.calls[0][1].body).expectedUpdatedAt).toBe('T9');
+  });
+});
+
+describe('offline queue', () => {
+  beforeEach(async () => {
+    store.clear();
+    await pullFromCloud('household-1'); // syncEnabled = true, currentHouseholdId set
+    vi.restoreAllMocks();
+  });
+
+  it('queues a write when the network fetch throws — value is durable even though the push reports false', async () => {
+    // Start offline: first send throws (network down), second send succeeds.
+    let call = 0;
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      call += 1;
+      if (call === 1) throw new Error('Network Error');
+      return new Response(JSON.stringify({ ok: true, updatedAt: 'T9' }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // First push hits the network-failure branch. pushToCloud resolves
+    // false (the server never confirmed), but the value is queued — the
+    // caller's local edit is durable, not lost.
+    const ok = await pushToCloud('shopping', ['milk']);
+    expect(ok).toBe(false);
+    expect(isWriteQueued('shopping')).toBe(true);
+
+    // A second push on the (now-up) network succeeds. Success supersedes
+    // the queued write — the server now has the newer full-blob value, so
+    // replaying the older queued one would clobber it.
+    const ok2 = await pushToCloud('shopping', ['milk', 'eggs']);
+    expect(ok2).toBe(true);
+    expect(isWriteQueued('shopping')).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).value).toEqual(['milk', 'eggs']);
+  });
+
+  it('keeps a queued write if the next push also fails — survives until flush', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const ok = await pushToCloud('tasks', [1]);
+    expect(ok).toBe(false);
+    expect(isWriteQueued('tasks')).toBe(true);
+
+    // Still offline on the follow-up push — the queue keeps the latest
+    // value (superseding the older queued one), nothing is dropped.
+    const ok2 = await pushToCloud('tasks', [1, 2]);
+    expect(ok2).toBe(false);
+    expect(isWriteQueued('tasks')).toBe(true);
   });
 });

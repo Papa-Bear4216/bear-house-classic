@@ -32,6 +32,7 @@ function getSpeechRecognition(): typeof window.SpeechRecognition | undefined {
 class BrowserVoiceProvider implements VoiceProvider {
   private recognition: SpeechRecognition | null = null;
   private listening = false;
+  private ended = false;
 
   get supported(): boolean {
     return typeof window !== 'undefined' &&
@@ -58,23 +59,39 @@ class BrowserVoiceProvider implements VoiceProvider {
     const SpeechRecognitionCtor = getSpeechRecognition();
     if (!SpeechRecognitionCtor || this.listening) return;
 
+    // Barge-in: the moment the user starts talking, silence any in-flight
+    // reply so their voice isn't competing with Hermes's output.
+    this.stopSpeaking();
+
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
+    // Auto-stop on silence: fire onresult exactly once (we send the final,
+    // not interim, transcript), then end promptly instead of lingering.
+    this.ended = false;
+    const finishEnd = () => {
+      if (this.ended) return;
+      this.ended = true;
+      this.listening = false;
+      onEnd?.();
+    };
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[0]?.[0]?.transcript;
-      if (transcript) onResult(transcript);
+      if (transcript) {
+        onResult(transcript);
+        // We have what we need — stop listening now (hands-free auto-stop)
+        // rather than holding the session open for a possible second phrase.
+        this.recognition?.stop();
+      }
     };
-    recognition.onend = () => {
-      this.listening = false;
-      onEnd?.();
-    };
-    recognition.onerror = () => {
-      this.listening = false;
-      onEnd?.();
-    };
+    recognition.onend = () => finishEnd();
+    recognition.onerror = () => finishEnd();
+    // Hard stop if the speech engine holds the session open past a silence
+    // window that shouldn't yield more input.
+    recognition.onspeechend = () => this.recognition?.stop();
 
     this.recognition = recognition;
     this.listening = true;
@@ -94,12 +111,14 @@ class BrowserVoiceProvider implements VoiceProvider {
  */
 class PremiumVoiceProvider extends BrowserVoiceProvider {
   private audio: HTMLAudioElement | null = null;
+  private speakGen = 0; // invalidates stale in-flight TTS after barge-in/stop
   constructor(private getAuthToken: () => Promise<string | null>, private apiUrl: (path: string) => string) {
     super();
   }
 
   speak(text: string): void {
     this.stopSpeaking();
+    const gen = ++this.speakGen;
     (async () => {
       try {
         const token = await this.getAuthToken();
@@ -114,16 +133,20 @@ class PremiumVoiceProvider extends BrowserVoiceProvider {
         if (!res.ok) throw new Error(`tts ${res.status}`);
         const data = await res.json();
         if (!data.audioBase64) throw new Error('empty audio');
+        // Barge-in happened while we fetched — drop the stale audio.
+        if (gen !== this.speakGen) return;
 
         this.audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
         this.audio.play();
       } catch {
+        if (gen !== this.speakGen) return;
         super.speak(text); // fall back to free browser voice
       }
     })();
   }
 
   stopSpeaking(): void {
+    this.speakGen++; // invalidate any in-flight fetch
     this.audio?.pause();
     this.audio = null;
     super.stopSpeaking();
