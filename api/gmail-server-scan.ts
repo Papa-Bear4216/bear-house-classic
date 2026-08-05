@@ -8,6 +8,20 @@
  * api/gmail-suggestions.ts, but this file has no HTTP handler of its own —
  * it's imported and called directly, same pattern as daily-brain.ts's
  * relationship to finance-sync.ts.
+ *
+ * PRIVACY BOUNDARY — read this before wiring scanMemberGmail() into anything:
+ * Results are PER-MEMBER, not household-shared. household_memory (see
+ * _db.ts dbAddHouseholdMemory) and every other household-scoped table is
+ * visible to EVERY member's Hermes session. Never write scanMemberGmail()
+ * output (subjects, senders, snippets, or anything derived from them) into
+ * household_memory or any other household-wide store — that would leak one
+ * member's inbox contents to the rest of the family. If a caller needs to
+ * surface something to the household (e.g. "a bill is due"), it must first
+ * be stripped down to the non-identifying fact itself (amount, due date) —
+ * never the source email's subject/sender/snippet — and even then, prefer
+ * writing it to the connecting member's own task/reminder rather than a
+ * shared table. If genuinely household-wide action is needed, ask the
+ * connecting member to confirm first rather than auto-sharing silently.
  */
 import { getMemberGmailAccessToken } from './_gmail.js';
 

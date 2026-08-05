@@ -81,7 +81,9 @@ export function GmailIntegrationPanel() {
         <p className="text-xs text-slate-400">
           Each household member can optionally connect their own Gmail, read-only, so Hermes can
           track bills, appointments, and order confirmations from their inbox — even when they're
-          not actively using the app. Any member can disconnect their own access anytime.
+          not actively using the app. <span className="text-slate-300">Inbox contents stay private to that
+          member</span> — they're never shared into household-wide memory or visible to anyone else's
+          Hermes session. Any member can disconnect their own access anytime.
         </p>
         {error && <p className="text-rose-400 text-xs">{error}</p>}
         {loading ? (
