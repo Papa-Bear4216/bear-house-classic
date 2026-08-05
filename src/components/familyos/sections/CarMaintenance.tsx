@@ -15,6 +15,7 @@ interface MaintenanceEntry {
   mileage: string;
   notes: string;
   createdAt: number;
+  nextDueDate?: string;
 }
 
 interface CarRecord {
@@ -49,6 +50,7 @@ const CarMaintenance: React.FC = () => {
   const [entryDate, setEntryDate] = useState('');
   const [entryMileage, setEntryMileage] = useState('');
   const [entryNotes, setEntryNotes] = useState('');
+  const [entryNextDue, setEntryNextDue] = useState('');
 
   const isAdm = currentRole && canDelete(currentRole);
   const save = (next: CarRecord[]) => { setCars(next); saveJSON(STORAGE_KEY, next); };
@@ -86,9 +88,10 @@ const CarMaintenance: React.FC = () => {
       mileage: entryMileage,
       notes: entryNotes,
       createdAt: Date.now(),
+      nextDueDate: entryNextDue || undefined,
     };
     save(cars.map(c => c.id === carId ? { ...c, entries: [entry, ...c.entries] } : c));
-    setEntryType('Oil Change'); setEntryDate(''); setEntryMileage(''); setEntryNotes('');
+    setEntryType('Oil Change'); setEntryDate(''); setEntryMileage(''); setEntryNotes(''); setEntryNextDue('');
     setAddEntryFor(null);
   };
 
@@ -204,6 +207,10 @@ const CarMaintenance: React.FC = () => {
                           <label className="text-cream-400/60 text-xs mb-1 block">Notes</label>
                           <input value={entryNotes} onChange={e => setEntryNotes(e.target.value)} placeholder="Optional" className="w-full bg-bark-700 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs placeholder-cream-400/50 outline-none focus-ring" />
                         </div>
+                        <div className="col-span-2">
+                          <label className="text-cream-400/60 text-xs mb-1 block">Next due (optional)</label>
+                          <input type="date" value={entryNextDue} onChange={e => setEntryNextDue(e.target.value)} className="w-full bg-bark-700 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none focus-ring" />
+                        </div>
                       </div>
                       <div className="flex gap-2 justify-end">
                         <button onClick={() => setAddEntryFor(null)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
@@ -223,6 +230,7 @@ const CarMaintenance: React.FC = () => {
                           <div className="text-white text-sm">{entry.type}</div>
                           <div className="text-cream-400/60 text-xs">{entry.date}{entry.mileage ? ` · ${entry.mileage} mi` : ''}</div>
                           {entry.notes && <div className="text-cream-400/50 text-xs mt-0.5">{entry.notes}</div>}
+                          {entry.nextDueDate && <div className="text-honey-400/80 text-xs mt-0.5">Next due: {entry.nextDueDate}</div>}
                         </div>
                         {isAdm && (
                           <button onClick={() => deleteEntry(car.id, entry.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring">
