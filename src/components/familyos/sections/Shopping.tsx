@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, RotateCcw, ShoppingCart } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
+import { useWriteQueued } from '@/lib/useWriteQueued';
 import { useAppContext } from '@/contexts/AppContext';
 import { openAmazonSearch, createAmazonSendQueue } from '@/lib/amazonCart';
 
@@ -87,11 +88,17 @@ const Shopping: React.FC = () => {
   const completed = visible.filter(i => i.completed && !i.deletedAt);
   const deleted = visible.filter(i => !!i.deletedAt);
   const isAdm = currentRole && canDelete(currentRole);
+  const pendingSync = useWriteQueued(STORAGE_KEY);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Shopping List</h2>
+        {pendingSync && (
+          <span className="inline-flex items-center gap-1 text-xs text-honey-400/90 bg-honey-400/10 border border-honey-400/30 px-2 py-0.5 rounded-full ml-2" title="You're offline — this will sync when you reconnect.">
+            <span className="w-1.5 h-1.5 rounded-full bg-honey-400 animate-pulse" /> Offline — will sync
+          </span>
+        )}
         <div className="flex gap-2">
           {isAdm && completed.length > 0 && (
             <button onClick={clearCompleted} className="text-xs text-cream-400/60 hover:text-rose-400 border border-cream-400/10 hover:border-rose-500/40 px-2 py-1 rounded transition focus-ring">

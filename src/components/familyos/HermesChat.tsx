@@ -474,6 +474,79 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   controlDevice: '🏠',
 };
 
+// ─── Proactive greeting ─────────────────────────────────────────────────────
+// Deterministic "here's what needs attention" summary shown when the chat
+// opens with no messages. Reads the same live local JSON the system prompt
+// uses — no API call, no keys. Updates itself as the household's data
+// changes between visits.
+function buildProactiveGreeting(userName: string | undefined): string {
+  const tasks = loadJSON<any[]>(KEYS.tasks, []);
+  const open = tasks.filter((t: any) => !t.completed);
+  const overdue = open.filter((t: any) => t.dueDate && t.dueDate < Date.now());
+  const high = open.filter((t: any) => t.priority === 'High');
+  const shopping = loadJSON<any[]>('familyos_shopping', []).filter((i: any) => !i.completed);
+  const bills = loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid);
+  const pantry = loadPantry();
+  const lowPantry = pantry.filter((p: any) => p.quantity <= 1);
+  const weather = cachedHermesWeather();
+  const todayDayName = DAYS[(new Date().getDay() + 6) % 7];
+  const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
+  const todayMeals = weekPlan[todayDayName as Day];
+
+  const name = userName ? userName.split(' ')[0] : 'there';
+  const lines: string[] = [`Hey ${name}. Here's the lay of the land today:`];
+
+  if (overdue.length > 0) lines.push(`🔴 ${overdue.length} task${overdue.length > 1 ? 's' : ''} overdue${overdue.length === 1 && overdue[0].text ? ` — "${overdue[0].text}"` : ''}`);
+  if (high.length > 0) lines.push(`⚡ ${high.length} high-priority task${high.length > 1 ? 's' : ''} open`);
+  if (shopping.length > 0) lines.push(`🛒 ${shopping.length} item${shopping.length > 1 ? 's' : ''} on the shopping list`);
+  if (bills.length > 0) lines.push(`💸 ${bills.length} bill${bills.length > 1 ? 's' : ''} unpaid`);
+  if (lowPantry.length > 0) lines.push(`🥫 Pantry running low (${lowPantry.slice(0, 5).map((p: any) => p.name).join(', ')})`);
+  if (weather?.alerts?.length) lines.push(`⚠️ Weather alert: ${weather.alerts.join(', ')}`);
+  if (todayMeals?.Dinner && !todayMeals.Dinner.toLowerCase().includes('leftover')) {
+    lines.push(`🍽️ Dinner tonight: ${todayMeals.Dinner}${todayMeals.cook ? ` (cook: ${todayMeals.cook})` : ''}`);
+  }
+
+  if (lines.length === 1) {
+    lines.push('Nothing urgent on the board right now — the coast is clear.');
+  } else {
+    lines.push('Want me to dive into any of these?');
+  }
+  return lines.join('\n');
+}
+
+// Proactive greeting keyed per member so each household member sees the
+// summary once per chat-session-per-day instead of every single open.
+function greetingKey(userId: string | undefined): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return `hermes_greeting_${userId ?? 'anon'}_${today}`;
+}
+function shouldShowGreeting(userId: string | undefined): boolean {
+  return localStorage.getItem(greetingKey(userId)) !== '1';
+}
+function markGreetingShown(userId: string | undefined) {
+  localStorage.setItem(greetingKey(userId), '1');
+}
+
+// ─── Quick-reply chips ──────────────────────────────────────────────────────
+// Shown under each assistant reply so the user can continue without typing.
+// Each maps to a follow-up prompt that likely needs no further context.
+const FOLLOW_UP_PROMPTS = [
+  'Add a task',
+  'Add to shopping',
+];
+
+// Context-aware follow-ups based on what the last reply touched, so the
+// chip row never suggests an irrelevant action. Keyed by the action types
+// present in the last response.
+function followUpsFor(lastMsg: Message | undefined): string[] {
+  const base = [...FOLLOW_UP_PROMPTS];
+  const types = new Set((lastMsg?.actions || []).map(a => a.type));
+  if (types.has('markBillPaid') || types.has('addBill')) base.push('Show unpaid bills');
+  if (types.has('addShopping') || types.has('completeShoppingItem')) base.push('Show shopping list');
+  if (types.has('addTask') || types.has('completeTask')) base.push('Show open tasks');
+  return base.slice(0, 4);
+}
+
 const HermesChat: React.FC = () => {
   const { currentUser, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
   const [open, setOpen] = useState(false);
@@ -513,7 +586,15 @@ const HermesChat: React.FC = () => {
     if (open) {
       setUnread(0);
       setTimeout(() => inputRef.current?.focus(), 100);
+      // Proactive greeting: the first time this member opens the chat
+      // today (and no conversation is in flight), lead with a deterministic
+      // household summary instead of a blank input.
+      if (messages.length === 0 && shouldShowGreeting(currentUser?.id)) {
+        markGreetingShown(currentUser?.id);
+        setMessages([{ role: 'assistant', text: buildProactiveGreeting(currentUser?.name), ts: Date.now() }]);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -710,16 +791,16 @@ const HermesChat: React.FC = () => {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.length === 0 && (
-              <div className="space-y-4 pt-2">
-                <p className="text-xs text-cream-400/50 text-center">I know your household data and can take actions — add tasks, mark things done, log emotions, and more.</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {STARTERS.map(s => (
-                    <button key={s} onClick={() => send(s)}
-                      className="text-left text-xs bg-bark-700 hover:bg-honey-700/30 border border-cream-400/10 hover:border-honey-500/40 rounded-xl px-3 py-2 text-cream-200 transition leading-snug focus-ring">
-                      {s}
-                    </button>
-                  ))}
-                </div>
+              <p className="text-xs text-cream-400/50 text-center">I know your household data and can take actions — add tasks, mark things done, log emotions, and more.</p>
+            )}
+            {!messages.some(m => m.role === 'user') && (
+              <div className="grid grid-cols-2 gap-1.5">
+                {STARTERS.map(s => (
+                  <button key={s} onClick={() => send(s)}
+                    className="text-left text-xs bg-bark-700 hover:bg-honey-700/30 border border-cream-400/10 hover:border-honey-500/40 rounded-xl px-3 py-2 text-cream-200 transition leading-snug focus-ring">
+                    {s}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -748,6 +829,18 @@ const HermesChat: React.FC = () => {
                         }
                         <span>{ACTION_ICONS[a.type] || '⚡'} {a.result}</span>
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Quick-reply chips so the user can continue without typing */}
+                {m.role === 'assistant' && i !== messages.length - 1 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {followUpsFor(m).map(p => (
+                      <button key={p} onClick={() => send(p)}
+                        className="text-[11px] bg-bark-800 hover:bg-honey-700/30 border border-cream-400/10 hover:border-honey-500/40 rounded-full px-2.5 py-1 text-cream-300 transition focus-ring">
+                        {p}
+                      </button>
                     ))}
                   </div>
                 )}
