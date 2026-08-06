@@ -13,6 +13,7 @@ import { BillingPanel } from './BillingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HermesModelPanel } from './HermesModelPanel';
 import { GmailIntegrationPanel } from './GmailIntegrationPanel';
+import { ThemeToggle } from './ThemeToggle';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
 interface Props { open: boolean; onClose: () => void; }
@@ -302,6 +303,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
           {/* ── GENERAL TAB ── */}
           {tab === 'general' && (
             <div className="space-y-4">
+
+              <ThemeToggle />
 
               {/* Device-local API Keys — admins only. Used only by client-side
                   direct calls (e.g. MealPlanner's barcode scanner) — NOT the
