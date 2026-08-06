@@ -3,6 +3,7 @@ import { Plus, Trash2, RotateCcw, AlertTriangle, Home, ScanLine } from 'lucide-r
 import { loadJSON, saveJSON, uid, canDelete, householdPersons } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { logActivity } from '@/lib/householdActivity';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import CameraViewer from '@/components/familyos/CameraViewer';
 
@@ -67,6 +68,7 @@ const HomeMaintenance: React.FC = () => {
       createdAt: Date.now(),
     };
     save([newItem, ...items]);
+    if (currentUser) logActivity(currentUser.name, `logged home maintenance: "${newItem.item}"`);
     setItem(''); setLastDone(''); setNextDue(''); setNotes(''); setShowForm(false);
   };
 

@@ -7,6 +7,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { openAmazonSearch, createAmazonSendQueue } from '@/lib/amazonCart';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { logActivity } from '@/lib/householdActivity';
 
 const STORAGE_KEY = 'familyos_shopping';
 const CATEGORIES = ['Groceries', 'Household', 'School', 'Other'] as const;
@@ -80,13 +81,17 @@ const Shopping: React.FC = () => {
       createdAt: Date.now(),
     };
     save([item, ...items]);
+    if (currentUser) logActivity(currentUser.name, `added "${item.name}" to shopping`);
     setName('');
     setQuantity('1');
     setShowForm(false);
   };
 
   const toggleComplete = (id: string) => {
+    const item = items.find(i => i.id === id);
+    const completing = item && !item.completed;
     save(items.map(i => i.id === id ? { ...i, completed: !i.completed, completedAt: i.completed ? undefined : Date.now() } : i));
+    if (completing && currentUser && item) logActivity(currentUser.name, `checked off "${item.name}"`);
   };
 
   const softDelete = (id: string) => {

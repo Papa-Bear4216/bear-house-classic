@@ -11,6 +11,7 @@ import AlertModal from './AlertModal';
 import WeatherWidget from './WeatherWidget';
 import SystemHealth from './SystemHealth';
 import MemberProfileModal from './MemberProfileModal';
+import ActivityFeed from './ActivityFeed';
 
 // recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
 // needed when the user opens the Trends tab — split it into its own chunk.
@@ -283,6 +284,8 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       )}
 
       <WeatherWidget />
+
+      <ActivityFeed />
 
       <SystemHealth />
 

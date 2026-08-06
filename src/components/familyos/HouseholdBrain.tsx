@@ -27,6 +27,7 @@ import {
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { onSyncUpdate } from '@/lib/sync';
+import { logActivity } from '@/lib/householdActivity';
 import AlertModal from './AlertModal';
 import FocusMode from './FocusMode';
 import ExportChoresModal from './ExportChoresModal';
@@ -70,7 +71,7 @@ const DUE_TONE: Record<string, string> = {
 };
 
 const HouseholdBrain: React.FC = () => {
-  const { householdMembers } = useAppContext();
+  const { householdMembers, currentUser } = useAppContext();
   const PERSONS = householdPersons(householdMembers);
   const TABS = ['Today', ...PERSONS.filter((p) => p !== 'Family' && p !== 'General'), 'Recurring', 'All'];
   const [tasks, setTasks] = useState<Task[]>(() => loadJSON(KEYS.tasks, []));
@@ -259,6 +260,7 @@ const HouseholdBrain: React.FC = () => {
     if (!target) return;
     const now = Date.now();
     const updated = tasks.map((t) => (t.id === id ? { ...t, completed: true, completedAt: now } : t));
+    if (currentUser) logActivity(currentUser.name, `completed "${target.text}"`);
 
     const memberId = resolveMemberIdByName(householdMembers, target.person);
     if (memberId) awardPoints(memberId, POINT_VALUES.default);

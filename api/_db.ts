@@ -242,6 +242,31 @@ export async function dbClearHouseholdMemory(householdId: string): Promise<void>
   }
 }
 
+/** Recent activity feed entries for a household (service role) */
+export async function dbGetHouseholdActivity(householdId: string, limit = 50): Promise<Array<{id: string; actor_name: string; text: string; created_at: string}>> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_activity?household_id=eq.${encodeURIComponent(householdId)}&select=id,actor_name,text,created_at&order=created_at.desc&limit=${limit}`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  return await res.json() as any[];
+}
+
+/** Append one activity entry for a household (service role) */
+export async function dbAddHouseholdActivity(householdId: string, actorName: string, text: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/household_activity`, {
+    method: 'POST',
+    headers: headers(serviceKey),
+    body: JSON.stringify({ household_id: householdId, actor_name: actorName, text }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbAddHouseholdActivity failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Set a household's Hermes chat model tier (service role, bypasses RLS) */
 export async function dbSetHermesModelTier(householdId: string, tier: 'haiku' | 'sonnet'): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;

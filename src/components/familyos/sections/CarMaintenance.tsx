@@ -3,6 +3,7 @@ import { Plus, Trash2, Car, ChevronDown, ChevronUp } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { logActivity } from '@/lib/householdActivity';
 import { CARS_STORAGE_KEY } from './carMaintenanceKeys';
 
 export { CARS_STORAGE_KEY };
@@ -91,6 +92,8 @@ const CarMaintenance: React.FC = () => {
       nextDueDate: entryNextDue || undefined,
     };
     save(cars.map(c => c.id === carId ? { ...c, entries: [entry, ...c.entries] } : c));
+    const car = cars.find(c => c.id === carId);
+    if (currentUser && car) logActivity(currentUser.name, `logged ${entry.type} for ${car.name}`);
     setEntryType('Oil Change'); setEntryDate(''); setEntryMileage(''); setEntryNotes(''); setEntryNextDue('');
     setAddEntryFor(null);
   };
