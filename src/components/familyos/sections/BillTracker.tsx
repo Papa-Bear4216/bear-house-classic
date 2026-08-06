@@ -129,7 +129,7 @@ const BillTracker: React.FC = () => {
       )}
 
       {active.length === 0 && (
-        <div className="text-center text-cream-400/50 py-8 text-sm">No bills tracked yet.</div>
+        <div className="text-center text-cream-400/50 py-8 text-sm">No bills yet. Add one to get due-date reminders.</div>
       )}
 
       <div className="space-y-2">

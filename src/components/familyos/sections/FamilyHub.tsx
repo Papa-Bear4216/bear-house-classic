@@ -68,7 +68,7 @@ const MessagesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && post()} placeholder="Post a message to the family..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
         <button onClick={post} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><MessageSquare className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No messages yet. Post something!</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No messages yet. Post something the whole household should see.</div>}
       <div className="space-y-2">
         {active.map(m => (
           <div key={m.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
@@ -118,7 +118,7 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         <input value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Ask permission for something..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
         <button onClick={submit} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No requests yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No requests yet. Ask the household for help with something.</div>}
       {pending.length > 0 && (
         <div className="space-y-2">
           <div className="text-cream-400/60 text-xs uppercase tracking-wide">Pending</div>
@@ -209,7 +209,7 @@ const MomentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
           </div>
         </div>
       )}
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No moments saved yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No moments saved yet. Capture one to keep it in the family record.</div>}
       <div className="space-y-2">
         {active.map(m => (
           <div key={m.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
@@ -253,7 +253,7 @@ const BucketListTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Something to do together..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
         <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">The family bucket list is empty!</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">The bucket list is empty. Add something the family wants to do together.</div>}
       <div className="space-y-2">
         {open.map(i => (
           <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
@@ -321,7 +321,7 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         </select>
         <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">Watchlist is empty.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">Watchlist is empty. Add a show or movie for family movie night.</div>}
       <div className="space-y-2">
         {unwatched.map(i => (
           <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
@@ -386,7 +386,7 @@ const GameNightTab: React.FC<{ isAdm: boolean; householdMembers: User[] }> = ({ 
         <input value={gameName} onChange={e => setGameName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGame()} placeholder="Add a game..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
         <button onClick={addGame} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
       </div>
-      {games.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No games yet. Add one!</div>}
+      {games.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No games yet. Add one for family game night.</div>}
       <div className="space-y-2">
         {games.map(g => {
           const isExp = expandedGame === g.id;

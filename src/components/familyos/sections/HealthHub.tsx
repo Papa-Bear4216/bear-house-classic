@@ -150,7 +150,7 @@ const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No medications tracked.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No medications tracked. Add one to get refill and dosage reminders.</div>}
 
       <div className="space-y-2">
         {active.map(med => {
@@ -246,7 +246,7 @@ const ApptTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No appointments.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No appointments yet. Add one so the household knows what's coming up.</div>}
 
       <div className="space-y-2">
         {upcoming.map(a => {
@@ -363,7 +363,7 @@ const LucyTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No records yet.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No records yet. Add one to keep a history you can look back on.</div>}
 
       <div className="space-y-2">
         {active.map(e => {

@@ -143,7 +143,7 @@ const CarMaintenance: React.FC = () => {
       )}
 
       {activeCars.length === 0 && !showAddCar && (
-        <div className="text-center text-cream-400/60 py-8 text-sm">No cars tracked yet. Add one!</div>
+        <div className="text-center text-cream-400/60 py-8 text-sm">No cars yet. Add one to start logging maintenance.</div>
       )}
 
       <div className="space-y-3">
@@ -220,7 +220,7 @@ const CarMaintenance: React.FC = () => {
                   )}
 
                   {car.entries.length === 0 && (
-                    <div className="text-center text-cream-400/60 py-3 text-xs">No maintenance records yet.</div>
+                    <div className="text-center text-cream-400/60 py-3 text-xs">No maintenance logged yet. Log a service to track what's due next.</div>
                   )}
 
                   <div className="space-y-2">

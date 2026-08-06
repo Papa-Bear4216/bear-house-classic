@@ -5,10 +5,30 @@ import { onSyncUpdate } from '@/lib/sync';
 import { useWriteQueued } from '@/lib/useWriteQueued';
 import { useAppContext } from '@/contexts/AppContext';
 import { openAmazonSearch, createAmazonSendQueue } from '@/lib/amazonCart';
+import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 const STORAGE_KEY = 'familyos_shopping';
 const CATEGORIES = ['Groceries', 'Household', 'School', 'Other'] as const;
 type Category = typeof CATEGORIES[number];
+
+// Lightweight keyword guess so typing "tide pods" while on the Groceries tab
+// still lands in Household — no AI call needed for something this cheap to
+// pattern-match. Falls back to whatever tab is active if nothing matches.
+const CATEGORY_KEYWORDS: Record<Category, string[]> = {
+  Groceries: ['milk', 'eggs', 'bread', 'produce', 'meat', 'chicken', 'cheese', 'fruit', 'vegetable', 'snack', 'cereal', 'juice', 'coffee', 'rice', 'pasta'],
+  Household: ['soap', 'detergent', 'tide', 'paper towel', 'toilet paper', 'trash bag', 'cleaner', 'bleach', 'batteries', 'light bulb', 'filter'],
+  School: ['notebook', 'pencil', 'folder', 'backpack', 'glue', 'crayon', 'binder', 'homework'],
+  Other: [],
+};
+
+function guessCategory(itemName: string, fallback: Category): Category {
+  const lower = itemName.toLowerCase();
+  for (const cat of CATEGORIES) {
+    if (CATEGORY_KEYWORDS[cat].some(kw => lower.includes(kw))) return cat;
+  }
+  return fallback;
+}
 
 interface ShoppingItem {
   id: string;
@@ -25,6 +45,7 @@ interface ShoppingItem {
 
 const Shopping: React.FC = () => {
   const { currentUser, currentRole, householdMembers } = useAppContext();
+  const { toast } = useToast();
   const PERSONS = ['Anyone', ...householdPersons(householdMembers).filter((p) => p !== 'Family' && p !== 'General')];
   const [items, setItems] = useState<ShoppingItem[]>(() => loadJSON(STORAGE_KEY, []));
   const [activeTab, setActiveTab] = useState<Category>('Groceries');
@@ -52,7 +73,7 @@ const Shopping: React.FC = () => {
     const item: ShoppingItem = {
       id: uid(),
       name: name.trim(),
-      category: activeTab,
+      category: guessCategory(name.trim(), activeTab),
       assignedTo,
       quantity,
       completed: false,
@@ -70,7 +91,14 @@ const Shopping: React.FC = () => {
 
   const softDelete = (id: string) => {
     if (!currentUser || !canDelete(currentRole!)) return;
+    const item = items.find(i => i.id === id);
     save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now(), deletedBy: currentUser.id } : i));
+    if (item) {
+      toast({
+        description: `Removed "${item.name}"`,
+        action: <ToastAction altText="Undo" onClick={() => restore(id)}>Undo</ToastAction>,
+      });
+    }
   };
 
   const restore = (id: string) => {
@@ -184,6 +212,11 @@ const Shopping: React.FC = () => {
                 className="w-full bg-bark-800 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/50 focus:border-sage-500 outline-none"
                 autoFocus
               />
+              {name.trim() && guessCategory(name.trim(), activeTab) !== activeTab && (
+                <div className="text-honey-400/80 text-xs mt-1">
+                  Will be added to {guessCategory(name.trim(), activeTab)}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-cream-400/60 text-xs uppercase tracking-wide mb-1 block">Qty</label>
