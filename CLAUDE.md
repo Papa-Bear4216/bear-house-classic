@@ -40,7 +40,7 @@ No dedicated typecheck script; `tsc` runs implicitly via `vite build`.
 
 ### Auth flow
 
-Google OAuth via Supabase Auth. Web: full-page redirect. Native (Capacitor): opens the OAuth URL in an in-app browser tab (`@capacitor/browser`) and completes the flow through a custom URL scheme deep link (`com.bearhouse.app://auth-callback`) caught by an `appUrlOpen` listener in `src/lib/householdAuth.ts` — a plain WebView can't complete Google OAuth or receive an http(s) redirect back into a native app. Access tokens are kept in sessionStorage, never localStorage.
+Google OAuth via Supabase Auth. Web: full-page redirect. Native (Capacitor): opens the OAuth URL in an in-app browser tab (`@capacitor/browser`) and completes the flow through a custom URL scheme deep link (`com.bearhouse.app://auth-callback`) caught by an `appUrlOpen` listener in `src/lib/householdAuth.ts` — a plain WebView can't complete Google OAuth or receive an http(s) redirect back into a native app. `src/lib/sync.ts` creates the Supabase client with no explicit `auth.storage` override, so it uses the SDK's default (`persistSession: true` → `localStorage`) — sessions survive app restarts/backgrounding on both web and native.
 
 `src/contexts/AppContext.tsx` is the top-level session state: on mount it loads the household session and roster (`src/lib/householdAuth.ts`) and exposes `currentUser`, `currentRole`, `householdMembers`, `householdId`, `subscriptionStatus`, and `bypassBilling` app-wide.
 
