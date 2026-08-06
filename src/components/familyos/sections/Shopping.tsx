@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { logActivity } from '@/lib/householdActivity';
 import { autoArchiveOld } from '@/lib/autoArchive';
+import { useSwipe } from '@/lib/useSwipe';
 
 const STORAGE_KEY = 'familyos_shopping';
 const CATEGORIES = ['Groceries', 'Household', 'School', 'Other'] as const;
@@ -44,6 +45,30 @@ interface ShoppingItem {
   deletedAt?: number;
   deletedBy?: string;
 }
+
+// One row, its own swipe-gesture state — swipe left to delete (mirrors the
+// trash icon), swipe right to complete (mirrors the check button). Desktop/
+// mouse users are unaffected; touch-only handlers, no click behavior changed.
+interface SwipeableItemRowProps {
+  children: React.ReactNode;
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+}
+const SwipeableItemRow: React.FC<SwipeableItemRowProps> = ({ children, onSwipeLeft, onSwipeRight }) => {
+  const { offsetX, onTouchStart, onTouchMove, onTouchEnd } = useSwipe({ onSwipeLeft, onSwipeRight });
+  const bg = offsetX < -20 ? 'bg-rose-950/40' : offsetX > 20 ? 'bg-sage-950/40' : 'bg-bark-700/40';
+  return (
+    <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{ transform: `translateX(${offsetX}px)`, transition: offsetX === 0 ? 'transform 0.15s, background-color 0.15s' : 'none' }}
+      className={`flex items-center gap-3 border border-cream-400/10 rounded-xl px-4 py-3 ${bg}`}
+    >
+      {children}
+    </div>
+  );
+};
 
 const Shopping: React.FC = () => {
   const { currentUser, currentRole, householdMembers } = useAppContext();
@@ -276,7 +301,11 @@ const Shopping: React.FC = () => {
           <div className="text-center text-cream-400/50 py-8 text-sm">No items in {activeTab}. Add something!</div>
         )}
         {active.map(item => (
-          <div key={item.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
+          <SwipeableItemRow
+            key={item.id}
+            onSwipeLeft={() => { if (isAdm) softDelete(item.id); }}
+            onSwipeRight={() => toggleComplete(item.id)}
+          >
             <button onClick={() => toggleComplete(item.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring">
               <Circle className="w-5 h-5" />
             </button>
@@ -312,7 +341,7 @@ const Shopping: React.FC = () => {
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
-          </div>
+          </SwipeableItemRow>
         ))}
       </div>
 
