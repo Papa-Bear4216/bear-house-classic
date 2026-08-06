@@ -4,6 +4,8 @@ import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, hous
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
 import { getColorCardStyle } from '@/lib/colorStyles';
+import { buildMorningBrief } from '@/lib/morningBrief';
+import { loadHermesWeather } from '@/lib/hermesWeather';
 
 import AlertModal from './AlertModal';
 import WeatherWidget from './WeatherWidget';
@@ -25,6 +27,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
+  // buildMorningBrief() reads hermesWeather's cache synchronously — if the
+  // user lands here before ever opening chat, that cache is still empty, so
+  // trigger the load ourselves and re-render once it's warm (idempotent,
+  // fire-and-forget, matches HermesChat's own use of the same cache).
+  const [, forceWeatherRefresh] = useState(0);
+  React.useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);
+  const morningBrief = buildMorningBrief();
 
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const promises = loadJSON<any[]>(KEYS.promises, []);
@@ -256,6 +265,22 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
           <Sparkles className="w-4 h-4" /> AI Summary
         </button>
       </div>
+
+      {morningBrief.length > 0 && (
+        <div className="bg-bark-800 border border-cream-400/10 rounded-2xl p-4 space-y-2">
+          <div className="text-sm font-medium text-cream-100 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-honey-400" /> Morning Brief
+          </div>
+          <div className="space-y-1.5">
+            {morningBrief.map((line, i) => (
+              <div key={i} className="text-sm text-cream-300 flex items-start gap-2">
+                <span className="flex-shrink-0">{line.emoji}</span>
+                <span>{line.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <WeatherWidget />
 

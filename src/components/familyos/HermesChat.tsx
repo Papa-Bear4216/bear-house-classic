@@ -12,6 +12,7 @@ import { apiUrl } from '@/lib/api';
 import { getVoiceProvider } from '@/lib/voice';
 import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
 import { loadHermesWeather, cachedHermesWeather } from '@/lib/hermesWeather';
+import { buildMorningBrief } from '@/lib/morningBrief';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -480,33 +481,11 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
 // uses — no API call, no keys. Updates itself as the household's data
 // changes between visits.
 function buildProactiveGreeting(userName: string | undefined): string {
-  const tasks = loadJSON<any[]>(KEYS.tasks, []);
-  const open = tasks.filter((t: any) => !t.completed);
-  const overdue = open.filter((t: any) => t.dueDate && t.dueDate < Date.now());
-  const high = open.filter((t: any) => t.priority === 'High');
-  const shopping = loadJSON<any[]>('familyos_shopping', []).filter((i: any) => !i.completed);
-  const bills = loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid);
-  const pantry = loadPantry();
-  const lowPantry = pantry.filter((p: any) => p.quantity <= 1);
-  const weather = cachedHermesWeather();
-  const todayDayName = DAYS[(new Date().getDay() + 6) % 7];
-  const weekPlan = loadJSON<WeekPlan>(MEALS_STORAGE_KEY, defaultPlan());
-  const todayMeals = weekPlan[todayDayName as Day];
-
+  const brief = buildMorningBrief();
   const name = userName ? userName.split(' ')[0] : 'there';
-  const lines: string[] = [`Hey ${name}. Here's the lay of the land today:`];
+  const lines: string[] = [`Hey ${name}. Here's the lay of the land today:`, ...brief.map(l => `${l.emoji} ${l.text}`)];
 
-  if (overdue.length > 0) lines.push(`🔴 ${overdue.length} task${overdue.length > 1 ? 's' : ''} overdue${overdue.length === 1 && overdue[0].text ? ` — "${overdue[0].text}"` : ''}`);
-  if (high.length > 0) lines.push(`⚡ ${high.length} high-priority task${high.length > 1 ? 's' : ''} open`);
-  if (shopping.length > 0) lines.push(`🛒 ${shopping.length} item${shopping.length > 1 ? 's' : ''} on the shopping list`);
-  if (bills.length > 0) lines.push(`💸 ${bills.length} bill${bills.length > 1 ? 's' : ''} unpaid`);
-  if (lowPantry.length > 0) lines.push(`🥫 Pantry running low (${lowPantry.slice(0, 5).map((p: any) => p.name).join(', ')})`);
-  if (weather?.alerts?.length) lines.push(`⚠️ Weather alert: ${weather.alerts.join(', ')}`);
-  if (todayMeals?.Dinner && !todayMeals.Dinner.toLowerCase().includes('leftover')) {
-    lines.push(`🍽️ Dinner tonight: ${todayMeals.Dinner}${todayMeals.cook ? ` (cook: ${todayMeals.cook})` : ''}`);
-  }
-
-  if (lines.length === 1) {
+  if (brief.length === 0) {
     lines.push('Nothing urgent on the board right now — the coast is clear.');
   } else {
     lines.push('Want me to dive into any of these?');
