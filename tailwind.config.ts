@@ -64,40 +64,46 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))'
         },
+        // Brand palette — all flip with the theme via CSS variables in
+        // index.css (:root = light, .dark = dark values). Dark-mode values
+        // are identical to the old literal hex; light-mode accent values
+        // are unverified visually (no browser access) pending a human
+        // eyeball pass. bark/cream invert as a pair (surface/on-surface);
+        // honey/sage/berry/stone shift darker in light mode for contrast.
         honey: {
-          50: '#FFFBF0',
-          100: '#FFF0C2',
-          200: '#FFD96B',
-          400: '#F5A800',
-          500: '#E08C00',
-          600: '#B86E00',
-          700: '#8F5200',
+          50: 'rgb(var(--honey-50) / <alpha-value>)',
+          100: 'rgb(var(--honey-100) / <alpha-value>)',
+          200: 'rgb(var(--honey-200) / <alpha-value>)',
+          400: 'rgb(var(--honey-400) / <alpha-value>)',
+          500: 'rgb(var(--honey-500) / <alpha-value>)',
+          600: 'rgb(var(--honey-600) / <alpha-value>)',
+          700: 'rgb(var(--honey-700) / <alpha-value>)',
         },
         bark: {
-          700: '#1E0E04',
-          800: '#120800',
+          700: 'rgb(var(--bark-700) / <alpha-value>)',
+          800: 'rgb(var(--bark-800) / <alpha-value>)',
         },
         cream: {
-          50: '#FFFFFF',
-          100: '#FFFDF9',
-          200: '#FFF8EE',
-          400: '#F8DABC',
+          50: 'rgb(var(--cream-50) / <alpha-value>)',
+          100: 'rgb(var(--cream-100) / <alpha-value>)',
+          200: 'rgb(var(--cream-200) / <alpha-value>)',
+          400: 'rgb(var(--cream-400) / <alpha-value>)',
         },
         sage: {
-          50: '#EDFAF3',
-          100: '#C0EDD6',
-          200: '#80D4AA',
-          500: '#1A8A4E',
-          600: '#0E6E3A',
+          50: 'rgb(var(--sage-50) / <alpha-value>)',
+          100: 'rgb(var(--sage-100) / <alpha-value>)',
+          200: 'rgb(var(--sage-200) / <alpha-value>)',
+          500: 'rgb(var(--sage-500) / <alpha-value>)',
+          600: 'rgb(var(--sage-600) / <alpha-value>)',
         },
         berry: {
-          400: '#E040C0',
-          500: '#C020A0',
-          600: '#980080',
+          400: 'rgb(var(--berry-400) / <alpha-value>)',
+          500: 'rgb(var(--berry-500) / <alpha-value>)',
+          600: 'rgb(var(--berry-600) / <alpha-value>)',
         },
         stone: {
-          300: '#C8BAB0',
-          500: '#887060',
+          300: 'rgb(var(--stone-300) / <alpha-value>)',
+          500: 'rgb(var(--stone-500) / <alpha-value>)',
         },
       },
       fontFamily: {
