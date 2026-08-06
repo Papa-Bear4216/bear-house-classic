@@ -501,7 +501,7 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
       )}
 
       {monthCats.length === 0 && (
-        <div className="text-center text-cream-400/60 py-6 text-sm">No budget categories set for this month.</div>
+        <div className="text-center text-cream-400/60 py-6 text-sm">No budget categories set for this month. Add one to start tracking spending.</div>
       )}
 
       <div className="space-y-2">

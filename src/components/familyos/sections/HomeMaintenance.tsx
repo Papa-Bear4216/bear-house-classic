@@ -187,7 +187,7 @@ const HomeMaintenance: React.FC = () => {
       )}
 
       {filtered.length === 0 && !showForm && (
-        <div className="text-center text-cream-400/60 py-8 text-sm">No maintenance items. Add one!</div>
+        <div className="text-center text-cream-400/60 py-8 text-sm">No maintenance items yet. Add one to track what the house needs.</div>
       )}
 
       <div className="space-y-2">

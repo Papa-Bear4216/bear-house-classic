@@ -173,7 +173,7 @@ const DeviceWarranty: React.FC = () => {
       )}
 
       {sortedDevices.length === 0 && !showAdd && (
-        <div className="text-center text-cream-400/60 py-8 text-sm">No devices tracked yet. Add one!</div>
+        <div className="text-center text-cream-400/60 py-8 text-sm">No devices yet. Add one to track its warranty expiration.</div>
       )}
 
       <div className="space-y-3">

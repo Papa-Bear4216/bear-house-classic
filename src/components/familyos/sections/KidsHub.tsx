@@ -164,7 +164,7 @@ const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids
         </div>
       )}
 
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No homework items.</div>}
+      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No homework items. Add one to help keep track of what's due.</div>}
 
       <div className="space-y-2">
         {active.map(item => (
@@ -276,7 +276,7 @@ const GradesTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: 
         </div>
       )}
 
-      {filtered.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No grades logged.</div>}
+      {filtered.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No grades logged. Log one to start tracking progress over time.</div>}
 
       <div className="space-y-2">
         {filtered.map(e => (
@@ -463,7 +463,7 @@ const AllowanceTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kid
         </div>
       )}
 
-      {kidEntries.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No allowance entries.</div>}
+      {kidEntries.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No allowance entries yet. Log one to start tracking what's owed.</div>}
 
       <div className="space-y-2">
         {kidEntries.map(e => (
