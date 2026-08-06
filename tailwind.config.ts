@@ -105,6 +105,21 @@ export default {
           300: 'rgb(var(--stone-300) / <alpha-value>)',
           500: 'rgb(var(--stone-500) / <alpha-value>)',
         },
+        // Overrides (not additions) to Tailwind's built-in slate scale —
+        // theme.extend.colors merges per-key, so only these 9 shades are
+        // replaced; any slate shade not listed here keeps Tailwind's fixed
+        // default (none currently used, per the app-wide usage audit).
+        slate: {
+          200: 'rgb(var(--slate-200) / <alpha-value>)',
+          300: 'rgb(var(--slate-300) / <alpha-value>)',
+          400: 'rgb(var(--slate-400) / <alpha-value>)',
+          500: 'rgb(var(--slate-500) / <alpha-value>)',
+          600: 'rgb(var(--slate-600) / <alpha-value>)',
+          700: 'rgb(var(--slate-700) / <alpha-value>)',
+          800: 'rgb(var(--slate-800) / <alpha-value>)',
+          900: 'rgb(var(--slate-900) / <alpha-value>)',
+          950: 'rgb(var(--slate-950) / <alpha-value>)',
+        },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'monospace'],
