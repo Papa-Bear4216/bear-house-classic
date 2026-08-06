@@ -56,6 +56,8 @@ const Shopping: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [sendQueue, setSendQueue] = useState<{ remaining: string[]; openNext: () => string | null } | null>(null);
   const [lastSent, setLastSent] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   const save = (next: ShoppingItem[]) => {
     setItems(next);
@@ -109,6 +111,13 @@ const Shopping: React.FC = () => {
   const restore = (id: string) => {
     if (!currentUser || !canDelete(currentRole!)) return;
     save(items.map(i => i.id === id ? { ...i, deletedAt: undefined, deletedBy: undefined } : i));
+  };
+
+  const startEdit = (item: ShoppingItem) => { setEditingId(item.id); setEditText(item.name); };
+  const saveEdit = () => {
+    const text = editText.trim();
+    if (editingId && text) save(items.map(i => i.id === editingId ? { ...i, name: text } : i));
+    setEditingId(null);
   };
 
   const clearCompleted = () => {
@@ -261,7 +270,20 @@ const Shopping: React.FC = () => {
               <Circle className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <div className="text-white text-sm font-medium">{item.name}</div>
+              {editingId === item.id ? (
+                <input
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onBlur={saveEdit}
+                  onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                  autoFocus
+                  className="w-full bg-bark-800 border border-sage-500 rounded px-1.5 py-0.5 text-white text-sm outline-none"
+                />
+              ) : (
+                <button onClick={() => startEdit(item)} className="text-white text-sm font-medium text-left hover:underline focus-ring" title="Click to edit">
+                  {item.name}
+                </button>
+              )}
               <div className="text-cream-400/50 text-xs flex gap-2">
                 {item.quantity !== '1' && <span>Qty: {item.quantity}</span>}
                 {item.assignedTo !== 'Anyone' && <span>For: {item.assignedTo}</span>}
