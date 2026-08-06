@@ -21,6 +21,7 @@ export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdId, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { parseBody, WeatherParamsSchema } from './_schemas.js';
+import { handleCorsPreflight } from './_cors.js';
 
 // Default home coordinates if a household hasn't set its own in Settings.
 const HOME_LAT = process.env.HOME_LAT || '30.45';
@@ -59,6 +60,11 @@ const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'appli
 const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: corsHeaders });
 
 export default async function handler(req: Request): Promise<Response> {
+  // Native (Capacitor) calls this cross-origin with an Authorization header —
+  // answer the OPTIONS preflight or the webview blocks every weather fetch.
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
   const url = new URL(req.url);
   const parsed = parseBody(WeatherParamsSchema, {
     lat: url.searchParams.get('lat') ?? HOME_LAT,
