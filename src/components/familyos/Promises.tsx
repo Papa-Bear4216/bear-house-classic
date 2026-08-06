@@ -21,6 +21,7 @@ import {
   householdPersons,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
+import { logActivity } from '@/lib/householdActivity';
 import { onSyncUpdate } from '@/lib/sync';
 import AlertModal from './AlertModal';
 
@@ -139,6 +140,7 @@ const Promises: React.FC = () => {
     if (!target) return;
     const now = Date.now();
     const updated = promises.map((p) => (p.id === id ? { ...p, completed: true, completedAt: now } : p));
+    if (currentUser) logActivity(currentUser.name, `kept their promise: "${target.text}"`);
     if (target.recurrence) {
       const nextAt = nextRecurrence(now, target.recurrence);
       const nextDueDate = target.dueDate ? nextRecurrence(target.dueDate, target.recurrence) : null;

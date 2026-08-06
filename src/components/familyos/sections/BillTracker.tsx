@@ -3,6 +3,7 @@ import { Plus, Trash2, CheckCircle2, RotateCcw, RefreshCw } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, dateInputValue, parseDateInput } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { logActivity } from '@/lib/householdActivity';
 
 const STORAGE_KEY = 'familyos_bills';
 
@@ -55,7 +56,10 @@ const BillTracker: React.FC = () => {
   };
 
   const togglePaid = (id: string) => {
+    const bill = bills.find(b => b.id === id);
+    const paying = bill && !bill.paid;
     save(bills.map(b => b.id === id ? { ...b, paid: !b.paid, paidAt: b.paid ? undefined : Date.now() } : b));
+    if (paying && currentUser && bill) logActivity(currentUser.name, `marked "${bill.name}" as paid`);
   };
 
   const softDelete = (id: string) => {

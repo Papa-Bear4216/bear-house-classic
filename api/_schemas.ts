@@ -79,6 +79,11 @@ export const MemoryBodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('clear') }),
 ]);
 
+export const ActivityBodySchema = z.object({
+  actorName: z.string().trim().min(1).max(100),
+  text: z.string().trim().min(1).max(300),
+});
+
 export const SettingsKeysBodySchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('set'),
