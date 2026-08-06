@@ -92,6 +92,8 @@ const HouseholdBrain: React.FC = () => {
   const [focusMode, setFocusMode] = useState(false);
   const [roomInput, setRoomInput] = useState<string>('');
   const [showExport, setShowExport] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   // No signal to prefer one household member over another for a given chore type,
   // so spread new chores evenly across the roster rather than guessing.
@@ -288,6 +290,13 @@ const HouseholdBrain: React.FC = () => {
   };
 
   const deleteTask = (id: string) => setTasks(tasks.filter((t) => t.id !== id));
+
+  const startEditTask = (t: Task) => { setEditingId(t.id); setEditText(t.text); };
+  const saveEditTask = () => {
+    const text = editText.trim();
+    if (editingId && text) setTasks(tasks.map((t) => (t.id === editingId ? { ...t, text } : t)));
+    setEditingId(null);
+  };
 
   const toggleTaskStep = (taskId: string, stepIndex: number) => {
     setTasks((prev) =>
@@ -584,7 +593,21 @@ const HouseholdBrain: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="text-white text-sm font-medium flex items-center gap-1.5">
                     {t.recurrence && <Repeat className="w-3.5 h-3.5 text-orange-400 shrink-0" aria-label="Recurring" />}
-                    <span>{t.text}</span>
+                    {editingId === t.id ? (
+                      <input
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onBlur={saveEditTask}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEditTask(); if (e.key === 'Escape') setEditingId(null); }}
+                        autoFocus
+                        onClick={e => e.stopPropagation()}
+                        className="flex-1 bg-slate-900 border border-emerald-500 rounded px-1.5 py-0.5 text-white text-sm outline-none"
+                      />
+                    ) : (
+                      <button onClick={() => startEditTask(t)} className="text-left hover:underline focus-ring" title="Click to edit">
+                        {t.text}
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.person}</span>
