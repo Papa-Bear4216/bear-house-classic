@@ -4,6 +4,7 @@ import { loadJSON, saveJSON, uid, canDelete, dateInputValue, parseDateInput, nex
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { logActivity } from '@/lib/householdActivity';
+import { autoArchiveOld } from '@/lib/autoArchive';
 
 const STORAGE_KEY = 'familyos_bills';
 
@@ -39,6 +40,16 @@ const BillTracker: React.FC = () => {
       setBills(loadJSON(STORAGE_KEY, []));
     });
   }, []);
+
+  // Auto-archive bills paid 30+ days ago so "Paid" doesn't silently
+  // accumulate forever — same soft-delete/restore mechanism as the manual
+  // delete button, just automatic.
+  useEffect(() => {
+    if (!currentUser) return;
+    const { items: archived, archivedCount } = autoArchiveOld(bills, currentUser.id);
+    if (archivedCount > 0) save(archived);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const addBill = () => {
     if (!name.trim() || !amount) return;

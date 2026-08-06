@@ -8,6 +8,7 @@ import { openAmazonSearch, createAmazonSendQueue } from '@/lib/amazonCart';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { logActivity } from '@/lib/householdActivity';
+import { autoArchiveOld } from '@/lib/autoArchive';
 
 const STORAGE_KEY = 'familyos_shopping';
 const CATEGORIES = ['Groceries', 'Household', 'School', 'Other'] as const;
@@ -70,6 +71,16 @@ const Shopping: React.FC = () => {
       setItems(loadJSON(STORAGE_KEY, []));
     });
   }, []);
+
+  // Auto-archive items completed 30+ days ago so "Completed" doesn't
+  // silently accumulate forever — same soft-delete/restore mechanism as
+  // the manual "Clear completed" button, just automatic.
+  useEffect(() => {
+    if (!currentUser) return;
+    const { items: archived, archivedCount } = autoArchiveOld(items, currentUser.id);
+    if (archivedCount > 0) save(archived);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const addItem = () => {
     if (!name.trim()) return;

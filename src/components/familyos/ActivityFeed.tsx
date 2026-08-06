@@ -24,7 +24,18 @@ const ActivityFeed: React.FC = () => {
     loadHouseholdActivity().then(setEntries).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return null; // avoid a flash of "no activity" before the first load lands
+  if (loading) {
+    // Shaped placeholder instead of a blank flash — the content shape
+    // (a title row + a few list rows) is known ahead of time.
+    return (
+      <div className="bg-bark-800 border border-cream-400/10 rounded-2xl p-4 space-y-2 animate-pulse">
+        <div className="h-4 w-32 bg-bark-700 rounded" />
+        <div className="space-y-1.5 pt-1">
+          {[0, 1, 2].map(i => <div key={i} className="h-3.5 bg-bark-700/70 rounded" style={{ width: `${80 - i * 15}%` }} />)}
+        </div>
+      </div>
+    );
+  }
   if (entries.length === 0) return null; // nothing to show yet — not worth a permanent empty-state tile
 
   return (
