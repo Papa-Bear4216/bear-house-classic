@@ -4,7 +4,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
-import { notifyIFTTT } from './_notify.js';
+import { notifyIFTTT, notifyPush } from './_notify.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaWebhookBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -57,14 +57,20 @@ export default async function handler(req: Request): Promise<Response> {
     } else if (event === 'package_delivered') {
       const task = { ...base, text: 'Bring in package from front door', person: 'General', priority: 'High', category: 'General', dueEstimate: 'Today' };
       const r = await appendTask(householdId, task);
-      if (!r.skipped) await notifyIFTTT('bearhouse_package', 'Package delivered', 'Front door');
+      if (!r.skipped) {
+        await notifyIFTTT('bearhouse_package', 'Package delivered', 'Front door');
+        await notifyPush(householdId, 'Package delivered', 'Front door');
+      }
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'door_left_open') {
       const { area } = body;
       const task = { ...base, text: `Close ${area || 'door'} — left open`, person: 'General', priority: 'High', category: 'General', dueEstimate: 'Today' };
       const r = await appendTask(householdId, task);
-      if (!r.skipped) await notifyIFTTT('bearhouse_door_open', area || 'A door', 'left open');
+      if (!r.skipped) {
+        await notifyIFTTT('bearhouse_door_open', area || 'A door', 'left open');
+        await notifyPush(householdId, 'Door left open', area || 'A door');
+      }
       result = { action: r.skipped ? 'duplicate_skipped' : 'task_created', task };
 
     } else if (event === 'low_battery') {

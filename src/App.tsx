@@ -44,6 +44,11 @@ const AuthedApp: React.FC = () => {
 const App = () => {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [syncReady, setSyncReady] = useState(false);
+  // Latest authState for async continuations (onAuthStateChange, claimInvite)
+  // so a stale closure can't clobber a newer state (e.g. needs_setup landing
+  // after a successful native login already flipped us to loading/ready).
+  const authStateRef = useRef<AuthState>(authState);
+  authStateRef.current = authState;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -115,6 +120,15 @@ const App = () => {
         if (!initialCheckDone.current) return; // transient pre-settle event — ignore
         setAuthState('signed_out');
         setSyncReady(true);
+      } else if (initialCheckDone.current && authStateRef.current !== 'ready') {
+        // Genuine sign-in after the initial settle. On native, the deep-link
+        // redirect returns into the already-loaded SPA (no full-page reload
+        // like web), so nothing else would re-run the session load — the app
+        // would sit on the login page with a valid session forever. Re-run
+        // loadSession() so the fresh token resolves the household and renders
+        // the dashboard (which mounts AppProvider → push registration).
+        setAuthState('loading');
+        loadSession();
       }
     });
 
@@ -159,6 +173,7 @@ const App = () => {
     if (authState !== 'signed_out') return;
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session?.user) return;
+      if (authStateRef.current !== 'signed_out') return; // stale — state moved on (e.g. login handled)
       const token = await getAccessToken();
       if (token) {
         try {
@@ -167,10 +182,10 @@ const App = () => {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ action: 'claimInvite' }),
           });
-          if (res.ok) { loadSession(); return; }
+          if (res.ok) { if (authStateRef.current === 'signed_out') loadSession(); return; }
         } catch { /* fall through to /setup */ }
       }
-      setAuthState('needs_setup');
+      if (authStateRef.current === 'signed_out') setAuthState('needs_setup');
     });
   }, [authState, loadSession]);
 

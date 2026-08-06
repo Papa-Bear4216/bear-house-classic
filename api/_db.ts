@@ -353,3 +353,40 @@ export async function dbCreateHouseholdMember(member: {
     throw new Error(`dbCreateHouseholdMember failed: ${res.status} ${detail}`);
   }
 }
+
+/** Upsert one FCM device token for a household. token is unique → ON CONFLICT
+ * updates household_id/platform/updated_at (re-registrations, re-installs,
+ * account switches). Service role only; browser never touches this table. */
+export async function dbUpsertPushToken(householdId: string, token: string, platform: string = 'android'): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/device_tokens`, {
+    method: 'POST',
+    headers: { ...headers(serviceKey), 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify({ household_id: householdId, token, platform, updated_at: new Date().toISOString() }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbUpsertPushToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** All device tokens registered for a household (for notifyPush). */
+export async function dbGetPushTokensByHouseholdId(householdId: string): Promise<string[]> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/device_tokens?household_id=eq.${encodeURIComponent(householdId)}&select=token`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  const rows = await res.json() as any[];
+  return rows.map((r) => r.token);
+}
+
+/** Delete one device token (pruned when FCM reports it dead). */
+export async function dbDeletePushToken(token: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  await fetch(`${SUPABASE_URL}/rest/v1/device_tokens?token=eq.${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+    headers: headers(serviceKey),
+  });
+}

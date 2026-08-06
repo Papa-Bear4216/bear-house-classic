@@ -11,24 +11,23 @@ export const config = { runtime: 'edge' };
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClientMetricBodySchema } from './_schemas.js';
 import { logInfo } from './_log.js';
-
-import { handleCorsPreflight } from './_cors.js';
+import { CORS_HEADERS, handleCorsPreflight } from './_cors.js';
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
 
-  if (req.method !== 'POST') return new Response(null, { status: 405 });
+  if (req.method !== 'POST') return new Response(null, { status: 405, headers: CORS_HEADERS });
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ClientMetricBodySchema, rawBody);
-  if (!parsed.ok) return new Response(null, { status: 204 });
+  if (!parsed.ok) return new Response(null, { status: 204, headers: CORS_HEADERS });
   const { event, totalMs, detail, householdId } = parsed.data;
 
   if (householdId) {
     const rl = await checkRateLimit(householdId, 'client-metric', 60);
-    if (!rl.allowed) return new Response(null, { status: 204 });
+    if (!rl.allowed) return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
   logInfo('client-metric', event, { totalMs, ...detail, householdId });
-  return new Response(null, { status: 204 });
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }

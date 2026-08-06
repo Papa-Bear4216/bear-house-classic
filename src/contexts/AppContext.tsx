@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { User, UserRole } from '@/lib/familyos';
 import { getHouseholdSession, getHouseholdRoster, signOut } from '@/lib/householdAuth';
+import { registerForPush } from '@/lib/push';
 
 interface AppContextType {
   sidebarOpen: boolean;
@@ -72,6 +73,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setCurrentUserState(user);
       setCurrentRoleState(session.member.role as UserRole);
       setHouseholdId(session.householdId);
+      // Native Android: register this device for FCM pushes now that the
+      // household session is resolved (fire-and-forget; no-op on web builds).
+      void registerForPush();
       setSubscriptionStatus(session.subscriptionStatus);
       setBypassBilling(session.bypassBilling);
       setVoiceUnlocked(session.voiceUnlocked);
