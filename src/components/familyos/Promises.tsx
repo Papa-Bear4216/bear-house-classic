@@ -44,7 +44,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 const DUE_TONE: Record<string, string> = {
   overdue: 'bg-rose-600 text-white',
-  today: 'bg-amber-500 text-slate-900',
+  today: 'bg-amber-500 text-black', // literal black, not slate-900 — that shade inverts with the theme and this badge always needs dark text on its bright chip
   soon: 'bg-amber-900/40 text-amber-300 border border-amber-500/30',
   future: 'bg-slate-700 text-slate-300',
 };

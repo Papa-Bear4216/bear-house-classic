@@ -84,6 +84,23 @@
     --berry-600: 92 0 77;
     --stone-300: 200 186 176;
     --stone-500: 136 112 96;
+
+    /* Tailwind's built-in `slate` scale used app-wide (settings panels,
+       modals, HouseholdBrain/FocusMode) as the de facto secondary surface
+       color — overridden here (not just extended) so all ~27 files using
+       it get light-mode support automatically, no per-component edits.
+       Light-mode values reuse Tailwind's own inverse shades (800->100,
+       900/950->50, 700->200, 600->300, 400->600, 300->700, 200->800) rather
+       than inventing new hex — safer than guessing. */
+    --slate-200: 30 41 59;
+    --slate-300: 51 65 85;
+    --slate-400: 71 85 105;
+    --slate-500: 100 116 139;
+    --slate-600: 148 163 184;
+    --slate-700: 203 213 225;
+    --slate-800: 241 245 249;
+    --slate-900: 248 250 252;
+    --slate-950: 248 250 252;
   }
 
   .dark {
@@ -152,6 +169,17 @@
     --berry-600: 152 0 128;
     --stone-300: 200 186 176;
     --stone-500: 136 112 96;
+
+    /* Identical to Tailwind's default slate scale — appearance unchanged. */
+    --slate-200: 226 232 240;
+    --slate-300: 203 213 225;
+    --slate-400: 148 163 184;
+    --slate-500: 100 116 139;
+    --slate-600: 71 85 105;
+    --slate-700: 51 65 85;
+    --slate-800: 30 41 59;
+    --slate-900: 15 23 42;
+    --slate-950: 2 6 23;
   }
 }
 
