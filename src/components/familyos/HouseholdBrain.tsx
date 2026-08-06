@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer } from 'lucide-react';
+import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer, Clock } from 'lucide-react';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import {
   KEYS,
@@ -49,6 +49,7 @@ interface Task {
   steps?: string[];
   stepsCompleted?: boolean[];
   estimatedMinutes?: number;
+  snoozedUntil?: number | null;
 }
 
 export function resolveMemberIdByName(members: { id: string; name: string }[], name: string): string | null {
@@ -161,7 +162,10 @@ const HouseholdBrain: React.FC = () => {
   }, [tab]);
 
   const filteredTasks = useMemo(() => {
-    const open = tasks.filter((t) => !t.completed);
+    const now = Date.now();
+    // "All" still shows snoozed tasks (so nothing is ever fully hidden),
+    // every other tab hides a task until its snooze expires.
+    const open = tasks.filter((t) => !t.completed && (tab === 'All' || !t.snoozedUntil || t.snoozedUntil <= now));
     if (tab === 'All') return open;
     if (tab === 'Today') {
       return open.filter((t) => {
@@ -290,6 +294,16 @@ const HouseholdBrain: React.FC = () => {
   };
 
   const deleteTask = (id: string) => setTasks(tasks.filter((t) => t.id !== id));
+
+  // Push a task out of sight until tomorrow morning without completing or
+  // deleting it — a lighter touch than either extreme for "not now, but not
+  // gone either." Clears automatically once snoozedUntil passes.
+  const snoozeTask = (id: string) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+    setTasks(tasks.map((t) => (t.id === id ? { ...t, snoozedUntil: tomorrow.getTime() } : t)));
+  };
 
   const startEditTask = (t: Task) => { setEditingId(t.id); setEditText(t.text); };
   const saveEditTask = () => {
@@ -638,6 +652,11 @@ const HouseholdBrain: React.FC = () => {
                     <span className="text-[10px] text-slate-500 ml-auto">{formatDate(t.createdAt)}</span>
                   </div>
                 </div>
+                {tab !== 'All' && (
+                  <button onClick={() => snoozeTask(t.id)} title="Snooze until tomorrow" className="text-slate-500 hover:text-amber-400">
+                    <Clock className="w-4 h-4" />
+                  </button>
+                )}
                 <button onClick={() => deleteTask(t.id)} className="text-slate-500 hover:text-rose-400">
                   <Trash2 className="w-4 h-4" />
                 </button>
