@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, RotateCcw, RefreshCw } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete, dateInputValue, parseDateInput } from '@/lib/familyos';
+import { loadJSON, saveJSON, uid, canDelete, dateInputValue, parseDateInput, nextRecurrence } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { logActivity } from '@/lib/householdActivity';
@@ -58,8 +58,29 @@ const BillTracker: React.FC = () => {
   const togglePaid = (id: string) => {
     const bill = bills.find(b => b.id === id);
     const paying = bill && !bill.paid;
-    save(bills.map(b => b.id === id ? { ...b, paid: !b.paid, paidAt: b.paid ? undefined : Date.now() } : b));
+    const updated = bills.map(b => b.id === id ? { ...b, paid: !b.paid, paidAt: b.paid ? undefined : Date.now() } : b);
     if (paying && currentUser && bill) logActivity(currentUser.name, `marked "${bill.name}" as paid`);
+
+    // Recurring bills default to a monthly cadence — there's no interval
+    // picker in the UI (just an "Auto-recurring" checkbox), so monthly is
+    // the sensible default for a bill tracker (mirrors HouseholdBrain's
+    // task recurrence, minus the interval choice bills don't expose).
+    if (paying && bill?.recurring) {
+      const now = Date.now();
+      const nextDueDate = bill.dueDate ? nextRecurrence(bill.dueDate, { type: 'monthly' }) : null;
+      const nextInstance: Bill = {
+        id: uid(),
+        name: bill.name,
+        amount: bill.amount,
+        dueDate: nextDueDate,
+        paid: false,
+        recurring: true,
+        createdAt: now,
+      };
+      save([nextInstance, ...updated]);
+    } else {
+      save(updated);
+    }
   };
 
   const softDelete = (id: string) => {
