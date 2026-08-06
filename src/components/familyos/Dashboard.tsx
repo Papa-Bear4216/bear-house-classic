@@ -310,7 +310,15 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       </div>
 
       {tab === 'trends' ? (
-        <Suspense fallback={<div className="text-cream-400/70 text-sm px-1">Loading trends…</div>}>
+        <Suspense fallback={
+          <div className="space-y-3 animate-pulse">
+            <div className="h-40 bg-bark-800 border border-cream-400/10 rounded-2xl" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-24 bg-bark-800 border border-cream-400/10 rounded-2xl" />
+              <div className="h-24 bg-bark-800 border border-cream-400/10 rounded-2xl" />
+            </div>
+          </div>
+        }>
           <Trends />
         </Suspense>
       ) : (
