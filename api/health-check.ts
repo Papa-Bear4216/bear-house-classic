@@ -2,7 +2,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
-import { notifyIFTTT } from './_notify.js';
+import { notifyIFTTT, notifyPush } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -87,6 +87,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (needsHuman && now - lastAlert > ALERT_COOLDOWN_MS) {
         const reconfig = fix.haReconfigPath ? `${HA_URL}${fix.haReconfigPath}` : `${HA_URL}/config/integrations`;
         await notifyIFTTT('bearhouse_health', `${fix.label} needs attention`, fix.keyUrl || 'Open Home Assistant', reconfig);
+        await notifyPush(householdId, `${fix.label} needs attention`, fix.keyUrl || 'Open Home Assistant');
         alertState[id] = now;
       } else if ((status as 'up' | 'degraded' | 'down') === 'up') {
         delete alertState[id];

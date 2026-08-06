@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "191399963434",
+    "firebase_url": "https://prime-mechanic-463314-m8-default-rtdb.firebaseio.com",
+    "project_id": "prime-mechanic-463314-m8",
+    "storage_bucket": "prime-mechanic-463314-m8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191399963434:android:a3695ec9c9045cdc36cc53",
+        "android_client_info": {
+          "package_name": "com.bearhouse.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "191399963434-diko2besgm1c3ep0242p9uv9q3ractao.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_PThFaQvLAKAaqAbTI2ZdiXDJNvrfhzE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "109454736592038830452",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191399963434:android:7485ee54de29c08e36cc53",
+        "android_client_info": {
+          "package_name": "com.bearhouse.familyos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "191399963434-diko2besgm1c3ep0242p9uv9q3ractao.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_PThFaQvLAKAaqAbTI2ZdiXDJNvrfhzE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "109454736592038830452",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

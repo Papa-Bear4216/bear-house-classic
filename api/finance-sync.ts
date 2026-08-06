@@ -6,9 +6,37 @@ import { fetchAccounts } from './_simplefin.js';
 import { detectRecurring } from './_subscriptions.js';
 import { categorize } from './_categorize.js';
 import { runDailyBrainChecks } from './daily-brain.js';
+import { notifyPush } from './_notify.js';
 import { json as j } from './_responseHelpers.js';
 
 function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+
+/**
+ * One push per household per daily run, only when there's something to say —
+ * bundling by construction (never one notification per finding). emotionsFlagged
+ * is deliberately NOT counted: that write is for Hermes' household_memory, not
+ * for pinging family devices.
+ */
+async function maybeNotifyDailySummary(
+  householdId: string,
+  dailyBrain: { shoppingAdded: string[]; tasksAdded: string[]; carMaintenanceAdded: string[]; gmailTasksAdded: string[] } | { error: string }
+): Promise<void> {
+  if (!dailyBrain || 'error' in dailyBrain) return;
+  const total =
+    dailyBrain.shoppingAdded.length +
+    dailyBrain.tasksAdded.length +
+    dailyBrain.carMaintenanceAdded.length +
+    dailyBrain.gmailTasksAdded.length;
+  if (total === 0) return; // silent day
+
+  const parts: string[] = [];
+  if (dailyBrain.shoppingAdded.length) parts.push(`${dailyBrain.shoppingAdded.length} to the shopping list`);
+  if (dailyBrain.tasksAdded.length) parts.push(`${dailyBrain.tasksAdded.length} new task${dailyBrain.tasksAdded.length > 1 ? 's' : ''}`);
+  if (dailyBrain.carMaintenanceAdded.length) parts.push(`${dailyBrain.carMaintenanceAdded.length} car maintenance item${dailyBrain.carMaintenanceAdded.length > 1 ? 's' : ''}`);
+  if (dailyBrain.gmailTasksAdded.length) parts.push(`${dailyBrain.gmailTasksAdded.length} from email`);
+
+  await notifyPush(householdId, `Bear House — ${total} thing${total > 1 ? 's' : ''} need attention`, parts.join(' · '));
+}
 
 // True Vercel cron — no per-request session, so it fans out over every
 // household independently instead of assuming a single one.
@@ -19,6 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
     const sync = await syncHousehold(baseUrl, householdId);
     // Piggybacks on this cron rather than getting its own — see daily-brain.ts.
     const dailyBrain = await runDailyBrainChecks(householdId);
+    await maybeNotifyDailySummary(householdId, dailyBrain);
     return { ...sync, dailyBrain };
   }));
   return j({ households: results });

@@ -1,7 +1,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, dbPrepend, resolveHouseholdIdByWebhookToken } from './_db.js';
-import { notifyIFTTT } from './_notify.js';
+import { notifyIFTTT, notifyPush } from './_notify.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, WebhookBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
@@ -75,7 +75,9 @@ export default async function handler(req: Request): Promise<Response> {
   const type: ItemType = body.type;
 
   if (type === 'nfc') {
-    const { action: nfcAction, taskId, tagName, person, text: nfcText } = body;
+    // Zod unions make destructuring discriminated members awkward — the nfc
+    // shape is validated at the schema level; cast here to keep the body type.
+    const { action: nfcAction, taskId, tagName, person, text: nfcText } = body as any;
     const logText = nfcText || (tagName ? NFC_TAG_DEFAULTS[tagName] : null) || `NFC tap: ${tagName || 'unknown'}`;
 
     if (nfcAction === 'complete' && taskId) {
@@ -93,6 +95,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (action === 'skip') return j({ ok: true, action: 'skip', reason: (item as any).reason || 'duplicate' });
 
   await appendToKey(householdId, KEY_MAP[type], item);
-  if (body?.notify) await notifyIFTTT(`bearhouse_${type}`, (item as any).text || (item as any).name || 'New item', (item as any).person || '');
+  if ((body as any)?.notify) {
+    await notifyIFTTT(`bearhouse_${type}`, (item as any).text || (item as any).name || 'New item', (item as any).person || '');
+    await notifyPush(householdId, 'Bear House — new item', (item as any).text || (item as any).name || 'New item');
+  }
   return j({ ok: true, action: 'saved', type, item });
 }
