@@ -7,6 +7,8 @@ import { parseBody, BillingActionBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
+const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
+
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -28,8 +30,17 @@ export default async function handler(req: Request): Promise<Response> {
   if (!basePriceId) return serverError('Billing is not configured (missing STRIPE_BASE_PRICE_ID)', 'billing-checkout');
 
   const baseUrl = new URL(req.url).origin;
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
   try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const householdRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=stripe_customer_id`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    );
+    const householdRows = await householdRes.json() as any[];
+    const hasPriorCustomer = Boolean(householdRows[0]?.stripe_customer_id);
+
     const stripe = getStripeClient();
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -38,8 +49,11 @@ export default async function handler(req: Request): Promise<Response> {
       ],
       success_url: `${baseUrl}/setup?billing=success`,
       cancel_url: `${baseUrl}/setup?billing=cancelled`,
-      metadata: { householdId },
-      subscription_data: { metadata: { householdId } },
+      metadata: { householdId, clientIp },
+      subscription_data: {
+        metadata: { householdId, clientIp },
+        ...(hasPriorCustomer ? {} : { trial_period_days: 7 }),
+      },
     });
 
     return j({ url: session.url });
