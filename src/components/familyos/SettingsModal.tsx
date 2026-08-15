@@ -11,6 +11,7 @@ import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
+import { HouseholdHAPanel } from './HouseholdHAPanel';
 import { HermesModelPanel } from './HermesModelPanel';
 import { GmailIntegrationPanel } from './GmailIntegrationPanel';
 import { ThemeToggle } from './ThemeToggle';
@@ -601,19 +602,23 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 title="Home Assistant"
                 badge="Live"
                 badgeColor="emerald"
-                description="POST automations directly from HA to create tasks and log presence."
+                description="Connect your own HA instance for device control, cameras, and health checks."
                 expanded={expandedIntegration === 'ha'}
                 onToggle={() => toggleIntegration('ha')}
               >
-                <div className="space-y-2">
-                  <CodeRow label="Endpoint" value={`${BASE_URL}/api/ha-webhook`} />
-                  <p className="text-xs text-slate-400 mt-2">Supported events:</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {['person_arrived', 'person_left', 'package_delivered', 'door_left_open', 'low_battery', 'motion_detected', 'wyze_alert', 'custom'].map((e) => (
-                      <span key={e} className="text-xs bg-slate-950 text-rose-300 font-mono rounded px-2 py-1">{e}</span>
-                    ))}
+                <div className="space-y-4">
+                  <HouseholdHAPanel />
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Inbound webhook (HA → app)</p>
+                    <CodeRow label="Endpoint" value={`${BASE_URL}/api/ha-webhook`} />
+                    <p className="text-xs text-slate-400 mt-2">Supported events:</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['person_arrived', 'person_left', 'package_delivered', 'door_left_open', 'low_battery', 'motion_detected', 'wyze_alert', 'custom'].map((e) => (
+                        <span key={e} className="text-xs bg-slate-950 text-rose-300 font-mono rounded px-2 py-1">{e}</span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">In HA, use a REST command with <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> set to your household's webhook token.</p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">In HA, use a REST command with <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> set to your <code className="bg-slate-950 px-1 rounded">WEBHOOK_TOKEN</code> env var.</p>
                 </div>
               </IntegrationCard>
 

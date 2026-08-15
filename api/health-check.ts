@@ -2,6 +2,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import { resolveHaConfig } from './_haConfig.js';
 import { notifyIFTTT, notifyPush } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
@@ -29,10 +30,6 @@ export default async function handler(req: Request): Promise<Response> {
   const isWebhookCaller = !!WEBHOOK_TOKEN && suppliedToken === WEBHOOK_TOKEN;
   if (!isCron && !isWebhookCaller) return j({ error: 'Unauthorized' }, 401);
 
-  const HA_URL = process.env.HOME_ASSISTANT_URL;
-  const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
-  if (!HA_URL || !HA_TOKEN) return serverError('HA not configured', 'health-check');
-
   // This HA instance is one physical house — the household that owns it must
   // be pinned explicitly, not guessed. The scheduled cron carries no
   // household-specific token, so it can only ever check this one household.
@@ -41,6 +38,9 @@ export default async function handler(req: Request): Promise<Response> {
     ? (await resolveHouseholdIdByWebhookToken(suppliedToken)) ?? HA_HOUSEHOLD_ID
     : HA_HOUSEHOLD_ID;
   if (!householdId) return serverError('HOME_ASSISTANT_HOUSEHOLD_ID not configured', 'health-check');
+
+  const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
+  if (!HA_URL || !HA_TOKEN) return serverError('HA not configured', 'health-check');
 
   let states: any[];
   try {
@@ -78,7 +78,7 @@ export default async function handler(req: Request): Promise<Response> {
       const fix = resolveFix(id);
       // Tier 1 → auto-heal now, no human.
       if (fix.tier === 1) {
-        const result = await runFix(id);
+        const result = await runFix(householdId, id);
         autoHealed = result.ok;
       }
       // Alert for credential tiers (2/3), de-duped. Also alert if a Tier-1 auto-heal failed.
