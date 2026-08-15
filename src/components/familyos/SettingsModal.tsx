@@ -11,6 +11,7 @@ import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
+import { HouseholdHAPanel } from './HouseholdHAPanel';
 import { HermesModelPanel } from './HermesModelPanel';
 import { GmailIntegrationPanel } from './GmailIntegrationPanel';
 import { ThemeToggle } from './ThemeToggle';
@@ -162,10 +163,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const [tab, setTab] = useState<Tab>('general');
   const [apiKey, setApiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
-  const [cameraToken, setCameraToken] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showCameraToken, setShowCameraToken] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [zones, setZones] = useState<any[]>(DEFAULT_PRESENCE_ZONES);
   const [newZone, setNewZone] = useState({ name: '', startHour: 18, endHour: 21, days: '1,2,3,4,5' });
@@ -184,7 +183,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (open) {
       setApiKey(sessionStorage.getItem(KEYS.apiKey) || '');
       setGeminiKey(sessionStorage.getItem(KEYS.geminiApiKey) || '');
-      setCameraToken(sessionStorage.getItem(KEYS.cameraToken) || '');
       setSettings(loadJSON(KEYS.settings, DEFAULT_SETTINGS));
       setZones(loadJSON(KEYS.presenceZones, DEFAULT_PRESENCE_ZONES));
       setHomeLat(localStorage.getItem('home_lat') || '30.45');
@@ -197,7 +195,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     if (isAdmin) {
       sessionStorage.setItem(KEYS.apiKey, apiKey);
       sessionStorage.setItem(KEYS.geminiApiKey, geminiKey);
-      sessionStorage.setItem(KEYS.cameraToken, cameraToken);
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
       window.dispatchEvent(new Event(HOME_LOCATION_CHANGED_EVENT));
@@ -319,7 +316,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                   <div className="divide-y divide-slate-700/50">
                     <KeyRow label="Claude" placeholder="sk-ant-..." value={apiKey} onChange={setApiKey} show={showKey} onToggleShow={() => setShowKey(!showKey)} accentClass="focus:border-amber-500" />
                     <KeyRow label="Gemini" placeholder="AIza..." value={geminiKey} onChange={setGeminiKey} show={showGeminiKey} onToggleShow={() => setShowGeminiKey(!showGeminiKey)} accentClass="focus:border-emerald-500" note="camera scanner" />
-                    <KeyRow label="Camera Access" placeholder="match CAMERA_ACCESS_TOKEN in Vercel" value={cameraToken} onChange={setCameraToken} show={showCameraToken} onToggleShow={() => setShowCameraToken(!showCameraToken)} accentClass="focus:border-orange-500" note="Home Assistant cameras" />
                   </div>
                 </div>
               )}
@@ -601,19 +597,23 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 title="Home Assistant"
                 badge="Live"
                 badgeColor="emerald"
-                description="POST automations directly from HA to create tasks and log presence."
+                description="Connect your own HA instance for device control, cameras, and health checks."
                 expanded={expandedIntegration === 'ha'}
                 onToggle={() => toggleIntegration('ha')}
               >
-                <div className="space-y-2">
-                  <CodeRow label="Endpoint" value={`${BASE_URL}/api/ha-webhook`} />
-                  <p className="text-xs text-slate-400 mt-2">Supported events:</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {['person_arrived', 'person_left', 'package_delivered', 'door_left_open', 'low_battery', 'motion_detected', 'wyze_alert', 'custom'].map((e) => (
-                      <span key={e} className="text-xs bg-slate-950 text-rose-300 font-mono rounded px-2 py-1">{e}</span>
-                    ))}
+                <div className="space-y-4">
+                  <HouseholdHAPanel />
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Inbound webhook (HA → app)</p>
+                    <CodeRow label="Endpoint" value={`${BASE_URL}/api/ha-webhook`} />
+                    <p className="text-xs text-slate-400 mt-2">Supported events:</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['person_arrived', 'person_left', 'package_delivered', 'door_left_open', 'low_battery', 'motion_detected', 'wyze_alert', 'custom'].map((e) => (
+                        <span key={e} className="text-xs bg-slate-950 text-rose-300 font-mono rounded px-2 py-1">{e}</span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">In HA, use a REST command with <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> set to your household's webhook token.</p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">In HA, use a REST command with <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> set to your <code className="bg-slate-950 px-1 rounded">WEBHOOK_TOKEN</code> env var.</p>
                 </div>
               </IntegrationCard>
 

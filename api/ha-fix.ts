@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' };
 
 import { resolveFix } from './_integrationFixMap.js';
 import { resolveHouseholdId } from './_db.js';
+import { resolveHaConfig } from './_haConfig.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaFixBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
@@ -14,9 +15,8 @@ export type FixResult = {
   keyUrl?: string; reconfigUrl?: string; prefillUser?: string; error?: string;
 };
 
-async function haService(domain: string, service: string, data: object) {
-  const HA_URL = process.env.HOME_ASSISTANT_URL!;
-  const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN!;
+async function haService(householdId: string, domain: string, service: string, data: object) {
+  const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   const res = await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' },
@@ -26,9 +26,8 @@ async function haService(domain: string, service: string, data: object) {
   return res.json().catch(() => ({}));
 }
 
-async function restartAddon(slug: string) {
-  const HA_URL = process.env.HOME_ASSISTANT_URL!;
-  const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN!;
+async function restartAddon(householdId: string, slug: string) {
+  const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   const res = await fetch(`${HA_URL}/api/hassio/addons/${slug}/restart`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
@@ -43,9 +42,8 @@ async function restartAddon(slug: string) {
 // we fall back to the service call WITHOUT entry_id targeting is not possible, so we surface a
 // clear error and let the caller (health-check) fall through to an alert instead of silently
 // "succeeding". Task 2 Step 5 verifies this endpoint against the live box before relying on it.
-async function reloadByDomain(domain: string) {
-  const HA_URL = process.env.HOME_ASSISTANT_URL!;
-  const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN!;
+async function reloadByDomain(householdId: string, domain: string) {
+  const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   const listRes = await fetch(`${HA_URL}/api/config/config_entries/entry`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
   });
@@ -56,21 +54,21 @@ async function reloadByDomain(domain: string) {
   const entries = (await listRes.json()) as any[];
   const entry = entries.find((e) => e.domain === domain);
   if (!entry) throw new Error(`No config entry found for domain ${domain}`);
-  return haService('homeassistant', 'reload_config_entry', { entry_id: entry.entry_id });
+  return haService(householdId, 'homeassistant', 'reload_config_entry', { entry_id: entry.entry_id });
 }
 
-export async function runFix(integration: string, key?: string): Promise<FixResult> {
+export async function runFix(householdId: string, integration: string, key?: string): Promise<FixResult> {
   const fix = resolveFix(integration);
-  const HA_URL = process.env.HOME_ASSISTANT_URL!;
+  const { haUrl: HA_URL } = await resolveHaConfig(householdId);
 
   try {
     if (fix.tier === 1) {
       if (fix.action === 'restart_addon' && fix.addonSlug) {
-        const result = await restartAddon(fix.addonSlug);
+        const result = await restartAddon(householdId, fix.addonSlug);
         return { ok: true, tier: 1, action: 'restart_addon', result };
       }
       if (fix.action === 'reload_config_entry' && fix.configEntryDomain) {
-        const result = await reloadByDomain(fix.configEntryDomain);
+        const result = await reloadByDomain(householdId, fix.configEntryDomain);
         return { ok: true, tier: 1, action: 'reload_config_entry', result };
       }
       return { ok: false, tier: 1, error: 'Tier 1 fix misconfigured' };
@@ -85,7 +83,7 @@ export async function runFix(integration: string, key?: string): Promise<FixResu
       // We push the key into a Supabase-held staging value the user's HA automation can read,
       // then reload. If configEntryDomain is set, reload it.
       if (fix.configEntryDomain) {
-        const result = await reloadByDomain(fix.configEntryDomain);
+        const result = await reloadByDomain(householdId, fix.configEntryDomain);
         return { ok: true, tier: 2, action: 'reload_config_entry', result };
       }
       return { ok: true, tier: 2 };
@@ -120,6 +118,6 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { integration, key } = parsed.data;
 
-  const result = await runFix(integration, key);
+  const result = await runFix(householdId, integration, key);
   return j(result, result.ok ? 200 : 200); // always 200; ok flag carries success
 }

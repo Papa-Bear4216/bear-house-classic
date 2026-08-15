@@ -96,6 +96,15 @@ export const SettingsKeysBodySchema = z.discriminatedUnion('action', [
   }),
 ]);
 
+export const SettingsHaBodySchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('set'),
+    url: z.string().trim().url().refine(u => u.startsWith('https://'), 'HA URL must use https://'),
+    token: z.string().trim().min(1).max(2000),
+  }),
+  z.object({ action: z.literal('clear') }),
+]);
+
 export const CalendarSyncBodySchema = z.object({
   accessToken: z.string().min(1),
   person: z.string().min(1),

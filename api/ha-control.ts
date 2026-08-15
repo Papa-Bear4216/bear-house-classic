@@ -12,6 +12,7 @@
 export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
+import { resolveHaConfig } from './_haConfig.js';
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaControlBodySchema } from './_schemas.js';
@@ -31,8 +32,7 @@ export default async function handler(req: Request): Promise<Response> {
   const rl = await checkRateLimit(householdId, 'ha-control', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const HA_URL = process.env.HOME_ASSISTANT_URL;
-  const HA_TOKEN = process.env.HOME_ASSISTANT_TOKEN;
+  const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   if (!HA_URL || !HA_TOKEN) return serverError('Home Assistant is not configured', 'ha-control');
 
   const rawBody = await req.json().catch(() => ({}));

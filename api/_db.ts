@@ -204,6 +204,45 @@ export async function dbSetHouseholdKey(
   }
 }
 
+/** Get a household's own Home Assistant connection (URL + still-encrypted token) */
+export async function dbGetHouseholdHA(householdId: string): Promise<{
+  ha_url: string | null;
+  ha_token_encrypted: string | null;
+}> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=ha_url,ha_token_encrypted`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return { ha_url: null, ha_token_encrypted: null };
+  const rows = await res.json() as any[];
+  return rows[0] ?? { ha_url: null, ha_token_encrypted: null };
+}
+
+/** Set (or clear, with both null) a household's own Home Assistant URL + encrypted token */
+export async function dbSetHouseholdHA(
+  householdId: string,
+  url: string | null,
+  encryptedToken: string | null
+): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({
+        ha_url: url,
+        ha_token_encrypted: encryptedToken,
+        ha_configured_at: url ? new Date().toISOString() : null,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetHouseholdHA failed: ${res.status} ${detail}`);
+  }
+}
+
 /** Get a household's recent Hermes memory notes, newest first (service role) */
 export async function dbGetHouseholdMemory(householdId: string, limit = 100): Promise<Array<{id: string; text: string; source: string; created_at: string}>> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
