@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
+import Welcome from "@/pages/Welcome";
 import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
 import { apiUrl } from "@/lib/api";
@@ -207,7 +208,13 @@ const App = () => {
   if (authState === 'signed_out') {
     return (
       <ThemeProvider defaultTheme="dark">
-        <LoginPage />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Welcome />} />
+          </Routes>
+        </BrowserRouter>
       </ThemeProvider>
     );
   }

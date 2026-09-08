@@ -49,30 +49,28 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
   const generateBrief = async () => {
     setLoading(true);
     try {
-      // Try Gemini first if key available
-      const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
       const context = buildReturnContext(days);
 
-      if (geminiKey) {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: context }] }],
-              generationConfig: { maxOutputTokens: 200 },
-            }),
+      let extendedContext = context;
+      try {
+        const piecesRes = await fetch('http://localhost:1000/qgpt/question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: "Review my activity, saved snippets, and captured context from the last 12 hours. Identify exactly 1 or 2 'open loops' - things I was actively researching, coding, or talking about in Zoom but did not finish. Output them as a single, punchy 'Don''t forget:' sentence.",
+            relevant: true
+          })
+        });
+        if (piecesRes.ok) {
+          const piecesData = await piecesRes.json();
+          if (piecesData?.answer?.text) {
+             extendedContext += `\n\nContext from Pieces OS (Yesterday's open loops):\n${piecesData.answer.text}\nIncorporate this gracefully into your summary.`;
           }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (text) { setBrief(text); setLoading(false); return; }
         }
+      } catch (e) {
+        console.warn('Pieces OS local API unreachable. Skipping open loops.', e);
       }
 
-      // Fall back to Claude
       const token = await getAccessToken();
       const res = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
@@ -80,7 +78,7 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ prompt: context, maxTokens: 200 }),
+        body: JSON.stringify({ prompt: extendedContext, maxTokens: 200 }),
       });
       if (res.ok) {
         const data = await res.json();
