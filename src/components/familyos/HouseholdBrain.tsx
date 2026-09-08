@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer, Clock } from 'lucide-react';
+import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer, Clock, Home, Power, Loader2 } from 'lucide-react';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
 import {
   KEYS,
@@ -24,6 +24,8 @@ import {
   Recurrence,
   awardPoints,
   POINT_VALUES,
+  getHaEntitiesForRoom,
+  triggerHaDevice,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { onSyncUpdate } from '@/lib/sync';
@@ -39,6 +41,7 @@ interface Task {
   priority: string;
   category: string;
   room?: string;
+  haEntityId?: string;
   dueEstimate?: string; // legacy
   dueDate?: number | null;
   completed: boolean;
@@ -92,6 +95,8 @@ const HouseholdBrain: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [roomInput, setRoomInput] = useState<string>('');
+  const [haEntityInput, setHaEntityInput] = useState<string>('');
+  const [haBusyId, setHaBusyId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -201,6 +206,7 @@ const HouseholdBrain: React.FC = () => {
       priority: 'Medium',
       category: 'General',
       room: roomInput || undefined,
+      haEntityId: haEntityInput.trim() || undefined,
       dueDate,
       completed: false,
       createdAt: Date.now(),
@@ -210,6 +216,7 @@ const HouseholdBrain: React.FC = () => {
     setText('');
     setDueDateInput('');
     setRoomInput('');
+    setHaEntityInput('');
     setShowRecur(false);
     setRecurType('none');
     setCustomDays([]);
@@ -442,7 +449,14 @@ const HouseholdBrain: React.FC = () => {
         <div className="mt-3 flex items-center gap-2 flex-wrap">
           <select
             value={roomInput}
-            onChange={(e) => setRoomInput(e.target.value)}
+            onChange={(e) => {
+              const r = e.target.value;
+              setRoomInput(r);
+              const roomEntities = getHaEntitiesForRoom(r);
+              if (roomEntities.length > 0 && !haEntityInput) {
+                setHaEntityInput(roomEntities[0]);
+              }
+            }}
             className={`text-xs px-2.5 py-1.5 rounded-md border transition outline-none ${
               roomInput
                 ? 'bg-orange-900/40 border-orange-500/40 text-orange-200'
@@ -452,6 +466,27 @@ const HouseholdBrain: React.FC = () => {
             <option value="">Room (optional)</option>
             {ROOMS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
+
+          <div className="flex items-center gap-1">
+            <Home className="w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={haEntityInput}
+              onChange={(e) => setHaEntityInput(e.target.value)}
+              placeholder="HA entity (e.g. light.kitchen)"
+              list="ha-entity-suggestions"
+              className={`text-xs px-2 py-1.5 rounded-md border transition outline-none w-44 ${
+                haEntityInput
+                  ? 'bg-sky-900/40 border-sky-500/40 text-sky-200'
+                  : 'bg-slate-900 border-slate-700 text-slate-300'
+              }`}
+            />
+            <datalist id="ha-entity-suggestions">
+              {getHaEntitiesForRoom(roomInput).map((ent) => (
+                <option key={ent} value={ent} />
+              ))}
+            </datalist>
+          </div>
           <label
             className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition cursor-pointer ${
               dueDateInput
@@ -628,6 +663,27 @@ const HouseholdBrain: React.FC = () => {
                     <span className="text-[10px] uppercase tracking-wide bg-orange-900/40 text-orange-300 px-1.5 py-0.5 rounded">{t.category}</span>
                     {t.room && (
                       <span className="text-[10px] uppercase tracking-wide bg-teal-900/40 text-teal-300 px-1.5 py-0.5 rounded">{t.room}</span>
+                    )}
+                    {t.haEntityId && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setHaBusyId(t.id);
+                          const res = await triggerHaDevice(t.haEntityId!);
+                          setHaBusyId(null);
+                          if (!res.ok) {
+                            setModal({ open: true, title: 'Home Assistant Error', body: res.error || 'Failed to trigger device', loading: false });
+                          }
+                        }}
+                        disabled={haBusyId === t.id}
+                        title={`Trigger ${t.haEntityId} in Home Assistant`}
+                        className="text-[10px] uppercase tracking-wide bg-sky-900/40 border border-sky-500/40 text-sky-200 hover:bg-sky-800/60 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
+                      >
+                        <Home className="w-2.5 h-2.5 text-sky-400" />
+                        <span>{t.haEntityId}</span>
+                        {haBusyId === t.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Power className="w-2.5 h-2.5 text-emerald-400" />}
+                      </button>
                     )}
                     {t.steps && t.steps.length > 0 && (
                       <span className="text-[10px] uppercase tracking-wide bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded">

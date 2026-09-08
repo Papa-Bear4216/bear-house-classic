@@ -65,8 +65,8 @@ export const HermesModelTierBodySchema = z.object({
 // domain that could do something destructive (no scripts, no automations,
 // no media_player with arbitrary URLs).
 export const HaControlBodySchema = z.object({
-  domain: z.enum(['light', 'switch', 'lock', 'climate', 'fan', 'cover']),
-  service: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover']),
+  domain: z.enum(['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum']),
+  service: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover', 'start', 'stop', 'return_to_base']),
   entityId: z.string().trim().min(1).max(200),
 });
 
