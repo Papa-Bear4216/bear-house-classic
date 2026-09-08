@@ -88,24 +88,28 @@ export interface RoomDefinition {
   name: string;
   haEntities?: string[];
   description?: string;
+  zone?: 'main' | 'upstairs' | 'basement' | 'work' | 'outdoor';
+  x?: number; // 0-100 percentage for floor plan layout
+  y?: number; // 0-100 percentage for floor plan layout
 }
 
 export const DEFAULT_ROOM_MAP: RoomDefinition[] = [
-  { id: 'kitchen', name: 'Kitchen', haEntities: ['light.kitchen_ceiling', 'switch.kitchen_fan'] },
-  { id: 'living-room', name: 'Living Room', haEntities: ['light.living_room_lights', 'vacuum.downstairs'] },
-  { id: 'dining-room', name: 'Dining Room', haEntities: ['light.dining_room'] },
-  { id: 'bathroom', name: 'Bathroom', haEntities: ['switch.exhaust_fan'] },
-  { id: 'master', name: 'Master', haEntities: ['light.master_bedroom', 'fan.master_bedroom'] },
-  { id: 'julias', name: 'Julias', haEntities: ['light.julias_room'] },
-  { id: 'abrianas', name: 'Abrianas', haEntities: ['light.abrianas_room'] },
-  { id: 'spare', name: 'Spare', haEntities: [] },
-  { id: 'office', name: 'Office', haEntities: ['light.office_desk', 'switch.office_fan'] },
-  { id: 'bar', name: 'Bar', haEntities: ['light.bar_accent'] },
-  { id: 'shop', name: 'Shop', haEntities: ['light.shop_bench'] },
+  { id: 'kitchen', name: 'Kitchen', zone: 'main', x: 65, y: 28, haEntities: ['light.kitchen_ceiling', 'switch.kitchen_fan'], description: 'Main cooking area & pantry' },
+  { id: 'living-room', name: 'Living Room', zone: 'main', x: 28, y: 32, haEntities: ['light.living_room_lights', 'vacuum.downstairs'], description: 'Family gathering & TV' },
+  { id: 'dining-room', name: 'Dining Room', zone: 'main', x: 62, y: 62, haEntities: ['light.dining_room'], description: 'Family meals & dining' },
+  { id: 'bathroom', name: 'Bathroom', zone: 'main', x: 42, y: 52, haEntities: ['switch.exhaust_fan'], description: 'Main hall bathroom' },
+  { id: 'master', name: 'Master', zone: 'upstairs', x: 22, y: 78, haEntities: ['light.master_bedroom', 'fan.master_bedroom'], description: 'Master bedroom suite' },
+  { id: 'julias', name: 'Julias', zone: 'upstairs', x: 48, y: 82, haEntities: ['light.julias_room'], description: "Julia's bedroom" },
+  { id: 'abrianas', name: 'Abrianas', zone: 'upstairs', x: 74, y: 82, haEntities: ['light.abrianas_room'], description: "Abriana's bedroom" },
+  { id: 'spare', name: 'Spare', zone: 'upstairs', x: 88, y: 48, haEntities: [], description: 'Guest & spare bedroom' },
+  { id: 'office', name: 'Office', zone: 'work', x: 18, y: 15, haEntities: ['light.office_desk', 'switch.office_fan'], description: 'Home office & workstation' },
+  { id: 'bar', name: 'Bar', zone: 'main', x: 84, y: 22, haEntities: ['light.bar_accent'], description: 'Beverage bar & entertainment' },
+  { id: 'shop', name: 'Shop', zone: 'work', x: 86, y: 75, haEntities: ['light.shop_bench'], description: 'Workshop, tools & garage' },
 ];
 
 export function loadRoomMap(): RoomDefinition[] {
-  return loadJSON<RoomDefinition[]>(KEYS.roomMap, DEFAULT_ROOM_MAP);
+  const loaded = loadJSON<RoomDefinition[]>(KEYS.roomMap, DEFAULT_ROOM_MAP);
+  return Array.isArray(loaded) && loaded.length > 0 ? loaded : DEFAULT_ROOM_MAP;
 }
 
 export function saveRoomMap(rooms: RoomDefinition[]): void {
@@ -124,14 +128,23 @@ export function getHaEntitiesForRoom(roomName?: string): string[] {
  */
 export async function triggerHaDevice(
   entityId: string,
-  action?: 'toggle' | 'turn_on' | 'turn_off' | 'start' | 'stop' | 'return_to_base'
+  action?: 'toggle' | 'turn_on' | 'turn_off' | 'start' | 'stop' | 'return_to_base' | 'lock' | 'unlock' | 'open_cover' | 'close_cover'
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const domain = entityId.split('.')[0];
-    const service = action || (domain === 'lock' ? 'unlock' : domain === 'vacuum' ? 'start' : 'toggle');
+    const cleanEntityId = (entityId || '').trim().toLowerCase();
+    if (!cleanEntityId || !cleanEntityId.includes('.')) {
+      return { ok: false, error: 'Entity ID must include a domain prefix, e.g. light.kitchen' };
+    }
+    const domain = cleanEntityId.split('.')[0];
+    const validDomains = ['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum'];
+    if (!validDomains.includes(domain)) {
+      return { ok: false, error: `Unsupported domain "${domain}". Supported: ${validDomains.join(', ')}` };
+    }
+    const defaultService = domain === 'lock' ? 'unlock' : domain === 'vacuum' ? 'start' : domain === 'climate' ? 'turn_on' : 'toggle';
+    const service = (domain === 'climate' && action === 'toggle') ? 'turn_on' : (action || defaultService);
     const res = await authedFetch('/api/ha-control', {
       method: 'POST',
-      body: JSON.stringify({ domain, service, entityId }),
+      body: JSON.stringify({ domain, service, entityId: cleanEntityId }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

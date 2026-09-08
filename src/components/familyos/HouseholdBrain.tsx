@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer, Clock, Home, Power, Loader2 } from 'lucide-react';
+import { Plus, Mic, MicOff, Trash2, CheckCircle2, Sparkles, Activity, AlertTriangle, Repeat, ChevronDown, Calendar as CalendarIcon, X, ScanLine, Printer, Clock, Home, Power, Loader2, LayoutList, Map } from 'lucide-react';
 import ChoreScanner from '@/components/familyos/ChoreScanner';
+import RoomMapView from '@/components/familyos/RoomMapView';
 import {
   KEYS,
   householdPersons,
@@ -97,6 +98,7 @@ const HouseholdBrain: React.FC = () => {
   const [roomInput, setRoomInput] = useState<string>('');
   const [haEntityInput, setHaEntityInput] = useState<string>('');
   const [haBusyId, setHaBusyId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [showExport, setShowExport] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -112,20 +114,63 @@ const HouseholdBrain: React.FC = () => {
   };
 
   const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>, room: string) => {
-    const newTasks: Task[] = detected.map(d => ({
+    const roomEntities = getHaEntitiesForRoom(room);
+    const newTasks: Task[] = detected.map(d => {
+      const choreLower = d.chore.toLowerCase();
+      const matchedEntity =
+        roomEntities.find((ent) => choreLower.includes(ent.split('.')[0])) ||
+        (roomEntities.length > 0 ? roomEntities[0] : undefined);
+      return {
+        id: uid(),
+        text: d.chore,
+        person: autoAssign(),
+        priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
+        category: 'Maintenance',
+        room,
+        haEntityId: matchedEntity,
+        dueEstimate: 'Today',
+        dueDate: null,
+        completed: false,
+        createdAt: d.addedAt,
+        source: 'chore_scanner',
+      } as Task;
+    });
+    setTasks(prev => [...newTasks, ...prev]);
+  };
+
+  const addTaskForRoom = (choreText: string, roomName: string, haEntityId?: string) => {
+    if (!choreText.trim()) return;
+    const baseTask: Task = {
       id: uid(),
-      text: d.chore,
+      text: choreText.trim(),
       person: autoAssign(),
-      priority: d.priority === 'high' ? 'High' : d.priority === 'low' ? 'Low' : 'Medium',
+      priority: 'Medium',
       category: 'Maintenance',
-      room,
-      dueEstimate: 'Today',
+      room: roomName,
+      haEntityId: haEntityId || undefined,
       dueDate: null,
       completed: false,
-      createdAt: d.addedAt,
-      source: 'chore_scanner',
-    } as Task));
-    setTasks(prev => [...newTasks, ...prev]);
+      createdAt: Date.now(),
+    };
+    setTasks((prev) => [baseTask, ...prev]);
+  };
+
+  const handleTriggerHa = async (entityId: string) => {
+    setHaBusyId(entityId);
+    try {
+      const res = await triggerHaDevice(entityId);
+      if (!res.ok) {
+        setModal({
+          open: true,
+          title: 'Home Assistant Error',
+          body: res.error || 'Failed to trigger device',
+          loading: false,
+        });
+      }
+      return res;
+    } finally {
+      setHaBusyId(null);
+    }
   };
 
   const [presentToday, setPresentToday] = useState<{ yes: number; no: number }>(() => {
@@ -288,6 +333,11 @@ const HouseholdBrain: React.FC = () => {
         person: target.person,
         priority: target.priority,
         category: target.category,
+        room: target.room,
+        haEntityId: target.haEntityId,
+        estimatedMinutes: target.estimatedMinutes,
+        steps: target.steps,
+        stepsCompleted: target.steps ? target.steps.map(() => false) : undefined,
         dueDate: nextDueDate,
         completed: false,
         createdAt: nextAt,
@@ -385,20 +435,52 @@ const HouseholdBrain: React.FC = () => {
         />
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex-1">
           <h2 className="text-2xl font-bold text-white">Household Brain</h2>
           <p className="text-sm text-slate-400">Capture, categorize, and clear what's on your plate.</p>
         </div>
-        <button onClick={() => setShowScanner(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
-          <ScanLine className="w-4 h-4" /> Scan Room
-        </button>
-        <button onClick={() => setShowExport(true)} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
-          <Printer className="w-4 h-4" /> Export
-        </button>
-        <button onClick={morningBrief} className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
-          <Sparkles className="w-4 h-4" /> Brief
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Mode Toggle: List vs Floor Plan / Map */}
+          <div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg p-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              aria-label="List View"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                viewMode === 'list'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('map')}
+              aria-label="Floor Plan / Map View"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+                viewMode === 'map'
+                  ? 'bg-orange-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Map className="w-3.5 h-3.5" />
+              <span>Floor Plan / Map</span>
+            </button>
+          </div>
+
+          <button onClick={() => setShowScanner(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+            <ScanLine className="w-4 h-4" /> Scan Room
+          </button>
+          <button onClick={() => setShowExport(true)} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+            <Printer className="w-4 h-4" /> Export
+          </button>
+          <button onClick={morningBrief} className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> Brief
+          </button>
+        </div>
       </div>
 
       {showExport && (
@@ -569,158 +651,187 @@ const HouseholdBrain: React.FC = () => {
         {aiBusy && <div className="text-xs text-orange-400 mt-2 flex items-center gap-2"><Sparkles className="w-3 h-3 animate-pulse" /> Categorizing...</div>}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {TABS.map((t) => {
-          const count =
-            t === 'All'
-              ? tasks.filter((x) => !x.completed).length
-              : t === 'Today'
-              ? tasks.filter((x) => {
-                  if (x.completed) return false;
-                  if (x.priority === 'High') return true;
-                  if (x.dueDate) return daysUntilDue(x.dueDate) <= 0;
-                  return x.dueEstimate === 'Today';
-                }).length
-              : t === 'Recurring'
-              ? recurringCount
-              : tasks.filter((x) => !x.completed && x.person === t).length;
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition flex items-center gap-1 ${
-                tab === t ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              {t === 'Recurring' && <Repeat className="w-3 h-3" />}
-              {t} <span className="opacity-70 ml-1">{count}</span>
-            </button>
-          );
-        })}
-        <button
-          onClick={() => setFocusMode((f) => !f)}
-          disabled={filteredTasks.length === 0}
-          className={`ml-auto px-3 py-1.5 rounded-lg text-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed ${
-            focusMode ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" /> Focus
-        </button>
-        <button onClick={overdueAlert} className="bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
-          <AlertTriangle className="w-3.5 h-3.5" /> Overdue
-        </button>
-      </div>
-
-      {/* Task list */}
-      {focusMode ? (
-        <FocusMode
-          tasks={filteredTasks}
-          onComplete={completeTask}
-          onToggleStep={toggleTaskStep}
-          onExit={() => setFocusMode(false)}
+      {viewMode === 'map' ? (
+        <RoomMapView
+          tasks={tasks}
+          onCompleteTask={completeTask}
+          onAddTaskToRoom={addTaskForRoom}
+          onTriggerHaDevice={handleTriggerHa}
+          haBusyId={haBusyId}
         />
       ) : (
-      <div className="space-y-2">
-        {filteredTasks.length === 0 ? (
-          <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
-            <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-orange-400/60" />
-            <p className="font-medium text-white">All clear here</p>
-            <p className="text-sm">Add a task above to get started.</p>
+        <>
+          {/* Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {TABS.map((t) => {
+              const count =
+                t === 'All'
+                  ? tasks.filter((x) => !x.completed).length
+                  : t === 'Today'
+                  ? tasks.filter((x) => {
+                      if (x.completed) return false;
+                      if (x.priority === 'High') return true;
+                      if (x.dueDate) return daysUntilDue(x.dueDate) <= 0;
+                      return x.dueEstimate === 'Today';
+                    }).length
+                  : t === 'Recurring'
+                  ? recurringCount
+                  : tasks.filter((x) => !x.completed && x.person === t).length;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition flex items-center gap-1 ${
+                    tab === t ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {t === 'Recurring' && <Repeat className="w-3 h-3" />}
+                  {t} <span className="opacity-70 ml-1">{count}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setFocusMode((f) => !f)}
+              disabled={filteredTasks.length === 0}
+              className={`ml-auto px-3 py-1.5 rounded-lg text-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                focusMode ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Focus
+            </button>
+            <button onClick={overdueAlert} className="bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" /> Overdue
+            </button>
           </div>
-        ) : (
-          filteredTasks.map((t) => {
-            const dueBadge = t.dueDate ? formatDueBadge(t.dueDate) : null;
-            return (
-              <div
-                key={t.id}
-                className={`bg-slate-800 border-l-4 ${PRIORITY_COLORS[t.priority]} border-r border-y border-slate-700 rounded-lg p-3 flex items-start gap-3 hover:bg-slate-800/70 transition`}
-              >
-                <button onClick={() => completeTask(t.id)} className="text-slate-400 hover:text-emerald-400 mt-0.5">
-                  <CheckCircle2 className="w-5 h-5" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-medium flex items-center gap-1.5">
-                    {t.recurrence && <Repeat className="w-3.5 h-3.5 text-orange-400 shrink-0" aria-label="Recurring" />}
-                    {editingId === t.id ? (
-                      <input
-                        value={editText}
-                        onChange={e => setEditText(e.target.value)}
-                        onBlur={saveEditTask}
-                        onKeyDown={e => { if (e.key === 'Enter') saveEditTask(); if (e.key === 'Escape') setEditingId(null); }}
-                        autoFocus
-                        onClick={e => e.stopPropagation()}
-                        className="flex-1 bg-slate-900 border border-emerald-500 rounded px-1.5 py-0.5 text-white text-sm outline-none"
-                      />
-                    ) : (
-                      <button onClick={() => startEditTask(t)} className="text-left hover:underline focus-ring" title="Click to edit">
-                        {t.text}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.person}</span>
-                    <span className="text-[10px] uppercase tracking-wide bg-orange-900/40 text-orange-300 px-1.5 py-0.5 rounded">{t.category}</span>
-                    {t.room && (
-                      <span className="text-[10px] uppercase tracking-wide bg-teal-900/40 text-teal-300 px-1.5 py-0.5 rounded">{t.room}</span>
-                    )}
-                    {t.haEntityId && (
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          setHaBusyId(t.id);
-                          const res = await triggerHaDevice(t.haEntityId!);
-                          setHaBusyId(null);
-                          if (!res.ok) {
-                            setModal({ open: true, title: 'Home Assistant Error', body: res.error || 'Failed to trigger device', loading: false });
-                          }
-                        }}
-                        disabled={haBusyId === t.id}
-                        title={`Trigger ${t.haEntityId} in Home Assistant`}
-                        className="text-[10px] uppercase tracking-wide bg-sky-900/40 border border-sky-500/40 text-sky-200 hover:bg-sky-800/60 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
-                      >
-                        <Home className="w-2.5 h-2.5 text-sky-400" />
-                        <span>{t.haEntityId}</span>
-                        {haBusyId === t.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Power className="w-2.5 h-2.5 text-emerald-400" />}
-                      </button>
-                    )}
-                    {t.steps && t.steps.length > 0 && (
-                      <span className="text-[10px] uppercase tracking-wide bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded">
-                        {t.stepsCompleted?.filter(Boolean).length ?? 0}/{t.steps.length} steps
-                      </span>
-                    )}
-                    {dueBadge ? (
-                      <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded flex items-center gap-1 ${DUE_TONE[dueBadge.tone]}`}>
-                        <CalendarIcon className="w-2.5 h-2.5" />
-                        {formatDate(t.dueDate!)} · {dueBadge.label}
-                      </span>
-                    ) : (
-                      t.dueEstimate && t.dueEstimate !== 'No Deadline' && (
-                        <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.dueEstimate}</span>
-                      )
-                    )}
-                    {t.recurrence && (
-                      <span className="text-[10px] uppercase tracking-wide bg-orange-600/30 border border-orange-500/40 text-orange-200 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Repeat className="w-2.5 h-2.5" /> {describeRecurrence(t.recurrence)}
-                      </span>
-                    )}
-                    <span className="text-[10px] text-slate-500 ml-auto">{formatDate(t.createdAt)}</span>
-                  </div>
-                </div>
-                {tab !== 'All' && (
-                  <button onClick={() => snoozeTask(t.id)} title="Snooze until tomorrow" className="text-slate-500 hover:text-amber-400">
-                    <Clock className="w-4 h-4" />
-                  </button>
-                )}
-                <button onClick={() => deleteTask(t.id)} className="text-slate-500 hover:text-rose-400">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+
+          {/* Task list */}
+          {focusMode ? (
+            <FocusMode
+              tasks={filteredTasks}
+              onComplete={completeTask}
+              onToggleStep={toggleTaskStep}
+              onExit={() => setFocusMode(false)}
+            />
+          ) : (
+          <div className="space-y-2">
+            {filteredTasks.length === 0 ? (
+              <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
+                <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-orange-400/60" />
+                <p className="font-medium text-white">All clear here</p>
+                <p className="text-sm">Add a task above to get started.</p>
               </div>
-            );
-          })
-        )}
-      </div>
+            ) : (
+              filteredTasks.map((t) => {
+                const dueBadge = t.dueDate ? formatDueBadge(t.dueDate) : null;
+                return (
+                  <div
+                    key={t.id}
+                    className={`bg-slate-800 border-l-4 ${PRIORITY_COLORS[t.priority]} border-r border-y border-slate-700 rounded-lg p-3 flex items-start gap-3 hover:bg-slate-800/70 transition`}
+                  >
+                    <button onClick={() => completeTask(t.id)} className="text-slate-400 hover:text-emerald-400 mt-0.5">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-sm font-medium flex items-center gap-1.5">
+                        {t.recurrence && <Repeat className="w-3.5 h-3.5 text-orange-400 shrink-0" aria-label="Recurring" />}
+                        {editingId === t.id ? (
+                          <input
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                            onBlur={saveEditTask}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEditTask(); if (e.key === 'Escape') setEditingId(null); }}
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                            className="flex-1 bg-slate-900 border border-emerald-500 rounded px-1.5 py-0.5 text-white text-sm outline-none"
+                          />
+                        ) : (
+                          <button onClick={() => startEditTask(t)} className="text-left hover:underline focus-ring" title="Click to edit">
+                            {t.text}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.person}</span>
+                        <span className="text-[10px] uppercase tracking-wide bg-orange-900/40 text-orange-300 px-1.5 py-0.5 rounded">{t.category}</span>
+                        {t.room && (
+                          <span className="text-[10px] uppercase tracking-wide bg-teal-900/40 text-teal-300 px-1.5 py-0.5 rounded">{t.room}</span>
+                        )}
+                        {t.haEntityId && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setHaBusyId(t.id);
+                              const res = await triggerHaDevice(t.haEntityId!);
+                              setHaBusyId(null);
+                              if (!res.ok) {
+                                setModal({ open: true, title: 'Home Assistant Error', body: res.error || 'Failed to trigger device', loading: false });
+                              }
+                            }}
+                            disabled={haBusyId === t.id}
+                            title={`Trigger ${t.haEntityId} in Home Assistant`}
+                            className="text-[10px] uppercase tracking-wide bg-sky-900/40 border border-sky-500/40 text-sky-200 hover:bg-sky-800/60 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
+                          >
+                            <Home className="w-2.5 h-2.5 text-sky-400" />
+                            <span>{t.haEntityId}</span>
+                            {haBusyId === t.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Power className="w-2.5 h-2.5 text-emerald-400" />}
+                          </button>
+                        )}
+                        {!t.haEntityId && t.room && getHaEntitiesForRoom(t.room).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ents = getHaEntitiesForRoom(t.room);
+                              setTasks((prev) =>
+                                prev.map((item) => (item.id === t.id ? { ...item, haEntityId: ents[0] } : item))
+                              );
+                            }}
+                            title={`Link device for ${t.room}`}
+                            className="text-[10px] uppercase tracking-wide bg-slate-800 border border-dashed border-slate-600 hover:border-sky-500/60 text-slate-400 hover:text-sky-300 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
+                          >
+                            <Home className="w-2.5 h-2.5 text-slate-400" />
+                            <span>+ Link HA</span>
+                          </button>
+                        )}
+                        {t.steps && t.steps.length > 0 && (
+                          <span className="text-[10px] uppercase tracking-wide bg-violet-900/40 text-violet-300 px-1.5 py-0.5 rounded">
+                            {t.stepsCompleted?.filter(Boolean).length ?? 0}/{t.steps.length} steps
+                          </span>
+                        )}
+                        {dueBadge ? (
+                          <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded flex items-center gap-1 ${DUE_TONE[dueBadge.tone]}`}>
+                            <CalendarIcon className="w-2.5 h-2.5" />
+                            {formatDate(t.dueDate!)} · {dueBadge.label}
+                          </span>
+                        ) : (
+                          t.dueEstimate && t.dueEstimate !== 'No Deadline' && (
+                            <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{t.dueEstimate}</span>
+                          )
+                        )}
+                        {t.recurrence && (
+                          <span className="text-[10px] uppercase tracking-wide bg-orange-600/30 border border-orange-500/40 text-orange-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                            <Repeat className="w-2.5 h-2.5" /> {describeRecurrence(t.recurrence)}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-500 ml-auto">{formatDate(t.createdAt)}</span>
+                      </div>
+                    </div>
+                    {tab !== 'All' && (
+                      <button onClick={() => snoozeTask(t.id)} title="Snooze until tomorrow" className="text-slate-500 hover:text-amber-400">
+                        <Clock className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => deleteTask(t.id)} className="text-slate-500 hover:text-rose-400">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          )}
+        </>
       )}
     </div>
   );

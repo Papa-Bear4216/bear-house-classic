@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone,
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone, ClipboardList, CalendarDays
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
@@ -41,11 +41,13 @@ const HealthHub = lazy(() => import('@/components/familyos/sections/HealthHub'))
 const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'));
 const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'));
 const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
+const RunOfShow = lazy(() => import('@/components/familyos/sections/RunOfShow'));
 
-type HouseholdTab = 'tasks' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'warranty' | 'brain';
+type HouseholdTab = 'tasks' | 'logistics' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'warranty' | 'brain';
 
 const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentType<{ className?: string }>; adminOnly?: boolean; }[] = [
   { id: 'tasks', label: 'Tasks', icon: Home },
+  { id: 'logistics', label: 'Run of Show', icon: CalendarDays },
   { id: 'shopping', label: 'Shopping', icon: ShoppingCart },
   { id: 'meals', label: 'Meals', icon: Utensils },
   { id: 'pantry', label: 'Pantry', icon: Package },
@@ -228,6 +230,7 @@ const AppLayout: React.FC = () => {
               })}
             </div>
             {householdTab === 'tasks' && <HouseholdBrain />}
+            {householdTab === 'logistics' && <RunOfShow />}
             {householdTab === 'shopping' && <Shopping />}
             {householdTab === 'meals' && <MealPlanner />}
             {householdTab === 'pantry' && <Pantry />}

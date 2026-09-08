@@ -3,6 +3,8 @@ import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from './sync';
 
+import { apiUrl } from './api';
+
 export type HouseholdRole = 'superadmin' | 'admin' | 'child' | 'pet';
 
 const NATIVE_REDIRECT_URL = 'com.bearhouse.app://auth-callback';
@@ -76,7 +78,8 @@ export async function authedFetch(url: string, init: RequestInit = {}): Promise<
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  return fetch(url, { ...init, headers });
+  const resolvedUrl = url.startsWith('http://') || url.startsWith('https://') ? url : apiUrl(url);
+  return fetch(resolvedUrl, { ...init, headers });
 }
 
 export async function getHouseholdSession(): Promise<{ member: HouseholdMember; householdId: string; subscriptionStatus: string; bypassBilling: boolean; voiceUnlocked: boolean; hermesModelTier: 'haiku' | 'sonnet' } | null> {

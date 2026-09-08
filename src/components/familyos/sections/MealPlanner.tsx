@@ -108,35 +108,6 @@ Rules:
 - Return ingredients as a structured array with numeric quantity and a short unit string (e.g. "cups", "lb", "" for count-only items like eggs) — not free-text lines`;
 
   try {
-    const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
-    if (geminiKey) {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 500 },
-          }),
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (raw) {
-          try {
-            return { ok: true, recipe: JSON.parse(raw) as Recipe };
-          } catch {
-            console.warn('Gemini recipe suggestion: could not parse JSON response', raw);
-            // fall through to the cloud path below rather than failing outright
-          }
-        }
-      } else {
-        console.warn(`Gemini recipe suggestion failed: ${res.status} ${res.statusText}`);
-      }
-    }
-
     const token = await getAccessToken();
     const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
@@ -193,25 +164,6 @@ Return ONLY valid JSON (no markdown):
 Keep meal names short (2-4 words). Vary it — don't repeat meals. Make Monday dinner something special.`;
 
   try {
-    const geminiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
-    if (geminiKey) {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 600 },
-          }),
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (raw) return JSON.parse(raw);
-      }
-    }
     const token = await getAccessToken();
     const res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
