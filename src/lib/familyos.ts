@@ -1,6 +1,7 @@
 // Family OS shared utilities, constants, and storage helpers
 import type { TopModule } from './navVisibility';
 import { apiUrl } from './api';
+import { authedFetch } from './householdAuth';
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────
 export type UserRole = 'superadmin' | 'admin' | 'child';
@@ -40,6 +41,7 @@ export const KEYS = {
   settings: 'familyos_settings',
   points: 'household_points',
   redemptions: 'reward_redemptions',
+  roomMap: 'household_room_map',
 };
 
 export const DEFAULT_SETTINGS = {
@@ -80,6 +82,66 @@ export const NEGATIVE_EMOTIONS = ['Frustration', 'Concern', 'Anxiety', 'Confusio
 export const PRIORITIES = ['High', 'Medium', 'Low'];
 export const DUE_ESTIMATES = ['Today', 'This Week', 'This Month', 'No Deadline'];
 export const ROOMS = ['Kitchen', 'Living Room', 'Dining Room', 'Bathroom', 'Master', 'Julias', 'Abrianas', 'Spare', 'Office', 'Bar', 'Shop'];
+
+export interface RoomDefinition {
+  id: string;
+  name: string;
+  haEntities?: string[];
+  description?: string;
+}
+
+export const DEFAULT_ROOM_MAP: RoomDefinition[] = [
+  { id: 'kitchen', name: 'Kitchen', haEntities: ['light.kitchen_ceiling', 'switch.kitchen_fan'] },
+  { id: 'living-room', name: 'Living Room', haEntities: ['light.living_room_lights', 'vacuum.downstairs'] },
+  { id: 'dining-room', name: 'Dining Room', haEntities: ['light.dining_room'] },
+  { id: 'bathroom', name: 'Bathroom', haEntities: ['switch.exhaust_fan'] },
+  { id: 'master', name: 'Master', haEntities: ['light.master_bedroom', 'fan.master_bedroom'] },
+  { id: 'julias', name: 'Julias', haEntities: ['light.julias_room'] },
+  { id: 'abrianas', name: 'Abrianas', haEntities: ['light.abrianas_room'] },
+  { id: 'spare', name: 'Spare', haEntities: [] },
+  { id: 'office', name: 'Office', haEntities: ['light.office_desk', 'switch.office_fan'] },
+  { id: 'bar', name: 'Bar', haEntities: ['light.bar_accent'] },
+  { id: 'shop', name: 'Shop', haEntities: ['light.shop_bench'] },
+];
+
+export function loadRoomMap(): RoomDefinition[] {
+  return loadJSON<RoomDefinition[]>(KEYS.roomMap, DEFAULT_ROOM_MAP);
+}
+
+export function saveRoomMap(rooms: RoomDefinition[]): void {
+  saveJSON(KEYS.roomMap, rooms);
+}
+
+export function getHaEntitiesForRoom(roomName?: string): string[] {
+  if (!roomName) return [];
+  const rooms = loadRoomMap();
+  const found = rooms.find((r) => r.name.toLowerCase() === roomName.toLowerCase());
+  return found?.haEntities || [];
+}
+
+/**
+ * Triggers a Home Assistant device service (toggle, start, etc.) via /api/ha-control.
+ */
+export async function triggerHaDevice(
+  entityId: string,
+  action?: 'toggle' | 'turn_on' | 'turn_off' | 'start' | 'stop' | 'return_to_base'
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const domain = entityId.split('.')[0];
+    const service = action || (domain === 'lock' ? 'unlock' : domain === 'vacuum' ? 'start' : 'toggle');
+    const res = await authedFetch('/api/ha-control', {
+      method: 'POST',
+      body: JSON.stringify({ domain, service, entityId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data.error || `HA returned ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network error reaching Home Assistant' };
+  }
+}
 
 // Last-resort fallback only — see FALLBACK_PILLARS above.
 export const FALLBACK_PERSONS = ['Family', 'General'];
