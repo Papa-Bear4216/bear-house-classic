@@ -39,6 +39,23 @@ describe('ChatBodySchema', () => {
   it('rejects a non-number maxTokens', () => {
     expect(ChatBodySchema.safeParse({ prompt: 'hi', maxTokens: 'lots' }).success).toBe(false);
   });
+
+  it('rejects an oversized prompt', () => {
+    expect(ChatBodySchema.safeParse({ prompt: 'x'.repeat(32_001) }).success).toBe(false);
+  });
+
+  it('rejects an oversized message content', () => {
+    expect(ChatBodySchema.safeParse({ messages: [{ role: 'user', content: 'x'.repeat(32_001) }] }).success).toBe(false);
+  });
+
+  it('rejects a messages array over the length cap', () => {
+    const messages = Array.from({ length: 51 }, () => ({ role: 'user', content: 'hi' }));
+    expect(ChatBodySchema.safeParse({ messages }).success).toBe(false);
+  });
+
+  it('rejects an oversized system prompt', () => {
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', system: 'x'.repeat(16_001) }).success).toBe(false);
+  });
 });
 
 describe('VisionBodySchema', () => {
