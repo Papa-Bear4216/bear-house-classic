@@ -26,6 +26,7 @@ import {
   awardPoints,
   POINT_VALUES,
   getHaEntitiesForRoom,
+  matchHaEntityForChore,
   triggerHaDevice,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
@@ -116,10 +117,7 @@ const HouseholdBrain: React.FC = () => {
   const handleScanSave = (detected: Array<{ id: string; chore: string; detail: string; priority: string; addedAt: number }>, room: string) => {
     const roomEntities = getHaEntitiesForRoom(room);
     const newTasks: Task[] = detected.map(d => {
-      const choreLower = d.chore.toLowerCase();
-      const matchedEntity =
-        roomEntities.find((ent) => choreLower.includes(ent.split('.')[0])) ||
-        (roomEntities.length > 0 ? roomEntities[0] : undefined);
+      const matchedEntity = matchHaEntityForChore(d.chore, roomEntities, room);
       return {
         id: uid(),
         text: d.chore,
@@ -761,20 +759,15 @@ const HouseholdBrain: React.FC = () => {
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              setHaBusyId(t.id);
-                              const res = await triggerHaDevice(t.haEntityId!);
-                              setHaBusyId(null);
-                              if (!res.ok) {
-                                setModal({ open: true, title: 'Home Assistant Error', body: res.error || 'Failed to trigger device', loading: false });
-                              }
+                              await handleTriggerHa(t.haEntityId!);
                             }}
-                            disabled={haBusyId === t.id}
+                            disabled={haBusyId === t.haEntityId}
                             title={`Trigger ${t.haEntityId} in Home Assistant`}
                             className="text-[10px] uppercase tracking-wide bg-sky-900/40 border border-sky-500/40 text-sky-200 hover:bg-sky-800/60 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
                           >
                             <Home className="w-2.5 h-2.5 text-sky-400" />
                             <span>{t.haEntityId}</span>
-                            {haBusyId === t.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Power className="w-2.5 h-2.5 text-emerald-400" />}
+                            {haBusyId === t.haEntityId ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Power className="w-2.5 h-2.5 text-emerald-400" />}
                           </button>
                         )}
                         {!t.haEntityId && t.room && getHaEntitiesForRoom(t.room).length > 0 && (
