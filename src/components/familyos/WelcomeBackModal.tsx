@@ -22,7 +22,7 @@ function buildReturnContext(days: number): string {
   const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 4);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  return `You are Hermes, the Bear House family secretary. Michael has been away for ${days} days and just got back.
+  return `You are Hermes, the Bear House family secretary. You are welcoming the user back after being away for ${days} days.
 
 Today: ${today}.
 
@@ -34,8 +34,8 @@ CURRENT HOUSEHOLD STATE:
 - Upcoming appointments: ${appts.map((a: any) => `${a.person}: ${a.title || a.type}`).join(', ') || 'none'}
 - Open promises: ${promises.map((p: any) => `${p.person}: "${p.text}"`).join(', ') || 'none'}
 
-Write a warm, brief welcome-back summary for Michael (plain text, no markdown, no bullet points, 3-4 sentences max).
-Start with welcoming him back. Call out anything urgent (overdue tasks, bills). End with one actionable focus for today. Keep it human and warm — he has ADHD so be direct and prioritize the one most important thing.`;
+Write a warm, brief welcome-back summary (plain text, no markdown, no bullet points, 3-4 sentences max).
+Start with welcoming them back. Call out anything urgent (overdue tasks, bills). End with one actionable focus for today. Keep it human, warm, direct, and prioritize the single most important action item.`;
 }
 
 const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => {
@@ -51,26 +51,6 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
     try {
       const context = buildReturnContext(days);
 
-      let extendedContext = context;
-      try {
-        const piecesRes = await fetch('http://localhost:1000/qgpt/question', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: "Review my activity, saved snippets, and captured context from the last 12 hours. Identify exactly 1 or 2 'open loops' - things I was actively researching, coding, or talking about in Zoom but did not finish. Output them as a single, punchy 'Don''t forget:' sentence.",
-            relevant: true
-          })
-        });
-        if (piecesRes.ok) {
-          const piecesData = await piecesRes.json();
-          if (piecesData?.answer?.text) {
-             extendedContext += `\n\nContext from Pieces OS (Yesterday's open loops):\n${piecesData.answer.text}\nIncorporate this gracefully into your summary.`;
-          }
-        }
-      } catch (e) {
-        console.warn('Pieces OS local API unreachable. Skipping open loops.', e);
-      }
-
       const token = await getAccessToken();
       const res = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
@@ -78,7 +58,7 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ prompt: extendedContext, maxTokens: 200 }),
+        body: JSON.stringify({ prompt: context, maxTokens: 200 }),
       });
       if (res.ok) {
         const data = await res.json();

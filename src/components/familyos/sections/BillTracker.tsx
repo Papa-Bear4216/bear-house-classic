@@ -116,7 +116,14 @@ const BillTracker: React.FC = () => {
   const active = bills.filter(b => !b.deletedAt);
   const deleted = bills.filter(b => !!b.deletedAt);
 
-  const unpaid = active.filter(b => !b.paid).sort((a, b) => (a.dueDate || Infinity) - (b.dueDate || Infinity));
+  const unpaid = active
+    .filter(b => !b.paid)
+    .sort((a, b) => {
+      const aDue = a.dueDate ?? Infinity;
+      const bDue = b.dueDate ?? Infinity;
+      if (aDue === bDue) return 0;
+      return aDue < bDue ? -1 : 1;
+    });
   const paid = active.filter(b => b.paid);
 
   const totalUnpaid = unpaid.reduce((s, b) => s + b.amount, 0);
