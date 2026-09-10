@@ -75,39 +75,56 @@ public class OnDeviceGenAIPlugin extends Plugin {
             return;
         }
 
+        Bitmap bitmap = null;
         try {
             byte[] bytes = Base64.decode(base64Jpeg, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             if (bitmap == null) {
                 call.reject("could not decode image");
                 return;
             }
 
+            final Bitmap finalBitmap = bitmap;
             GenerativeModelFutures model = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
             GenerateContentRequest request = new GenerateContentRequest.Builder(
-                    new ImagePart(bitmap),
+                    new ImagePart(finalBitmap),
                     new TextPart(prompt)
             ).build();
 
             Futures.addCallback(model.generateContent(request), new FutureCallback<GenerateContentResponse>() {
                 @Override
                 public void onSuccess(GenerateContentResponse response) {
-                    List<Candidate> candidates = response.getCandidates();
-                    if (candidates.isEmpty()) {
-                        call.reject("no candidates in response");
-                        return;
+                    try {
+                        List<Candidate> candidates = response.getCandidates();
+                        if (candidates.isEmpty()) {
+                            call.reject("no candidates in response");
+                            return;
+                        }
+                        JSObject result = new JSObject();
+                        result.put("text", candidates.get(0).getText());
+                        call.resolve(result);
+                    } finally {
+                        if (!finalBitmap.isRecycled()) {
+                            finalBitmap.recycle();
+                        }
                     }
-                    JSObject result = new JSObject();
-                    result.put("text", candidates.get(0).getText());
-                    call.resolve(result);
                 }
 
                 @Override
                 public void onFailure(Throwable t) {
-                    call.reject("inference failed: " + t.getMessage());
+                    try {
+                        call.reject("inference failed: " + t.getMessage());
+                    } finally {
+                        if (!finalBitmap.isRecycled()) {
+                            finalBitmap.recycle();
+                        }
+                    }
                 }
             }, executor);
         } catch (Exception e) {
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
             call.reject("analyzeImage failed: " + e.getMessage());
         }
     }

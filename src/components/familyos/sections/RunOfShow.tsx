@@ -17,7 +17,12 @@ export default function RunOfShow() {
 
   const unpaidBills = bills
     .filter(b => !b.paid)
-    .sort((a, b) => (a.dueDate || Infinity) - (b.dueDate || Infinity));
+    .sort((a, b) => {
+      const aDue = a.dueDate ?? Infinity;
+      const bDue = b.dueDate ?? Infinity;
+      if (aDue === bDue) return 0;
+      return aDue < bDue ? -1 : 1;
+    });
 
   const addLogistic = () => {
     if (!newLogistic.trim()) return;
