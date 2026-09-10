@@ -124,6 +124,57 @@ export function getHaEntitiesForRoom(roomName?: string): string[] {
 }
 
 /**
+ * Matches a chore description against available Home Assistant entities for a room.
+ * Matches on the object id (ent.split('.')[1]) using word-boundary token overlap
+ * with the chore text. Does not fall back to roomEntities[0] if there is no match.
+ */
+export function matchHaEntityForChore(
+  choreText: string,
+  roomEntities: string[],
+  roomName?: string
+): string | undefined {
+  if (!choreText || !roomEntities || roomEntities.length === 0) return undefined;
+
+  const choreWords = new Set(
+    (choreText.toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length >= 2)
+  );
+  if (choreWords.size === 0) return undefined;
+
+  const roomWords = new Set(
+    (roomName || '').toLowerCase().match(/[a-z0-9]+/g) || []
+  );
+
+  let bestMatch: string | undefined = undefined;
+  let bestScore = 0;
+
+  for (const ent of roomEntities) {
+    const parts = ent.split('.');
+    if (parts.length < 2) continue;
+    const objectId = parts[1].toLowerCase();
+    const objectTokens = objectId.split('_').filter((t) => t.length >= 2);
+
+    const matchingTokens = objectTokens.filter((t) => choreWords.has(t));
+    if (matchingTokens.length === 0) continue;
+
+    const specificTokens = matchingTokens.filter(
+      (t) => !roomWords.has(t) && t !== 'room'
+    );
+
+    let score = specificTokens.length * 2;
+    if (score === 0 && objectTokens.every((t) => roomWords.has(t) || t === 'room')) {
+      score = matchingTokens.length;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = ent;
+    }
+  }
+
+  return bestMatch;
+}
+
+/**
  * Triggers a Home Assistant device service (toggle, start, etc.) via /api/ha-control.
  */
 export async function triggerHaDevice(

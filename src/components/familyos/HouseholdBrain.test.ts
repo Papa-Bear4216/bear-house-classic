@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveMemberIdByName } from './HouseholdBrain';
 import {
   getHaEntitiesForRoom,
+  matchHaEntityForChore,
   DEFAULT_ROOM_MAP,
   loadRoomMap,
   saveRoomMap,
@@ -216,6 +217,34 @@ describe('Room Map & Home Assistant Entity Linking', () => {
       expect(r.x).toBeLessThanOrEqual(100);
       expect(r.y).toBeGreaterThanOrEqual(0);
       expect(r.y).toBeLessThanOrEqual(100);
+    });
+  });
+
+  describe('matchHaEntityForChore', () => {
+    const kitchenEntities = ['light.kitchen_ceiling', 'switch.kitchen_fan'];
+    const livingEntities = ['light.living_room_main', 'climate.living_room_thermostat', 'vacuum.downstairs_vac'];
+
+    it('matches entity object ID using word-boundary token overlap with chore text', () => {
+      expect(matchHaEntityForChore('Dust ceiling fixture', kitchenEntities, 'Kitchen')).toBe('light.kitchen_ceiling');
+      expect(matchHaEntityForChore('Turn off kitchen fan', kitchenEntities, 'Kitchen')).toBe('switch.kitchen_fan');
+      expect(matchHaEntityForChore('Run downstairs vac', livingEntities, 'Living')).toBe('vacuum.downstairs_vac');
+    });
+
+    it('returns undefined with NO fallback to roomEntities[0] when chore has no device match', () => {
+      // Prior bug bound roomEntities[0] (light.kitchen_ceiling) to arbitrary chores
+      expect(matchHaEntityForChore('Wipe counters', kitchenEntities, 'Kitchen')).toBeUndefined();
+      expect(matchHaEntityForChore('Empty trash', kitchenEntities, 'Kitchen')).toBeUndefined();
+      expect(matchHaEntityForChore('Fold laundry', livingEntities, 'Living')).toBeUndefined();
+    });
+
+    it('does not falsely bind a device when the only matching word is the room name itself', () => {
+      expect(matchHaEntityForChore('Mop kitchen floor', kitchenEntities, 'Kitchen')).toBeUndefined();
+      expect(matchHaEntityForChore('Vacuum living room rug', ['light.living_room_main'], 'Living Room')).toBeUndefined();
+    });
+
+    it('returns undefined for empty input or empty room entities', () => {
+      expect(matchHaEntityForChore('', kitchenEntities, 'Kitchen')).toBeUndefined();
+      expect(matchHaEntityForChore('Dust ceiling', [], 'Kitchen')).toBeUndefined();
     });
   });
 });
