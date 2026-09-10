@@ -11,10 +11,15 @@ export function parseBody<T>(
   return { ok: true, data: result.data };
 }
 
+// Upper bounds so a compromised or buggy client can't stuff the model's context
+// window. 32k chars ~= 8k tokens, well above any legitimate brief/chat turn here.
+const MAX_PROMPT_CHARS = 32_000;
+const MAX_SYSTEM_CHARS = 16_000;
+
 export const ChatBodySchema = z.object({
-  prompt: z.string().optional(),
-  messages: z.array(z.object({ role: z.string(), content: z.string() })).optional(),
-  system: z.string().optional(),
+  prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
+  messages: z.array(z.object({ role: z.string(), content: z.string().max(MAX_PROMPT_CHARS) })).max(50).optional(),
+  system: z.string().max(MAX_SYSTEM_CHARS).optional(),
   maxTokens: z.number().int().positive().max(4096).optional(),
   model: z.string().optional(), // free-form: passed straight to Anthropic (chat.ts:59), not restricted to a fixed set
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
