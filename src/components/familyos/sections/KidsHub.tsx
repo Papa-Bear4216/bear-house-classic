@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2 } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import ChoreRunnerGame from '@/components/familyos/ChoreRunnerGame';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
 const HW_STATUSES = ['Not Started', 'In Progress', 'Done'];
@@ -57,13 +58,14 @@ interface AllowanceEntry {
 const KidsHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
   const kids = householdMembers.filter((m) => m.role === 'child').map((m) => m.name);
-  const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance'>('homework');
+  const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance' | 'arcade'>('homework');
   const isAdm = currentRole && canDelete(currentRole);
   const TABS = [
     { id: 'homework' as const, label: 'Homework', icon: BookOpen },
     { id: 'grades' as const, label: 'Grades', icon: Star },
     { id: 'activities' as const, label: 'Activities', icon: Activity },
     { id: 'allowance' as const, label: 'Allowance', icon: DollarSign },
+    { id: 'arcade' as const, label: 'Arcade', icon: Gamepad2 },
   ];
 
   return (
@@ -85,6 +87,7 @@ const KidsHub: React.FC = () => {
       {tab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
       {tab === 'activities' && <ActivitiesTab isAdm={!!isAdm} kids={kids} />}
       {tab === 'allowance' && <AllowanceTab isAdm={!!isAdm} kids={kids} />}
+      {tab === 'arcade' && <ChoreRunnerGame />}
     </div>
   );
 };
