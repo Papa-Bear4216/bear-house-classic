@@ -756,6 +756,6 @@ Manual smoke tests once deployed:
 | Compile verification & tests | -- | Passed (tsc 0 errors, 210/210 vitest tests pass, build clean) |
 | Supabase migration applied | -- | Not run - Task 3.3 |
 | Stripe webhook registered | api/stripe-webhook.ts | Verified & active (Endpoint we_1TwCVc8iRdUV8m8kULr2w6Jm, 200 OK) |
-| Keystore purged from git history | -- | Not run (destructive, needs confirmation) - Task 3.5 |
+| Keystore purged from git history | .gitignore | Done (Task 3.5 complete, purged via git-filter-repo, backed up to C:/Users/micha/keystores) |
 | Google Home | -- | Not started - needs real OAuth app registration first, out of scope for code generation |
 | Permission matrix | -- | Not built - recommend against it, see 2.1 |
