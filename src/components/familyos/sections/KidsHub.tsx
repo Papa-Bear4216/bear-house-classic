@@ -3,7 +3,7 @@ import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSig
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
-import ChoreRunnerGame from '@/components/familyos/ChoreRunnerGame';
+import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
 const HW_STATUSES = ['Not Started', 'In Progress', 'Done'];
@@ -87,7 +87,7 @@ const KidsHub: React.FC = () => {
       {tab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
       {tab === 'activities' && <ActivitiesTab isAdm={!!isAdm} kids={kids} />}
       {tab === 'allowance' && <AllowanceTab isAdm={!!isAdm} kids={kids} />}
-      {tab === 'arcade' && <ChoreRunnerGame />}
+      {tab === 'arcade' && <ArcadeHub />}
     </div>
   );
 };

@@ -1,15 +1,11 @@
 // api/finance-sync.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, allHouseholdIds } from './_db.js';
-import { fetchAccounts } from './_simplefin.js';
-import { detectRecurring } from './_subscriptions.js';
-import { categorize } from './_categorize.js';
+import { allHouseholdIds, dbGetHouseholdMembersByHouseholdId } from './_db.js';
 import { runDailyBrainChecks } from './daily-brain.js';
 import { notifyPush } from './_notify.js';
 import { json as j } from './_responseHelpers.js';
-
-function makeId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+import { syncMemberFinance } from './_financeCore.js';
 
 /**
  * One push per household per daily run, only when there's something to say —
@@ -53,45 +49,24 @@ export default async function handler(req: Request): Promise<Response> {
   return j({ households: results });
 }
 
+/**
+ * Each household member links their own bank account (see api/finance.ts and
+ * api/_financeCore.ts), so a household with N members can have up to N
+ * independent SimpleFIN connections. Fan out over the roster and sync
+ * whichever members actually have one — most will have none.
+ */
 async function syncHousehold(baseUrl: string, householdId: string): Promise<{ householdId: string; synced?: number; subscriptions?: number; message?: string; error?: string }> {
-  const conn: any = await dbGet('simplefin_access', householdId);
-  if (!conn?.accessUrl) return { householdId, synced: 0, message: 'No linked accounts' };
   try {
-    const end = new Date();
-    const start = new Date(Date.now() - 30 * 86400000);
-    const accounts = await fetchAccounts(conn.accessUrl, start, end);
-    const cache: Record<string, string> = (await dbGet('merchant_category_cache', householdId)) ?? {};
-
-    const raw: any[] = [];
-    for (const acct of accounts) for (const t of acct.transactions) {
-      const amt = parseFloat(t.amount);
-      if (amt >= 0 || t.pending) continue;
-      raw.push({ extId: t.id, amount: Math.abs(amt), date: new Date(t.posted * 1000).toISOString().slice(0, 10), notes: t.description, institutionName: acct.org.name || acct.name });
+    const members = await dbGetHouseholdMembersByHouseholdId(householdId);
+    let synced = 0, subscriptions = 0, anyConnected = false;
+    for (const m of members) {
+      const r = await syncMemberFinance(baseUrl, householdId, m.id, 30);
+      if (r.accounts > 0 || r.synced > 0) anyConnected = true;
+      synced += r.synced;
+      subscriptions += r.subscriptions;
     }
-    const categorized = await categorize(baseUrl, raw, cache);
-    await dbSet('merchant_category_cache', householdId, cache);
-
-    const txns = categorized.map((t) => ({ id: makeId(), amount: t.amount, category: t.category, paidBy: conn.person, date: t.date, notes: t.notes, createdAt: Date.now(), extId: t.extId, source: 'simplefin', institutionName: t.institutionName }));
-
-    const existing: any[] = (await dbGet('familyos_expenses', householdId)) ?? [];
-    const seen = new Set(existing.filter((e: any) => e.extId).map((e: any) => e.extId));
-    const fresh = txns.filter((t) => !seen.has(t.extId));
-    const merged = [...fresh, ...existing].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    await dbSet('familyos_expenses', householdId, merged);
-
-    const bills = detectRecurring(txns);
-    if (bills.length) {
-      const existingBills: any[] = (await dbGet('familyos_bills', householdId)) ?? [];
-      let added = 0;
-      for (const s of bills) {
-        if (!existingBills.some((b: any) => b.name.toLowerCase() === s.merchant.toLowerCase() && b.source === 'simplefin')) {
-          existingBills.push({ id: makeId(), name: s.merchant, amount: s.avgAmount, dueDate: null, paid: false, recurring: true, cadence: s.cadence, priceIncreased: s.priceIncreased, createdAt: Date.now(), source: 'simplefin' });
-          added++;
-        }
-      }
-      if (added) await dbSet('familyos_bills', householdId, existingBills);
-    }
-    return { householdId, synced: fresh.length, subscriptions: bills.length };
+    if (!anyConnected) return { householdId, synced: 0, message: 'No linked accounts' };
+    return { householdId, synced, subscriptions };
   } catch (e: any) {
     return { householdId, error: e?.message || 'sync failed' };
   }

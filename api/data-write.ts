@@ -22,6 +22,20 @@ import { json as j, serverError } from './_responseHelpers.js';
 import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
 
+// These key prefixes are server-managed only (per-member finance data,
+// written exclusively by api/finance.ts / api/finance-sync.ts with
+// owner_member_id set — see the family_data RLS policy). A client write to
+// one of these keys through this generic passthrough would either create the
+// row with owner_member_id left NULL (making it visible to the whole
+// household, defeating the point) or clobber the value out from under the
+// sync job. Reject them outright rather than trust the client not to.
+const SERVER_MANAGED_KEY_PREFIXES = [
+  'simplefin_access_',
+  'familyos_expenses_',
+  'familyos_bills_',
+  'merchant_category_cache_',
+];
+
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -42,6 +56,10 @@ export default async function handler(req: Request): Promise<Response> {
   const parsed = parseBody(DataWriteBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { key, value, householdId, expectedUpdatedAt } = parsed.data;
+
+  if (SERVER_MANAGED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+    return j({ error: 'This key is server-managed and cannot be written directly' }, 403);
+  }
 
   const rl = await checkRateLimit(householdId, 'data-write', 60);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);

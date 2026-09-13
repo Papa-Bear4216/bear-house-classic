@@ -43,6 +43,35 @@ export async function resolveHouseholdId(accessToken: string): Promise<string | 
 }
 
 /**
+ * Resolve the caller's own household_member row (id + role), not just
+ * household_id. Use this wherever a route needs to know WHO is calling —
+ * e.g. to scope data by owner or branch on role (see finance.ts, which uses
+ * this to keep one member's linked bank data from another member's admin
+ * view — see the family_data.owner_member_id RLS policy).
+ * Returns null if the token is invalid or the user has no household row.
+ */
+export async function resolveCallerMember(accessToken: string): Promise<{ householdId: string; memberId: string; role: string } | null> {
+  const anonKey = process.env.SUPABASE_ANON_KEY!;
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+  });
+  if (!userRes.ok) return null;
+  const user = await userRes.json() as any;
+  if (!user?.id) return null;
+
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const memberRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=id,household_id,role`,
+    { headers: headers(serviceKey) }
+  );
+  if (!memberRes.ok) return null;
+  const rows = await memberRes.json() as any[];
+  const row = rows[0];
+  if (!row) return null;
+  return { householdId: row.household_id, memberId: row.id, role: row.role };
+}
+
+/**
  * For true background jobs (crons, external webhooks) with no per-request
  * auth session. Deliberate scope-reduction: assumes exactly one household
  * exists today and throws loudly otherwise, rather than silently guessing.
@@ -107,13 +136,19 @@ export async function dbGet(key: string, householdId: string): Promise<any> {
   return rows[0]?.value ?? null;
 }
 
-/** Upsert a value by key, scoped to one household, into family_data table */
-export async function dbSet(key: string, householdId: string, value: any): Promise<void> {
+/** Upsert a value by key, scoped to one household, into family_data table.
+ * Pass ownerMemberId to restrict the row to that member + superadmins (see
+ * the owner_member_id RLS policy on family_data) — omit it for
+ * household-wide data, which is the default and unchanged behavior for
+ * every pre-existing caller of this function. */
+export async function dbSet(key: string, householdId: string, value: any, ownerMemberId?: string): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const body: Record<string, unknown> = { key, household_id: householdId, value };
+  if (ownerMemberId !== undefined) body.owner_member_id = ownerMemberId;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/family_data`, {
     method: 'POST',
     headers: { ...headers(serviceKey), 'Prefer': 'resolution=merge-duplicates' },
-    body: JSON.stringify({ key, household_id: householdId, value }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

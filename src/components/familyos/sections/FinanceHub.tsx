@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2 } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, isAdmin, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
@@ -20,6 +20,7 @@ interface Expense {
   category: string;
   paidBy: string;
   owner?: string;
+  ownerId?: string;
   date: string;
   notes: string;
   createdAt: number;
@@ -38,13 +39,65 @@ interface LinkedAccount {
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
+const privateExpenseKey = (memberId: string) => `familyos_expenses_${memberId}`;
+
+/**
+ * Bank-synced expenses live in a private, per-member key (family_data row
+ * scoped by owner_member_id — see supabase/migrations/*_scope_family_data_by_owner.sql),
+ * separate from the shared `familyos_expenses` key that manual entries use.
+ * That split is the actual security boundary: RLS only ever syncs a private
+ * row down to its owner or a superadmin, so an admin's device never even
+ * receives another member's bank data — this hook just assembles whatever
+ * already made it through that filter for local display, and never merges
+ * a private row back into the shared key.
+ */
+function useHouseholdExpenses(householdMembers: Array<{ id: string }>) {
+  const memberIds = useMemo(() => (householdMembers || []).map((m) => m.id), [householdMembers]);
+
+  const loadPrivate = useCallback(() => {
+    return memberIds.flatMap((id) => loadJSON<Expense[]>(privateExpenseKey(id), []));
+  }, [memberIds]);
+
+  const [sharedExpenses, setSharedExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
+  const [privateExpenses, setPrivateExpenses] = useState<Expense[]>(loadPrivate);
+
+  useEffect(() => { setPrivateExpenses(loadPrivate()); }, [loadPrivate]);
+
+  useEffect(() => onSyncUpdate((key) => {
+    if (key === 'familyos_expenses' || key === '*') setSharedExpenses(loadJSON('familyos_expenses', []));
+    if (key === '*' || memberIds.some((id) => key === privateExpenseKey(id))) setPrivateExpenses(loadPrivate());
+  }), [memberIds, loadPrivate]);
+
+  const persistShared = useCallback((next: Expense[]) => {
+    setSharedExpenses(next);
+    saveJSON('familyos_expenses', next);
+  }, []);
+
+  /** Merge freshly-synced transactions (from OUR OWN /api/finance sync call)
+   * into local state for immediate display. The server already persisted
+   * them under familyos_expenses_<myMemberId> with owner_member_id set —
+   * this is read-model-only, never writes familyos_expenses. */
+  const addPrivateFromSync = useCallback((transactions: Expense[]) => {
+    setPrivateExpenses((prev) => {
+      const existingIds = new Set(prev.filter((e) => e.extId).map((e) => e.extId));
+      const fresh = transactions.filter((t) => !existingIds.has(t.extId));
+      return [...fresh, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+  }, []);
+
+  const expenses = useMemo(() => [...sharedExpenses, ...privateExpenses], [sharedExpenses, privateExpenses]);
+
+  return { expenses, sharedExpenses, persistShared, addPrivateFromSync };
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────────
 
 const FinanceHub: React.FC = () => {
-  const { currentUser, currentRole } = useAppContext();
+  const { currentUser, currentRole, householdMembers } = useAppContext();
   const [tab, setTab] = useState<'budget' | 'expenses'>('expenses');
   const [viewMode, setViewMode] = useState<'mine' | 'combined'>('combined');
   const isAdm = currentRole && isAdmin(currentRole);
+  const finance = useHouseholdExpenses(householdMembers || []);
 
   if (!isAdm) {
     return (
@@ -91,8 +144,8 @@ const FinanceHub: React.FC = () => {
         })}
       </div>
 
-      {tab === 'budget'   && <BudgetTab   viewMode={viewMode} currentUser={currentUser} />}
-      {tab === 'expenses' && <ExpensesTab viewMode={viewMode} currentUser={currentUser} />}
+      {tab === 'budget'   && <BudgetTab   viewMode={viewMode} currentUser={currentUser} expenses={finance.expenses} />}
+      {tab === 'expenses' && <ExpensesTab viewMode={viewMode} currentUser={currentUser} finance={finance} />}
     </div>
   );
 };
@@ -159,9 +212,12 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
     <div className="bg-bark-700/40 border border-cream-400/10 rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Landmark className="w-4 h-4 text-sage-500" />
-        <span className="text-white text-sm font-semibold">Linked Bank Accounts (SimpleFIN)</span>
+        <span className="text-white text-sm font-semibold">Your Linked Bank Accounts (SimpleFIN)</span>
         {accounts.length > 0 && <span className="bg-sage-600/50 border border-sage-600/30 text-sage-200 text-xs px-1.5 py-0.5 rounded-full">{accounts.length}</span>}
       </div>
+      <p className="text-cream-400/60 text-[11px] -mt-1">
+        Each parent links their own accounts. Only you (and a household superadmin) can see this connection and the transactions it syncs.
+      </p>
       {msg && <div className={`text-xs px-3 py-2 rounded-lg ${msgType === 'err' ? 'bg-rose-950/40 text-rose-300' : 'bg-sage-600/40 text-sage-200'}`}>{msg}</div>}
       {accounts.length > 0 ? (
         <div className="space-y-2">{accounts.map(a => (
@@ -200,10 +256,14 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
   );
 };
 
-const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
+interface ExpensesTabProps extends TabProps {
+  finance: ReturnType<typeof useHouseholdExpenses>;
+}
+
+const ExpensesTab: React.FC<ExpensesTabProps> = ({ viewMode, currentUser, finance }) => {
   const { householdMembers } = useAppContext();
   const expensePayers = householdPersons(householdMembers);
-  const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
+  const { expenses, sharedExpenses, persistShared, addPrivateFromSync } = finance;
   const [showForm, setShowForm]   = useState(false);
   const [amount, setAmount]       = useState('');
   const [category, setCategory]   = useState(BUDGET_CATEGORIES[0]);
@@ -212,61 +272,36 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const [notes, setNotes]         = useState('');
   const [filterMonth, setFilterMonth] = useState(currentMonth());
 
-  const persistExpenses = (next: Expense[]) => { setExpenses(next); saveJSON('familyos_expenses', next); };
-
-  useEffect(() => onSyncUpdate((key) => {
-    if (key !== 'familyos_expenses' && key !== '*') return;
-    setExpenses(loadJSON('familyos_expenses', []));
-  }), []);
-
   const handleBankSync = useCallback((transactions: Expense[], recurringBills: any[]) => {
-    setExpenses(prev => {
-      const existingIds = new Set(prev.filter(e => e.extId).map(e => e.extId));
-      const fresh = transactions.filter(t => !existingIds.has(t.extId));
-      const merged = [...fresh, ...prev];
-      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      saveJSON('familyos_expenses', merged);
-      return merged;
-    });
-
-    if (recurringBills.length > 0) {
-      const existingBills: any[] = loadJSON('familyos_bills', []);
-      const existingNames = new Set(
-        existingBills.filter((b: any) => b.source === 'simplefin').map((b: any) => b.name.toLowerCase()),
-      );
-      const freshBills = recurringBills
-        .filter(b => !existingNames.has(b.merchant))
-        .map(b => ({
-          id: uid(),
-          name: b.merchant,
-          amount: b.avgAmount,
-          dueDate: null,
-          paid: false,
-          recurring: true,
-          createdAt: Date.now(),
-          source: 'simplefin',
-        }));
-      if (freshBills.length > 0) {
-        saveJSON('familyos_bills', [...existingBills, ...freshBills]);
-      }
-    }
-  }, []);
+    // Server already wrote these under our own familyos_expenses_<memberId>
+    // key (and any detected subscriptions under familyos_bills_<memberId>) —
+    // this only updates local state for immediate display.
+    addPrivateFromSync(transactions);
+    void recurringBills; // detected bills are stored server-side; not reflected in this tab's list
+  }, [addPrivateFromSync]);
 
   const add = () => {
     if (!amount) return;
-    persistExpenses([{
+    persistShared([{
       id: uid(), amount: parseFloat(amount), category, paidBy,
       owner: currentUser?.id, date, notes, createdAt: Date.now(), source: 'manual',
-    }, ...expenses]);
+    }, ...sharedExpenses]);
     setAmount(''); setNotes(''); setPaidBy(currentUser?.name || expensePayers[0]); setShowForm(false);
   };
 
-  const del = (id: string) => persistExpenses(expenses.map(e => e.id === id ? { ...e, deletedAt: Date.now() } : e));
+  // Bank-synced rows are server-managed (read-only here); only manually
+  // entered rows — which live in the shared pool — can be deleted from
+  // this view. To remove synced transactions, disconnect/reconnect the
+  // bank link instead.
+  const del = (id: string) => {
+    if (!sharedExpenses.some(e => e.id === id)) return;
+    persistShared(sharedExpenses.map(e => e.id === id ? { ...e, deletedAt: Date.now() } : e));
+  };
 
   const allActive  = expenses.filter(e => !e.deletedAt && e.date.startsWith(filterMonth));
   const myName     = currentUser?.name;
   const active     = viewMode === 'mine'
-    ? allActive.filter(e => e.owner === currentUser?.id || e.paidBy === myName)
+    ? allActive.filter(e => e.owner === currentUser?.id || e.ownerId === currentUser?.id || e.paidBy === myName)
     : allActive;
   const sorted     = [...active].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const total      = active.reduce((s, e) => s + e.amount, 0);
@@ -380,9 +415,11 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
               </div>
             </div>
             <span className="text-white font-semibold whitespace-nowrap">${e.amount.toFixed(2)}</span>
-            <button onClick={() => del(e.id)} className="text-cream-400/60 hover:text-rose-400 transition flex-shrink-0 focus-ring">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {e.source !== 'simplefin' && (
+              <button onClick={() => del(e.id)} className="text-cream-400/60 hover:text-rose-400 transition flex-shrink-0 focus-ring">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -392,9 +429,12 @@ const ExpensesTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
 // ── Budget Tab ────────────────────────────────────────────────────────────────
 
-const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
+interface BudgetTabProps extends TabProps {
+  expenses: Expense[];
+}
+
+const BudgetTab: React.FC<BudgetTabProps> = ({ viewMode, currentUser, expenses }) => {
   const [cats, setCats]       = useState<BudgetCategory[]>(() => loadJSON('familyos_budget', []));
-  const [expenses, setExpenses] = useState<Expense[]>(() => loadJSON('familyos_expenses', []));
   const [showForm, setShowForm] = useState(false);
   const [name, setName]       = useState(BUDGET_CATEGORIES[0]);
   const [budgeted, setBudgeted] = useState('');
@@ -404,7 +444,6 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
 
   useEffect(() => onSyncUpdate((key) => {
     if (key === 'familyos_budget' || key === '*') setCats(loadJSON('familyos_budget', []));
-    if (key === 'familyos_expenses' || key === '*') setExpenses(loadJSON('familyos_expenses', []));
   }), []);
   const add = () => {
     if (!budgeted) return;
@@ -436,7 +475,7 @@ const BudgetTab: React.FC<TabProps> = ({ viewMode, currentUser }) => {
   const allMonthExp = expenses.filter(e => !e.deletedAt && e.date.startsWith(month));
   const myName = currentUser?.name;
   const monthExpenses = viewMode === 'mine'
-    ? allMonthExp.filter(e => e.paidBy === myName || e.owner === currentUser?.id)
+    ? allMonthExp.filter(e => e.paidBy === myName || e.owner === currentUser?.id || e.ownerId === currentUser?.id)
     : allMonthExp;
 
   const totalBudgeted = monthCats.reduce((s, c) => s + c.budgeted, 0);
