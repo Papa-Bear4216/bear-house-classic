@@ -75,7 +75,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
       setHouseholdId(session.householdId);
       // Native Android: register this device for FCM pushes now that the
       // household session is resolved (fire-and-forget; no-op on web builds).
-      void registerForPush();
+      void registerForPush(session.member.id);
       setSubscriptionStatus(session.subscriptionStatus);
       setBypassBilling(session.bypassBilling);
       setVoiceUnlocked(session.voiceUnlocked);

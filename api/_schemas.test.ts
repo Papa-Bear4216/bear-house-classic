@@ -3,7 +3,7 @@ import {
   parseBody, ChatBodySchema, VisionBodySchema, DataWriteBodySchema, FinanceBodySchema,
   BillingActionBodySchema, CalendarSyncBodySchema, ClassroomBodySchema, GmailSuggestionsBodySchema,
   HaFixBodySchema, HaWebhookBodySchema, SecretaryBodySchema, SetupBodySchema, WalmartBodySchema,
-  WebhookBodySchema,
+  WebhookBodySchema, NotifyPersonBodySchema,
 } from './_schemas';
 
 describe('parseBody', () => {
@@ -120,6 +120,34 @@ describe('SetupBodySchema (discriminated union on action)', () => {
 
   it('claimInvite requires no body fields beyond action', () => {
     expect(SetupBodySchema.safeParse({ action: 'claimInvite' }).success).toBe(true);
+  });
+
+  it('validates removeMember', () => {
+    expect(SetupBodySchema.safeParse({ action: 'removeMember', memberId: '123e4567-e89b-12d3-a456-426614174000' }).success).toBe(true);
+    expect(SetupBodySchema.safeParse({ action: 'removeMember', memberId: 'not-a-uuid' }).success).toBe(false);
+  });
+
+  it('validates updateRole', () => {
+    expect(SetupBodySchema.safeParse({ action: 'updateRole', memberId: '123e4567-e89b-12d3-a456-426614174000', role: 'admin' }).success).toBe(true);
+    expect(SetupBodySchema.safeParse({ action: 'updateRole', memberId: '123e4567-e89b-12d3-a456-426614174000', role: 'superadmin' }).success).toBe(false);
+  });
+});
+
+describe('NotifyPersonBodySchema', () => {
+  it('validates a correct payload', () => {
+    expect(NotifyPersonBodySchema.safeParse({
+      personId: '123e4567-e89b-12d3-a456-426614174000',
+      title: 'Hi',
+      body: 'There',
+    }).success).toBe(true);
+  });
+
+  it('rejects invalid uuid', () => {
+    expect(NotifyPersonBodySchema.safeParse({
+      personId: 'invalid',
+      title: 'Hi',
+      body: 'There',
+    }).success).toBe(false);
   });
 });
 

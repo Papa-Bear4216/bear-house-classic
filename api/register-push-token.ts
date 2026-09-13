@@ -37,9 +37,10 @@ export default async function handler(req: Request): Promise<Response> {
   const token = typeof body?.token === 'string' ? body.token.trim() : '';
   if (!token) return j({ error: 'token is required' }, 400);
   const platform = typeof body?.platform === 'string' && body.platform ? body.platform : 'android';
+  const personId = typeof body?.personId === 'string' && body.personId ? body.personId : undefined;
 
   try {
-    await dbUpsertPushToken(householdId, token, platform);
+    await dbUpsertPushToken(householdId, token, platform, personId);
   } catch (e: any) {
     return serverError(e?.message || 'Failed to store device token', 'register-push-token', e);
   }

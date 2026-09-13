@@ -197,5 +197,98 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true, householdId: pending.household_id });
   }
 
-  return j({ error: 'Unknown action. Use: createHousehold | inviteMember | claimInvite' }, 400);
+  if (action === 'removeMember') {
+    const { memberId } = body;
+
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Held to a tighter bar than inviteMember (superadmin/admin) — removal is
+    // more destructive.
+    const callerRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${authUser.id}&select=id,household_id,role`,
+      { headers }
+    );
+    const callerRows = callerRes.ok ? await callerRes.json() as any[] : [];
+    const caller = callerRows[0];
+    if (!caller || caller.role !== 'superadmin') {
+      return j({ error: 'Only superadmin can remove members' }, 403);
+    }
+
+    if (caller.id === memberId) {
+      return j({ error: 'Cannot remove yourself' }, 400);
+    }
+
+    // Cross-tenant guard: target must belong to the caller's own household.
+    const targetRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}&household_id=eq.${caller.household_id}&select=id`,
+      { headers }
+    );
+    const targetRows = targetRes.ok ? await targetRes.json() as any[] : [];
+    if (targetRows.length === 0) {
+      return j({ error: 'No member with that id in your household' }, 404);
+    }
+
+    const deleteRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}`,
+      { method: 'DELETE', headers: { ...headers, Prefer: 'return=minimal' } }
+    );
+    if (!deleteRes.ok) {
+      const detail = await deleteRes.text().catch(() => '');
+      return serverError(`Failed to remove member: ${detail}`, 'setup:removeMember', detail);
+    }
+
+    return j({ ok: true });
+  }
+
+  if (action === 'updateRole') {
+    const { memberId, role } = body;
+
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    const callerRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${authUser.id}&select=id,household_id,role`,
+      { headers }
+    );
+    const callerRows = callerRes.ok ? await callerRes.json() as any[] : [];
+    const caller = callerRows[0];
+    if (!caller || caller.role !== 'superadmin') {
+      return j({ error: 'Only superadmin can change member roles' }, 403);
+    }
+
+    if (caller.id === memberId) {
+      return j({ error: 'Cannot change your own role' }, 400);
+    }
+
+    const targetRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}&household_id=eq.${caller.household_id}&select=id`,
+      { headers }
+    );
+    const targetRows = targetRes.ok ? await targetRes.json() as any[] : [];
+    if (targetRows.length === 0) {
+      return j({ error: 'No member with that id in your household' }, 404);
+    }
+
+    const updateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}`,
+      { method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify({ role }) }
+    );
+    if (!updateRes.ok) {
+      const detail = await updateRes.text().catch(() => '');
+      return serverError(`Failed to update role: ${detail}`, 'setup:updateRole', detail);
+    }
+
+    return j({ ok: true });
+  }
+
+  return j({ error: 'Unknown action. Use: createHousehold | inviteMember | claimInvite | removeMember | updateRole' }, 400);
 }

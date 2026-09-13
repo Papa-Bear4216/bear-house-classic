@@ -24,7 +24,8 @@ type ActionType =
   | 'logEmotion'
   | 'updateMemory'
   | 'clearWeekMeals' | 'setMealPlan'
-  | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry' | 'controlDevice';
+  | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry' | 'controlDevice'
+  | 'discoverSmartHome' | 'notifyPerson' | 'manageMember';
 
 interface ActionParams extends Record<string, any> {}
 
@@ -51,7 +52,11 @@ interface HermesResponse {
 }
 
 // ─── Action executor ─────────────────────────────────────────────────────────
-async function executeAction(action: Action, defaultPerson: string): Promise<{ result: string; ok: boolean }> {
+async function executeAction(
+  action: Action,
+  defaultPerson: string,
+  householdMembers: { id: string; name: string; role: string }[]
+): Promise<{ result: string; ok: boolean }> {
   try {
     const p = action.params;
 
@@ -270,6 +275,80 @@ async function executeAction(action: Action, defaultPerson: string): Promise<{ r
       return { result: `${p.service.replace('_', ' ')}: ${p.entityId}`, ok: true };
     }
 
+    // ── Smart home discovery ──────────────────────────────────────────────
+    if (action.type === 'discoverSmartHome') {
+      const token = await getAccessToken();
+      const res = await fetch(apiUrl('/api/ha-discover'), {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { result: `Couldn't list devices: ${data.error || res.statusText}`, ok: false };
+      }
+      const data = await res.json();
+      const list = (data.entities || [])
+        .map((e: any) => `${e.friendly_name} (${e.entity_id}, ${e.state})`)
+        .join(', ');
+      return { result: data.count ? `Found ${data.count} device(s): ${list}` : 'No controllable devices found', ok: true };
+    }
+
+    // ── Targeted notification ───────────────────────────────────────────────
+    if (action.type === 'notifyPerson') {
+      const target = householdMembers.find(
+        (m) => m.name.toLowerCase() === String(p.person || '').toLowerCase()
+      );
+      if (!target) return { result: `No family member named "${p.person}"`, ok: false };
+
+      const token = await getAccessToken();
+      const res = await fetch(apiUrl('/api/notify-person'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ personId: target.id, title: p.title || 'Bear House', body: p.body || p.message || '' }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { result: `Couldn't notify ${target.name}: ${data.error || res.statusText}`, ok: false };
+      }
+      return { result: `Notified ${target.name}`, ok: true };
+    }
+
+    // ── Member management (superadmin only, enforced server-side too) ──────
+    if (action.type === 'manageMember') {
+      const token = await getAccessToken();
+      if (p.op === 'remove') {
+        const target = householdMembers.find(
+          (m) => m.name.toLowerCase() === String(p.person || '').toLowerCase()
+        );
+        if (!target) return { result: `No family member named "${p.person}"`, ok: false };
+        const res = await fetch(apiUrl('/api/setup'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ action: 'removeMember', memberId: target.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { result: `Couldn't remove ${target.name}: ${data.error || res.statusText}`, ok: false };
+        return { result: `Removed ${target.name} from the family`, ok: true };
+      }
+      if (p.op === 'updateRole') {
+        const target = householdMembers.find(
+          (m) => m.name.toLowerCase() === String(p.person || '').toLowerCase()
+        );
+        if (!target) return { result: `No family member named "${p.person}"`, ok: false };
+        const res = await fetch(apiUrl('/api/setup'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ action: 'updateRole', memberId: target.id, role: p.role }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { result: `Couldn't update ${target.name}'s role: ${data.error || res.statusText}`, ok: false };
+        return { result: `Updated ${target.name}'s role to ${p.role}`, ok: true };
+      }
+      return { result: `Unknown member management operation: "${p.op}"`, ok: false };
+    }
+
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
       const note = `[${new Date().toLocaleDateString()}] ${p.memory}`;
@@ -399,6 +478,12 @@ genericAction: {type, params: {domain, op: "add"|"update"|"delete"|"clear", ...f
   For update/delete, pass {match: "partial text to find the item"} instead of full fields.
 controlDevice: {type, params: {domain: "light"|"switch"|"lock"|"climate"|"fan"|"cover", service: "turn_on"|"turn_off"|"toggle"|"lock"|"unlock"|"open_cover"|"close_cover", entityId: "domain.entity_name e.g. light.living_room"}}
   Controls a real Home Assistant device. Only use an entityId the user has actually mentioned or that you've seen referenced in prior conversation — never invent one. If unsure of the exact entity ID, ask the user first instead of guessing.
+discoverSmartHome: {type, params: {}}
+  Lists available Home Assistant devices (lights, switches, locks, climate, fans, covers, vacuums) with their entity IDs and current state. Call this BEFORE controlDevice if you don't already know the exact entityId for what the user asked about — never guess an entityId.
+notifyPerson: {type, params: {person: "family member's first name", title: "short title", body: "message text"}}
+  Sends a push notification directly to that person's phone. Only use a name that appears in the Family list above.
+manageMember: {type, params: {op: "remove"|"updateRole", person: "family member's first name", role?: "admin"|"child"|"pet"}}
+  Superadmin only — the server will reject this if the current user isn't superadmin. role is required and must be one of admin|child|pet when op is "updateRole".
 
 ═══ RULES ═══
 - Use actions whenever the user asks you to DO something (add, complete, mark, log, remove, etc.)
@@ -473,6 +558,9 @@ const ACTION_ICONS: Partial<Record<ActionType, string>> = {
   addCarMaintenanceEntry: '🚗',
   genericAction: '⚡',
   controlDevice: '🏠',
+  discoverSmartHome: '🔍',
+  notifyPerson: '📲',
+  manageMember: '👥',
 };
 
 // ─── Proactive greeting ─────────────────────────────────────────────────────
@@ -602,7 +690,7 @@ const HermesChat: React.FC = () => {
     const executed: ExecutedAction[] = [];
     const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
     for (const action of response.actions || []) {
-      const { result, ok } = await executeAction(action, defaultPerson);
+      const { result, ok } = await executeAction(action, defaultPerson, householdMembers);
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated
       if (action.type === 'updateMemory') {

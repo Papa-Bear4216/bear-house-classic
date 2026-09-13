@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2 } from 'lucide-react';
+import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2, Sparkles } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, isAdmin, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { onSyncUpdate } from '@/lib/sync';
+import { tryOnDeviceText } from '@/lib/onDeviceVision';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
 
@@ -429,6 +430,70 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ viewMode, currentUser, financ
 
 // ── Budget Tab ────────────────────────────────────────────────────────────────
 
+/** Last 3 full months of per-category spend, oldest → newest, for the given
+ * anchor month. Feeds both the deterministic estimate and the Nano prompt —
+ * this is the "data ingested read only via bank linking" the budget builder
+ * works from (expenses already only ever contains bank-synced + manual
+ * rows the caller is allowed to see, per useHouseholdExpenses above). */
+function trailingMonths(anchorMonth: string): string[] {
+  const now = new Date(anchorMonth + '-01');
+  return [3, 2, 1].map(i => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return d.toISOString().slice(0, 7);
+  });
+}
+
+function monthlyHistoryByCategory(expenses: Expense[], anchorMonth: string, categories: string[]): Record<string, number[]> {
+  const months = trailingMonths(anchorMonth);
+  const out: Record<string, number[]> = {};
+  for (const c of categories) {
+    out[c] = months.map(m => Math.round(
+      expenses.filter(e => !e.deletedAt && e.category === c && e.date.startsWith(m)).reduce((s, e) => s + e.amount, 0)
+    ));
+  }
+  return out;
+}
+
+/** Plain 3-month-average estimate — no AI involved. Always available, and
+ * used both as the fallback when on-device Nano can't run and as the input
+ * Nano itself reasons on top of. */
+function estimateAllCategories(expenses: Expense[], anchorMonth: string, categories: string[]): Record<string, number> {
+  const history = monthlyHistoryByCategory(expenses, anchorMonth, categories);
+  const out: Record<string, number> = {};
+  for (const c of categories) {
+    const nonZero = history[c].filter(t => t > 0);
+    out[c] = nonZero.length ? Math.round(nonZero.reduce((s, t) => s + t, 0) / nonZero.length) : 0;
+  }
+  return out;
+}
+
+function buildBudgetPrompt(history: Record<string, number[]>): string {
+  return `You're building a monthly household budget from real bank-synced spending history. Below is each category's actual total spend for the last three months (oldest to newest, in USD; 0 means no spending that month):
+
+${JSON.stringify(history)}
+
+For each category, suggest a sensible monthly budget: usually close to the recent average, rounded to a clean number, nudged up slightly for headroom — but don't let one unusually high month skew it, and don't invent spending that isn't there.
+
+Respond with ONLY raw JSON (no markdown fences, no commentary), exactly this shape with every one of these keys present and numeric values:
+{"Housing":0,"Food":0,"Transportation":0,"Utilities":0,"Insurance":0,"Entertainment":0,"Clothing":0,"Healthcare":0,"Savings":0,"Kids":0,"Pets":0,"Other":0}`;
+}
+
+function parseBudgetSuggestion(text: string, categories: string[]): Record<string, number> | null {
+  try {
+    const cleaned = text.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const out: Record<string, number> = {};
+    for (const c of categories) {
+      const v = Number((parsed as any)[c]);
+      out[c] = Number.isFinite(v) && v >= 0 ? Math.round(v) : 0;
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 interface BudgetTabProps extends TabProps {
   expenses: Expense[];
 }
@@ -439,8 +504,51 @@ const BudgetTab: React.FC<BudgetTabProps> = ({ viewMode, currentUser, expenses }
   const [name, setName]       = useState(BUDGET_CATEGORIES[0]);
   const [budgeted, setBudgeted] = useState('');
   const [month]               = useState(currentMonth());
+  const [building, setBuilding] = useState(false);
+  const [suggestion, setSuggestion] = useState<Record<string, number> | null>(null);
+  const [suggestionSource, setSuggestionSource] = useState<'on-device' | 'estimate' | null>(null);
+  const [suggestionEdits, setSuggestionEdits] = useState<Record<string, string>>({});
 
   const save = (next: BudgetCategory[]) => { setCats(next); saveJSON('familyos_budget', next); };
+
+  /** Builds a full budget from bank-synced + manual spending history.
+   * Tries on-device Gemini Nano first (nothing leaves the phone — only
+   * category totals go into the prompt, never line items); if Nano isn't
+   * available or returns something unparseable, falls back to a plain
+   * 3-month average so the button always produces something. Either way
+   * this only reads `expenses` (already scoped to what this viewer is
+   * allowed to see) and never writes until the user hits Apply. */
+  const autoBuildBudget = useCallback(async () => {
+    setBuilding(true);
+    try {
+      const history = monthlyHistoryByCategory(expenses, month, BUDGET_CATEGORIES);
+      const estimate = estimateAllCategories(expenses, month, BUDGET_CATEGORIES);
+      const nano = await tryOnDeviceText(buildBudgetPrompt(history));
+      const parsed = nano.ok ? parseBudgetSuggestion(nano.text, BUDGET_CATEGORIES) : null;
+      const result = parsed || estimate;
+      setSuggestion(result);
+      setSuggestionSource(parsed ? 'on-device' : 'estimate');
+      setSuggestionEdits(Object.fromEntries(BUDGET_CATEGORIES.map(c => [c, String(result[c] ?? 0)])));
+    } finally {
+      setBuilding(false);
+    }
+  }, [expenses, month]);
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    let next = cats;
+    for (const c of BUDGET_CATEGORIES) {
+      const amt = parseFloat(suggestionEdits[c] ?? '0');
+      if (!amt || amt <= 0) continue;
+      const existing = next.find(x => x.name === c && x.month === month);
+      next = existing
+        ? next.map(x => x.id === existing.id ? { ...x, budgeted: amt } : x)
+        : [...next, { id: uid(), name: c, budgeted: amt, month }];
+    }
+    save(next);
+    setSuggestion(null);
+    setSuggestionSource(null);
+  };
 
   useEffect(() => onSyncUpdate((key) => {
     if (key === 'familyos_budget' || key === '*') setCats(loadJSON('familyos_budget', []));
@@ -505,10 +613,54 @@ const BudgetTab: React.FC<BudgetTabProps> = ({ viewMode, currentUser, expenses }
 
       <div className="flex items-center justify-between">
         <span className="text-cream-400/60 text-sm">{new Date(month + '-01').toLocaleDateString([], { month: 'long', year: 'numeric' })}</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
-          <Plus className="w-3.5 h-3.5" /> Set Budget
-        </button>
+        <div className="flex gap-2">
+          <button onClick={autoBuildBudget} disabled={building}
+            className="flex items-center gap-1 bg-bark-700 hover:bg-bark-600 border border-honey-500/30 disabled:opacity-60 text-honey-300 text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
+            <Sparkles className={`w-3.5 h-3.5 ${building ? 'animate-pulse' : ''}`} /> {building ? 'Building…' : 'Build with AI'}
+          </button>
+          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring">
+            <Plus className="w-3.5 h-3.5" /> Set Budget
+          </button>
+        </div>
       </div>
+
+      {suggestion && (
+        <div className="bg-bark-700/60 border border-honey-500/30 rounded-xl p-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-white text-sm font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-honey-400 flex-shrink-0" />
+              <span>Suggested budget</span>
+            </div>
+            <button onClick={() => { setSuggestion(null); setSuggestionSource(null); }} className="text-cream-400/60 hover:text-white text-xs focus-ring flex-shrink-0">
+              Dismiss
+            </button>
+          </div>
+          <p className="text-cream-400/60 text-[11px] -mt-1.5">
+            {suggestionSource === 'on-device'
+              ? 'Built on-device (Gemini Nano) from your last 3 months of bank-synced spending — nothing left your phone.'
+              : 'On-device AI wasn’t available, so this is a plain 3-month average of your bank-synced spending instead.'}
+            {' '}Review the numbers, then apply.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {BUDGET_CATEGORIES.map(c => (
+              <div key={c} className="flex items-center justify-between gap-2 bg-bark-800/50 border border-cream-400/10 rounded-lg px-2 py-1.5">
+                <span className="text-cream-200 text-xs truncate">{c}</span>
+                <input
+                  type="number"
+                  value={suggestionEdits[c] ?? '0'}
+                  onChange={e => setSuggestionEdits(prev => ({ ...prev, [c]: e.target.value }))}
+                  className="w-16 bg-bark-800 border border-cream-400/10 rounded px-1.5 py-1 text-white text-xs text-right outline-none"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button onClick={applySuggestion} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1.5 rounded-lg transition focus-ring">
+              Apply to {new Date(month + '-01').toLocaleDateString([], { month: 'long' })}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">

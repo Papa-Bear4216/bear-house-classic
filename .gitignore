@@ -34,3 +34,7 @@ ha_states.json
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Android release keystore — never commit signing keys
+familyos-release.keystore
+

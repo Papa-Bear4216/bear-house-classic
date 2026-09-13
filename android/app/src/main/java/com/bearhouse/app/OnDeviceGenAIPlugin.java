@@ -129,6 +129,59 @@ public class OnDeviceGenAIPlugin extends Plugin {
         }
     }
 
+    /**
+     * Text-only prompt path (no image) — added for the on-device budget
+     * builder, which feeds Nano a JSON summary of bank-synced spending by
+     * category rather than a photo. Mirrors analyzeImage's request/callback
+     * shape exactly, just without the ImagePart/Bitmap handling.
+     *
+     * NOTE: written without a local Android build to verify against (this
+     * session's device shell was unavailable) — GenerateContentRequest.Builder
+     * took (ImagePart, TextPart) above, so a single-arg TextPart-only Builder
+     * call is expected to work the same way per the ML Kit GenAI Prompt API,
+     * but build/run this once before relying on it.
+     */
+    @PluginMethod
+    public void analyzeText(PluginCall call) {
+        String prompt = call.getString("prompt");
+        if (prompt == null) {
+            call.reject("prompt is required");
+            return;
+        }
+        if (Build.VERSION.SDK_INT < 26) {
+            call.reject("on-device GenAI requires Android 8.0 (API 26) or higher");
+            return;
+        }
+
+        try {
+            GenerativeModelFutures model = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
+            GenerateContentRequest request = new GenerateContentRequest.Builder(
+                    new TextPart(prompt)
+            ).build();
+
+            Futures.addCallback(model.generateContent(request), new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse response) {
+                    List<Candidate> candidates = response.getCandidates();
+                    if (candidates.isEmpty()) {
+                        call.reject("no candidates in response");
+                        return;
+                    }
+                    JSObject result = new JSObject();
+                    result.put("text", candidates.get(0).getText());
+                    call.resolve(result);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    call.reject("inference failed: " + t.getMessage());
+                }
+            }, executor);
+        } catch (Exception e) {
+            call.reject("analyzeText failed: " + e.getMessage());
+        }
+    }
+
     private static String statusToString(int status) {
         if (status == FeatureStatus.AVAILABLE) return "available";
         if (status == FeatureStatus.DOWNLOADABLE) return "downloadable";

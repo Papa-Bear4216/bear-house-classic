@@ -162,6 +162,11 @@ export const SetupBodySchema = z.discriminatedUnion('action', [
     color: z.string().trim().default('slate'),
   }),
   z.object({ action: z.literal('claimInvite') }),
+  z.object({ action: z.literal('removeMember'), memberId: z.string().uuid() }),
+  z.object({
+    action: z.literal('updateRole'), memberId: z.string().uuid(),
+    role: z.enum(['admin', 'child', 'pet']),
+  }),
 ]);
 
 export const BriefingParamsSchema = z.object({
@@ -226,3 +231,9 @@ export const WebhookBodySchema = z.discriminatedUnion('type', [
     notes: z.string().default(''), notify: z.boolean().optional(), token: z.string().optional(),
   }),
 ]);
+
+export const NotifyPersonBodySchema = z.object({
+  personId: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(1000),
+});

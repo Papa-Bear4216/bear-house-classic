@@ -3,11 +3,16 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 interface OnDeviceGenAIPlugin {
   checkAvailability(): Promise<{ status: 'available' | 'downloadable' | 'downloading' | 'unavailable' }>;
   analyzeImage(opts: { base64Jpeg: string; prompt: string }): Promise<{ text: string }>;
+  analyzeText(opts: { prompt: string }): Promise<{ text: string }>;
 }
 
 const OnDeviceGenAI = registerPlugin<OnDeviceGenAIPlugin>('OnDeviceGenAI');
 
 export type OnDeviceVisionResult =
+  | { ok: true; text: string; source: 'on-device' }
+  | { ok: false };
+
+export type OnDeviceTextResult =
   | { ok: true; text: string; source: 'on-device' }
   | { ok: false };
 
@@ -21,6 +26,23 @@ export async function tryOnDeviceVision(base64: string, prompt: string): Promise
     const { status } = await OnDeviceGenAI.checkAvailability();
     if (status !== 'available') return { ok: false };
     const { text } = await OnDeviceGenAI.analyzeImage({ base64Jpeg: base64, prompt });
+    return { ok: true, text, source: 'on-device' };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Text-only counterpart of tryOnDeviceVision — no image, just a prompt.
+ * Used by the budget builder to hand Nano a JSON summary of bank-synced
+ * spending and get structured suggestions back, entirely on-device (the
+ * numbers never leave the phone). Same uniform ok:false collapse on any
+ * failure — callers fall back to a plain deterministic estimate instead. */
+export async function tryOnDeviceText(prompt: string): Promise<OnDeviceTextResult> {
+  if (!Capacitor.isNativePlatform()) return { ok: false };
+  try {
+    const { status } = await OnDeviceGenAI.checkAvailability();
+    if (status !== 'available') return { ok: false };
+    const { text } = await OnDeviceGenAI.analyzeText({ prompt });
     return { ok: true, text, source: 'on-device' };
   } catch {
     return { ok: false };

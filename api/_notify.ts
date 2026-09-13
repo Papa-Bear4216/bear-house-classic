@@ -120,17 +120,16 @@ async function getFcmAccessToken(): Promise<string> {
 }
 
 /**
- * Send a household-wide push to every device registered under that household.
- * Fire-and-forget like notifyIFTTT: a push failure must never break the
- * caller's real work. Dead tokens (FCM says NOT_FOUND/UNREGISTERED) are
- * pruned inline so the table self-cleans — no separate cron needed.
+ * Send one FCM push to an explicit list of tokens. Shared by notifyPush
+ * (household-wide) and api/notify-person.ts (targeted) so the JWT-signing
+ * and dead-token-pruning logic exists in exactly one place. Returns the
+ * count of tokens the send was attempted against (not delivery confirmation
+ * — FCM v1 accepting a message doesn't guarantee the device receives it).
+ * Fire-and-forget semantics preserved: never throws on a per-token failure.
  */
-export async function notifyPush(householdId: string, title: string, body: string): Promise<void> {
-  if (!SA) return; // FIREBASE_SERVICE_ACCOUNT missing → silent no-op, like notifyIFTTT
+export async function sendPushToTokens(tokens: string[], title: string, body: string): Promise<number> {
+  if (!SA || !tokens.length) return 0;
   try {
-    const tokens = await dbGetPushTokensByHouseholdId(householdId);
-    if (!tokens.length) return;
-
     const accessToken = await getFcmAccessToken();
     await Promise.allSettled(
       tokens.map(async (token) => {
@@ -144,9 +143,6 @@ export async function notifyPush(householdId: string, title: string, body: strin
             }
           );
           if (!res.ok) {
-            // FCM v1 surfaces errors as JSON in the body — a 404 alone is NOT
-            // the signal (404s can carry other statuses). Prune only on the
-            // explicit dead-token statuses, never on HTTP 400.
             const text = await res.text().catch(() => '');
             let status = '';
             try { status = (JSON.parse(text) as any)?.error?.status ?? ''; } catch { /* keep '' */ }
@@ -159,7 +155,15 @@ export async function notifyPush(householdId: string, title: string, body: strin
         }
       })
     );
+    return tokens.length;
   } catch {
-    // best-effort — swallow, like notifyIFTTT
+    return 0;
   }
+}
+
+export async function notifyPush(householdId: string, title: string, body: string): Promise<void> {
+  if (!SA) return;
+  const tokens = await dbGetPushTokensByHouseholdId(householdId).catch(() => []);
+  if (!tokens.length) return;
+  await sendPushToTokens(tokens, title, body);
 }

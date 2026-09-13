@@ -13,14 +13,14 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { apiUrl } from './api';
 import { getAccessToken } from './householdAuth';
 
-async function sendTokenToServer(token: string): Promise<void> {
+async function sendTokenToServer(token: string, personId: string): Promise<void> {
   try {
     const accessToken = await getAccessToken();
     if (!accessToken) return; // not logged in — skip silently, retried next login
     await fetch(apiUrl('/api/register-push-token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ token, platform: 'android' }),
+      body: JSON.stringify({ token, platform: 'android', personId }),
     });
   } catch (e) {
     // best-effort — a failed token upload must never surface to the user
@@ -28,7 +28,7 @@ async function sendTokenToServer(token: string): Promise<void> {
   }
 }
 
-export async function registerForPush(): Promise<void> {
+export async function registerForPush(personId: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return; // web build: no-op
   try {
     // Android 13+ shows the system runtime permission dialog here. If it was
@@ -38,7 +38,7 @@ export async function registerForPush(): Promise<void> {
     if (perm.receive === 'granted' || perm.receive === 'prompt') {
       await PushNotifications.register();
       void PushNotifications.addListener('registration', (reg) => {
-        void sendTokenToServer(reg.value);
+        void sendTokenToServer(reg.value, personId);
       });
     }
     void PushNotifications.addListener('registrationError', (err) => {

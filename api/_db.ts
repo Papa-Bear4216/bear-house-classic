@@ -456,12 +456,16 @@ export async function dbCreateHouseholdMember(member: {
 /** Upsert one FCM device token for a household. token is unique → ON CONFLICT
  * updates household_id/platform/updated_at (re-registrations, re-installs,
  * account switches). Service role only; browser never touches this table. */
-export async function dbUpsertPushToken(householdId: string, token: string, platform: string = 'android'): Promise<void> {
+export async function dbUpsertPushToken(
+  householdId: string, token: string, platform: string = 'android', personId?: string
+): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const body: Record<string, unknown> = { household_id: householdId, token, platform, updated_at: new Date().toISOString() };
+  if (personId) body.person_id = personId;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/device_tokens`, {
     method: 'POST',
     headers: { ...headers(serviceKey), 'Prefer': 'resolution=merge-duplicates' },
-    body: JSON.stringify({ household_id: householdId, token, platform, updated_at: new Date().toISOString() }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
@@ -474,6 +478,20 @@ export async function dbGetPushTokensByHouseholdId(householdId: string): Promise
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/device_tokens?household_id=eq.${encodeURIComponent(householdId)}&select=token`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  const rows = await res.json() as any[];
+  return rows.map((r) => r.token);
+}
+
+/** Device tokens registered to one specific person within a household.
+ * Scoped by both household_id and person_id so a stale/forged personId
+ * from another household can never match. */
+export async function dbGetDeviceTokensByPersonId(householdId: string, personId: string): Promise<string[]> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/device_tokens?household_id=eq.${encodeURIComponent(householdId)}&person_id=eq.${encodeURIComponent(personId)}&select=token`,
     { headers: headers(serviceKey) }
   );
   if (!res.ok) return [];
