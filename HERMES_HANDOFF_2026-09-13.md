@@ -382,7 +382,7 @@ alter table public.device_tokens
 create index if not exists device_tokens_person_id_idx
   on public.device_tokens(household_id, person_id);
 ```
-**Not yet run against Supabase.** See Task 3.3.
+**Applied against Supabase live database on 2026-09-13.** Column `person_id` and index `device_tokens_person_id_idx` active.
 
 **(d) `api/register-push-token.ts`** — accepts and stores `personId`:
 ```typescript
@@ -754,7 +754,7 @@ Manual smoke tests once deployed:
 | Push registration threads personId | src/lib/push.ts, src/contexts/AppContext.tsx | Done |
 | Hermes action types + executeAction cases | src/components/familyos/HermesChat.tsx | Done (Task 3.2 complete) |
 | Compile verification & tests | -- | Passed (tsc 0 errors, 210/210 vitest tests pass, build clean) |
-| Supabase migration applied | -- | Not run - Task 3.3 |
+| Supabase migration applied | supabase/migrations/20260913010000_device_tokens_person_id.sql | Done (Applied to live database) |
 | Stripe webhook registered | api/stripe-webhook.ts | Verified & active (Endpoint we_1TwCVc8iRdUV8m8kULr2w6Jm, 200 OK) |
 | Keystore purged from git history | .gitignore | Done (Task 3.5 complete, purged via git-filter-repo, backed up to C:/Users/micha/keystores) |
 | Google Home | -- | Not started - needs real OAuth app registration first, out of scope for code generation |
