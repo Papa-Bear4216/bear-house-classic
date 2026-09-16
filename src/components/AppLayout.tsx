@@ -292,16 +292,17 @@ const AppLayout: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-display font-extrabold text-base text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-white/10">
-              🐻
+              🚂
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-display font-black text-sm tracking-tight text-white">FamilyOS</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-display font-black text-sm tracking-tight text-white">HotMessExpress</span>
+                <span className="text-[11px] text-amber-400 font-bold hidden xs:inline tracking-tight">— The Family OS</span>
                 <span 
-                  className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden xs:inline cursor-help"
+                  className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden md:inline cursor-help"
                   title="HotMessExpress — A proud product of Dysfunction Junction 🚂"
                 >
-                  HOT MESS · DYSFUNCTION JUNCTION 🚂
+                  DYSFUNCTION JUNCTION 🚂
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 flex items-center gap-1.5">

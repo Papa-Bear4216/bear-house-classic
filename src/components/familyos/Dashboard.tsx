@@ -319,16 +319,19 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       {/* Hero Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-display">
-              Household Command
+              HotMessExpress
             </h2>
+            <span className="text-sm sm:text-base font-bold text-amber-400 font-display">
+              — The Family OS
+            </span>
             <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Hot Mess Express
+              Junction Command 🚂
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Dopamine-driven family coordination. One bite-sized win at a time.
+            Dopamine-driven household coordination. One bite-sized win at a time.
           </p>
         </div>
 
