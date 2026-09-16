@@ -37,7 +37,10 @@ export default async function handler(req: Request): Promise<Response> {
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const rl = await checkRateLimit(householdId, 'ha-cameras', 60);
-  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
+  if (!rl.allowed) {
+    const retry = 'retryAfterSeconds' in rl ? rl.retryAfterSeconds : 60;
+    return j({ error: `Rate limit exceeded, try again in ${retry}s` }, 429);
+  }
 
   const url = new URL(req.url);
   const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);

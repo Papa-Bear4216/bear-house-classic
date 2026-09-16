@@ -39,7 +39,10 @@ export default async function handler(req: Request): Promise<Response> {
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const rl = await checkRateLimit(householdId, 'ha-discover', 20);
-  if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
+  if (!rl.allowed) {
+    const retry = 'retryAfterSeconds' in rl ? rl.retryAfterSeconds : 20;
+    return j({ error: `Rate limit exceeded, try again in ${retry}s` }, 429);
+  }
 
   const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   if (!HA_URL || !HA_TOKEN) return serverError('Home Assistant is not configured', 'ha-discover');
