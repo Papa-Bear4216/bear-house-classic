@@ -32,6 +32,8 @@ import {
 import { useAppContext } from '@/contexts/AppContext';
 import { onSyncUpdate } from '@/lib/sync';
 import { logActivity } from '@/lib/householdActivity';
+import { triggerConfetti } from '@/lib/confetti';
+import { toast } from 'sonner';
 import AlertModal from './AlertModal';
 import FocusMode from './FocusMode';
 import ExportChoresModal from './ExportChoresModal';
@@ -320,6 +322,12 @@ const HouseholdBrain: React.FC = () => {
 
     const memberId = resolveMemberIdByName(householdMembers, target.person);
     if (memberId) awardPoints(memberId, POINT_VALUES.default);
+
+    triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 60);
+    toast.success('Chore completed! 🔥', {
+      description: `"${target.text}" is done. +10 points!`,
+      duration: 3000,
+    });
     // If recurring, generate next instance
     if (target.recurrence) {
       const nextAt = nextRecurrence(now, target.recurrence);
@@ -679,25 +687,25 @@ const HouseholdBrain: React.FC = () => {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition flex items-center gap-1 ${
-                    tab === t ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 shadow-sm ${
+                    tab === t ? 'bg-amber-500 text-slate-950 font-bold shadow-amber-500/25 scale-[1.02]' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
                   }`}
                 >
-                  {t === 'Recurring' && <Repeat className="w-3 h-3" />}
-                  {t} <span className="opacity-70 ml-1">{count}</span>
+                  {t === 'Recurring' && <Repeat className="w-3.5 h-3.5" />}
+                  {t} <span className="opacity-70 ml-1 font-mono text-xs">{count}</span>
                 </button>
               );
             })}
             <button
               onClick={() => setFocusMode((f) => !f)}
               disabled={filteredTasks.length === 0}
-              className={`ml-auto px-3 py-1.5 rounded-lg text-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                focusMode ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              className={`ml-auto px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
+                focusMode ? 'bg-amber-500 text-slate-950 shadow-amber-500/25' : 'bg-white/10 hover:bg-white/15 text-amber-300 border border-amber-500/30'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" /> Focus
+              <Sparkles className="w-3.5 h-3.5" /> Sprint
             </button>
-            <button onClick={overdueAlert} className="bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-1.5 rounded-lg text-sm flex items-center gap-1">
+            <button onClick={overdueAlert} className="bg-rose-950/40 border border-rose-500/40 hover:bg-rose-900/50 text-rose-300 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shadow-sm">
               <AlertTriangle className="w-3.5 h-3.5" /> Overdue
             </button>
           </div>
@@ -711,12 +719,12 @@ const HouseholdBrain: React.FC = () => {
               onExit={() => setFocusMode(false)}
             />
           ) : (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {filteredTasks.length === 0 ? (
-              <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
-                <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-orange-400/60" />
-                <p className="font-medium text-white">All clear here</p>
-                <p className="text-sm">Add a task above to get started.</p>
+              <div className="bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-10 text-center text-slate-400">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-amber-400/60" />
+                <p className="font-bold text-lg text-white font-display">All clear here! 🎉</p>
+                <p className="text-xs text-slate-400 mt-1">Zero chore chaos in this view. Enjoy the dopamine!</p>
               </div>
             ) : (
               filteredTasks.map((t) => {
@@ -724,9 +732,9 @@ const HouseholdBrain: React.FC = () => {
                 return (
                   <div
                     key={t.id}
-                    className={`bg-slate-800 border-l-4 ${PRIORITY_COLORS[t.priority]} border-r border-y border-slate-700 rounded-lg p-3 flex items-start gap-3 hover:bg-slate-800/70 transition`}
+                    className={`bg-white/[0.03] hover:bg-white/[0.06] border-l-4 ${PRIORITY_COLORS[t.priority]} border-r border-y border-white/10 rounded-2xl p-4 flex items-start gap-3.5 transition-all duration-200 hover:scale-[1.01] shadow-lg`}
                   >
-                    <button onClick={() => completeTask(t.id)} className="text-slate-400 hover:text-emerald-400 mt-0.5">
+                    <button onClick={() => completeTask(t.id)} className="text-slate-500 hover:text-emerald-400 mt-0.5 transition-transform hover:scale-110 active:scale-95" title="Mark chore done">
                       <CheckCircle2 className="w-5 h-5" />
                     </button>
                     <div className="flex-1 min-w-0">

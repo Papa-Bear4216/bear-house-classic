@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X, Sparkles, Heart, Trophy } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, User } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { triggerConfetti } from '@/lib/confetti';
 
 const FamilyHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
@@ -19,19 +20,39 @@ const FamilyHub: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Family Hub</h2>
-      <div className="flex gap-1 overflow-x-auto pb-1">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-white flex items-center gap-2.5 tracking-tight">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm shadow-amber-500/10">
+              <Heart className="w-5 h-5" />
+            </div>
+            Family Hub
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">Chat, permissions, shared memories, watchlists & game nights</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {TABS.map(t => {
           const Icon = t.icon;
+          const isActive = tab === t.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-honey-500 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
+            <button 
+              key={t.id} 
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95 focus-ring ${
+                isActive 
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20' 
+                  : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800/80 hover:border-slate-700/80'
+              }`}
+            >
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
         })}
       </div>
+
       {tab === 'messages' && <MessagesTab isAdm={!!isAdm} />}
       {tab === 'ask' && <AskParentsTab isAdm={!!isAdm} />}
       {tab === 'moments' && <MomentsTab isAdm={!!isAdm} />}
@@ -57,27 +78,59 @@ const MessagesTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     if (!text.trim() || !currentUser) return;
     save([...messages, { id: uid(), author: currentUser.name, text: text.trim(), createdAt: Date.now() }]);
     setText('');
+    triggerConfetti(undefined, undefined, 15);
   };
   const del = (id: string) => { if (isAdm) save(messages.map(m => m.id === id ? { ...m, deletedAt: Date.now() } : m)); };
 
   const active = messages.filter(m => !m.deletedAt).reverse();
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && post()} placeholder="Post a message to the family..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
-        <button onClick={post} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><MessageSquare className="w-4 h-4" /></button>
+        <input 
+          value={text} 
+          onChange={e => setText(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && post()} 
+          placeholder="Post a message to the family bulletin..." 
+          className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition" 
+        />
+        <button 
+          onClick={post} 
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring flex items-center gap-1.5"
+        >
+          <MessageSquare className="w-4 h-4" /> Post
+        </button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No messages yet. Post something the whole household should see.</div>}
-      <div className="space-y-2">
+
+      {active.length === 0 && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">No messages posted yet.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Post something the whole household should see!</p>
+        </div>
+      )}
+
+      <div className="space-y-2.5">
         {active.map(m => (
-          <div key={m.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
-            <div className="flex items-start justify-between gap-2">
+          <div key={m.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl px-4 py-3.5 shadow-md group">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="text-white text-sm">{m.text}</div>
-                <div className="text-cream-400/60 text-xs mt-1">{m.author} · {new Date(m.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                <div className="text-white text-sm font-medium leading-relaxed">{m.text}</div>
+                <div className="text-slate-500 text-xs mt-1.5 flex items-center gap-1.5 font-medium">
+                  <span className="text-amber-400/90">{m.author}</span>
+                  <span>·</span>
+                  <span>{new Date(m.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                </div>
               </div>
-              {isAdm && <button onClick={() => del(m.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {isAdm && (
+                <button 
+                  onClick={() => del(m.id)} 
+                  className="text-slate-500 hover:text-rose-400 transition p-1 opacity-60 group-hover:opacity-100 focus-ring"
+                  title="Delete message"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -101,58 +154,122 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     if (!request.trim() || !currentUser) return;
     save([...items, { id: uid(), kid: currentUser.name, request: request.trim(), status: 'pending', createdAt: Date.now() }]);
     setRequest('');
+    triggerConfetti(undefined, undefined, 20);
   };
-  const setStatus = (id: string, status: 'approved' | 'denied') => {
+  const setStatus = (id: string, status: 'approved' | 'denied', e?: React.MouseEvent) => {
     if (!isAdm) return;
+    if (status === 'approved') {
+      if (e) triggerConfetti(e.clientX, e.clientY, 35);
+      else triggerConfetti(undefined, undefined, 35);
+    }
     save(items.map(i => i.id === id ? { ...i, status } : i));
   };
-  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : i)); };
+  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : m)); };
 
   const active = items.filter(i => !i.deletedAt).reverse();
   const pending = active.filter(i => i.status === 'pending');
   const resolved = active.filter(i => i.status !== 'pending');
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Ask permission for something..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
-        <button onClick={submit} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
+        <input 
+          value={request} 
+          onChange={e => setRequest(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && submit()} 
+          placeholder="Ask permission for sleepovers, Robux, staying up late..." 
+          className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition" 
+        />
+        <button 
+          onClick={submit} 
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Ask
+        </button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No requests yet. Ask the household for help with something.</div>}
-      {pending.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Pending</div>
-          {pending.map(i => (
-            <div key={i.id} className="bg-bark-700/40 border border-honey-500/30 rounded-xl px-4 py-3">
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm">{i.request}</div>
-                  <div className="text-cream-400/60 text-xs">{i.kid} · {new Date(i.createdAt).toLocaleDateString()}</div>
-                </div>
-                {isAdm && (
-                  <div className="flex gap-1.5">
-                    <button onClick={() => setStatus(i.id, 'approved')} className="text-sage-500 hover:text-sage-200 transition focus-ring"><Check className="w-4 h-4" /></button>
-                    <button onClick={() => setStatus(i.id, 'denied')} className="text-rose-400 hover:text-rose-300 transition focus-ring"><X className="w-4 h-4" /></button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+
+      {active.length === 0 && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <HelpCircle className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">No permission requests right now.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Kids can submit requests here for instant parental decisions.</p>
         </div>
       )}
-      {resolved.length > 0 && (
+
+      {pending.length > 0 && (
         <div className="space-y-2">
-          <div className="text-cream-400/60 text-xs uppercase tracking-wide">Resolved</div>
-          {resolved.map(i => (
-            <div key={i.id} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 opacity-60 ${i.status === 'approved' ? 'bg-sage-600/20 border border-sage-500/20' : 'bg-rose-900/20 border border-rose-500/20'}`}>
-              <div className="flex-1 min-w-0">
-                <div className="text-cream-200 text-sm">{i.request}</div>
-                <div className="text-cream-400/60 text-xs">{i.kid}</div>
+          <div className="text-amber-400/90 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span>Pending Decisions ({pending.length})</span>
+          </div>
+          <div className="space-y-2">
+            {pending.map(i => (
+              <div key={i.id} className="bg-slate-900/70 backdrop-blur-md border border-amber-500/30 rounded-2xl px-4 py-3.5 shadow-md">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-semibold">{i.request}</div>
+                    <div className="text-slate-400 text-xs mt-1">Requested by <span className="text-amber-400 font-medium">{i.kid}</span> · {new Date(i.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  {isAdm && (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button 
+                        onClick={(e) => setStatus(i.id, 'approved', e)} 
+                        className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30 text-emerald-300 flex items-center justify-center transition active:scale-95 focus-ring"
+                        title="Approve request"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => setStatus(i.id, 'denied')} 
+                        className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500/30 text-rose-300 flex items-center justify-center transition active:scale-95 focus-ring"
+                        title="Deny request"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <span className={`text-xs font-semibold ${i.status === 'approved' ? 'text-sage-500' : 'text-rose-400'}`}>{i.status}</span>
-              {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {resolved.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">Previous Decisions</div>
+          <div className="space-y-2">
+            {resolved.map(i => (
+              <div 
+                key={i.id} 
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 border transition ${
+                  i.status === 'approved' 
+                    ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-300' 
+                    : 'bg-rose-950/20 border-rose-500/20 text-rose-300'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-slate-200 text-sm font-medium">{i.request}</div>
+                  <div className="text-slate-500 text-xs">{i.kid}</div>
+                </div>
+                <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                  i.status === 'approved' 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                }`}>
+                  {i.status}
+                </span>
+                {isAdm && (
+                  <button 
+                    onClick={() => del(i.id)} 
+                    className="text-slate-500 hover:text-rose-400 transition p-1 focus-ring"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -177,48 +294,105 @@ const MomentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     if (!caption.trim() || !currentUser) return;
     save([{ id: uid(), caption: caption.trim(), emoji, date, author: currentUser.name, createdAt: Date.now() }, ...moments]);
     setCaption(''); setEmoji(''); setShowForm(false);
+    triggerConfetti(undefined, undefined, 30);
   };
   const del = (id: string) => { if (isAdm) save(moments.map(m => m.id === id ? { ...m, deletedAt: Date.now() } : m)); };
   const active = moments.filter(m => !m.deletedAt);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-cream-400/60 text-sm">{active.length} memories</span>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-honey-500 hover:bg-honey-400 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Add Moment</button>
+        <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">{active.length} Saved Moments</span>
+        <button 
+          onClick={() => setShowForm(f => !f)} 
+          className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Moment
+        </button>
       </div>
+
       {showForm && (
-        <div className="bg-bark-700/60 border border-cream-400/10 rounded-xl p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="col-span-2">
-              <label className="text-cream-400/60 text-xs mb-1 block">Caption</label>
-              <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="A memory to remember..." className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-sm placeholder-cream-400/60 outline-none" autoFocus />
+        <div className="bg-slate-900/80 backdrop-blur-md border border-amber-500/30 rounded-2xl p-5 shadow-xl space-y-3 animate-in fade-in duration-200">
+          <div className="font-semibold text-sm text-amber-400 flex items-center gap-2">
+            <Camera className="w-4 h-4" /> Capture Family Memory
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1 block">Caption</label>
+              <input 
+                value={caption} 
+                onChange={e => setCaption(e.target.value)} 
+                placeholder="A funny quote, milestone, or special day..." 
+                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2 text-white text-sm placeholder-slate-500 focus:border-amber-500 outline-none transition" 
+                autoFocus 
+              />
             </div>
             <div>
-              <label className="text-cream-400/60 text-xs mb-1 block">Emoji (optional)</label>
-              <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🎉" className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-sm outline-none" />
+              <label className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1 block">Emoji</label>
+              <input 
+                value={emoji} 
+                onChange={e => setEmoji(e.target.value)} 
+                placeholder="🏖️ 🎂 🍕" 
+                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2 text-white text-sm outline-none" 
+              />
             </div>
             <div>
-              <label className="text-cream-400/60 text-xs mb-1 block">Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none" />
+              <label className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-1 block">Date</label>
+              <input 
+                type="date" 
+                value={date} 
+                onChange={e => setDate(e.target.value)} 
+                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-3.5 py-2 text-white text-sm outline-none" 
+              />
             </div>
           </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-cream-400/60 text-xs hover:text-white transition focus-ring">Cancel</button>
-            <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Save</button>
+          <div className="flex gap-2 justify-end pt-1">
+            <button 
+              onClick={() => setShowForm(false)} 
+              className="text-slate-400 hover:text-white text-xs font-medium px-4 py-2 rounded-xl transition focus-ring"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={add} 
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-5 py-2 rounded-xl transition shadow-lg shadow-amber-500/20 focus-ring"
+            >
+              Save Memory
+            </button>
           </div>
         </div>
       )}
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No moments saved yet. Capture one to keep it in the family record.</div>}
-      <div className="space-y-2">
+
+      {active.length === 0 && !showForm && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <Camera className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">No moments saved yet.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Capture funny things kids say, victories, or milestone days.</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {active.map(m => (
-          <div key={m.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
-            {m.emoji && <div className="text-2xl flex-shrink-0">{m.emoji}</div>}
+          <div key={m.id} className="flex items-start gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl px-4 py-3.5 shadow-md group">
+            {m.emoji ? (
+              <div className="text-2xl flex-shrink-0 w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">{m.emoji}</div>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <div className="text-white text-sm">{m.caption}</div>
-              <div className="text-cream-400/60 text-xs">{m.author} · {m.date}</div>
+              <div className="text-white text-sm font-medium leading-relaxed">{m.caption}</div>
+              <div className="text-slate-400 text-xs mt-1">{m.author} · {m.date}</div>
             </div>
-            {isAdm && <button onClick={() => del(m.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
+            {isAdm && (
+              <button 
+                onClick={() => del(m.id)} 
+                className="text-slate-500 hover:text-rose-400 transition p-1 opacity-60 group-hover:opacity-100 focus-ring"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -240,39 +414,85 @@ const BucketListTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     if (!text.trim()) return;
     save([...items, { id: uid(), text: text.trim(), completed: false, createdAt: Date.now() }]);
     setText('');
+    triggerConfetti(undefined, undefined, 20);
   };
-  const toggle = (id: string) => save(items.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
+  const toggle = (id: string, e?: React.MouseEvent) => {
+    const item = items.find(i => i.id === id);
+    if (item && !item.completed) {
+      if (e) triggerConfetti(e.clientX, e.clientY, 35);
+      else triggerConfetti(undefined, undefined, 35);
+    }
+    save(items.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
+  };
   const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : i)); };
   const active = items.filter(i => !i.deletedAt);
   const open = active.filter(i => !i.completed);
   const done = active.filter(i => i.completed);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Something to do together..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
-        <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
+        <input 
+          value={text} 
+          onChange={e => setText(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && add()} 
+          placeholder="Something we want to do together as a family..." 
+          className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition" 
+        />
+        <button 
+          onClick={add} 
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Add
+        </button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">The bucket list is empty. Add something the family wants to do together.</div>}
+
+      {active.length === 0 && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <List className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">The bucket list is empty.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Add road trips, game marathons, park visits, or baking projects!</p>
+        </div>
+      )}
+
       <div className="space-y-2">
         {open.map(i => (
-          <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
-            <button onClick={() => toggle(i.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring"><Circle className="w-5 h-5" /></button>
-            <div className="flex-1 text-white text-sm">{i.text}</div>
-            {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
+          <div key={i.id} className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl px-4 py-3.5 shadow-md group">
+            <button 
+              onClick={(e) => toggle(i.id, e)} 
+              className="text-slate-500 hover:text-emerald-400 transition flex-shrink-0 focus-ring"
+              title="Mark as done!"
+            >
+              <Circle className="w-5 h-5" />
+            </button>
+            <div className="flex-1 text-white text-sm font-medium">{i.text}</div>
+            {isAdm && (
+              <button 
+                onClick={() => del(i.id)} 
+                className="text-slate-500 hover:text-rose-400 transition p-1 opacity-60 group-hover:opacity-100 focus-ring"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         ))}
         {done.length > 0 && (
-          <>
-            <div className="text-cream-400/60 text-xs uppercase tracking-wide mt-2">Done ({done.length})</div>
+          <div className="space-y-2 pt-2">
+            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">Completed Adventures ({done.length})</div>
             {done.map(i => (
-              <div key={i.id} className="flex items-center gap-3 bg-bark-800/30 border border-cream-400/10 rounded-xl px-4 py-2.5 opacity-60">
-                <button onClick={() => toggle(i.id)} className="text-sage-500 flex-shrink-0 focus-ring"><CheckCircle2 className="w-5 h-5" /></button>
-                <div className="flex-1 text-cream-400/60 text-sm line-through">{i.text}</div>
-                {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
+              <div key={i.id} className="flex items-center gap-3 bg-slate-900/30 border border-slate-800/40 rounded-2xl px-4 py-2.5 opacity-60 hover:opacity-90 transition">
+                <button onClick={(e) => toggle(i.id, e)} className="text-emerald-400 flex-shrink-0 focus-ring">
+                  <CheckCircle2 className="w-5 h-5" />
+                </button>
+                <div className="flex-1 text-slate-400 text-sm line-through">{i.text}</div>
+                {isAdm && (
+                  <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition p-1 focus-ring">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -295,6 +515,7 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     if (!title.trim() || !currentUser) return;
     save([...items, { id: uid(), title: title.trim(), type, wantsToWatch: [currentUser.name], watched: false, createdAt: Date.now() }]);
     setTitle('');
+    triggerConfetti(undefined, undefined, 20);
   };
   const toggleWant = (id: string) => {
     if (!currentUser) return;
@@ -305,48 +526,108 @@ const WatchlistTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
         : [...i.wantsToWatch, currentUser.name]
     } : i));
   };
-  const toggleWatched = (id: string) => save(items.map(i => i.id === id ? { ...i, watched: !i.watched } : i));
+  const toggleWatched = (id: string, e?: React.MouseEvent) => {
+    const item = items.find(i => i.id === id);
+    if (item && !item.watched) {
+      if (e) triggerConfetti(e.clientX, e.clientY, 30);
+      else triggerConfetti(undefined, undefined, 30);
+    }
+    save(items.map(i => i.id === id ? { ...i, watched: !i.watched } : i));
+  };
   const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : i)); };
   const active = items.filter(i => !i.deletedAt);
   const unwatched = active.filter(i => !i.watched);
   const watched = active.filter(i => i.watched);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} placeholder="Movie or show title..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
-        <select value={type} onChange={e => setType(e.target.value as 'movie' | 'show')} className="bg-bark-700 border border-cream-400/10 rounded-lg px-2 py-2 text-white text-sm outline-none">
+        <input 
+          value={title} 
+          onChange={e => setTitle(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && add()} 
+          placeholder="Movie or TV show title..." 
+          className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition" 
+        />
+        <select 
+          value={type} 
+          onChange={e => setType(e.target.value as 'movie' | 'show')} 
+          className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 text-white text-xs outline-none"
+        >
           <option value="movie">Movie</option>
           <option value="show">Show</option>
         </select>
-        <button onClick={add} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
+        <button 
+          onClick={add} 
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Add
+        </button>
       </div>
-      {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">Watchlist is empty. Add a show or movie for family movie night.</div>}
+
+      {active.length === 0 && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <Tv className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">Watchlist is empty.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Queue up films and series for weekend movie nights.</p>
+        </div>
+      )}
+
       <div className="space-y-2">
         {unwatched.map(i => (
-          <div key={i.id} className="flex items-center gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-4 py-3">
-            <button onClick={() => toggleWatched(i.id)} className="text-cream-400/60 hover:text-sage-500 transition flex-shrink-0 focus-ring"><Circle className="w-5 h-5" /></button>
-            <div className="flex-1 min-w-0">
-              <div className="text-white text-sm">{i.title}</div>
-              <div className="text-cream-400/60 text-xs">{i.type} · Wants: {i.wantsToWatch.join(', ') || 'none'}</div>
-            </div>
-            <button onClick={() => toggleWant(i.id)} className={`text-xs px-2 py-0.5 rounded border transition focus-ring ${currentUser && i.wantsToWatch.includes(currentUser.name) ? 'bg-honey-500/20 border-honey-500/40 text-honey-400' : 'border-cream-400/10 text-cream-400/60 hover:text-white'}`}>
-              {currentUser && i.wantsToWatch.includes(currentUser.name) ? 'Watching' : '+ Watch'}
+          <div key={i.id} className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl px-4 py-3.5 shadow-md group">
+            <button 
+              onClick={(e) => toggleWatched(i.id, e)} 
+              className="text-slate-500 hover:text-emerald-400 transition flex-shrink-0 focus-ring"
+              title="Mark as watched"
+            >
+              <Circle className="w-5 h-5" />
             </button>
-            {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-sm font-semibold truncate">{i.title}</div>
+              <div className="text-slate-400 text-xs mt-0.5 flex items-center gap-2">
+                <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">{i.type}</span>
+                <span>Wants: {i.wantsToWatch.join(', ') || 'nobody yet'}</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => toggleWant(i.id)} 
+              className={`text-xs px-3 py-1 rounded-xl border font-semibold transition active:scale-95 focus-ring ${
+                currentUser && i.wantsToWatch.includes(currentUser.name) 
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' 
+                  : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white'
+              }`}
+            >
+              {currentUser && i.wantsToWatch.includes(currentUser.name) ? 'I Want In' : '+ Me Too'}
+            </button>
+            {isAdm && (
+              <button 
+                onClick={() => del(i.id)} 
+                className="text-slate-500 hover:text-rose-400 transition p-1 opacity-60 group-hover:opacity-100 focus-ring"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         ))}
+
         {watched.length > 0 && (
-          <>
-            <div className="text-cream-400/60 text-xs uppercase tracking-wide mt-2">Watched</div>
+          <div className="space-y-2 pt-2">
+            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">Watched ({watched.length})</div>
             {watched.map(i => (
-              <div key={i.id} className="flex items-center gap-3 bg-bark-800/30 border border-cream-400/10 rounded-xl px-4 py-2.5 opacity-60">
-                <button onClick={() => toggleWatched(i.id)} className="text-sage-500 flex-shrink-0 focus-ring"><CheckCircle2 className="w-5 h-5" /></button>
-                <div className="flex-1 text-cream-400/60 text-sm line-through">{i.title}</div>
-                {isAdm && <button onClick={() => del(i.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
+              <div key={i.id} className="flex items-center gap-3 bg-slate-900/30 border border-slate-800/40 rounded-2xl px-4 py-2.5 opacity-60 hover:opacity-90 transition">
+                <button onClick={(e) => toggleWatched(i.id, e)} className="text-emerald-400 flex-shrink-0 focus-ring">
+                  <CheckCircle2 className="w-5 h-5" />
+                </button>
+                <div className="flex-1 text-slate-400 text-sm line-through">{i.title}</div>
+                {isAdm && (
+                  <button onClick={() => del(i.id)} className="text-slate-600 hover:text-rose-400 transition p-1 focus-ring">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -372,55 +653,127 @@ const GameNightTab: React.FC<{ isAdm: boolean; householdMembers: User[] }> = ({ 
     if (!gameName.trim()) return;
     save([...games, { id: uid(), name: gameName.trim(), scores: [], createdAt: Date.now() }]);
     setGameName('');
+    triggerConfetti(undefined, undefined, 20);
   };
   const addScore = (gameId: string) => {
     if (!scoreValue) return;
     save(games.map(g => g.id === gameId ? { ...g, scores: [...g.scores, { player: scorePlayer, score: parseFloat(scoreValue), date: scoreDate }] } : g));
     setScoreValue('');
+    triggerConfetti(undefined, undefined, 35);
   };
   const delGame = (id: string) => { if (isAdm) save(games.filter(g => g.id !== id)); };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex gap-2">
-        <input value={gameName} onChange={e => setGameName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGame()} placeholder="Add a game..." className="flex-1 bg-bark-700 border border-cream-400/10 rounded-lg px-3 py-2 text-white text-sm placeholder-cream-400/60 focus:border-honey-500 outline-none" />
-        <button onClick={addGame} className="bg-honey-500 hover:bg-honey-400 text-white px-3 py-2 rounded-lg transition focus-ring"><Plus className="w-4 h-4" /></button>
+        <input 
+          value={gameName} 
+          onChange={e => setGameName(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && addGame()} 
+          placeholder="Add a board game or video game title..." 
+          className="flex-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition" 
+        />
+        <button 
+          onClick={addGame} 
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95 focus-ring flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Add Game
+        </button>
       </div>
-      {games.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No games yet. Add one for family game night.</div>}
-      <div className="space-y-2">
+
+      {games.length === 0 && (
+        <div className="text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl py-10 px-4">
+          <Gamepad2 className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+          <p className="text-slate-400 text-sm font-medium">No games tracked yet.</p>
+          <p className="text-slate-500 text-xs mt-0.5">Track Catan, Mario Kart, Uno, or Scrabble champions.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
         {games.map(g => {
           const isExp = expandedGame === g.id;
           const playerScores: Record<string, number[]> = {};
           g.scores.forEach(s => { if (!playerScores[s.player]) playerScores[s.player] = []; playerScores[s.player].push(s.score); });
           const leaders = Object.entries(playerScores).map(([p, sc]) => ({ p, best: Math.max(...sc) })).sort((a, b) => b.best - a.best);
           return (
-            <div key={g.id} className="bg-bark-700/40 border border-cream-400/10 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-bark-700/60 focus-ring" onClick={() => setExpandedGame(isExp ? null : g.id)}>
-                <div className="flex-1">
-                  <div className="text-white font-medium">{g.name}</div>
-                  <div className="text-cream-400/60 text-xs">{g.scores.length} games played</div>
-                  {leaders.length > 0 && <div className="text-cream-400/60 text-xs">{leaders[0].p}: {leaders[0].best}</div>}
+            <div key={g.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl overflow-hidden shadow-md">
+              <div 
+                className="px-4 py-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-800/40 transition select-none" 
+                onClick={() => setExpandedGame(isExp ? null : g.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <Gamepad2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-sm flex items-center gap-2">
+                      {g.name}
+                      {leaders.length > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                          <Trophy className="w-3 h-3 text-amber-400" /> {leaders[0].p} ({leaders[0].best} pts)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-slate-400 text-xs mt-0.5">{g.scores.length} match records logged</div>
+                  </div>
                 </div>
-                {isAdm && <button onClick={e => { e.stopPropagation(); delGame(g.id); }} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-4 h-4" /></button>}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-400 font-medium">{isExp ? 'Close' : 'Scoreboard'}</span>
+                  {isAdm && (
+                    <button 
+                      onClick={e => { e.stopPropagation(); delGame(g.id); }} 
+                      className="text-slate-500 hover:text-rose-400 transition p-1.5 focus-ring"
+                      title="Remove game"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
               {isExp && (
-                <div className="border-t border-cream-400/10 px-4 py-3 space-y-3">
-                  <div className="flex gap-2 flex-wrap">
-                    <select value={scorePlayer} onChange={e => setScorePlayer(e.target.value)} className="bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs outline-none">
+                <div className="border-t border-slate-800/80 bg-slate-900/40 px-4 py-3.5 space-y-3">
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <select 
+                      value={scorePlayer} 
+                      onChange={e => setScorePlayer(e.target.value)} 
+                      className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none"
+                    >
                       {householdMembers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                     </select>
-                    <input type="number" value={scoreValue} onChange={e => setScoreValue(e.target.value)} placeholder="Score" className="w-20 bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs placeholder-cream-400/60 outline-none" />
-                    <input type="date" value={scoreDate} onChange={e => setScoreDate(e.target.value)} className="bg-bark-800 border border-cream-400/10 rounded px-2 py-1 text-white text-xs outline-none" />
-                    <button onClick={() => addScore(g.id)} className="bg-honey-500 hover:bg-honey-400 text-white text-xs px-3 py-1 rounded transition focus-ring">Log Score</button>
+                    <input 
+                      type="number" 
+                      value={scoreValue} 
+                      onChange={e => setScoreValue(e.target.value)} 
+                      placeholder="Score" 
+                      className="w-24 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs placeholder-slate-500 outline-none" 
+                    />
+                    <input 
+                      type="date" 
+                      value={scoreDate} 
+                      onChange={e => setScoreDate(e.target.value)} 
+                      className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none" 
+                    />
+                    <button 
+                      onClick={() => addScore(g.id)} 
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-xl transition shadow-md shadow-amber-500/20 active:scale-95 focus-ring"
+                    >
+                      Log Score
+                    </button>
                   </div>
-                  <div className="space-y-1">
-                    {leaders.map(({ p, best }) => (
-                      <div key={p} className="flex justify-between text-sm">
-                        <span className="text-cream-200">{p}</span>
-                        <span className="text-cream-400/60">Best: {best}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {leaders.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Leaderboard</div>
+                      {leaders.map(({ p, best }, idx) => (
+                        <div key={p} className="flex justify-between items-center text-xs bg-slate-800/50 px-3 py-2 rounded-xl border border-slate-700/40">
+                          <span className="text-slate-200 font-semibold flex items-center gap-1.5">
+                            <span className="text-slate-500 font-mono text-[10px]">#{idx + 1}</span>
+                            {p}
+                          </span>
+                          <span className="text-amber-400 font-bold tabular-nums">{best} pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

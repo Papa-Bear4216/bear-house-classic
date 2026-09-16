@@ -23,6 +23,8 @@ import {
 import { useAppContext } from '@/contexts/AppContext';
 import { logActivity } from '@/lib/householdActivity';
 import { onSyncUpdate } from '@/lib/sync';
+import { triggerConfetti } from '@/lib/confetti';
+import { toast } from 'sonner';
 import AlertModal from './AlertModal';
 
 interface Promise {
@@ -141,6 +143,13 @@ const Promises: React.FC = () => {
     const now = Date.now();
     const updated = promises.map((p) => (p.id === id ? { ...p, completed: true, completedAt: now } : p));
     if (currentUser) logActivity(currentUser.name, `kept their promise: "${target.text}"`);
+
+    triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 65);
+    toast.success('Promise Kept! 💖', {
+      description: `You kept your word to ${target.person}: "${target.text}"`,
+      duration: 3500,
+    });
+
     if (target.recurrence) {
       const nextAt = nextRecurrence(now, target.recurrence);
       const nextDueDate = target.dueDate ? nextRecurrence(target.dueDate, target.recurrence) : null;
@@ -217,62 +226,113 @@ const Promises: React.FC = () => {
   const todayStr = dateInputValue(Date.now());
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <AlertModal {...modal} accent="blue" onClose={() => setModal({ ...modal, open: false })} />
 
-      <div className="flex items-start justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Promise Keeper</h2>
-          <p className="text-sm text-slate-400">Words you gave. Words you keep.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={overdueReview} className="bg-rose-900/40 border border-rose-500/30 text-rose-300 px-3 py-2 rounded-lg text-sm flex items-center gap-1">
-            <AlertTriangle className="w-4 h-4" /> Overdue
-          </button>
-          <button onClick={weeklyReview} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-1">
-            <Heart className="w-4 h-4" /> Review
-          </button>
-        </div>
-      </div>
-
-      {/* Per-person stats */}
-      <div className="grid grid-cols-3 gap-2">
-        {people.map((person) => (
-          <div key={person} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
-            <div className="text-xs text-slate-400">{person}</div>
-            <div className="text-2xl font-bold text-white">{stats[person].completion}%</div>
-            <div className="text-xs text-slate-500">{stats[person].open} open · {stats[person].overdue} late</div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide bg-blue-500/15 text-blue-300 border border-blue-500/30">
+              <Heart className="w-3 h-3 text-pink-400 fill-pink-400" /> Relational Trust
+            </span>
           </div>
-        ))}
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Promise <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">Keeper</span>
+          </h2>
+          <p className="text-sm text-slate-400 mt-0.5">Words you gave. Words you keep. Build unbreakable trust.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={overdueReview}
+            className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" /> Overdue
+          </button>
+          <button
+            onClick={weeklyReview}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-blue-500/25 transition-all active:scale-95"
+          >
+            <Heart className="w-3.5 h-3.5" /> Weekly Reflection
+          </button>
+        </div>
       </div>
 
-      {/* Add */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4">
-        <div className="flex gap-2">
+      {/* Per-person stats Bento Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {people.map((person) => {
+          const personStat = stats[person] || { completion: 0, open: 0, overdue: 0 };
+          return (
+            <div
+              key={person}
+              className="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 hover:border-blue-500/30 transition-all relative overflow-hidden group shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-400/30 flex items-center justify-center text-xs font-bold text-blue-300">
+                    {person.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-semibold text-white tracking-tight">{person}</span>
+                </div>
+                <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+                  {personStat.completion}%
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mb-3">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, personStat.completion))}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>{personStat.open} active</span>
+                {personStat.overdue > 0 ? (
+                  <span className="text-rose-400 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    {personStat.overdue} overdue
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 font-medium">On track ✨</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add Promise Box */}
+      <div className="bg-slate-900/70 backdrop-blur-md border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addPromise(text)}
             placeholder='e.g. "I told Mommy I would book the cabin by Friday"'
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:border-blue-500 outline-none"
+            className="flex-1 bg-white/[0.04] border border-white/10 focus:border-blue-500 focus:bg-white/[0.07] rounded-xl px-4 py-3 text-white text-sm outline-none transition-all placeholder:text-slate-500 shadow-inner"
           />
-          <button onClick={() => addPromise(text)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm">
-            <Plus className="w-4 h-4" /> Add
+          <button
+            onClick={() => addPromise(text)}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold px-5 py-3 rounded-xl flex items-center justify-center gap-2 text-sm shadow-md shadow-blue-500/25 transition-all active:scale-95 shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Add Promise
           </button>
         </div>
 
         {/* Due date + Recurrence pickers */}
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
+        <div className="mt-3.5 flex items-center gap-2 flex-wrap">
           <label
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
               dueDateInput
-                ? 'bg-blue-900/40 border-blue-500/40 text-blue-200'
-                : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-blue-500/40'
+                ? 'bg-blue-500/20 border-blue-500/40 text-blue-200'
+                : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/20'
             }`}
             title="Set a due date"
           >
-            <CalendarIcon className="w-3.5 h-3.5" />
-            <span>Due:</span>
+            <CalendarIcon className="w-3.5 h-3.5 text-blue-400" />
+            <span className="font-medium">Due:</span>
             <input
               type="date"
               value={dueDateInput}
@@ -297,25 +357,28 @@ const Promises: React.FC = () => {
 
           <button
             onClick={() => setShowRecur((s) => !s)}
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition ${
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all ${
               recurType !== 'none'
-                ? 'bg-blue-900/40 border-blue-500/40 text-blue-200'
-                : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-blue-500/40'
+                ? 'bg-blue-500/20 border-blue-500/40 text-blue-200 font-medium'
+                : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/20'
             }`}
           >
-            <Repeat className="w-3.5 h-3.5" />
+            <Repeat className="w-3.5 h-3.5 text-indigo-400" />
             Repeats: {recurLabel}
-            <ChevronDown className={`w-3 h-3 transition ${showRecur ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-3 h-3 transition-transform ${showRecur ? 'rotate-180' : ''}`} />
           </button>
+
           {showRecur && (
-            <div className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 space-y-2">
+            <div className="w-full bg-slate-900/90 border border-white/10 rounded-xl p-3 space-y-2 mt-1">
               <div className="flex gap-1.5 flex-wrap">
                 {RECURRENCE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     onClick={() => setRecurType(opt.id as any)}
-                    className={`px-2.5 py-1 rounded-md text-xs transition ${
-                      recurType === opt.id ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                      recurType === opt.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10'
                     }`}
                   >
                     {opt.label}
@@ -323,13 +386,13 @@ const Promises: React.FC = () => {
                 ))}
               </div>
               {recurType === 'custom' && (
-                <div className="flex gap-1 flex-wrap">
+                <div className="flex gap-1 flex-wrap pt-1">
                   {DAY_LABELS.map((lbl, i) => (
                     <button
                       key={i}
                       onClick={() => toggleCustomDay(i)}
-                      className={`w-8 h-8 rounded-md text-xs font-bold transition ${
-                        customDays.includes(i) ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                        customDays.includes(i) ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'
                       }`}
                     >
                       {lbl}
@@ -341,82 +404,137 @@ const Promises: React.FC = () => {
           )}
         </div>
 
-        {aiBusy && <div className="text-xs text-blue-400 mt-2 flex items-center gap-2"><Sparkles className="w-3 h-3 animate-pulse" /> Parsing...</div>}
+        {aiBusy && (
+          <div className="text-xs text-blue-300 mt-2.5 flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" /> Auto-detecting person, category & urgency...
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap bg-white/[0.02] p-1.5 rounded-2xl border border-white/5">
         {TABS.map((t) => {
           const overdueCount =
             t === 'Recurring'
               ? 0
               : promises.filter((p) => !p.completed && (t === 'All' || p.person === t) && isOverdue(p)).length;
           const showCount = t === 'Recurring' ? recurringCount : null;
+          const isSelected = tab === t;
           return (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition ${
-                tab === t ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                isSelected
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
               {t === 'Recurring' && <Repeat className="w-3 h-3" />}
               {t}
-              {showCount !== null && <span className="opacity-70">{showCount}</span>}
-              {overdueCount > 0 && <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5">{overdueCount}</span>}
+              {showCount !== null && (
+                <span className="opacity-75 text-xs bg-black/20 px-1.5 py-0.5 rounded-full">{showCount}</span>
+              )}
+              {overdueCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] rounded-full px-1.5 py-0.2">{overdueCount}</span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* List */}
-      <div className="space-y-2">
+      {/* Promise Items List */}
+      <div className="space-y-2.5">
         {filtered.length === 0 ? (
-          <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
-            <Heart className="w-10 h-10 mx-auto mb-3 text-blue-400/60" />
-            <p className="font-medium text-white">All promises kept</p>
-            <p className="text-sm">Add one when you make it.</p>
+          <div className="bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-10 text-center text-slate-400">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <Heart className="w-7 h-7 text-blue-400 fill-blue-400/20" />
+            </div>
+            <p className="font-bold text-white text-base">All promises kept</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              You are honoring every word you gave. Need to make a new commitment? Add one above!
+            </p>
           </div>
         ) : (
           filtered.map((p) => {
             const overdue = isOverdue(p);
             const dueBadge = p.dueDate ? formatDueBadge(p.dueDate) : null;
             return (
-              <div key={p.id} className={`bg-slate-800 border rounded-lg p-3 flex items-start gap-3 ${overdue ? 'border-rose-500/40' : 'border-slate-700'}`}>
-                <button onClick={() => completePromise(p.id)} className="text-slate-400 hover:text-emerald-400 mt-0.5">
-                  <CheckCircle2 className="w-5 h-5" />
+              <div
+                key={p.id}
+                className={`group bg-slate-900/50 backdrop-blur-sm border rounded-2xl p-3.5 sm:p-4 flex items-start gap-3.5 transition-all hover:bg-slate-900/80 hover:border-white/20 ${
+                  overdue ? 'border-rose-500/40 bg-rose-950/15' : 'border-white/10'
+                }`}
+              >
+                <button
+                  onClick={() => completePromise(p.id)}
+                  title="Mark promise kept!"
+                  className="mt-0.5 w-7 h-7 rounded-full border border-white/20 hover:border-emerald-400 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 flex items-center justify-center transition-all shrink-0 active:scale-90"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-medium flex items-center gap-1.5">
-                    {p.recurrence && <Repeat className="w-3.5 h-3.5 text-blue-400 shrink-0" aria-label="Recurring" />}
+                  <div className="text-white text-sm font-semibold tracking-tight flex items-center gap-1.5 leading-snug">
+                    {p.recurrence && (
+                      <Repeat className="w-3.5 h-3.5 text-blue-400 shrink-0" aria-label="Recurring" />
+                    )}
                     <span>{p.text}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <span className="text-[10px] uppercase tracking-wide bg-blue-900/40 text-blue-300 px-1.5 py-0.5 rounded">{p.person}</span>
-                    <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
-                      p.priority === 'High' ? 'bg-rose-900/40 text-rose-300' : p.priority === 'Medium' ? 'bg-amber-900/40 text-amber-300' : 'bg-slate-700 text-slate-300'
-                    }`}>{p.priority}</span>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 border border-blue-500/30 text-blue-300 px-2 py-0.5 rounded-full">
+                      {p.person}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        p.priority === 'High'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          : p.priority === 'Medium'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          : 'bg-white/5 text-slate-300 border border-white/10'
+                      }`}
+                    >
+                      {p.priority}
+                    </span>
                     {dueBadge ? (
-                      <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded flex items-center gap-1 ${DUE_TONE[dueBadge.tone]}`}>
+                      <span
+                        className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          DUE_TONE[dueBadge.tone]
+                        }`}
+                      >
                         <CalendarIcon className="w-2.5 h-2.5" />
                         {formatDate(p.dueDate!)} · {dueBadge.label}
                       </span>
                     ) : (
-                      p.dueEstimate && p.dueEstimate !== 'No Deadline' && (
-                        <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{p.dueEstimate}</span>
+                      p.dueEstimate &&
+                      p.dueEstimate !== 'No Deadline' && (
+                        <span className="text-[10px] uppercase tracking-wide bg-white/5 text-slate-300 px-2 py-0.5 rounded-full border border-white/10">
+                          {p.dueEstimate}
+                        </span>
                       )
                     )}
-                    <span className="text-[10px] uppercase tracking-wide bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">{p.category}</span>
+                    <span className="text-[10px] uppercase tracking-wide bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
+                      {p.category}
+                    </span>
                     {p.recurrence && (
-                      <span className="text-[10px] uppercase tracking-wide bg-blue-600/30 border border-blue-500/40 text-blue-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <span className="text-[10px] font-medium bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <Repeat className="w-2.5 h-2.5" /> {describeRecurrence(p.recurrence)}
                       </span>
                     )}
-                    {!dueBadge && overdue && <span className="text-[10px] uppercase tracking-wide bg-rose-600 text-white px-1.5 py-0.5 rounded">Overdue</span>}
-                    <span className="text-[10px] text-slate-500 ml-auto">{formatDate(p.createdAt)}</span>
+                    {!dueBadge && overdue && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-rose-500 text-white px-2 py-0.5 rounded-full">
+                        Overdue
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 ml-auto hidden sm:inline">
+                      {formatDate(p.createdAt)}
+                    </span>
                   </div>
                 </div>
-                <button onClick={() => deletePromise(p.id)} className="text-slate-500 hover:text-rose-400">
+                <button
+                  onClick={() => deletePromise(p.id)}
+                  title="Remove promise"
+                  className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 transition-all p-1"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -429,3 +547,4 @@ const Promises: React.FC = () => {
 };
 
 export default Promises;
+

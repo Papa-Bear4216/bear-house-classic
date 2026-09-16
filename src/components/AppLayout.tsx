@@ -15,6 +15,8 @@ import { useAppContext } from '@/contexts/AppContext';
 import Dashboard from '@/components/familyos/Dashboard';
 import MagicTrail from '@/components/familyos/MagicTrail';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
+import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
+import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
 
 // Floating widgets rendered on every page, not the initial view itself —
 // lazy per the rule above so Dashboard can paint before these hydrate.
@@ -111,7 +113,17 @@ const AppLayout: React.FC = () => {
   const [tick, setTick] = useState(0);
   const [showMore, setShowMore] = useState(false);
   const [autobrief, setAutobrief] = useState<{ days: number; reason: 'offline' | 'location'; miles?: number } | null>(null);
+  const [batteryModalOpen, setBatteryModalOpen] = useState(false);
+  const [batteryLevel, setBatteryLevel] = useState<BatteryLevel>(() => getBrainBattery());
   const presenceChecked = useRef(false);
+
+  useEffect(() => {
+    const onBatteryChange = (e: any) => {
+      if (e.detail) setBatteryLevel(e.detail);
+    };
+    window.addEventListener('familyos:battery-changed', onBatteryChange);
+    return () => window.removeEventListener('familyos:battery-changed', onBatteryChange);
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -214,16 +226,20 @@ const AppLayout: React.FC = () => {
       case 'household':
         return (
           <div className="space-y-4">
-            <div className="flex gap-1 overflow-x-auto pb-1">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
               {visibleHouseholdTabs.map(t => {
                 const Icon = t.icon;
                 return (
                   <button
                     key={t.id}
                     onClick={() => setHouseholdTab(t.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition ${householdTab === t.id ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 shadow-sm ${
+                      householdTab === t.id
+                        ? 'bg-amber-500 text-slate-950 font-bold shadow-amber-500/25 scale-[1.02]'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                    }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Icon className="w-4 h-4" />
                     {t.label}
                   </button>
                 );
@@ -265,50 +281,72 @@ const AppLayout: React.FC = () => {
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
 
   return (
-    <div className="min-h-screen bg-[#1E0E04] text-white">
+    <div className="min-h-screen bg-[#090D16] text-slate-100 relative selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden font-sans">
+      {/* Atmospheric ambient lighting */}
+      <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-amber-500/[0.08] blur-[140px] pointer-events-none" />
+      <div className="fixed top-1/3 -left-40 w-96 h-96 rounded-full bg-indigo-500/[0.08] blur-[140px] pointer-events-none" />
+      <div className="fixed -bottom-40 right-1/3 w-96 h-96 rounded-full bg-rose-500/[0.05] blur-[140px] pointer-events-none" />
 
       {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-[#1E0E04]/90 backdrop-blur-md border-b border-[#F8DABC]/10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#E08C00] flex items-center justify-center font-display font-bold text-sm text-white">
-              FO
+      <header className="sticky top-0 z-30 bg-[#090D16]/80 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-black/20">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-display font-extrabold text-base text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-white/10">
+              🐻
             </div>
             <div>
-              <div className="font-display font-bold leading-none">FamilyOS</div>
-              <div className="text-[10px] text-white/50 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                Hi, {currentUser?.name || 'Guest'}
+              <div className="flex items-center gap-1.5">
+                <span className="font-display font-black text-sm tracking-tight text-white">FamilyOS</span>
+                <span 
+                  className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden xs:inline cursor-help"
+                  title="HotMessExpress — A proud product of Dysfunction Junction 🚂"
+                >
+                  HOT MESS · DYSFUNCTION JUNCTION 🚂
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-white/10`} />
+                <span>{currentUser?.name || 'Guest'}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 max-w-md mx-auto hidden sm:block relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-white/40" />
+          {/* Brain Battery pill in header */}
+          <button
+            onClick={() => setBatteryModalOpen(true)}
+            className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all hover:scale-105 shadow-sm active:scale-95 ${BATTERY_LEVELS[batteryLevel].badgeClass}`}
+            title="ADHD Brain Battery — Click to adjust"
+          >
+            <span>{BATTERY_LEVELS[batteryLevel].emoji}</span>
+            <span>{BATTERY_LEVELS[batteryLevel].label}</span>
+          </button>
+
+          <div className="flex-1 max-w-md mx-auto hidden md:block relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tasks & promises..."
-              className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-3 py-2 text-sm text-white placeholder-white/40 focus:border-[#E08C00] outline-none"
+              placeholder="Search chores, promises..."
+              className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
             />
             {searchResults && (searchResults.tasks.length > 0 || searchResults.promises.length > 0) && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto z-40">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl max-h-80 overflow-y-auto z-40 p-2">
                 {searchResults.tasks.length > 0 && (
-                  <div className="p-2">
-                    <div className="text-[10px] uppercase text-orange-400 px-2 py-1">Tasks</div>
+                  <div className="p-1">
+                    <div className="text-[10px] uppercase font-bold text-amber-400 px-2 py-1">Chores</div>
                     {searchResults.tasks.map((t) => (
-                      <div key={t.id} className="px-2 py-1.5 text-sm text-slate-200 hover:bg-slate-700 rounded cursor-pointer" onClick={() => { setActive('household'); setSearch(''); }}>
+                      <div key={t.id} className="px-3 py-2 text-sm text-slate-200 hover:bg-white/10 rounded-xl cursor-pointer transition" onClick={() => { setActive('household'); setSearch(''); }}>
                         {t.text}
                       </div>
                     ))}
                   </div>
                 )}
                 {searchResults.promises.length > 0 && (
-                  <div className="p-2 border-t border-slate-700">
-                    <div className="text-[10px] uppercase text-blue-400 px-2 py-1">Promises</div>
+                  <div className="p-1 border-t border-white/10">
+                    <div className="text-[10px] uppercase font-bold text-sky-400 px-2 py-1">Promises</div>
                     {searchResults.promises.map((p) => (
-                      <div key={p.id} className="px-2 py-1.5 text-sm text-slate-200 hover:bg-slate-700 rounded cursor-pointer" onClick={() => { setActive('promises'); setSearch(''); }}>
-                        <span className="text-blue-400 mr-2">{p.person}</span>{p.text}
+                      <div key={p.id} className="px-3 py-2 text-sm text-slate-200 hover:bg-white/10 rounded-xl cursor-pointer transition" onClick={() => { setActive('promises'); setSearch(''); }}>
+                        <span className="text-sky-400 mr-2 font-semibold">{p.person}</span>{p.text}
                       </div>
                     ))}
                   </div>
@@ -317,54 +355,60 @@ const AppLayout: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <div className="hidden sm:flex items-center gap-2 text-xs">
-              <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-[#1A8A4E] animate-pulse' : 'bg-white/30'}`} />
-              <span className="text-white/50">{inZone ? 'In zone' : 'Off zone'}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+            <button
+              onClick={() => setBatteryModalOpen(true)}
+              className="sm:hidden p-2 rounded-xl bg-white/5 border border-white/10 text-sm"
+              title="Brain Battery"
+            >
+              {BATTERY_LEVELS[batteryLevel].emoji}
+            </button>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-slate-300">
+              <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+              <span className="text-[11px]">{inZone ? 'Home Zone' : 'Away'}</span>
             </div>
-            <div className="text-sm font-medium text-white/70 tabular-nums">{formatTime(now)}</div>
-            <button onClick={() => setHistoryOpen(true)} title="History" className="text-white/50 hover:text-[#1A8A4E] p-1.5 transition">
-              <History className="w-5 h-5" />
+            <div className="text-xs font-mono font-semibold text-slate-300 tabular-nums px-1">{formatTime(now)}</div>
+            <button onClick={() => setHistoryOpen(true)} title="History" className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
+              <History className="w-4 h-4" />
             </button>
             {isAdm && (
-              <button onClick={() => setSettingsOpen(true)} className="relative text-white/50 hover:text-white p-1.5">
-                <SettingsIcon className="w-5 h-5" />
+              <button onClick={() => setSettingsOpen(true)} className="relative text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
+                <SettingsIcon className="w-4 h-4" />
                 {totals.overdue > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center animate-pulse">
                     {totals.overdue}
                   </span>
                 )}
               </button>
             )}
-            <button onClick={logout} title="Logout" className="text-white/50 hover:text-rose-400 p-1.5 transition">
-              <LogOut className="w-5 h-5" />
+            <button onClick={logout} title="Sign Out" className="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-white/5 transition">
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
-
       </header>
 
       {/* No-API-key banner */}
       {!hasApiKey && isAdm && (
-        <div className="bg-amber-900/30 border-b border-amber-500/30 text-amber-200 text-sm px-4 py-2 text-center">
+        <div className="bg-amber-950/40 border-b border-amber-500/30 text-amber-200 text-sm px-4 py-2 text-center">
           AI features need an Anthropic API key. <button onClick={() => setSettingsOpen(true)} className="underline font-semibold">Add one in Settings</button>.
         </div>
       )}
 
       {/* MAIN */}
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-28 transition-opacity duration-300" key={active}>
+      <main className="max-w-6xl mx-auto px-4 py-6 pb-32 transition-opacity duration-300" key={active}>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Suspense fallback={<div className="text-center py-16 text-cream-400/60 text-lg">Loading…</div>}>
+          <Suspense fallback={<div className="text-center py-16 text-slate-400 text-lg">Loading…</div>}>
             {renderModule()}
           </Suspense>
         </div>
       </main>
 
-      {/* Unified bottom dock — all breakpoints */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-[#1E0E04]/95 backdrop-blur-md border-t border-[#F8DABC]/10 px-2 py-2">
+      {/* Unified floating island dock */}
+      <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[94%] max-w-lg bg-slate-900/85 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl shadow-black/60 px-3 py-2 ring-1 ring-white/10">
         {/* More drawer */}
         {showMore && moreModules.length > 0 && (
-          <div className="flex flex-wrap gap-1 justify-around mb-2 pb-2 border-b border-[#F8DABC]/10">
+          <div className="flex flex-wrap gap-1.5 justify-around mb-2 pb-3 border-b border-white/10">
             {moreModules.map(n => {
               const Icon = n.icon;
               const isActive = active === n.id;
@@ -372,10 +416,12 @@ const AppLayout: React.FC = () => {
                 <button
                   key={n.id}
                   onClick={() => { setActive(n.id); setShowMore(false); }}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg transition focus-ring ${isActive ? 'text-[#F5A800]' : 'text-white/40 hover:text-white'}`}
+                  className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition focus-ring ${
+                    isActive ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
+                  <span className="text-[10px]">{n.label.split(' ')[0]}</span>
                 </button>
               );
             })}
@@ -388,7 +434,7 @@ const AppLayout: React.FC = () => {
         >
           {/* Sliding active-state pill */}
           <div
-            className="absolute inset-y-0 rounded-lg bg-white/5 transition-transform duration-300 ease-out motion-reduce:transition-none"
+            className="absolute inset-y-0 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 transition-transform duration-300 ease-out motion-reduce:transition-none"
             style={{
               width: `${100 / (dockModules.length + (moreModules.length > 0 ? 1 : 0))}%`,
               transform: `translateX(${dockSlotIndex * 100}%)`,
@@ -402,10 +448,12 @@ const AppLayout: React.FC = () => {
               <button
                 key={n.id}
                 onClick={() => setActive(n.id)}
-                className={`relative flex flex-col items-center gap-0.5 py-2 rounded-lg transition-transform focus-ring ${isActive ? 'text-[#F5A800] scale-110' : 'text-white/40 hover:text-white'}`}
+                className={`relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all focus-ring ${
+                  isActive ? 'text-amber-400 font-bold scale-105 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <Icon className="w-6 h-6" />
-                <span className="text-[9px] font-medium">{n.label.split(' ')[0]}</span>
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] tracking-tight">{n.label.split(' ')[0]}</span>
               </button>
             );
           })}
@@ -413,10 +461,12 @@ const AppLayout: React.FC = () => {
           {moreModules.length > 0 && (
             <button
               onClick={() => setShowMore(m => !m)}
-              className={`relative flex flex-col items-center gap-0.5 py-2 rounded-lg transition-transform focus-ring ${showMore ? 'text-white scale-110' : 'text-white/40 hover:text-white'}`}
+              className={`relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all focus-ring ${
+                showMore ? 'text-white font-bold scale-105 bg-white/10' : 'text-slate-400 hover:text-white'
+              }`}
             >
-              <Grid2x2 className="w-6 h-6" />
-              <span className="text-[9px] font-medium">More</span>
+              <Grid2x2 className="w-5 h-5" />
+              <span className="text-[10px] tracking-tight">More</span>
             </button>
           )}
         </div>
@@ -425,6 +475,7 @@ const AppLayout: React.FC = () => {
       <Suspense fallback={null}>
         {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
         {historyOpen && <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />}
+        <BrainBatteryModal open={batteryModalOpen} onClose={() => setBatteryModalOpen(false)} />
       </Suspense>
       <Suspense fallback={null}>
         <QuickCapture />

@@ -76,23 +76,30 @@ export const ArcadeHub: React.FC = () => {
       {/* Arcade Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-2xl shadow-inner">
-            <Gamepad2 className="w-7 h-7" />
+          <div className="p-3 bg-gradient-to-tr from-amber-500/20 via-rose-500/20 to-purple-500/20 text-amber-400 border border-amber-500/30 rounded-2xl shadow-lg shadow-amber-500/10">
+            <Gamepad2 className="w-7 h-7 text-amber-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-white tracking-tight">Bear House Retro Arcade</h2>
-            <p className="text-xs text-slate-400">
-              Classic retro variants tuned for mobile & 120Hz screens. Play to reset dopamine and earn stars!
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 px-2 py-0.5 rounded-full">
+                Dopamine Station
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Retro <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-purple-400 bg-clip-text text-transparent">Arcade</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Fast-paced retro games tuned for dopamine reset. Earn stars for the Reward Store!
             </p>
           </div>
         </div>
 
         {/* Global Controls: Player & Sound */}
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
           <select
             value={selectedPlayerId}
             onChange={(e) => setSelectedPlayerId(e.target.value)}
-            className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500"
+            className="px-3.5 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500 transition-all shadow-sm"
           >
             {householdMembers.map((m) => (
               <option key={m.id} value={m.id}>
@@ -103,7 +110,7 @@ export const ArcadeHub: React.FC = () => {
 
           <button
             onClick={() => setSoundEnabled((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-semibold border border-white/10 transition-all active:scale-95 shadow-sm"
             title={soundEnabled ? 'Mute Audio' : 'Enable Audio'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
@@ -113,24 +120,33 @@ export const ArcadeHub: React.FC = () => {
       </div>
 
       {/* Arcade Cabinet Selector Tabs */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2.5">
         {GAMES.map((g) => {
           const Icon = g.icon;
           const active = activeGame === g.id;
+          const activeStyles =
+            g.id === 'snake'
+              ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200 shadow-lg shadow-emerald-500/10'
+              : g.id === 'pacman'
+              ? 'border-yellow-500/60 bg-yellow-950/30 text-yellow-200 shadow-lg shadow-yellow-500/10'
+              : 'border-sky-500/60 bg-sky-950/30 text-sky-200 shadow-lg shadow-sky-500/10';
+
           return (
             <button
               key={g.id}
               onClick={() => setActiveGame(g.id)}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-2 p-3 rounded-2xl border transition-all duration-150 ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-2.5 p-3.5 rounded-2xl border transition-all duration-200 active:scale-95 ${
                 active
-                  ? 'bg-slate-800 border-amber-500/60 shadow-lg shadow-amber-500/10 text-white'
-                  : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                  ? activeStyles
+                  : 'bg-slate-900/50 border-white/5 hover:bg-white/5 text-slate-400 hover:text-white'
               }`}
             >
-              <Icon className={`w-5 h-5 ${active ? g.color : 'text-slate-500'}`} />
+              <div className={`p-2 rounded-xl ${active ? 'bg-white/10' : 'bg-white/5'}`}>
+                <Icon className={`w-5 h-5 ${active ? g.color : 'text-slate-500'}`} />
+              </div>
               <div className="text-center sm:text-left">
-                <div className="text-xs font-bold leading-tight">{g.label}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest">{g.tag}</div>
+                <div className="text-xs sm:text-sm font-bold leading-tight tracking-tight">{g.label}</div>
+                <div className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">{g.tag}</div>
               </div>
             </button>
           );
@@ -138,23 +154,25 @@ export const ArcadeHub: React.FC = () => {
       </div>
 
       {/* Daily Economy Banner */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
         <div className="flex items-center gap-2 text-slate-300">
-          <Trophy className="w-4 h-4 text-amber-400" />
-          <span>Playing as <strong className="text-white">{playerName}</strong></span>
-          <span className="text-slate-500">|</span>
-          <span>Reward Balance: <strong className="text-amber-400">{balance} pts</strong></span>
+          <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+          </div>
+          <span>Playing as <strong className="text-white font-semibold">{playerName}</strong></span>
+          <span className="text-slate-600">|</span>
+          <span>Reward Wallet: <strong className="text-amber-400 font-bold">{balance} pts</strong></span>
         </div>
 
         <div className="flex items-center gap-1.5 text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Daily Arcade Cap: <strong className="text-emerald-400">{pointsClaimedToday}/{DAILY_LIMIT} pts</strong></span>
+          <span>Daily Star Cap: <strong className="text-emerald-400 font-bold">{pointsClaimedToday}/{DAILY_LIMIT} pts</strong></span>
           <span className="text-slate-500">({dailyRemaining} remaining)</span>
         </div>
       </div>
 
       {/* Active Game Cabinet */}
-      <div className="bg-slate-950/70 border border-slate-800/80 rounded-3xl p-4 sm:p-6 shadow-2xl">
+      <div className="bg-slate-950/90 border border-white/15 rounded-3xl p-4 sm:p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
         {activeGame === 'snake' && (
           <SockPythonGame
             selectedMemberId={selectedPlayerId}

@@ -1,17 +1,23 @@
-import React, { useState, useMemo, Suspense, lazy } from 'react';
-import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog } from 'lucide-react';
-import { KEYS, loadJSON, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars } from '@/lib/familyos';
+import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
+import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog, Plus, Zap, CheckCircle2 } from 'lucide-react';
+import { KEYS, loadJSON, saveJSON, uid, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars, awardPoints, POINT_VALUES, nextRecurrence } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
 import { getColorCardStyle } from '@/lib/colorStyles';
 import { buildMorningBrief } from '@/lib/morningBrief';
 import { loadHermesWeather } from '@/lib/hermesWeather';
+import { onSyncUpdate } from '@/lib/sync';
+import { logActivity } from '@/lib/householdActivity';
+import { triggerConfetti } from '@/lib/confetti';
+import { resolveMemberIdByName } from './HouseholdBrain';
 
 import AlertModal from './AlertModal';
 import WeatherWidget from './WeatherWidget';
 import SystemHealth from './SystemHealth';
 import MemberProfileModal from './MemberProfileModal';
 import ActivityFeed from './ActivityFeed';
+import AdhdFocusHero from './AdhdFocusHero';
+import FocusMode from './FocusMode';
 
 // recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
 // needed when the user opens the Trends tab — split it into its own chunk.
@@ -28,20 +34,68 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
-  // buildMorningBrief() reads hermesWeather's cache synchronously — if the
-  // user lands here before ever opening chat, that cache is still empty, so
-  // trigger the load ourselves and re-render once it's warm (idempotent,
-  // fire-and-forget, matches HermesChat's own use of the same cache).
+  const [focusModeOpen, setFocusModeOpen] = useState(false);
+  const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
+
+  useEffect(() => {
+    return onSyncUpdate((key) => {
+      if (key === KEYS.tasks) {
+        setTasks(loadJSON(KEYS.tasks, []));
+      }
+    });
+  }, []);
+
   const [, forceWeatherRefresh] = useState(0);
-  React.useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);
+  useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);
   const morningBrief = buildMorningBrief();
 
-  const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const promises = loadJSON<any[]>(KEYS.promises, []);
   const activities = loadJSON<any[]>(KEYS.activities, []);
   const emotions = loadJSON<any[]>(KEYS.emotions, []);
   const pillars = loadJSON<any[]>(KEYS.pillars, householdPillars(householdMembers));
   const presence = loadJSON<any[]>(KEYS.presenceLog, []);
+
+  const handleCompleteTask = (id: string) => {
+    const target = tasks.find((t) => t.id === id);
+    if (!target) return;
+    const now = Date.now();
+    const updated = tasks.map((t) => (t.id === id ? { ...t, completed: true, completedAt: now } : t));
+    if (currentUser) logActivity(currentUser.name, `completed "${target.text}"`);
+
+    const memberId = resolveMemberIdByName(householdMembers, target.person);
+    if (memberId) awardPoints(memberId, POINT_VALUES.default);
+
+    if (target.recurrence) {
+      const nextAt = nextRecurrence(now, target.recurrence);
+      const nextDueDate = target.dueDate ? nextRecurrence(target.dueDate, target.recurrence) : null;
+      const nextInstance = {
+        ...target,
+        id: uid(),
+        dueDate: nextDueDate,
+        completed: false,
+        createdAt: nextAt,
+        completedAt: undefined,
+        stepsCompleted: target.steps ? target.steps.map(() => false) : undefined,
+      };
+      const finalTasks = [nextInstance, ...updated];
+      setTasks(finalTasks);
+      saveJSON(KEYS.tasks, finalTasks);
+    } else {
+      setTasks(updated);
+      saveJSON(KEYS.tasks, updated);
+    }
+  };
+
+  const handleToggleStep = (taskId: string, stepIndex: number) => {
+    const next = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const curSteps = t.stepsCompleted ?? (t.steps ? t.steps.map(() => false) : []);
+      const nextSteps = curSteps.map((done: boolean, i: number) => (i === stepIndex ? !done : done));
+      return { ...t, stepsCompleted: nextSteps };
+    });
+    setTasks(next);
+    saveJSON(KEYS.tasks, next);
+  };
 
   const stats = useMemo(() => {
     const isDueToday = (t: any) => {
@@ -79,41 +133,46 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     };
     const style = getColorCardStyle(color);
     return (
-      <div key={name} className={`${style.card} rounded-2xl p-4 relative group`}>
+      <div key={name} className="rounded-3xl p-5 relative group bg-gradient-to-br from-slate-900/80 to-slate-950/90 border border-white/10 hover:border-white/20 transition-all duration-300 shadow-xl backdrop-blur-xl hover:scale-[1.01]">
         <button
           onClick={() => setProfileMemberId(id)}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-cream-400/60 hover:text-white focus-ring"
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 focus-ring"
           title="Edit profile"
         >
           <UserCog className="w-4 h-4" />
         </button>
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-white font-bold">{name}</div>
-          <div className={`text-xs ${style.text}`}>Quality: {relativeDate(pillar?.lastQualityTime)}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-center">
-          <div className="bg-bark-700/60 rounded-lg p-2">
-            <div className="text-xs text-cream-400/60">Promises</div>
-            <div className="text-lg font-bold text-white">{open}</div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className={`w-3 h-3 rounded-full ${style.text ? 'bg-current ring-4 ring-white/5' : 'bg-amber-400 ring-4 ring-amber-400/20'}`} />
+            <div className="text-white font-bold text-base tracking-tight font-display">{name}</div>
           </div>
-          <div className="bg-bark-700/60 rounded-lg p-2">
-            <div className="text-xs text-cream-400/60">Mood</div>
-            <div className="text-lg font-bold text-white">{avg}</div>
+          <div className="text-[11px] text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
+            Quality: {relativeDate(pillar?.lastQualityTime)}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 text-center mb-4">
+          <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Promises</div>
+            <div className="text-xl font-extrabold text-white font-mono mt-0.5">{open}</div>
+          </div>
+          <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Mood</div>
+            <div className="text-xl font-extrabold text-white font-mono mt-0.5">{avg}</div>
           </div>
         </div>
         {overdueT > 0 && (
-          <div className="mt-2 text-xs text-honey-300 bg-honey-700/20 rounded-lg px-2 py-1 text-center">
-            {overdueT} {overdueT === 1 ? 'task needs' : 'tasks need'} a little attention
+          <div className="mb-3 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl px-2.5 py-1.5 text-center font-medium">
+            ⚠️ {overdueT} {overdueT === 1 ? 'task needs' : 'tasks need'} attention
           </div>
         )}
-        <div className="mt-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] uppercase tracking-wide text-cream-400/50">Tasks</span>
-            <span className="text-[10px] text-cream-400/50">{personTaskStats.completed}/{personTaskStats.total}</span>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Chores</span>
+            <span className="text-[11px] font-mono text-slate-300">{personTaskStats.completed}/{personTaskStats.total} done</span>
           </div>
-          <div className="w-full h-1.5 rounded-full bg-bark-700/60 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
             <div
-              className="h-full rounded-full bg-sage-500 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-500"
               style={{ width: `${personTaskStats.total > 0 ? Math.round((personTaskStats.completed / personTaskStats.total) * 100) : 0}%` }}
             />
           </div>
@@ -251,58 +310,80 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <AlertModal {...modal} accent="indigo" onClose={() => setModal({ ...modal, open: false })} />
       {profileMemberId && (
         <MemberProfileModal memberId={profileMemberId} onClose={() => setProfileMemberId(null)} />
       )}
 
-      <div className="flex items-start justify-between gap-3">
+      {/* Hero Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Family Dashboard</h2>
-          <p className="text-sm text-cream-400/60">One view of everything that matters.</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-display">
+              Household Command
+            </h2>
+            <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              Hot Mess Express
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+            Dopamine-driven family coordination. One bite-sized win at a time.
+          </p>
         </div>
-        <button onClick={dailySummary} className="bg-honey-500 hover:bg-honey-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 focus-ring">
-          <Sparkles className="w-4 h-4" /> AI Summary
-        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFocusModeOpen((f) => !f)}
+            className={`px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md focus-ring ${
+              focusModeOpen
+                ? 'bg-amber-500 text-slate-950 shadow-amber-500/30'
+                : 'bg-white/10 hover:bg-white/15 border border-white/10 text-white hover:border-amber-400/40'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-amber-400 fill-current" />
+            <span>{focusModeOpen ? 'Close Focus Mode' : 'Sprint Timer'}</span>
+          </button>
+
+          <button
+            onClick={dailySummary}
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-[0.98] focus-ring"
+          >
+            <Sparkles className="w-4 h-4" /> AI Summary
+          </button>
+        </div>
       </div>
 
-      {morningBrief.length > 0 && (
-        <div className="bg-bark-800 border border-cream-400/10 rounded-2xl p-4 space-y-2">
-          <div className="text-sm font-medium text-cream-100 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-honey-400" /> Morning Brief
-          </div>
-          <div className="space-y-1.5">
-            {morningBrief.map((line, i) => (
-              <div key={i} className="text-sm text-cream-300 flex items-start gap-2">
-                <span className="flex-shrink-0">{line.emoji}</span>
-                <span>{line.text}</span>
-              </div>
-            ))}
-          </div>
+      {/* Focus Mode Overlay/Card if active */}
+      {focusModeOpen && (
+        <div className="animate-in fade-in zoom-in-95 duration-200">
+          <FocusMode
+            tasks={tasks}
+            onComplete={handleCompleteTask}
+            onToggleStep={handleToggleStep}
+            onExit={() => setFocusModeOpen(false)}
+          />
         </div>
       )}
 
-      <WeatherWidget />
-
-      <ActivityFeed />
-
-      <SystemHealth />
-
       {/* Tabs */}
-      <div className="inline-flex bg-bark-800 border border-cream-400/10 rounded-lg p-1 gap-1">
+      <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1 gap-1">
         <button
           onClick={() => setTab('overview')}
-          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition focus-ring ${
-            tab === 'overview' ? 'bg-honey-500 text-white shadow' : 'text-cream-400/70 hover:text-white'
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition focus-ring ${
+            tab === 'overview'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <LayoutDashboard className="w-4 h-4" /> Overview
         </button>
         <button
           onClick={() => setTab('trends')}
-          className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition focus-ring ${
-            tab === 'trends' ? 'bg-honey-500 text-white shadow' : 'text-cream-400/70 hover:text-white'
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition focus-ring ${
+            tab === 'trends'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <BarChart3 className="w-4 h-4" /> Trends
@@ -310,72 +391,152 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       </div>
 
       {tab === 'trends' ? (
-        <Suspense fallback={
-          <div className="space-y-3 animate-pulse">
-            <div className="h-40 bg-bark-800 border border-cream-400/10 rounded-2xl" />
-            <div className="grid grid-cols-2 gap-3">
-              <div className="h-24 bg-bark-800 border border-cream-400/10 rounded-2xl" />
-              <div className="h-24 bg-bark-800 border border-cream-400/10 rounded-2xl" />
+        <Suspense
+          fallback={
+            <div className="space-y-3 animate-pulse">
+              <div className="h-40 bg-slate-900/60 border border-white/10 rounded-3xl" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-24 bg-slate-900/60 border border-white/10 rounded-3xl" />
+                <div className="h-24 bg-slate-900/60 border border-white/10 rounded-3xl" />
+              </div>
             </div>
-          </div>
-        }>
+          }
+        >
           <Trends />
         </Suspense>
       ) : (
         <>
-          {/* Household daily progress */}
-          <div className="bg-bark-800 border border-cream-400/10 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-cream-100">Today's progress</span>
-              <span className="text-sm text-cream-400/70">{stats.todayCompletedCount}/{stats.todayTotalCount} done</span>
-            </div>
-            <div className="w-full h-2.5 rounded-full bg-bark-700 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-sage-500 transition-all"
-                style={{ width: `${stats.todayTotalCount > 0 ? Math.round((stats.todayCompletedCount / stats.todayTotalCount) * 100) : 0}%` }}
-              />
-            </div>
+          {/* ADHD Focus Hero: One Thing Right Now & Chaos Meter */}
+          <AdhdFocusHero
+            tasks={tasks}
+            onComplete={handleCompleteTask}
+            onLaunchFocusMode={() => setFocusModeOpen(true)}
+            todayCompletedCount={stats.todayCompletedCount}
+            todayTotalCount={stats.todayTotalCount}
+          />
+
+          {/* Quick Action Chips */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button
+              onClick={() => onQuickAdd('household')}
+              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-slate-900/60 hover:from-amber-500/20 hover:to-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 text-amber-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
+            >
+              <Plus className="w-4 h-4 text-amber-400 group-hover:rotate-90 transition-transform duration-200" />
+              <span>Add Chore</span>
+            </button>
+            <button
+              onClick={() => onQuickAdd('promises')}
+              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-sky-500/10 to-slate-900/60 hover:from-sky-500/20 hover:to-slate-900/80 border border-sky-500/20 hover:border-sky-500/40 text-sky-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
+            >
+              <Handshake className="w-4 h-4 text-sky-400" />
+              <span>Make Promise</span>
+            </button>
+            <button
+              onClick={() => onQuickAdd('quality')}
+              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-slate-900/60 hover:from-pink-500/20 hover:to-slate-900/80 border border-pink-500/20 hover:border-pink-500/40 text-pink-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
+            >
+              <Calendar className="w-4 h-4 text-pink-400" />
+              <span>Plan Hangout</span>
+            </button>
+            <button
+              onClick={() => onQuickAdd('emotions')}
+              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-slate-900/60 hover:from-rose-500/20 hover:to-slate-900/80 border border-rose-500/20 hover:border-rose-500/40 text-rose-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
+            >
+              <Heart className="w-4 h-4 text-rose-400" />
+              <span>Log Vibe</span>
+            </button>
           </div>
 
-          {/* KPI grid */}
+          {/* Bento KPI Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button onClick={() => onNav('household')} className="bg-gradient-to-br from-honey-700/40 to-bark-800 border border-honey-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
-              <ListChecks className="w-5 h-5 text-honey-400 mb-2" />
-              <div className="text-2xl font-bold text-white">{stats.todayTasks}</div>
-              <div className="text-xs text-honey-200">Today's tasks</div>
+            <button
+              onClick={() => onNav('household')}
+              className="bg-gradient-to-br from-amber-500/10 via-slate-900/70 to-slate-950/90 border border-amber-500/25 hover:border-amber-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
+                <ListChecks className="w-5 h-5" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.todayTasks}</div>
+              <div className="text-xs text-amber-200/80 font-medium mt-0.5">Tasks needing eyes</div>
             </button>
-            <button onClick={() => onNav('quality')} className="bg-gradient-to-br from-berry-700/40 to-bark-800 border border-berry-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
-              <Calendar className="w-5 h-5 text-berry-400 mb-2" />
-              <div className="text-sm font-bold text-white truncate">{stats.upcoming ? stats.upcoming.name : 'Nothing'}</div>
-              <div className="text-xs text-berry-200">{stats.upcoming ? new Date(stats.upcoming.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' }) : 'Plan something'}</div>
-            </button>
-            <button onClick={() => onNav('promises')} className="bg-gradient-to-br from-sky-900/40 to-bark-800 border border-sky-500/30 rounded-2xl p-4 text-left hover:scale-[1.02] transition focus-ring">
-              <Handshake className="w-5 h-5 text-sky-400 mb-2" />
-              <div className="text-2xl font-bold text-white">{stats.openPromises}</div>
-              <div className="text-xs text-sky-200 flex items-center gap-1">
-                {stats.overduePromises > 0 && <><AlertTriangle className="w-3 h-3 text-rose-400" /> {stats.overduePromises} overdue ·</>} open
+
+            <button
+              onClick={() => onNav('quality')}
+              className="bg-gradient-to-br from-pink-500/10 via-slate-900/70 to-slate-950/90 border border-pink-500/25 hover:border-pink-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div className="text-sm sm:text-base font-bold text-white truncate">
+                {stats.upcoming ? stats.upcoming.name : 'Open Day'}
+              </div>
+              <div className="text-xs text-pink-200/80 font-medium mt-0.5 truncate">
+                {stats.upcoming
+                  ? new Date(stats.upcoming.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' })
+                  : 'Plan quality time'}
               </div>
             </button>
-            <div className="bg-gradient-to-br from-sage-600/40 to-bark-800 border border-sage-500/30 rounded-2xl p-4">
-              <TrendingUp className="w-5 h-5 text-sage-400 mb-2" />
-              <div className="text-2xl font-bold text-white">{stats.presencePct}%</div>
-              <div className="text-xs text-sage-200">Presence this week</div>
+
+            <button
+              onClick={() => onNav('promises')}
+              className="bg-gradient-to-br from-sky-500/10 via-slate-900/70 to-slate-950/90 border border-sky-500/25 hover:border-sky-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 mb-3 group-hover:scale-110 transition-transform">
+                <Handshake className="w-5 h-5" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.openPromises}</div>
+              <div className="text-xs text-sky-200/80 font-medium mt-0.5 flex items-center gap-1">
+                {stats.overduePromises > 0 ? (
+                  <span className="text-rose-400 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> {stats.overduePromises} overdue
+                  </span>
+                ) : (
+                  'Active commitments'
+                )}
+              </div>
+            </button>
+
+            <div className="bg-gradient-to-br from-emerald-500/10 via-slate-900/70 to-slate-950/90 border border-emerald-500/25 rounded-3xl p-4 sm:p-5 shadow-lg backdrop-blur-xl">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.presencePct}%</div>
+              <div className="text-xs text-emerald-200/80 font-medium mt-0.5">Presence this week</div>
             </div>
           </div>
 
-          {/* Quick actions */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <button onClick={() => onQuickAdd('household')} className="bg-honey-600/20 border border-honey-500/30 hover:bg-honey-600/30 text-honey-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Task</button>
-            <button onClick={() => onQuickAdd('promises')} className="bg-sky-600/20 border border-sky-500/30 hover:bg-sky-600/30 text-sky-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Promise</button>
-            <button onClick={() => onQuickAdd('quality')} className="bg-berry-600/20 border border-berry-500/30 hover:bg-berry-600/30 text-berry-200 rounded-lg py-2.5 text-sm font-medium focus-ring">+ Activity</button>
-            <button onClick={() => onQuickAdd('emotions')} className="bg-rose-600/20 border border-rose-500/30 hover:bg-rose-600/30 text-rose-200 rounded-lg py-2.5 text-sm font-medium focus-ring">Log Emotion</button>
+          {/* Morning Brief */}
+          {morningBrief.length > 0 && (
+            <div className="bg-gradient-to-br from-amber-500/5 via-slate-900/80 to-slate-950/90 border border-amber-500/20 rounded-3xl p-5 space-y-3 backdrop-blur-xl shadow-xl">
+              <div className="text-sm font-bold text-amber-300 flex items-center gap-2 font-display">
+                <Sparkles className="w-4 h-4 text-amber-400" /> Morning Briefing
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {morningBrief.map((line, i) => (
+                  <div key={i} className="text-xs sm:text-sm text-slate-300 flex items-start gap-2.5 bg-white/[0.02] border border-white/5 p-3 rounded-2xl">
+                    <span className="text-base flex-shrink-0">{line.emoji}</span>
+                    <span className="leading-relaxed">{line.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weather & Activity side-by-side on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <WeatherWidget />
+            <ActivityFeed />
           </div>
 
-          {/* Per-person */}
+          <SystemHealth />
+
+          {/* Household Members */}
           {householdMembers.length > 0 && (
-            <div>
-              <div className="text-sm text-cream-400/60 mb-2 flex items-center gap-2"><Heart className="w-4 h-4" /> Family</div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-3">
+              <div className="text-sm font-bold text-slate-300 flex items-center gap-2 font-display">
+                <Heart className="w-4 h-4 text-rose-400" /> Family Squad
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {householdMembers.map((m) => (
                   <React.Fragment key={m.id}>{personCard(m.id, m.name, m.color)}</React.Fragment>
                 ))}
