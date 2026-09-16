@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — HotMessExpress | Dysfunction Junction</title>
+  <meta name="description" content="Privacy Policy for HotMessExpress and FamilyOS, engineered by Dysfunction Junction. Explains data collection, Google OAuth & Gmail/Calendar API usage, Limited Use disclosure, and user data rights." />
+  <link rel="canonical" href="https://hotmessexpress.lol/privacy" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    :root {
+      --bg: #090D16;
+      --card-bg: rgba(18, 24, 38, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --heading: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.15);
+      --brand-gradient: linear-gradient(135deg, #f59e0b, #ec4899);
+      --code-bg: #1e293b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.7;
+      padding: 0 1rem 4rem;
+    }
+    header {
+      max-width: 860px;
+      margin: 2.5rem auto 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-b: 1px solid var(--card-border);
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--heading);
+      font-weight: 800;
+      font-size: 1.25rem;
+    }
+    .brand-badge {
+      background: var(--brand-gradient);
+      color: #090D16;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--accent);
+    }
+    .btn-return {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--heading) !important;
+      padding: 0.4rem 0.9rem;
+      border-radius: 8px;
+    }
+    .btn-return:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      backdrop-filter: blur(12px);
+    }
+    h1 {
+      color: var(--heading);
+      font-size: 2.25rem;
+      font-weight: 900;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.025em;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    h2 {
+      color: var(--heading);
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 2.25rem 0 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    h3 {
+      color: #cbd5e1;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+    }
+    p, ul, ol {
+      margin-bottom: 1rem;
+      color: #cbd5e1;
+    }
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+    li {
+      margin-bottom: 0.4rem;
+    }
+    a {
+      color: #fbbf24;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    a:hover {
+      color: #f59e0b;
+    }
+    .callout {
+      background: rgba(245, 158, 11, 0.08);
+      border-left: 4px solid var(--accent);
+      padding: 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+    .callout p {
+      margin-bottom: 0;
+      color: #fde68a;
+      font-weight: 500;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 0.25rem !important;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+    .legal-box {
+      background: rgba(2, 6, 23, 0.6);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 1.5rem;
+      border-radius: 10px;
+      margin: 1.5rem 0;
+    }
+    .legal-box h3 {
+      color: #f59e0b;
+      margin-top: 0;
+    }
+    footer {
+      max-width: 860px;
+      margin: 2rem auto 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    @media (max-width: 640px) {
+      main {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+      }
+      header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand-logo">
+      <span>🚂 HotMessExpress</span>
+      <span class="brand-badge">Dysfunction Junction</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/terms">Terms of Service</a>
+      <a href="/login" class="btn-return">← Back to App</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Privacy Policy</h1>
+    <div class="subtitle">
+      <strong>Effective Date:</strong> September 16, 2026 &bull; <strong>Application:</strong> HotMessExpress / FamilyOS &bull; <strong>Entity:</strong> Dysfunction Junction
+    </div>
+
+    <section>
+      <h2>1. Overview & Commitment</h2>
+      <p>
+        HotMessExpress (&ldquo;FamilyOS&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), a digital household operating application proudly developed by <strong>Dysfunction Junction</strong>, respects your privacy and is committed to protecting the personal information of you and your household members.
+      </p>
+      <p>
+        This Privacy Policy explains what information we collect, how we process and store it, and the strict boundaries we uphold regarding your data. We design our software specifically for ADHD and high-speed chaotic households with the core premise: <em>your household data belongs exclusively to your household</em>.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Information We Collect</h2>
+      <p>We only collect data necessary to provide household synchronization, routines, scheduling, and chores:</p>
+      <ul>
+        <li>
+          <strong>Account &amp; Authentication Information:</strong> When you sign in via Google OAuth or email, we receive your email address, full name, and profile picture avatar.
+        </li>
+        <li>
+          <strong>Household Data:</strong> Custom lists, chore assignments, routines, pantry inventory, appointments, and household member profiles created by you.
+        </li>
+        <li>
+          <strong>Device &amp; Telemetry Data:</strong> Minimal diagnostic logging (e.g., app load latency, sync state, and error logs) to maintain app reliability.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Google API Services & User Data</h2>
+      <p>
+        HotMessExpress offers optional Google integrations to streamline household operations. If you choose to connect Google services, here is exactly what data is accessed and how it is used:
+      </p>
+
+      <h3>A. Google Authentication (OAuth 2.0)</h3>
+      <p>
+        We access basic profile details (<code>openid</code>, <code>profile</code>, <code>email</code>) to authenticate your identity, establish your household seat, and secure your session.
+      </p>
+
+      <h3>B. Google Calendar Integration</h3>
+      <p>
+        If enabled, HotMessExpress accesses your primary calendar events (start time, end time, event title, and location) via Google Calendar API to render upcoming appointments directly on your household dashboard. We do not edit or delete your external calendar events unless you explicitly perform that action inside the app.
+      </p>
+
+      <h3>C. Gmail Read-Only Integration (<code>gmail.readonly</code>)</h3>
+      <p>
+        If a household member explicitly links their Gmail account for receipt and package tracking, our edge functions query read-only messages strictly to identify:
+      </p>
+      <ul>
+        <li>Online delivery receipts and shipment tracking numbers (e.g. Amazon, UPS, FedEx);</li>
+        <li>Household utility and subscription invoices;</li>
+        <li>School and activity calendar notices.</li>
+      </ul>
+      <p>
+        <strong>Limited Processing:</strong> Only metadata and relevant receipt text are extracted to populate your household expense and logistics feed. Full raw emails are never archived or exposed to other users.
+      </p>
+
+      <div class="legal-box">
+        <h3>Google API Services User Data Policy Compliance</h3>
+        <p>
+          HotMessExpress's use and transfer to any other app of information received from Google APIs will adhere to the 
+          <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, 
+          including the <strong>Limited Use</strong> requirements.
+        </p>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Strict Safeguards for Google User Data</div>
+        <ul>
+          <li><strong>No Advertisements:</strong> We do NOT use, transfer, or disclose Google user data to serve advertisements, including retargeting, personalized, or interest-based advertising.</li>
+          <li><strong>No Data Selling:</strong> We NEVER sell Google user data or any personal data to data brokers, advertising networks, or third parties.</li>
+          <li><strong>No AI Model Training:</strong> We do NOT use Google user data or private email content to train generalized artificial intelligence (AI) or machine learning (ML) models.</li>
+          <li><strong>Strict Human Access Limits:</strong> No human will read your private emails or calendar items unless:
+            <ol>
+              <li>You have provided affirmative consent for specific messages to troubleshoot a support inquiry;</li>
+              <li>It is strictly necessary for security purposes (such as investigating system abuse or fraud);</li>
+              <li>It is required to comply with applicable law or legal process; or</li>
+              <li>The data has been aggregated and de-identified for internal performance metrics.</li>
+            </ol>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. Data Storage, Security & Isolation</h2>
+      <p>
+        We employ robust industry-standard safeguards to protect your household data:
+      </p>
+      <ul>
+        <li>
+          <strong>Database Security:</strong> All data is stored in dedicated PostgreSQL instances hosted on Supabase with <strong>Row Level Security (RLS)</strong> enforced at the database layer. Every query is partitioned by your private <code>household_id</code>.
+        </li>
+        <li>
+          <strong>Encryption in Transit &amp; at Rest:</strong> All web traffic is encrypted using TLS 1.3 / HTTPS. Database storage volumes and credentials are fully encrypted at rest.
+        </li>
+        <li>
+          <strong>Token Security:</strong> OAuth access and refresh tokens are encrypted and handled exclusively by restricted, server-side Edge Functions. Tokens are never exposed client-side or logged to application analytics.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Data Retention & User Data Deletion Rights</h2>
+      <p>You have full autonomy over your data:</p>
+      <ul>
+        <li>
+          <strong>Revoking Google Access:</strong> You can disconnect your Google account at any time within the app settings. Alternatively, you can instantly revoke HotMessExpress's access from your Google Account Security Dashboard at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">https://myaccount.google.com/permissions</a>.
+        </li>
+        <li>
+          <strong>Requesting Full Data Deletion:</strong> You have the right to request complete deletion of your account and all associated household records at any time. Simply send an email to <a href="mailto:support@dysfunctionjunction.xyz">support@dysfunctionjunction.xyz</a> with your account email address, or initiate household deletion in the settings tab. Upon receiving your request, all personal data, cached tokens, and records will be permanently purged from our databases within 30 days.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Third-Party Infrastructure</h2>
+      <p>We rely on trusted enterprise infrastructure providers to operate the service:</p>
+      <ul>
+        <li><strong>Supabase:</strong> Managed PostgreSQL database, authentication, and realtime sync.</li>
+        <li><strong>Vercel:</strong> Global CDN hosting and serverless Edge Functions.</li>
+        <li><strong>Google Cloud Platform:</strong> OAuth 2.0 authentication and user-requested APIs (Calendar, Gmail).</li>
+      </ul>
+      <p>Each service provider is contractually bound to safeguard information and only process it according to our strict instructions.</p>
+    </section>
+
+    <section>
+      <h2>7. Children's Privacy</h2>
+      <p>
+        HotMessExpress is designed for family coordination where parents or guardians configure household accounts. We do not knowingly collect personal information directly from children under 13 without verifiable parental oversight and consent.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Changes to this Privacy Policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time to reflect evolving features or legal obligations. When updates occur, we will revise the &ldquo;Effective Date&rdquo; at the top of this page. Substantial changes will be highlighted within the application.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Contact Us</h2>
+      <p>If you have any questions, concerns, or privacy requests, please contact us directly:</p>
+      <p>
+        <strong>Dysfunction Junction</strong><br />
+        Attn: Privacy &amp; Data Protection<br />
+        Website: <a href="https://hotmessexpress.lol">https://hotmessexpress.lol</a><br />
+        Email: <a href="mailto:support@dysfunctionjunction.xyz">support@dysfunctionjunction.xyz</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Dysfunction Junction. All rights reserved. HotMessExpress &amp; FamilyOS are trademarks of Dysfunction Junction.</p>
+  </footer>
+</body>
+</html>

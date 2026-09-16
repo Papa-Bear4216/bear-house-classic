@@ -338,12 +338,18 @@ export default function LoginPage() {
           </span>
           <span>&copy; 2026. A calmer home for every household.</span>
         </div>
-        <div className="flex gap-5">
+        <div className="flex gap-5 flex-wrap">
           <a href="#how-it-works" className="text-[13px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
             How it works
           </a>
           <a href="#features" className="text-[13px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
             Features
+          </a>
+          <a href="/privacy" className="text-[13px] hover:underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Privacy Policy
+          </a>
+          <a href="/terms" className="text-[13px] hover:underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Terms of Service
           </a>
         </div>
       </div>

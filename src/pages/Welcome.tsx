@@ -56,7 +56,7 @@ export default function Welcome() {
       </section>
 
       {/* Clever Footer */}
-      <footer className="text-center py-12 px-4 border-t border-white/5 text-xs text-slate-500 relative z-10 space-y-2">
+      <footer className="text-center py-12 px-4 border-t border-white/5 text-xs text-slate-500 relative z-10 space-y-3">
         <p className="flex items-center justify-center gap-2 font-semibold text-slate-300">
           <span>🚂</span>
           <span>HotMessExpress is a <strong className="text-amber-400">Dysfunction Junction</strong> venture.</span>
@@ -64,6 +64,19 @@ export default function Welcome() {
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
           Crafted with caffeine, neurodivergence, and zero spreadsheets. Because normal brains are boring.
         </p>
+        <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2">
+          <Link to="/privacy" className="hover:text-amber-400 transition underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          <span>&bull;</span>
+          <Link to="/terms" className="hover:text-amber-400 transition underline underline-offset-2">
+            Terms of Service
+          </Link>
+          <span>&bull;</span>
+          <a href="mailto:support@dysfunctionjunction.xyz" className="hover:text-amber-400 transition">
+            Contact Support
+          </a>
+        </div>
       </footer>
     </div>
   );

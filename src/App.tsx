@@ -12,6 +12,8 @@ import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
 import Welcome from "@/pages/Welcome";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
 import { apiUrl } from "@/lib/api";
@@ -36,6 +38,8 @@ const AuthedApp: React.FC = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
@@ -197,6 +201,23 @@ const App = () => {
     loadSession();
   }, [loadSession]);
 
+  const isLegalRoute = typeof window !== 'undefined' &&
+    (window.location.pathname === '/privacy' || window.location.pathname === '/terms');
+
+  if (isLegalRoute) {
+    return (
+      <ThemeProvider defaultTheme="dark">
+        <BrowserRouter>
+          <Routes>
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="*" element={<Privacy />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    );
+  }
+
   if (authState === 'loading' || !syncReady) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -212,6 +233,8 @@ const App = () => {
           <Routes>
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="*" element={<Welcome />} />
           </Routes>
         </BrowserRouter>
