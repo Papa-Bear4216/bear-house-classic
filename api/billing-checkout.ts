@@ -50,6 +50,7 @@ export default async function handler(req: Request): Promise<Response> {
       success_url: `${baseUrl}/setup?billing=success`,
       cancel_url: `${baseUrl}/setup?billing=cancelled`,
       metadata: { householdId, clientIp },
+      payment_method_collection: 'if_required',
       ...(hasPriorCustomer ? { customer: householdRows[0].stripe_customer_id } : {}),
       subscription_data: {
         metadata: { householdId, clientIp },

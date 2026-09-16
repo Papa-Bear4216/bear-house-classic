@@ -7,6 +7,7 @@ export const config = { runtime: 'edge' };
 
 import { getStripeClient } from './_stripe.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { notifyPush } from './_notify.js';
 
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
@@ -56,6 +57,18 @@ export default async function handler(req: Request): Promise<Response> {
           stripe_subscription_id: session.subscription,
           subscription_status: 'active',
         });
+      }
+    }
+
+    if (event.type === 'customer.subscription.trial_will_end') {
+      const subscription = event.data.object as any;
+      const householdId = subscription.metadata?.householdId;
+      if (householdId) {
+        await notifyPush(
+          householdId,
+          'Your free trial is ending soon',
+          'Add a payment method in the next 3 days to keep your household running without interruption.'
+        );
       }
     }
 
