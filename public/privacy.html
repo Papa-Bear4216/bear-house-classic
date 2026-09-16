@@ -180,6 +180,26 @@
       color: var(--muted);
       font-size: 0.8rem;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid var(--card-border);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--heading);
+      font-weight: 700;
+    }
+    td {
+      color: #cbd5e1;
+    }
     @media (max-width: 640px) {
       main {
         padding: 1.5rem;
@@ -267,6 +287,40 @@
       <p>
         <strong>Limited Processing:</strong> Only metadata and relevant receipt text are extracted to populate your household expense and logistics feed. Full raw emails are never archived or exposed to other users.
       </p>
+
+      <h3>Google Scopes &amp; Usage Matrix</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width: 140px;">Google OAuth Scope</th>
+              <th style="min-width: 160px;">Data Accessed</th>
+              <th style="min-width: 220px;">Specific Purpose of Use</th>
+              <th style="min-width: 180px;">Storage &amp; Retention</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>openid</code><br /><code>profile</code><br /><code>email</code></td>
+              <td>User name, email address, profile avatar image, unique Google ID</td>
+              <td>Authenticate user identity, create household account, assign household roles, and display member profile badges.</td>
+              <td>Stored securely in Supabase PostgreSQL (RLS). Retained while account is active; permanently deleted upon user request within 30 days.</td>
+            </tr>
+            <tr>
+              <td><code>https://www.googleapis.com/auth/calendar.readonly</code></td>
+              <td>Calendar event titles, start/end timestamps, locations, attendee counts</td>
+              <td>Render shared family schedules and upcoming appointments directly inside the unified household calendar.</td>
+              <td>Cached ephemerally during active sessions. Never permanently archived, shared with advertisers, or sold.</td>
+            </tr>
+            <tr>
+              <td><code>https://www.googleapis.com/auth/gmail.readonly</code></td>
+              <td>Read-only email headers, delivery confirmations, purchase receipts, utility invoices</td>
+              <td>Extract package tracking numbers, online order receipts, and utility bills to automate household chore assignments, shopping lists, and budget tracking.</td>
+              <td>Only parsed receipt metadata is saved to the private household database. Raw emails and attachments are NEVER stored, cached, or transferred.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="legal-box">
         <h3>Google API Services User Data Policy Compliance</h3>

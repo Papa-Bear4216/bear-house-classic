@@ -109,6 +109,40 @@ export default function Privacy() {
               </div>
             </div>
 
+            {/* Scope Matrix Table */}
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-950/60 mt-4">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5 text-white font-bold">
+                    <th className="p-3">Google Scope</th>
+                    <th className="p-3">Data Accessed</th>
+                    <th className="p-3">Specific Purpose</th>
+                    <th className="p-3">Storage &amp; Retention</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-slate-300">
+                  <tr>
+                    <td className="p-3 font-mono text-amber-300">openid, profile, email</td>
+                    <td className="p-3">Name, email, avatar, Google ID</td>
+                    <td className="p-3">Authentication, household seats, member profile badges</td>
+                    <td className="p-3">Supabase PostgreSQL (RLS). Retained while account active. Purged within 30 days of deletion request.</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-mono text-amber-300">.../auth/calendar.readonly</td>
+                    <td className="p-3">Event titles, dates, locations</td>
+                    <td className="p-3">Render shared family appointments on the household calendar</td>
+                    <td className="p-3">Cached ephemerally during active sessions. Never permanently archived or sold.</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-mono text-amber-300">.../auth/gmail.readonly</td>
+                    <td className="p-3">Receipts, tracking numbers, invoices</td>
+                    <td className="p-3">Extract tracking numbers and receipts for chores and budgeting</td>
+                    <td className="p-3">Only extracted receipt metadata saved. Raw emails are never stored, cached, or shared.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             {/* Google Limited Use Disclosure Box */}
             <div className="p-4 rounded-xl bg-slate-950 border-2 border-amber-500/40 space-y-2">
               <h4 className="text-xs uppercase tracking-wider font-extrabold text-amber-400">
