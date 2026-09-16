@@ -33,8 +33,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   const stripe = getStripeClient();
   const signature = req.headers.get('stripe-signature');
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-  if (!signature || !webhookSecret) return j({ error: 'Missing signature' }, 400);
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) return serverError('Stripe webhook not configured', 'stripe-webhook');
+  if (!signature) return j({ error: 'Missing signature' }, 400);
 
   const rawBody = await req.text();
 

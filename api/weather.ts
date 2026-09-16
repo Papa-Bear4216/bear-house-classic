@@ -56,8 +56,9 @@ function extractPrecip(forecast: any): number {
   return typeof prob === 'number' ? prob : 0;
 }
 
-const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
-const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: corsHeaders });
+// Access-Control-Allow-Origin is set by root middleware.ts, not here — setting
+// it in both places would send two conflicting values and browsers reject that.
+const j = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
 
 export default async function handler(req: Request): Promise<Response> {
   // Native (Capacitor) calls this cross-origin with an Authorization header —

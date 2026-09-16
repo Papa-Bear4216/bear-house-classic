@@ -1,13 +1,12 @@
 // Shared CORS helpers.
 //
-// These endpoints used to only ever be called same-origin (bearhouseos.vercel.app
-// calling its own /api/*), so no CORS headers were needed. Now the native app
-// (Capacitor) calls this backend from its own local origin, which makes every
-// request cross-origin — without these headers the browser/webview blocks the
-// response (and blocks the preflight OPTIONS request entirely for POSTs with a
-// JSON body).
+// The actual Access-Control-Allow-Origin allowlist now lives in root
+// middleware.ts, which sees the real request Origin and can set it on every
+// /api/* response without threading `req` through every route. This module's
+// OPTIONS short-circuit stays for routes that check it directly, but no
+// longer sets an Origin header itself — middleware adds the right one to
+// whatever handleCorsPreflight (or the route's own json() response) returns.
 export const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-webhook-token, x-write-secret',
 };
