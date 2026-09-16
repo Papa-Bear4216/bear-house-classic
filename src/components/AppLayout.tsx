@@ -297,7 +297,7 @@ const AppLayout: React.FC = () => {
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-display font-black text-sm tracking-tight text-white">HotMessExpress</span>
-                <span className="text-[11px] text-amber-400 font-bold hidden xs:inline tracking-tight">— The Family OS</span>
+                <span className="text-[11px] text-amber-400 font-bold hidden sm:inline tracking-tight">— The Family OS</span>
                 <span 
                   className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden md:inline cursor-help"
                   title="HotMessExpress — A proud product of Dysfunction Junction 🚂"

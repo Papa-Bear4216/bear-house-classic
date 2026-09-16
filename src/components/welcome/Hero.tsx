@@ -21,7 +21,7 @@ export function Hero() {
       </div>
 
       <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-4xl shadow-xl shadow-amber-500/25 ring-4 ring-white/10 relative z-10">
-        🐻
+        🚂
       </div>
 
       <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[1.1] tracking-tight font-display relative z-10">
@@ -31,7 +31,7 @@ export function Hero() {
       </h1>
 
       <p className="text-base sm:text-lg text-slate-300 max-w-xl relative z-10 leading-relaxed">
-        FamilyOS remembers what your brain won't — chores, bills, promises, and who's supposed to walk the dog. Built from the ground up to be ADHD-friendly, fun, and impossible to forget.
+        <strong>HotMessExpress — The Family OS</strong> remembers what your brain won't: chores, bills, promises, and who's supposed to walk the dog. Built from the ground up to be ADHD-friendly, fun, and impossible to forget.
       </p>
 
       {/* Micro-feature highlights */}
