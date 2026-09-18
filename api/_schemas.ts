@@ -12,8 +12,8 @@ export function parseBody<T>(
 }
 
 // Upper bounds so a compromised or buggy client can't stuff the model's context
-// window. 32k chars ~= 8k tokens, well above any legitimate brief/chat turn here.
-const MAX_PROMPT_CHARS = 32_000;
+// window. 8k chars bounds any client from stuffing the prompt.
+const MAX_PROMPT_CHARS = 8_000;
 const MAX_SYSTEM_CHARS = 16_000;
 
 export const ChatBodySchema = z.object({

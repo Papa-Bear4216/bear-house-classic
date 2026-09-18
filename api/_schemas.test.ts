@@ -41,11 +41,11 @@ describe('ChatBodySchema', () => {
   });
 
   it('rejects an oversized prompt', () => {
-    expect(ChatBodySchema.safeParse({ prompt: 'x'.repeat(32_001) }).success).toBe(false);
+    expect(ChatBodySchema.safeParse({ prompt: 'x'.repeat(8_001) }).success).toBe(false);
   });
 
   it('rejects an oversized message content', () => {
-    expect(ChatBodySchema.safeParse({ messages: [{ role: 'user', content: 'x'.repeat(32_001) }] }).success).toBe(false);
+    expect(ChatBodySchema.safeParse({ messages: [{ role: 'user', content: 'x'.repeat(8_001) }] }).success).toBe(false);
   });
 
   it('rejects a messages array over the length cap', () => {

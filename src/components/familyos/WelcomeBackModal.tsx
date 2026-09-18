@@ -4,6 +4,7 @@ import { KEYS, loadJSON } from '@/lib/familyos';
 import { markBriefed } from '@/lib/presenceTracker';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { sanitizeExternalText } from '@/lib/promptSafety';
 
 interface Props {
   days: number;
@@ -28,11 +29,11 @@ Today: ${today}.
 
 CURRENT HOUSEHOLD STATE:
 - Open tasks: ${open.length} (${high.length} high priority, ${overdue.length} overdue)
-- High priority: ${high.slice(0, 4).map(t => `"${t.text}" → ${t.person}`).join(', ') || 'none'}
-- Overdue: ${overdue.slice(0, 4).map(t => `"${t.text}"`).join(', ') || 'none'}
-- Unpaid bills: ${bills.length} — ${bills.slice(0, 4).map((b: any) => `${b.name} $${b.amount}`).join(', ') || 'none'}
-- Upcoming appointments: ${appts.map((a: any) => `${a.person}: ${a.title || a.type}`).join(', ') || 'none'}
-- Open promises: ${promises.map((p: any) => `${p.person}: "${p.text}"`).join(', ') || 'none'}
+- High priority: ${high.slice(0, 4).map(t => `"${sanitizeExternalText(t.text)}" → ${sanitizeExternalText(t.person)}`).join(', ') || 'none'}
+- Overdue: ${overdue.slice(0, 4).map(t => `"${sanitizeExternalText(t.text)}"`).join(', ') || 'none'}
+- Unpaid bills: ${bills.length} — ${bills.slice(0, 4).map((b: any) => `${sanitizeExternalText(b.name)} $${b.amount}`).join(', ') || 'none'}
+- Upcoming appointments: ${appts.map((a: any) => `${sanitizeExternalText(a.person)}: ${sanitizeExternalText(a.title || a.type)}`).join(', ') || 'none'}
+- Open promises: ${promises.map((p: any) => `${sanitizeExternalText(p.person)}: "${sanitizeExternalText(p.text)}"`).join(', ') || 'none'}
 
 Write a warm, brief welcome-back summary (plain text, no markdown, no bullet points, 3-4 sentences max).
 Start with welcoming them back. Call out anything urgent (overdue tasks, bills). End with one actionable focus for today. Keep it human, warm, direct, and prioritize the single most important action item.`;
