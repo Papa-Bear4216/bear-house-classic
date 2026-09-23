@@ -105,4 +105,44 @@ describe('POST /api/chat', () => {
     const res = await handler(req({ prompt: 'hi' }));
     expect(res.status).toBe(429);
   });
+
+  it('routes Triad queries directly to ambient Triad daemon on port 8789', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    // Notice resolveAiKeys is NOT called or required for Triad queries!
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'success',
+        intent: 'DOCTOR',
+        result: { pieces_os: true, hermes_relay: true, pieces_proxy: true, ollama: false, advisors: { claude: true } },
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'triad doctor' }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const parsed = JSON.parse(body.text);
+    expect(parsed.text).toContain('Triad Health Report (Intent: DOCTOR)');
+    expect(parsed.text).toContain('Pieces OS: 🟢 Online (39300)');
+  });
+
+  it('gracefully falls back to LLM when Triad daemon is offline during a triad query', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
+
+    const fetchMock = vi.mocked(fetch);
+    // 1st fetch: Triad daemon connection refused
+    // 2nd fetch: Anthropic call succeeds
+    fetchMock
+      .mockRejectedValueOnce(new Error('connect ECONNREFUSED 127.0.0.1:8789'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ content: [{ text: 'fallback response from claude' }] }),
+      } as Response);
+
+    const res = await handler(req({ prompt: 'triad doctor' }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.text).toBe('fallback response from claude');
+  });
 });

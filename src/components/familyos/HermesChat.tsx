@@ -25,7 +25,7 @@ type ActionType =
   | 'updateMemory'
   | 'clearWeekMeals' | 'setMealPlan'
   | 'genericAction' | 'markMealCooked' | 'addCarMaintenanceEntry' | 'controlDevice'
-  | 'discoverSmartHome' | 'notifyPerson' | 'manageMember';
+  | 'discoverSmartHome' | 'notifyPerson' | 'manageMember' | 'queryTriad';
 
 interface ActionParams extends Record<string, any> {}
 
@@ -349,6 +349,32 @@ async function executeAction(
       return { result: `Unknown member management operation: "${p.op}"`, ok: false };
     }
 
+    // ── Triad Engine query ──────────────────────────────────────────────────
+    if (action.type === 'queryTriad') {
+      const token = await getAccessToken();
+      const queryStr = p.query || p.prompt || 'doctor';
+      const res = await fetch(apiUrl('/api/chat'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ prompt: `triad ${queryStr}` }),
+      });
+      if (!res.ok) {
+        return { result: `Couldn't reach Triad engine`, ok: false };
+      }
+      const data = await res.json();
+      let text = data.text || '';
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.text) text = parsed.text;
+      } catch {
+        // use raw
+      }
+      return { result: text || 'Triad query executed', ok: true };
+    }
+
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
       const note = `[${new Date().toLocaleDateString()}] ${p.memory}`;
@@ -484,6 +510,8 @@ notifyPerson: {type, params: {person: "family member's first name", title: "shor
   Sends a push notification directly to that person's phone. Only use a name that appears in the Family list above.
 manageMember: {type, params: {op: "remove"|"updateRole", person: "family member's first name", role?: "admin"|"child"|"pet"}}
   Superadmin only — the server will reject this if the current user isn't superadmin. role is required and must be one of admin|child|pet when op is "updateRole".
+queryTriad: {type, params: {query: "doctor"|"gate"|"status"|"review diff"|"debug <error>"}}
+  Queries the Autonomous Multi-Agent Triad daemon for coding audits, health checks, or code reviews.
 
 ═══ RULES ═══
 - Use actions whenever the user asks you to DO something (add, complete, mark, log, remove, etc.)

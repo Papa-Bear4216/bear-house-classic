@@ -52,9 +52,6 @@ export default async function handler(req: Request): Promise<Response> {
   const rl = await checkRateLimit(householdId, 'chat', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
-  if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
-
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
@@ -63,6 +60,56 @@ export default async function handler(req: Request): Promise<Response> {
   const messages = msgArray || [{ role: 'user', content: prompt }];
   const tokens = maxTokens || 512;
   const augmentedSystem = system || '';
+
+  // Intercept Triad queries and route to ambient Triad daemon on port 8789 ($0 token cost)
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || prompt || '';
+  const cleanQuery = lastUserMsg.trim();
+  const isTriadDirect = /^(triad|\/triad)\b/i.test(cleanQuery) ||
+    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery);
+
+  if (isTriadDirect) {
+    const TRIAD_URL = process.env.TRIAD_URL || 'http://127.0.0.1:8789';
+    try {
+      const strippedPrompt = cleanQuery.replace(/^(\/)?triad\s*:?\s*/i, '').trim() || 'doctor';
+      const triadRes = await fetch(`${TRIAD_URL}/auto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: strippedPrompt }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (triadRes.ok) {
+        const triadData = await triadRes.json();
+        let formatted = '';
+        if (triadData.result?.response) {
+          formatted = triadData.result.response;
+        } else if (triadData.result?.synthesis) {
+          formatted = triadData.result.synthesis;
+        } else if (triadData.intent === 'DOCTOR') {
+          const subs = triadData.result || {};
+          formatted = `Triad Health Report (Intent: DOCTOR):\n` +
+            `• Pieces OS: ${subs.pieces_os ? '🟢 Online (39300)' : '🔴 Offline'}\n` +
+            `• Hermes Relay: ${subs.hermes_relay ? '🟢 Online (8766)' : '🔴 Standby'}\n` +
+            `• Pieces Proxy: ${subs.pieces_proxy ? '🟢 Online (8787)' : '🔴 Offline'}\n` +
+            `• Ollama: ${subs.ollama ? '🟢 Online (11434)' : '🔴 Standby'}\n` +
+            `• Active Advisors: ${Object.keys(subs.advisors || {}).join(', ') || 'Claude, Codex'}`;
+        } else {
+          formatted = JSON.stringify(triadData.result || triadData, null, 2);
+        }
+
+        const reply = JSON.stringify({
+          text: `[Triad Engine: ${triadData.intent || 'AUTO'}]\n${formatted}`,
+          actions: []
+        });
+        return j({ text: reply });
+      }
+    } catch (e: any) {
+      console.warn('[Chat] Triad ambient bridge unavailable, falling back to LLM:', e?.message);
+    }
+  }
+
+  const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
+  if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
 
   if (anthropicKey) {
     const chosenModel = model || (tokens > 512 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001');
