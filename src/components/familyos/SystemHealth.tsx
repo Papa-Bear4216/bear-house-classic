@@ -1,6 +1,6 @@
 // src/components/familyos/SystemHealth.tsx
 import React, { useEffect, useState } from 'react';
-import { Activity, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Activity, RefreshCw, AlertTriangle, CheckCircle2, Cpu } from 'lucide-react';
 import { loadJSON, isAdmin, KEYS } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
@@ -26,10 +26,46 @@ const SystemHealth: React.FC = () => {
   const [snap, setSnap] = useState<Snapshot | null>(() => loadJSON('system_health', null));
   const [fixing, setFixing] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
+  const [triadStatus, setTriadStatus] = useState<{
+    available: boolean;
+    status: string;
+    totalSessions?: number;
+    advisors?: string[];
+  } | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setSnap(loadJSON('system_health', null)), 5000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchTriad = async () => {
+      try {
+        const res = await authedFetch('/api/triad-telemetry');
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            setTriadStatus({
+              available: data.available,
+              status: data.status,
+              totalSessions: data.telemetry?.total_sessions,
+              advisors: data.health?.advisors?.map((a: any) => a.name),
+            });
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setTriadStatus({ available: false, status: 'standby' });
+        }
+      }
+    };
+    fetchTriad();
+    const interval = setInterval(fetchTriad, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   if (!currentRole || !isAdmin(currentRole)) return null;
@@ -109,6 +145,23 @@ const SystemHealth: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {triadStatus && (
+        <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl px-3 py-2.5 space-y-1">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-white text-xs font-semibold">Autonomous Triad</span>
+            <span className={`ml-auto w-2 h-2 rounded-full ${triadStatus.available ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+            <span className="text-slate-400 text-[11px] capitalize">{triadStatus.status} (Port 8789)</span>
+          </div>
+          {triadStatus.available && (
+            <div className="text-slate-400 text-[11px] flex items-center justify-between pt-0.5">
+              <span>Advisors: {triadStatus.advisors?.join(', ') || 'Claude Code & OpenAI Codex'}</span>
+              <span>Sessions: {triadStatus.totalSessions ?? 0}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
