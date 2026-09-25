@@ -354,6 +354,23 @@ export async function dbSetHermesModelTier(householdId: string, tier: 'haiku' | 
   }
 }
 
+/** Get a household's Hermes chat model tier (service role, bypasses RLS). Defaults to 'haiku'. */
+export async function dbGetHermesModelTier(householdId: string): Promise<'haiku' | 'sonnet'> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=hermes_model_tier`,
+      { headers: headers(serviceKey) }
+    );
+    if (!res.ok) return 'haiku';
+    const rows = await res.json() as any[];
+    return rows[0]?.hermes_model_tier === 'sonnet' ? 'sonnet' : 'haiku';
+  } catch {
+    return 'haiku';
+  }
+}
+
+
 /** Store a member's Gmail server-side refresh token (encrypted by the caller) */
 export async function dbSetMemberGmailToken(
   memberId: string,
