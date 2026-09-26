@@ -4,7 +4,7 @@ vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn(), dbGetHermesModelTier: 
 vi.mock('./_aiKeys.js', () => ({ resolveAiKeys: vi.fn() }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
-import handler from './chat';
+import handler, { buildClaudeRequestBody } from './chat';
 import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -64,7 +64,7 @@ describe('POST /api/chat', () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'hello' }] }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hello' }] }),
     } as Response);
 
     await handler(req({ prompt: 'hi' }));
@@ -75,7 +75,7 @@ describe('POST /api/chat', () => {
   it('returns the Claude response when the Anthropic key is configured and the call succeeds', async () => {
     authed();
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'hello from claude' }] }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hello from claude' }] }),
     } as Response);
 
     const res = await handler(req({ prompt: 'hi' }));
@@ -118,7 +118,7 @@ describe('POST /api/chat', () => {
     authed();
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('sonnet');
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'hi' }] }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
     } as Response);
 
     await handler(req({ prompt: 'hi' }));
@@ -131,7 +131,7 @@ describe('POST /api/chat', () => {
     authed();
     vi.mocked(dbGetHermesModelTier).mockRejectedValue(new Error('db down'));
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'hi' }] }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
     } as Response);
 
     const res = await handler(req({ prompt: 'hi' }));
@@ -145,7 +145,7 @@ describe('POST /api/chat', () => {
     authed();
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'hi' }] }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
     } as Response);
 
     await handler(req({ prompt: 'hi', model: 'claude-sonnet-4-6' }));
@@ -187,7 +187,7 @@ describe('POST /api/chat', () => {
   it('flags truncated responses instead of silently cutting off', async () => {
     authed();
     vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ text: 'partial…' }], stop_reason: 'max_tokens' }),
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'partial…' }], stop_reason: 'max_tokens' }),
     } as Response);
 
     const res = await handler(req({ prompt: 'hi' }));
@@ -196,5 +196,62 @@ describe('POST /api/chat', () => {
     const body = await res.json();
     expect(body.text).toBe('partial…');
     expect(body.truncated).toBe(true);
+  });
+
+  // --- Prompt caching: system prompt served from cache on repeat turns ---
+
+  it('marks the system prompt as an ephemeral-cacheable block', () => {
+    const body = buildClaudeRequestBody('claude-haiku-4-5-20251001', 'sys', [{ role: 'user', content: 'hi' }], 512);
+
+    expect(body.model).toBe('claude-haiku-4-5-20251001');
+    expect(body.max_tokens).toBe(512);
+    expect(body.messages).toEqual([{ role: 'user', content: 'hi' }]);
+    expect(body.system).toEqual([
+      { type: 'text', text: 'sys', cache_control: { type: 'ephemeral' } },
+    ]);
+  });
+
+  it('sends the cache_control block on the live Claude request', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
+    } as Response);
+
+    await handler(req({ prompt: 'hi' }));
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.system).toEqual([
+      { type: 'text', text: expect.any(String), cache_control: { type: 'ephemeral' } },
+    ]);
+  });
+
+  it('surfaces cache read/create token counts when the provider reports them', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: 'hi' }],
+        usage: { input_tokens: 100, cache_read_input_tokens: 9000, cache_creation_input_tokens: 0 },
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'hi' }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.cache).toEqual({ cacheRead: 9000, cacheCreated: 0 });
+  });
+
+  it('omits the cache field when the provider reports no caching', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'hi' }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect('cache' in body).toBe(false);
   });
 });
