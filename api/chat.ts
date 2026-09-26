@@ -37,13 +37,40 @@ class ProviderError extends Error {
   }
 }
 
+// --- Prompt caching (Anthropic) ---
+// The system prompt is large and mostly static within a chat session
+// (persona, action catalog, memory facts, member list). Marking it as a
+// cacheable block means repeat turns are served from the prompt cache:
+// cached input tokens bill at ~10% of the base rate and respond faster.
+// The first unique system string per ~5min window costs 1.25x (cache
+// write); prompts under 1024 tokens simply don't cache — no error, no
+// behavior change. No beta header needed; prompt caching is GA.
+// Follow-up for higher hit rates: have the client split its system prompt
+// into a stable prefix and a dynamic suffix (tasks/weather) as two blocks,
+// with the breakpoint between them.
+export function buildClaudeRequestBody(
+  model: string,
+  system: string,
+  messages: ChatMessage[],
+  maxTokens: number,
+): Record<string, unknown> {
+  return {
+    model,
+    max_tokens: maxTokens,
+    system: [
+      { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
+    ],
+    messages,
+  };
+}
+
 async function callClaude(
   messages: ChatMessage[],
   system: string,
   apiKey: string,
   model: string,
   maxTokens: number,
-): Promise<{ text: string; stopReason: string | null }> {
+): Promise<{ text: string; stopReason: string | null; usage: { cacheRead: number; cacheCreated: number } }> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -51,7 +78,7 @@ async function callClaude(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
+    body: JSON.stringify(buildClaudeRequestBody(model, system, messages, maxTokens)),
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (!res.ok) {
@@ -63,7 +90,15 @@ async function callClaude(
     .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
     .map((b: any) => b.text)
     .join('');
-  return { text, stopReason: data?.stop_reason ?? null };
+  const usage = data?.usage ?? {};
+  return {
+    text,
+    stopReason: data?.stop_reason ?? null,
+    usage: {
+      cacheRead: usage?.cache_read_input_tokens ?? 0,
+      cacheCreated: usage?.cache_creation_input_tokens ?? 0,
+    },
+  };
 }
 
 async function callGemini(
@@ -136,7 +171,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (anthropicKey) {
     try {
-      const { text, stopReason } = await callClaude(messages, effectiveSystem, anthropicKey, chosenModel, tokens);
+      const { text, stopReason, usage } = await callClaude(messages, effectiveSystem, anthropicKey, chosenModel, tokens);
       if (!text) {
         // Never return a silent 200 with empty text — that was the
         // "empty response" bug. Surface it as a 502 so clients can retry.
@@ -149,6 +184,9 @@ export default async function handler(req: Request): Promise<Response> {
         text,
         model: chosenModel,
         ...(stopReason === 'max_tokens' ? { truncated: true } : {}),
+        // Observability for the prompt-cache win: present only when the
+        // provider actually cached something, so old clients ignore it.
+        ...(usage.cacheRead || usage.cacheCreated ? { cache: usage } : {}),
       });
     } catch (e: any) {
       const status = e instanceof ProviderError ? e.status : 0;
