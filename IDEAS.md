@@ -256,3 +256,32 @@ Step 0 persona + all ledgers — goes last.
 Step 0 (done) → Hermes follow-ups (a,b,c) → Phase 0 → Phase 1 → **Phase 4**
 (daily-use hook) → Phase 2 → Phase 3 → Phase 5 → Phase 6.
 **Rough total: 30–45 focused days.**
+
+---
+
+## Hermes: better at his job without spending more
+
+*Ranked by impact. All $0 marginal cost. #1 shipped 2026-09-25 (PR #40).*
+
+1. **Prompt caching — SHIPPED (PR #40).** The system prompt (persona, 22-action
+   catalog, memory facts) is now an Anthropic ephemeral-cacheable block.
+   Repeat turns bill cached input at ~10% and respond faster. Response
+   surfaces `cache: { cacheRead, cacheCreated }` for observability.
+   Follow-up: client splits system prompt into stable prefix + dynamic
+   suffix blocks for higher hit rates.
+2. **Structured outputs for actions.** Replace "ALWAYS return valid JSON"
+   begging + fragile client parsing with Anthropic tool_use/strict schemas.
+   Fewer misparses = fewer retries = less spend; shorter prompts too.
+3. **Nano-first routing.** On-device Gemini Nano (already wired for vision +
+   budget text) becomes the first attempt for simple intents (add task, log
+   emotion, classification); cloud only on failure. Highest-frequency calls
+   become free.
+4. **Memory auto-capture.** Turn on the reserved `auto` memory source:
+   Hermes proposes facts to a review queue via the existing `updateMemory`
+   action. Compounds household smarts weekly, no bigger model needed.
+5. **Per-request model routing.** Replace the household-wide tier toggle with
+   routing by complexity: Nano/haiku for chat + quick capture, sonnet for
+   weekly summaries + custody parsing. Same budget, better where it counts.
+6. **History summarization + briefing cache.** Cap conversation history, roll
+   old turns into a summary; cache the morning briefing per day instead of
+   recomposing.
