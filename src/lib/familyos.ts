@@ -207,6 +207,111 @@ export async function triggerHaDevice(
   }
 }
 
+/**
+ * Triggers a device control action via /api/devices/control.
+ * Works with or without HA configured — returns "not configured"
+ * cleanly if no backend is set up for this household.
+ */
+export async function triggerDevice(
+  deviceId: string,
+  action?: 'turn_on' | 'turn_off' | 'toggle' | 'lock' | 'unlock' | 'open_cover' | 'close_cover' | 'start' | 'stop' | 'return_to_base' | 'set_brightness' | 'set_temperature' | 'set_color',
+  params?: Record<string, unknown>
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const token = await getAccessToken();
+    const res = await authedFetch('/api/devices/control', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId, action, params }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data.error || `Device control returned ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network error reaching device backend' };
+  }
+}
+
+// ── Voice Triggers (IFTTT-style registry) ──────────────────────────
+
+export interface VoiceTrigger {
+  id: string;
+  trigger: string;
+  deviceId: string;
+  action: string;
+  params?: Record<string, unknown>;
+  createdAt: number;
+}
+
+export interface VoiceTriggerRegistry {
+  triggers: VoiceTrigger[];
+  hasToken: boolean;
+}
+
+export async function voiceTriggersList(): Promise<VoiceTriggerRegistry> {
+  try {
+    const token = await getAccessToken();
+    const res = await authedFetch('/api/voice-triggers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list' }),
+    });
+    if (!res.ok) return { triggers: [], hasToken: false };
+    return res.json();
+  } catch { return { triggers: [], hasToken: false }; }
+}
+
+export async function voiceTriggersAdd(
+  trigger: string,
+  deviceId: string,
+  action: string,
+  params?: Record<string, unknown>
+): Promise<{ ok: boolean; error?: string; trigger?: VoiceTrigger }> {
+  try {
+    const token = await getAccessToken();
+    const res = await authedFetch('/api/voice-triggers', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add', trigger, deviceId, action: action, params }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data.error };
+    }
+    return { ok: true, trigger: await res.json() };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Failed to add trigger' };
+  }
+}
+
+export async function voiceTriggersRemove(trigger: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const token = await getAccessToken();
+    const res = await authedFetch('/api/voice-triggers', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'remove', trigger }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, error: data.error };
+    }
+    return { ok: true };
+  } catch { return { ok: false, error: 'Failed to remove trigger' }; }
+}
+
+export async function voiceTriggerRotateToken(): Promise<{ ok: boolean; token?: string; error?: string }> {
+  try {
+    const token = await getAccessToken();
+    const res = await authedFetch('/api/voice-triggers', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'rotateToken' }),
+    });
+    if (!res.ok) return { ok: false, error: 'Failed to rotate token' };
+    const data = await res.json();
+    return { ok: true, token: data.token };
+  } catch { return { ok: false, error: 'Failed to rotate token' }; }
+}
+
 // Last-resort fallback only — see FALLBACK_PILLARS above.
 export const FALLBACK_PERSONS = ['Family', 'General'];
 

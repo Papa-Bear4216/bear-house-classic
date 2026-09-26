@@ -147,6 +147,39 @@ export const HaWebhookBodySchema = z.discriminatedUnion('event', [
   }),
 ]);
 
+// ── Voice trigger / device control schemas (IFTTT-style, Google, Alexa) ──────
+
+export const DeviceControlBodySchema = z.object({
+  deviceId: z.string().trim().min(1).max(200),
+  action: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover', 'start', 'stop', 'return_to_base', 'set_brightness', 'set_temperature', 'set_color']),
+  params: z.record(z.unknown()).optional(),
+});
+
+export const VoiceTriggerWebhookBodySchema = z.object({
+  trigger: z.string().trim().min(1).max(100),
+  token: z.string().trim().min(1),
+});
+
+export const VoiceTriggerActionSchema = z.object({
+  type: z.literal('device'),
+  deviceId: z.string().trim().min(1).max(200),
+  action: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover', 'start', 'stop', 'return_to_base', 'set_brightness', 'set_temperature', 'set_color']),
+  params: z.record(z.unknown()).optional(),
+});
+
+export const VoiceTriggerManageBodySchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('list') }),
+  z.object({
+    action: z.literal('add'),
+    trigger: z.string().trim().min(1).max(100),
+    deviceId: z.string().trim().min(1).max(200),
+    deviceAction: z.enum(['turn_on', 'turn_off', 'toggle', 'lock', 'unlock', 'open_cover', 'close_cover', 'start', 'stop', 'return_to_base', 'set_brightness', 'set_temperature', 'set_color']),
+    params: z.record(z.unknown()).optional(),
+  }),
+  z.object({ action: z.literal('remove'), trigger: z.string().trim().min(1).max(100) }),
+  z.object({ action: z.literal('rotateToken') }),
+]);
+
 export const SecretaryBodySchema = z.object({
   item: z.record(z.unknown()),
   type: z.string().min(1),

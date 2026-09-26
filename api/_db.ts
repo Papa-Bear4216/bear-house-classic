@@ -507,3 +507,44 @@ export async function dbDeletePushToken(token: string): Promise<void> {
     headers: headers(serviceKey),
   });
 }
+
+/** Get a household's voice trigger webhook token (may be null). */
+export async function dbGetHouseholdVoiceToken(householdId: string): Promise<{ voice_trigger_token: string | null }> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=voice_trigger_token`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return { voice_trigger_token: null };
+  const rows = await res.json() as any[];
+  return rows[0] ?? { voice_trigger_token: null };
+}
+
+/** Set (or clear) a household's voice trigger webhook token. */
+export async function dbSetHouseholdVoiceToken(householdId: string, token: string | null): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({ voice_trigger_token: token }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetHouseholdVoiceToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Resolve a household from its voice trigger webhook token. */
+export async function resolveHouseholdIdByVoiceTriggerToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?voice_trigger_token=eq.${encodeURIComponent(token)}&select=id`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json() as any[];
+  return rows[0]?.id ?? null;
+}
