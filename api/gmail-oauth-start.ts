@@ -9,8 +9,9 @@
  */
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, dbGetHouseholdMembersByHouseholdId } from './_db.js';
+import { resolveCallerMember, dbGetHouseholdMembersByHouseholdId } from './_db.js';
 import { json as j } from './_responseHelpers.js';
+import { signGmailState } from './_crypto.js';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -20,25 +21,36 @@ export default async function handler(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const accessToken = url.searchParams.get('token') || '';
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
 
-  const memberId = url.searchParams.get('memberId');
-  if (!memberId) return j({ error: 'Missing memberId' }, 400);
-
-  // Confirm the member belongs to this household — don't let a caller
-  // connect Gmail onto an arbitrary member ID from another household.
-  const members = await dbGetHouseholdMembersByHouseholdId(householdId);
-  if (!members.some(m => m.id === memberId)) return j({ error: 'Member not found in this household' }, 404);
+  // Gmail connect is normally "connect MY OWN Gmail" (memberId omitted), but
+  // the Settings panel also lets an admin connect it on behalf of another
+  // member — that's authorized below by role, not merely by household.
+  const targetMemberId = url.searchParams.get('memberId') || caller.memberId;
+  const isAdmin = caller.role === 'admin' || caller.role === 'superadmin';
+  if (targetMemberId !== caller.memberId && !isAdmin) {
+    return j({ error: 'Only an admin can connect Gmail for another member' }, 403);
+  }
+  const members = await dbGetHouseholdMembersByHouseholdId(caller.householdId);
+  const target = members.find(m => m.id === targetMemberId);
+  if (!target) return j({ error: 'Member not found in this household' }, 404);
+  // Role hierarchy: an admin (not superadmin) may not manage a superadmin's
+  // integrations — that would be a privilege inversion. Only the target
+  // themselves or another superadmin can.
+  if (target.role === 'superadmin' && targetMemberId !== caller.memberId && caller.role !== 'superadmin') {
+    return j({ error: "Only a superadmin can manage another superadmin's Gmail connection" }, 403);
+  }
+  const { householdId } = caller;
+  const memberId = targetMemberId;
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   if (!clientId) return j({ error: 'Gmail integration is not configured' }, 500);
 
   const redirectUri = `${url.origin}/api/gmail-oauth-callback`;
-  // state carries memberId + a return path — signed implicitly by requiring
-  // the callback to re-verify household membership, not by a signature,
-  // since it only ever triggers a read-scope Gmail connect, not a write.
-  const state = encodeURIComponent(JSON.stringify({ memberId, householdId }));
+  // state is HMAC-signed and short-lived (10 min) so it can't be forged or
+  // replayed to link Gmail onto a member this request wasn't authorized for.
+  const state = encodeURIComponent(await signGmailState({ memberId, householdId }));
 
   const authUrl = new URL(AUTH_URL);
   authUrl.searchParams.set('client_id', clientId);

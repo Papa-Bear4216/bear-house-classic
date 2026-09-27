@@ -10,7 +10,7 @@
 export const config = { runtime: 'edge' };
 
 import { dbGetHouseholdMemberById, dbSetMemberGmailToken } from './_db.js';
-import { encryptSecret } from './_crypto.js';
+import { encryptSecret, verifyGmailState } from './_crypto.js';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
@@ -31,12 +31,11 @@ export default async function handler(req: Request): Promise<Response> {
   if (error) return redirectToApp(url.origin, 'error', error);
   if (!code || !stateRaw) return redirectToApp(url.origin, 'error', 'missing_code_or_state');
 
-  let state: { memberId: string; householdId: string };
-  try {
-    state = JSON.parse(decodeURIComponent(stateRaw));
-  } catch {
-    return redirectToApp(url.origin, 'error', 'invalid_state');
-  }
+  // stateRaw is passed RAW (still URL-encoded) — verifyGmailState decodes
+  // internally so a malformed escape sequence redirects cleanly instead of
+  // throwing an unhandled 500.
+  const state = await verifyGmailState(stateRaw);
+  if (!state) return redirectToApp(url.origin, 'error', 'invalid_state');
 
   const member = await dbGetHouseholdMemberById(state.memberId);
   if (!member || member.household_id !== state.householdId) {
