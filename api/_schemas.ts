@@ -272,3 +272,31 @@ export const NotifyPersonBodySchema = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(1000),
 });
+
+// Input shape for briefing JSON-mode requests — validated before the
+// structured payload reaches the prompt-construction path. The `start`/`source`
+// gate checks data-plane access; `content` is the editor text being briefed;
+// `meta` is optional structured context capped at 25 entries.
+export const BriefingJsonInputSchema = z.object({
+  start: z.string().min(1),
+  source: z.string().min(1),
+  content: z.string().min(1).max(MAX_PROMPT_CHARS),
+  meta: z.array(z.record(z.unknown())).max(25).optional(),
+});
+
+// Output shape the LLM must return from secretary enrichment — validated
+// against the parsed JSON before trusting its keys. Catches malformed or
+// oversized LLM output and prevents injection of unexpected keys into the
+// saved item.
+export const SecretaryParseSchema = z.object({
+  action: z.enum(['save', 'skip']),
+  reason: z.string().max(500).optional(),
+  enriched: z.object({
+    text: z.string().min(1).max(500),
+    person: z.string().min(1).max(100),
+    priority: z.enum(['High', 'Medium', 'Low']),
+    category: z.string().min(1).max(100),
+    dueEstimate: z.enum(['Today', 'This Week', 'This Month', 'No Deadline']),
+    secretaryNote: z.string().max(500).optional(),
+  }),
+});

@@ -16,7 +16,7 @@ const CLAUDE_MODELS = {
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const PROVIDER_TIMEOUT_MS = 30_000;
 
-const HERMES_SYSTEM_PROMPT = [
+export const HERMES_SYSTEM_PROMPT = [
   'You are Hermes, the Bear House family assistant.',
   'You help with household life: routines, chores, schedules, homework, meals, budgeting, and finding things.',
   'Be concise, warm, and practical. Prefer short answers with concrete next steps.',

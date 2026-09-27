@@ -8,6 +8,7 @@ import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SecretaryBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
+import { GEMINI_MODEL, CLAUDE_MODELS } from './_aiModels.js';
 
 import { handleCorsPreflight } from './_cors.js';
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
@@ -23,9 +24,9 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string, apiKey: string): Promise<string> {
+async function callGemini(prompt: string, apiKey: *** Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,8 +129,14 @@ export default async function handler(req: Request): Promise<Response> {
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
     const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey);
-    const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
-    const result = JSON.parse(clean);
+    const clean = raw.replace(/```json?\\s*/gi, '').replace(/```/g, '').trim();
+    // JSON mode input gating: validate the LLM's parsed JSON output against a
+    // schema before trusting its shape. The regex strip (above) removes
+    // markdown fences; this zod pass catches malformed or oversized payloads
+    // and prevents injection of unexpected keys into the saved item.
+    const parsedResult = parseBody(SecretaryParseSchema, JSON.parse(clean));
+    if (!parsedResult.ok) return j({ action: 'save', item, secretaryError: parsedResult.error });
+    const result = parsedResult.data;
 
     if (result.action === 'skip') return j({ action: 'skip', reason: result.reason, item });
 

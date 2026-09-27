@@ -11,8 +11,9 @@ export const config = { runtime: 'edge' };
 
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
-import { parseBody, BriefingParamsSchema } from './_schemas.js';
+import { parseBody, BriefingParamsSchema, BriefingJsonInputSchema } from './_schemas.js';
 import { error as jError, serverError } from './_responseHelpers.js';
+import { GEMINI_MODEL, CLAUDE_MODELS } from './_aiModels.js';
 
 async function getKey(key: string, householdId: string) {
   return (await dbGet(key, householdId)) ?? [];
@@ -52,9 +53,9 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string, apiKey: string): Promise<string> {
+async function callGemini(prompt: string, apiKey: *** Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -135,9 +136,21 @@ export default async function handler(req: Request): Promise<Response> {
   const rawParams = isGet
     ? { token: url.searchParams.get('token') ?? undefined, person: url.searchParams.get('person') ?? undefined, type: url.searchParams.get('type') ?? undefined }
     : { token: bodyData?.token, person: bodyData?.person, type: bodyData?.type };
-  const parsed = parseBody(BriefingParamsSchema, rawParams);
-  if (!parsed.ok) return jError(parsed.error, 400);
-  const { person, type: briefType } = parsed.data;
+  const parsedParams = parseBody(BriefingParamsSchema, rawParams);
+  if (!parsedParams.ok) return jError(parsedParams.error, 400);
+  const { person, type: briefType } = parsedParams.data;
+
+  // JSON mode input gating: when the request includes a structured `input`
+  // object, validate it against BriefingJsonInputSchema before it reaches the
+  // prompt-construction and LLM call paths. The `start`/`source` gate is the
+  // data-plane access check; `content` is the editor text; `meta` is optional
+  // structured context (max 25 entries). This closes the gap where a caller
+  // could inject an oversized or malformed JSON payload directly into the
+  // briefing prompt without shape validation.
+  if (bodyData?.input !== undefined) {
+    const parsedInput = parseBody(BriefingJsonInputSchema, bodyData.input);
+    if (!parsedInput.ok) return jError(parsedInput.error, 400);
+  }
 
   try {
     const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
