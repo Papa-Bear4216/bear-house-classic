@@ -9,10 +9,14 @@ import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 
+// --- Test helpers -------------------------------------------------------
+// Extracted so the new Hermes-overhaul tests don't repeat the same
+// fetch-mock shape six times (that was the Sonar duplicated-lines hit).
+
 function req(body: unknown, auth = 'Bearer t') {
   return new Request('https://example.com/api/chat', {
     method: 'POST',
-    headers: { authorization: auth, 'content-type': 'application/json' },
+    headers: { authorization: 'Bearer ' + auth, 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
 }
@@ -21,6 +25,29 @@ function authed() {
   vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
   vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: 'gemini-1' });
+}
+
+/** Mocks a successful Claude response with the given text. */
+function claudeOk(text = 'hi') {
+  return {
+    ok: true,
+    json: async () => ({ content: [{ type: 'text', text }] }),
+  } as Response;
+}
+
+/** Mocks a successful Gemini response with the given text. */
+function geminiOk(text: string) {
+  return {
+    ok: true,
+    json: async () => ({
+      candidates: [{ content: { parts: [{ text }] } }],
+    }),
+  } as Response;
+}
+
+/** Mocks Claude being down (500) so the Gemini fallback path is exercised. */
+function claudeDown() {
+  return { ok: false, status: 500, text: async () => 'claude down' } as Response;
 }
 
 beforeEach(() => {
@@ -63,9 +90,7 @@ describe('POST /api/chat', () => {
     // server-resolved id from the Bearer token
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hello' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('hello'));
 
     await handler(req({ prompt: 'hi' }));
 
@@ -74,9 +99,7 @@ describe('POST /api/chat', () => {
 
   it('returns the Claude response when the Anthropic key is configured and the call succeeds', async () => {
     authed();
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hello from claude' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('hello from claude'));
 
     const res = await handler(req({ prompt: 'hi' }));
 
@@ -89,11 +112,8 @@ describe('POST /api/chat', () => {
     authed();
     const fetchMock = vi.mocked(fetch);
     fetchMock
-      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'claude down' } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ candidates: [{ content: { parts: [{ text: 'hello from gemini' }] } }] }),
-      } as Response);
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce(geminiOk('hello from gemini'));
 
     const res = await handler(req({ prompt: 'hi' }));
 
@@ -108,7 +128,6 @@ describe('POST /api/chat', () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'rate limited' } as Response);
 
     const res = await handler(req({ prompt: 'hi' }));
-
     expect(res.status).toBe(429);
   });
 
@@ -117,9 +136,7 @@ describe('POST /api/chat', () => {
   it('uses the household sonnet tier for the Claude model', async () => {
     authed();
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('sonnet');
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
     await handler(req({ prompt: 'hi' }));
 
@@ -130,9 +147,7 @@ describe('POST /api/chat', () => {
   it('defaults to haiku when the tier lookup fails', async () => {
     authed();
     vi.mocked(dbGetHermesModelTier).mockRejectedValue(new Error('db down'));
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
     const res = await handler(req({ prompt: 'hi' }));
 
@@ -143,10 +158,7 @@ describe('POST /api/chat', () => {
 
   it('lets an explicit model param override the household tier', async () => {
     authed();
-    vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
     await handler(req({ prompt: 'hi', model: 'claude-sonnet-4-6' }));
 
@@ -171,11 +183,8 @@ describe('POST /api/chat', () => {
     authed();
     const fetchMock = vi.mocked(fetch);
     fetchMock
-      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'claude down' } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ candidates: [{ content: { parts: [{ text: 'hi gemini' }] } }] }),
-      } as Response);
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce(geminiOk('hi gemini'));
 
     const res = await handler(req({ prompt: 'hi' }));
 
@@ -213,9 +222,7 @@ describe('POST /api/chat', () => {
 
   it('sends the cache_control block on the live Claude request', async () => {
     authed();
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
     await handler(req({ prompt: 'hi' }));
 
@@ -244,9 +251,7 @@ describe('POST /api/chat', () => {
 
   it('omits the cache field when the provider reports no caching', async () => {
     authed();
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }),
-    } as Response);
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
     const res = await handler(req({ prompt: 'hi' }));
 
