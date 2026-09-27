@@ -348,11 +348,19 @@ found independently above at `familyos.ts:281`, reported by `tsc` as
 
 **Consequence:** CLAUDE.md's stated invariant ("Verify TypeScript: `npx tsc --noEmit` (must
 always be 0 errors before finishing)") has not actually been enforcing anything for this
-project's `src/` tree. `npm run build` (which runs a real `vite build`) likely does catch
-these, since Vite's build calls `tsc -b` under the hood via project references — meaning the
-gap is specifically in using bare `tsc --noEmit` as a fast pre-flight check, not in the build
-pipeline itself. Recommend either running `tsc -b` (build mode, follows references) for the
-quick check, or running both `-p tsconfig.app.json` and `-p tsconfig.node.json` explicitly.
+project's `src/` tree — **and neither does the build.** CORRECTION (this doc originally
+speculated "`npm run build` likely does catch these via `tsc -b`" — that was wrong and has
+since been empirically disproven): `package.json`'s `build` script is plain `vite build`,
+with no `tsc` invocation of any kind. `npm run build` was run directly against this exact
+repo state and **succeeded** despite the 18+ pre-existing `src/` errors below — Vite's own
+esbuild-based transpilation doesn't typecheck, so nothing in the actual build or deploy
+pipeline catches these. `tsconfig.node.json`'s `include` is `["vite.config.ts"]` only —
+it doesn't cover `api/` either. **No tsconfig in this repo, and no npm script, type-checks
+`api/` or `server/` at all**, and nothing type-checks `src/` except an explicit
+`tsc -p tsconfig.app.json --noEmit` run by hand. Recommend adding a real `typecheck` script
+(`tsc -b`, or both `-p tsconfig.app.json` and `-p tsconfig.node.json` explicitly) and wiring
+it into CI or a pre-push hook, since neither `npm test` nor `npm run build` nor `npm run
+lint` currently catches a type error before it ships.
 
 Separately: `server/` and the new `api/_aiModels.ts`/`api/_responders.ts` files are not
 covered by *either* referenced tsconfig's implicit inclusion in an obviously-verified way —
