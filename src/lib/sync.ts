@@ -185,7 +185,11 @@ async function doPush(key: string, value: unknown): Promise<PushResult> {
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        key, value,
+        // householdId is transitional: the new server (commit 65be63d+) resolves
+        // householdId from the Authorization header and ignores this field, but
+        // an old, not-yet-redeployed server still requires it in the body. Safe
+        // to remove once every server instance is confirmed running 65be63d+.
+        key, value, householdId: currentHouseholdId,
         expectedUpdatedAt: knownVersions.get(key),
       }),
     });
@@ -200,7 +204,11 @@ async function doPush(key: string, value: unknown): Promise<PushResult> {
     }
     if (!res.ok) {
       console.warn(`Sync push failed for "${key}": ${res.status}`);
-      return { ok: false, retryable: res.status >= 500 };
+      // 401/429 are transient from the client's perspective (expired token about to
+      // refresh, or a burst rate-limit window) — worth another attempt, not a permanent
+      // drop. 400/403 are genuine client errors (malformed body, server-managed key)
+      // where retrying the same payload will never succeed.
+      return { ok: false, retryable: res.status >= 500 || res.status === 401 || res.status === 429 };
     }
     const body = await res.json().catch(() => null);
     if (body?.updatedAt) knownVersions.set(key, body.updatedAt);

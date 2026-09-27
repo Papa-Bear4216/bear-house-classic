@@ -73,6 +73,10 @@ describe('pushToCloud write serialization', () => {
     // established (T1) — not the stale pre-push version both edits started
     // from. Otherwise the server sees it as a stale write and 409s it.
     expect(calls[1].expectedUpdatedAt).toBe('T1');
+    // Transitional field for the pre-65be63d server, which still requires
+    // householdId in the body — the new server ignores it. Must not be
+    // silently dropped in a future refactor before every server is upgraded.
+    expect(calls[0].householdId).toBe('household-1');
   });
 
   it('only sends the latest of several edits queued during one in-flight push', async () => {
@@ -170,5 +174,30 @@ describe('offline queue', () => {
     const ok2 = await pushToCloud('tasks', [1, 2]);
     expect(ok2).toBe(false);
     expect(isWriteQueued('tasks')).toBe(true);
+  });
+
+  it('queues a write on 401 instead of dropping it — expired/refreshing tokens are transient, not permanent', async () => {
+    // Before the auth fix, /api/data-write never returned 401. Now that a
+    // real auth check exists, an expired-token or refresh-race 401 must not
+    // permanently discard the user's edit the way a genuine 409/400 would.
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const ok = await pushToCloud('chores', ['sweep']);
+    expect(ok).toBe(false);
+    expect(isWriteQueued('chores')).toBe(true);
+  });
+
+  it('queues a write on 429 instead of dropping it — rate-limit bursts are transient', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const ok = await pushToCloud('chores', ['mop']);
+    expect(ok).toBe(false);
+    expect(isWriteQueued('chores')).toBe(true);
   });
 });
