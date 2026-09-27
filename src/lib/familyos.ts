@@ -11,6 +11,7 @@ export type User = {
   email: string;
   role: UserRole;
   color: string;
+  canControlDevices: boolean;
 };
 
 export function canDelete(role: UserRole) { return role === 'superadmin' || role === 'admin'; }

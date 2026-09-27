@@ -50,7 +50,7 @@ export async function resolveHouseholdId(accessToken: string): Promise<string | 
  * view — see the family_data.owner_member_id RLS policy).
  * Returns null if the token is invalid or the user has no household row.
  */
-export async function resolveCallerMember(accessToken: string): Promise<{ householdId: string; memberId: string; role: string } | null> {
+export async function resolveCallerMember(accessToken: string): Promise<{ householdId: string; memberId: string; role: string; canControlDevices: boolean } | null> {
   const anonKey = process.env.SUPABASE_ANON_KEY!;
   const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
@@ -61,14 +61,20 @@ export async function resolveCallerMember(accessToken: string): Promise<{ househ
 
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const memberRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=id,household_id,role`,
+    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=id,household_id,role,can_control_devices`,
     { headers: headers(serviceKey) }
   );
   if (!memberRes.ok) return null;
   const rows = await memberRes.json() as any[];
   const row = rows[0];
   if (!row) return null;
-  return { householdId: row.household_id, memberId: row.id, role: row.role };
+  return { householdId: row.household_id, memberId: row.id, role: row.role, canControlDevices: !!row.can_control_devices };
+}
+
+/** True if this caller may issue device-control commands: admin/superadmin
+ * always can; child/pet need the explicit per-member override. */
+export function canControlDevices(caller: { role: string; canControlDevices: boolean }): boolean {
+  return caller.role === 'admin' || caller.role === 'superadmin' || caller.canControlDevices;
 }
 
 /**

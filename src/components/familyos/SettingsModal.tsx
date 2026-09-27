@@ -160,6 +160,33 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   }, [householdId, isAdmin]);
   useEffect(() => { refreshPending(); }, [refreshPending]);
 
+  // Optimistic local overlay for the device-control toggle — this app has
+  // no context-wide roster refetch after a mutation (same limitation
+  // InviteMemberForm already has), so reflect the click immediately and
+  // revert only if the request actually fails.
+  const [deviceOverrides, setDeviceOverrides] = useState<Record<string, boolean>>({});
+  const toggleDevicePermission = async (memberId: string, current: boolean) => {
+    const next = !current;
+    setDeviceOverrides((prev) => ({ ...prev, [memberId]: next }));
+    try {
+      const res = await authedFetch('/api/setup', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'setDevicePermission', memberId, canControlDevices: next }),
+      });
+      if (!res.ok) {
+        setDeviceOverrides((prev) => {
+          const { [memberId]: _drop, ...rest } = prev;
+          return rest;
+        });
+      }
+    } catch {
+      setDeviceOverrides((prev) => {
+        const { [memberId]: _drop, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
   const [tab, setTab] = useState<Tab>('general');
   const [apiKey, setApiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -664,17 +691,31 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 {householdMembers.length === 0 ? (
                   <div className="text-slate-500 text-xs">No household members yet.</div>
                 ) : (
-                  householdMembers.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between">
-                      <span className={`font-medium text-${m.color || 'slate'}-400`}>{m.name}</span>
-                      <span className="text-slate-500 text-xs flex items-center gap-2">
-                        {pendingIds.has(m.id) && (
-                          <span className="bg-amber-900/40 text-amber-300 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">Pending</span>
-                        )}
-                        {m.role}
-                      </span>
-                    </div>
-                  ))
+                  householdMembers.map((m) => {
+                    const devicesOn = deviceOverrides[m.id] ?? m.canControlDevices;
+                    return (
+                      <div key={m.id} className="flex items-center justify-between">
+                        <span className={`font-medium text-${m.color || 'slate'}-400`}>{m.name}</span>
+                        <span className="text-slate-500 text-xs flex items-center gap-2">
+                          {pendingIds.has(m.id) && (
+                            <span className="bg-amber-900/40 text-amber-300 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide">Pending</span>
+                          )}
+                          {m.role}
+                          {isAdmin && (m.role === 'child' || m.role === 'pet') && (
+                            <button
+                              onClick={() => toggleDevicePermission(m.id, devicesOn)}
+                              className={`ml-2 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide ${
+                                devicesOn ? 'bg-emerald-900/40 text-emerald-300' : 'bg-slate-800 text-slate-500'
+                              }`}
+                              title="Allow this account to control devices (locks, lights, etc.)"
+                            >
+                              {devicesOn ? 'Devices: On' : 'Devices: Off'}
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
               {isAdmin && <InviteMemberForm onInvited={refreshPending} />}

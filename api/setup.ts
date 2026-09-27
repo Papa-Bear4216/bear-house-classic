@@ -280,7 +280,15 @@ export default async function handler(req: Request): Promise<Response> {
 
     const updateRes = await fetch(
       `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}`,
-      { method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify({ role }) }
+      {
+        method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' },
+        // Any role change clears a prior device-control grant rather than
+        // letting it silently survive — e.g. child -> admin -> child should
+        // not leave the member with the earlier explicit grant intact;
+        // admin/superadmin get device access from their role directly, so
+        // this only matters when landing back on child/pet.
+        body: JSON.stringify({ role, can_control_devices: false }),
+      }
     );
     if (!updateRes.ok) {
       const detail = await updateRes.text().catch(() => '');
@@ -290,5 +298,50 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true });
   }
 
-  return j({ error: 'Unknown action. Use: createHousehold | inviteMember | claimInvite | removeMember | updateRole' }, 400);
+  if (action === 'setDevicePermission') {
+    const { memberId, canControlDevices: grant } = body;
+
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    const callerRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${authUser.id}&select=id,household_id,role`,
+      { headers }
+    );
+    const callerRows = callerRes.ok ? await callerRes.json() as any[] : [];
+    const caller = callerRows[0];
+    if (!caller || (caller.role !== 'admin' && caller.role !== 'superadmin')) {
+      return j({ error: 'Only an admin can change device-control permission' }, 403);
+    }
+
+    const targetRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}&household_id=eq.${caller.household_id}&select=id,role`,
+      { headers }
+    );
+    const targetRows = targetRes.ok ? await targetRes.json() as any[] : [];
+    const target = targetRows[0];
+    if (!target) {
+      return j({ error: 'No member with that id in your household' }, 404);
+    }
+    if (target.role === 'admin' || target.role === 'superadmin') {
+      return j({ error: 'This toggle only applies to child/pet accounts — admins already have full access' }, 400);
+    }
+
+    const updateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?id=eq.${memberId}&household_id=eq.${caller.household_id}`,
+      { method: 'PATCH', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify({ can_control_devices: grant }) }
+    );
+    if (!updateRes.ok) {
+      const detail = await updateRes.text().catch(() => '');
+      return serverError(`Failed to update device permission: ${detail}`, 'setup:setDevicePermission', detail);
+    }
+
+    return j({ ok: true });
+  }
+
+  return j({ error: 'Unknown action. Use: createHousehold | inviteMember | claimInvite | removeMember | updateRole | setDevicePermission' }, 400);
 }

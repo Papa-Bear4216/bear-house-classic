@@ -17,7 +17,7 @@
  */
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId } from './_db.js';
+import { resolveCallerMember, canControlDevices } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
 import { dispatchDevice } from './_deviceDispatcher.js';
 import { handleCorsPreflight } from './_cors.js';
@@ -124,8 +124,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
+  if (!canControlDevices(caller)) {
+    return j({ error: 'This account is not permitted to control devices' }, 403);
+  }
+  const { householdId } = caller;
 
   const rl = await checkRateLimit(householdId, 'voice-google', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);

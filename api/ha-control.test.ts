@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn() }));
+vi.mock('./_db.js', () => ({
+  resolveCallerMember: vi.fn(),
+  canControlDevices: (caller: { role: string; canControlDevices: boolean }) =>
+    caller.role === 'admin' || caller.role === 'superadmin' || caller.canControlDevices,
+}));
 vi.mock('./_haConfig.js', () => ({ resolveHaConfig: vi.fn() }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
 import handler from './ha-control';
-import { resolveHouseholdId } from './_db.js';
+import { resolveCallerMember } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
 import { checkRateLimit } from './_rateLimit.js';
 
@@ -26,19 +30,40 @@ beforeEach(() => {
 
 describe('POST /api/ha-control', () => {
   it('rejects with 401 when there is no bearer token', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    vi.mocked(resolveCallerMember).mockResolvedValue(null);
     const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }, ''));
     expect(res.status).toBe(401);
   });
 
   it('rejects with 401 when the token does not resolve to a household', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    vi.mocked(resolveCallerMember).mockResolvedValue(null);
     const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
     expect(res.status).toBe(401);
   });
 
+  it('rejects with 403 when a child without the device-control override tries to control a device', async () => {
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm1', role: 'child', canControlDevices: false });
+    const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
+    expect(res.status).toBe(403);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('allows a child with the device-control override enabled', async () => {
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm1', role: 'child', canControlDevices: true });
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, text: async () => '' } as Response);
+    const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
+    expect(res.status).toBe(200);
+  });
+
+  it('allows an admin regardless of the device-control override', async () => {
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, text: async () => '' } as Response);
+    const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
+    expect(res.status).toBe(200);
+  });
+
   it('rejects with 429 when the household is rate-limited', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
     vi.mocked(checkRateLimit).mockResolvedValue({ allowed: false, retryAfterSeconds: 12 });
     const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
     expect(res.status).toBe(429);
@@ -47,7 +72,7 @@ describe('POST /api/ha-control', () => {
   it('rejects with 400 when entityId domain does not match the requested service domain', async () => {
     // Regression guard: without this check a caller could request
     // domain "light" but target a "lock.*" entity.
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
     const res = await handler(req({ domain: 'light', service: 'turn_off', entityId: 'lock.front_door' }));
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -55,14 +80,14 @@ describe('POST /api/ha-control', () => {
   });
 
   it('rejects with 500 when Home Assistant is not configured for this household', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
     vi.mocked(resolveHaConfig).mockResolvedValue({ haUrl: undefined, haToken: undefined });
     const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));
     expect(res.status).toBe(500);
   });
 
   it('calls the resolved household HA instance and returns 200 on success', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '' } as Response);
 
@@ -80,7 +105,7 @@ describe('POST /api/ha-control', () => {
   });
 
   it('propagates a non-2xx response from Home Assistant as the same status', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false });
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'entity not found' } as Response);
 
     const res = await handler(req({ domain: 'light', service: 'turn_on', entityId: 'light.kitchen' }));

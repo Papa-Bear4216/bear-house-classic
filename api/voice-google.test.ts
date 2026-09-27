@@ -1,15 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn() }));
+vi.mock('./_db.js', () => ({
+  resolveCallerMember: vi.fn(),
+  canControlDevices: (caller: { role: string; canControlDevices: boolean }) =>
+    caller.role === 'admin' || caller.role === 'superadmin' || caller.canControlDevices,
+}));
 vi.mock('./_haConfig.js', () => ({ resolveHaConfig: vi.fn() }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 vi.mock('./_deviceDispatcher.js', () => ({ dispatchDevice: vi.fn() }));
 
 import handler from './voice-google';
-import { resolveHouseholdId } from './_db.js';
+import { resolveCallerMember } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { dispatchDevice } from './_deviceDispatcher.js';
+
+const admin = { householdId: 'household-1', memberId: 'admin1', role: 'admin', canControlDevices: false };
+const childNoPerm = { householdId: 'household-1', memberId: 'kid1', role: 'child', canControlDevices: false };
 
 function req(body: unknown, auth = 'Bearer valid-token') {
   return new Request('https://example.com/api/voice-google', {
@@ -29,20 +36,26 @@ beforeEach(() => {
 
 describe('POST /api/voice-google', () => {
   it('rejects with 401 when no bearer token', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    vi.mocked(resolveCallerMember).mockResolvedValue(null);
     const res = await handler(req({ inputs: [{ intent: 'action.devices.SYNC' }] }, ''));
     expect(res.status).toBe(401);
   });
 
+  it('rejects with 403 when a child without the device-control override sends a request', async () => {
+    vi.mocked(resolveCallerMember).mockResolvedValue(childNoPerm as any);
+    const res = await handler(req({ inputs: [{ intent: 'action.devices.SYNC' }] }));
+    expect(res.status).toBe(403);
+  });
+
   it('rejects with 429 when rate limited', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     vi.mocked(checkRateLimit).mockResolvedValue({ allowed: false, retryAfterSeconds: 10 });
     const res = await handler(req({ inputs: [{ intent: 'action.devices.SYNC' }] }));
     expect(res.status).toBe(429);
   });
 
   it('handles SYNC intent', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true, json: async () => [
         { entity_id: 'light.kitchen', state: 'on', attributes: { friendly_name: 'Kitchen' } },
@@ -59,7 +72,7 @@ describe('POST /api/voice-google', () => {
   });
 
   it('handles QUERY intent — returns only requested devices, keyed by ID', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true, json: async () => [
         { entity_id: 'light.kitchen', state: 'on', attributes: { brightness: 80 } },
@@ -77,7 +90,7 @@ describe('POST /api/voice-google', () => {
   });
 
   it('handles QUERY intent — empty requested list returns all devices', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true, json: async () => [
         { entity_id: 'light.kitchen', state: 'on', attributes: { brightness: 80 } },
@@ -99,7 +112,7 @@ describe('POST /api/voice-google', () => {
   });
 
   it('handles EXECUTE intent — OnOff with on:false maps to turn_off', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true, json: async () => [{ entity_id: 'light.kitchen', state: 'on' }],
     } as any);
@@ -125,7 +138,7 @@ describe('POST /api/voice-google', () => {
   });
 
   it('returns error for unknown intent', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     const res = await handler(req({ inputs: [{ intent: 'unknown.intent', requestId: 'req-1', payload: {} }] }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -134,7 +147,7 @@ describe('POST /api/voice-google', () => {
   });
 
   it('rejects POST with 405', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveCallerMember).mockResolvedValue(admin as any);
     const res = await handler(new Request('https://example.com/api/voice-google', {
       method: 'GET',
       headers: { authorization: 'Bearer valid-token' },

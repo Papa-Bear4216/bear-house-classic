@@ -16,6 +16,7 @@ export interface HouseholdMember {
   email: string | null;
   role: HouseholdRole;
   color: string;
+  canControlDevices: boolean;
 }
 
 /** Web: normal full-page redirect. Native (Capacitor): open the OAuth URL in
@@ -88,7 +89,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
 
   const { data, error } = await supabase
     .from('household_members')
-    .select('id, household_id, name, email, role, color, households(subscription_status, bypass_billing, voice_unlocked, hermes_model_tier)')
+    .select('id, household_id, name, email, role, color, can_control_devices, households(subscription_status, bypass_billing, voice_unlocked, hermes_model_tier)')
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
 
@@ -108,6 +109,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
       email: data.email,
       role: data.role as HouseholdRole,
       color: data.color,
+      canControlDevices: !!(data as any).can_control_devices,
     },
   };
 }
@@ -115,7 +117,7 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
 export async function getHouseholdRoster(householdId: string): Promise<HouseholdMember[]> {
   const { data, error } = await supabase
     .from('household_members')
-    .select('id, household_id, name, email, role, color')
+    .select('id, household_id, name, email, role, color, can_control_devices')
     .eq('household_id', householdId);
 
   if (error) { console.warn('getHouseholdRoster: lookup failed:', error.message); return []; }
@@ -127,6 +129,7 @@ export async function getHouseholdRoster(householdId: string): Promise<Household
     email: row.email,
     role: row.role as HouseholdRole,
     color: row.color,
+    canControlDevices: !!(row as any).can_control_devices,
   }));
 }
 

@@ -204,6 +204,10 @@ export const SetupBodySchema = z.discriminatedUnion('action', [
     action: z.literal('updateRole'), memberId: z.string().uuid(),
     role: z.enum(['admin', 'child', 'pet']),
   }),
+  z.object({
+    action: z.literal('setDevicePermission'), memberId: z.string().uuid(),
+    canControlDevices: z.boolean(),
+  }),
 ]);
 
 export const BriefingParamsSchema = z.object({

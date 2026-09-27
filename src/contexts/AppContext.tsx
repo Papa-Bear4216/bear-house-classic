@@ -69,6 +69,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         email: session.member.email ?? '',
         role: session.member.role as User['role'],
         color: session.member.color as User['color'],
+        canControlDevices: session.member.canControlDevices,
       };
       setCurrentUserState(user);
       setCurrentRoleState(session.member.role as UserRole);
@@ -88,6 +89,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; onLogout?: () =>
         email: m.email ?? '',
         role: m.role as User['role'],
         color: m.color as User['color'],
+        canControlDevices: m.canControlDevices,
       }));
       setHouseholdMembers(users);
     };
