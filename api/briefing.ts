@@ -13,7 +13,7 @@ import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { parseBody, BriefingParamsSchema, BriefingJsonInputSchema } from './_schemas.js';
 import { error as jError, serverError } from './_responseHelpers.js';
-import { GEMINI_MODEL, CLAUDE_MODELS } from './_aiModels.js';
+import { GEMINI_MODEL, CLAUDE_MODELS, HERMES_PERSONA } from './_aiModels.js';
 
 async function getKey(key: string, householdId: string) {
   return (await dbGet(key, householdId)) ?? [];
@@ -53,7 +53,7 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string, apiKey: *** Promise<string> {
+async function callGemini(prompt: string, apiKey: string Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
@@ -87,7 +87,8 @@ async function generateBriefing(prompt: string, anthropicKey: string | undefined
 }
 
 const BRIEF_PROMPT = (person: string, data: Record<string, any>, dayName: string) => `
-You are Hermes, the Bear House family secretary. Generate a morning briefing for ${person}.
+${HERMES_PERSONA}
+You are generating a morning briefing for ${person}.
 Today is ${dayName}.
 
 DATA:
@@ -107,7 +108,8 @@ Keep it under 170 words. Conversational, warm. Use first names. No bullet points
 `.trim();
 
 const EVENING_PROMPT = (person: string, data: Record<string, any>, tomorrowDay: string) => `
-You are Hermes, the Bear House family secretary. Generate an evening wrap-up for ${person}.
+${HERMES_PERSONA}
+You are generating an evening wrap-up for ${person}.
 Tomorrow is ${tomorrowDay}.
 
 DATA:

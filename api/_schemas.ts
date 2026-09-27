@@ -22,6 +22,8 @@ export const ChatBodySchema = z.object({
   system: z.string().max(MAX_SYSTEM_CHARS).optional(),
   maxTokens: z.number().int().positive().max(4096).optional(),
   model: z.string().optional(), // free-form: passed straight to Anthropic (chat.ts:59), not restricted to a fixed set
+  format: z.string().optional(), // 'json' opts the LLM into JSON output mode
+  outputSchema: z.string().max(2000).optional(), // advisory JSON shape hint planted in the system prompt
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
 
 export const VisionBodySchema = z.object({

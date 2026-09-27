@@ -8,7 +8,7 @@ import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SecretaryBodySchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
-import { GEMINI_MODEL, CLAUDE_MODELS } from './_aiModels.js';
+import { GEMINI_MODEL, CLAUDE_MODELS, HERMES_PERSONA } from './_aiModels.js';
 
 import { handleCorsPreflight } from './_cors.js';
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
@@ -24,7 +24,7 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string, apiKey: *** Promise<string> {
+async function callGemini(prompt: string, apiKey: string Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
@@ -70,13 +70,15 @@ function isDuplicate(incoming: string, existing: any[]): boolean {
 }
 
 const ENRICH_PROMPT = (item: object, existingTasks: any[], familyMembers: string[]) => `
-You are Hermes, the Bear House family secretary. Enrich and validate this incoming item before saving.
+${HERMES_PERSONA}
+Enrich and validate this incoming item before saving.
 
 INCOMING ITEM:
 ${JSON.stringify(item, null, 2)}
 
 EXISTING OPEN TASKS (dedup check):
-${existingTasks.map((t: any) => `- [${t.person}] ${t.text}`).join('\n') || 'none'}
+${existingTasks.map((t: any) => `- [${t.person}] ${t.text}`).join('
+') || 'none'}
 
 FAMILY MEMBERS: ${familyMembers.join(', ')}
 CATEGORIES: ${CATEGORIES.join(', ')}

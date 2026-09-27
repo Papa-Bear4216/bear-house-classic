@@ -7,12 +7,15 @@ import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
+import { CLAUDE_MODELS, GEMINI_MODEL } from './_aiModels.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
-const CLAUDE_MODELS = {
-  haiku: 'claude-haiku-4-5-20251001',
-  sonnet: 'claude-sonnet-4-6',
-} as const;
+// NOTE: these are now also exported from _aiModels.js as the single source of
+// truth for briefing.ts/secretary.ts. Keep them in sync when deprecating models.
+// const CLAUDE_MODELS = {
+//   haiku: 'claude-haiku-4-5-20251001',
+//   sonnet: 'claude-sonnet-4-6',
+// } as const;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const PROVIDER_TIMEOUT_MS = 30_000;
 
@@ -53,6 +56,7 @@ export function buildClaudeRequestBody(
   system: string,
   messages: ChatMessage[],
   maxTokens: number,
+  jsonMode: boolean,
 ): Record<string, unknown> {
   return {
     model,
@@ -61,6 +65,7 @@ export function buildClaudeRequestBody(
       { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
     ],
     messages,
+    ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
   };
 }
 
@@ -70,6 +75,7 @@ async function callClaude(
   apiKey: string,
   model: string,
   maxTokens: number,
+  jsonMode: boolean,
 ): Promise<{ text: string; stopReason: string | null; usage: { cacheRead: number; cacheCreated: number } }> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -78,7 +84,7 @@ async function callClaude(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify(buildClaudeRequestBody(model, system, messages, maxTokens)),
+    body: JSON.stringify(buildClaudeRequestBody(model, system, messages, maxTokens, jsonMode)),
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (!res.ok) {
@@ -106,6 +112,7 @@ async function callGemini(
   system: string,
   apiKey: string,
   maxTokens: number,
+  jsonMode: boolean,
 ): Promise<{ text: string }> {
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -120,7 +127,10 @@ async function callGemini(
       body: JSON.stringify({
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,
         contents,
-        generationConfig: { maxOutputTokens: maxTokens },
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+        },
       }),
       signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     }
@@ -154,11 +164,23 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { prompt, messages: msgArray, system, maxTokens, model } = parsed.data;
+  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema } = parsed.data;
 
   const messages: ChatMessage[] = msgArray || [{ role: 'user', content: prompt }];
   const tokens = maxTokens || 512;
-  const effectiveSystem = system || HERMES_SYSTEM_PROMPT;
+
+  // JSON output mode: when `format: 'json'` or a non-empty `outputSchema` is
+  // requested, constrain the LLM to emit machine-parseable JSON. Claude gets
+  // `response_format: { type: 'json_object' }`; Gemini gets
+  // `responseMimeType: 'application/json'`. The `outputSchema` field (if
+  // provided) is planted into the system prompt as a formatting hint so the
+  // model emits the right shape — full zod-gated structured output is a
+  // Phase 1 custody feature, not this turn.
+  const wantJson = !!(format === 'json' || outputSchema);
+  const jsonHint = outputSchema
+    ? `\n\nYou must return valid JSON matching this shape:\n${outputSchema}\nNo other keys.`
+    : '';
+  const effectiveSystem = (system || HERMES_SYSTEM_PROMPT) + jsonHint;
 
   // The household's self-serve tier toggle (api/hermes-model.ts) picks the
   // Claude model. An explicit `model` in the request still overrides it.
@@ -218,7 +240,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (anthropicKey) {
     try {
-      const { text, stopReason, usage } = await callClaude(messages, effectiveSystem, anthropicKey, chosenModel, tokens);
+      const { text, stopReason, usage } = await callClaude(messages, effectiveSystem, anthropicKey, chosenModel, tokens, wantJson);
       if (!text) {
         // Never return a silent 200 with empty text — that was the
         // "empty response" bug. Surface it as a 502 so clients can retry.
@@ -230,6 +252,7 @@ export default async function handler(req: Request): Promise<Response> {
       return j({
         text,
         model: chosenModel,
+        ...(wantJson ? { format: 'json' } : {}),
         ...(stopReason === 'max_tokens' ? { truncated: true } : {}),
         // Observability for the prompt-cache win: present only when the
         // provider actually cached something, so old clients ignore it.
@@ -249,9 +272,11 @@ export default async function handler(req: Request): Promise<Response> {
 
   // Fallback to Gemini if Claude is unavailable, errored, or unconfigured
   try {
-    const { text } = await callGemini(messages, effectiveSystem, geminiKey!, tokens);
+    const { text } = await callGemini(
+      messages, effectiveSystem, geminiKey!, tokens, wantJson,
+    );
     if (!text) return j({ error: 'Model returned no text.' }, 502);
-    return j({ text, model: GEMINI_MODEL });
+    return j({ text, model: GEMINI_MODEL, ...(wantJson ? { format: 'json' } : {}) });
   } catch (e: any) {
     return serverError(e?.message || 'Network error', 'chat:gemini', e);
   }
