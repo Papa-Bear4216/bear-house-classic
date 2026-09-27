@@ -77,16 +77,21 @@ describe('VisionBodySchema', () => {
 
 describe('DataWriteBodySchema', () => {
   it('accepts a valid write', () => {
-    expect(DataWriteBodySchema.safeParse({ key: 'k', value: { a: 1 }, householdId: 'h1' }).success).toBe(true);
+    expect(DataWriteBodySchema.safeParse({ key: 'k', value: { a: 1 } }).success).toBe(true);
   });
 
-  it('rejects a missing householdId', () => {
-    expect(DataWriteBodySchema.safeParse({ key: 'k', value: 1 }).success).toBe(false);
+  it('ignores a client-supplied householdId — it is resolved server-side, never from the body', () => {
+    // Regression guard for the cross-household write hole: the schema must
+    // not accept/require householdId at all, so api/data-write.ts can never
+    // be tempted to read one back off parsed.data.
+    const result = DataWriteBodySchema.safeParse({ key: 'k', value: 1, householdId: 'attacker-controlled' });
+    expect(result.success).toBe(true);
+    if (result.success) expect((result.data as any).householdId).toBeUndefined();
   });
 
   it('accepts any value type including null and false, only rejects undefined', () => {
-    expect(DataWriteBodySchema.safeParse({ key: 'k', value: null, householdId: 'h1' }).success).toBe(true);
-    expect(DataWriteBodySchema.safeParse({ key: 'k', value: false, householdId: 'h1' }).success).toBe(true);
+    expect(DataWriteBodySchema.safeParse({ key: 'k', value: null }).success).toBe(true);
+    expect(DataWriteBodySchema.safeParse({ key: 'k', value: false }).success).toBe(true);
   });
 });
 

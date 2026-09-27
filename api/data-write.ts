@@ -8,16 +8,19 @@ export const config = { runtime: 'edge' };
  * no longer write. All cloud writes funnel through here so a single trusted
  * server holds the powerful key.
  *
- * GUARD: a shared secret (DATA_WRITE_SECRET) must match the x-write-secret
- * header. The client half ships in the bundle (VITE_DATA_WRITE_SECRET), so this
- * stops casual/automated abuse, not a determined attacker. The real protection
- * is that the service_role key itself never leaves the server. Upgrade path:
- * verify the caller's Google JWT server-side instead of a shared secret.
+ * GUARD: the caller must present a valid Supabase access token; householdId
+ * is resolved server-side from that token via resolveHouseholdId, exactly
+ * like every other authenticated route (see api/_db.ts) — the client-supplied
+ * householdId in the body is never trusted for scoping. A shared secret
+ * (DATA_WRITE_SECRET / x-write-secret) is layered on top as a secondary
+ * bot-abuse throttle only; it is public (ships in the client bundle as
+ * VITE_DATA_WRITE_SECRET) and must never be the sole gate.
  */
 
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, DataWriteBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { resolveHouseholdId } from './_db.js';
 
 import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zjialvdolbkccduuwsck.supabase.co';
@@ -47,15 +50,22 @@ export default async function handler(req: Request): Promise<Response> {
   if (!serviceKey) return serverError('Server not configured: SUPABASE_SERVICE_KEY missing', 'data-write');
   if (!writeSecret) return serverError('Server not configured: DATA_WRITE_SECRET missing', 'data-write');
 
-  // Guard: reject callers without the shared secret.
+  // Guard 1: shared secret — a bot-abuse throttle only, not real auth (it's public).
   if (req.headers.get('x-write-secret') !== writeSecret) {
     return j({ error: 'Unauthorized' }, 401);
   }
 
+  // Guard 2: real auth. householdId is resolved from the caller's own session,
+  // never trusted from the request body — see api/_db.ts's resolveHouseholdId.
+  const authHeader = req.headers.get('authorization') || '';
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '');
+  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(DataWriteBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { key, value, householdId, expectedUpdatedAt } = parsed.data;
+  const { key, value, expectedUpdatedAt } = parsed.data;
 
   if (SERVER_MANAGED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
     return j({ error: 'This key is server-managed and cannot be written directly' }, 403);

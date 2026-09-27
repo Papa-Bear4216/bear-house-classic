@@ -173,11 +173,19 @@ async function doPush(key: string, value: unknown): Promise<PushResult> {
   if (!syncEnabled || !currentHouseholdId) return { ok: false, retryable: true };
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) return { ok: false, retryable: true };
+
     const res = await fetch(apiUrl('/api/data-write'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-write-secret': WRITE_SECRET },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-write-secret': WRITE_SECRET,
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({
-        key, value, householdId: currentHouseholdId,
+        key, value,
         expectedUpdatedAt: knownVersions.get(key),
       }),
     });

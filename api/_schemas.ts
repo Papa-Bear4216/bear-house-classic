@@ -40,7 +40,9 @@ export const ClientMetricBodySchema = z.object({
 export const DataWriteBodySchema = z.object({
   key: z.string().min(1),
   value: z.unknown().refine(v => v !== undefined, { message: 'Missing value' }),
-  householdId: z.string().min(1),
+  // householdId is intentionally NOT accepted here — it must be resolved
+  // server-side from the caller's access token (see api/data-write.ts),
+  // never trusted from the request body.
   // When set, the write is rejected (409) if the row's current updated_at no
   // longer matches — i.e. someone else wrote this key since the client last
   // read it. Optional so unconditional writes (e.g. first write of a new key)

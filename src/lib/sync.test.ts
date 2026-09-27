@@ -13,6 +13,9 @@ vi.mock('@supabase/supabase-js', () => ({
     }),
     channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
     removeChannel: () => {},
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: { access_token: 'test-access-token' } } }),
+    },
   }),
 }));
 
@@ -49,6 +52,11 @@ describe('pushToCloud write serialization', () => {
 
     const p1 = pushToCloud('shopping', ['a']);
     const p2 = pushToCloud('shopping', ['a', 'b']);
+
+    // doPush awaits the session lookup before calling fetch — flush that
+    // microtask before asserting the request landed.
+    await Promise.resolve();
+    await Promise.resolve();
 
     // Only one request should be in flight at this point — the second edit
     // is queued, not sent as a competing concurrent write.
