@@ -76,11 +76,24 @@ export default async function handler(req: Request): Promise<Response> {
     if (!conn?.accessUrl) return j({ accounts: [] });
     if (!conn.institutions?.length) {
       // First load after connect: probe institutions now (last 1 day is enough for metadata).
+      // fetchAccounts is bank-dependent and can be slow — long enough for a
+      // concurrent disconnect (or disconnect+reconnect) to land on this same
+      // connKey while this await is in flight. Re-read right before writing
+      // and only proceed if accessUrl still matches what we probed; a
+      // mismatch means the connection changed underneath us, and writing
+      // back the stale `conn` object would resurrect a disconnected
+      // connection (or clobber a newer one) with the old accessUrl.
       try {
         const now = new Date();
         const accts = await fetchAccounts(conn.accessUrl, new Date(now.getTime() - 86400000), now);
-        conn.institutions = accts.map((a) => ({ id: a.id, name: a.org.name || a.name }));
-        await dbSet(connKey, householdId, conn, memberId!);
+        const institutions = accts.map((a) => ({ id: a.id, name: a.org.name || a.name }));
+        const current: any = await dbGet(connKey, householdId);
+        if (current?.accessUrl === conn.accessUrl) {
+          conn.institutions = institutions;
+          await dbSet(connKey, householdId, { ...current, institutions }, memberId!);
+        } else {
+          conn.institutions = institutions; // reflect in this response only, don't persist
+        }
       } catch {
         // Bank may still be provisioning; leave institutions empty and let the UI retry later.
       }
