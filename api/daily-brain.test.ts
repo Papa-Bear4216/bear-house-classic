@@ -217,4 +217,38 @@ describe('api/daily-brain.ts: runDailyBrainChecks', () => {
       ])
     );
   });
+
+  it('does not lose one check\'s task when another check also writes household_tasks in the same run', async () => {
+    // Regression guard: checkBillsDueSoon, checkCarMaintenanceDue, and
+    // checkConnectedGmail each read-modify-write household_tasks. Before
+    // this fix, running them via Promise.all meant they could all read the
+    // same starting snapshot and the last write would silently discard the
+    // others' additions. Simulate a stateful store (real read-your-own-
+    // write semantics) and confirm both this run's tasks survive.
+    const now = Date.now();
+    const dueInTwoDays = now + 2 * 86400000;
+    const dueInFiveDays = new Date(now + 5 * 86400000).toISOString();
+
+    let householdTasks: any[] = [];
+    vi.mocked(db.dbGet).mockImplementation(async (key: string) => {
+      if (key === 'familyos_bills') return [{ name: 'Electric Bill', dueDate: dueInTwoDays, paid: false }];
+      if (key === 'familyos_cars') {
+        return [{ name: 'Subaru Outback', deletedAt: null, entries: [{ type: 'Oil Change', nextDueDate: dueInFiveDays }] }];
+      }
+      if (key === 'household_tasks') return householdTasks;
+      return [];
+    });
+    vi.mocked(db.dbSet).mockImplementation(async (key: string, _hh: string, value: any) => {
+      if (key === 'household_tasks') householdTasks = value;
+    });
+    vi.mocked(db.dbGetHouseholdGmailStatus).mockResolvedValue([]);
+
+    const result = await runDailyBrainChecks(householdId);
+    if ('error' in result) throw new Error(result.error);
+
+    expect(result.tasksAdded).toEqual(['Electric Bill']);
+    expect(result.carMaintenanceAdded).toEqual(['Subaru Outback']);
+    expect(householdTasks.some((t: any) => t.text === 'Pay Electric Bill')).toBe(true);
+    expect(householdTasks.some((t: any) => t.text === 'Oil Change due for Subaru Outback')).toBe(true);
+  });
 });

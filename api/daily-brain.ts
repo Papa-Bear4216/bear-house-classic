@@ -195,13 +195,21 @@ export async function runDailyBrainChecks(householdId: string): Promise<{
   shoppingAdded: string[]; tasksAdded: string[]; carMaintenanceAdded: string[]; gmailTasksAdded: string[]; emotionsFlagged: string[];
 } | { error: string }> {
   try {
-    const [shoppingAdded, tasksAdded, carMaintenanceAdded, gmailTasksAdded, emotionsFlagged] = await Promise.all([
+    // checkBillsDueSoon, checkCarMaintenanceDue, and checkConnectedGmail
+    // each do their own read-modify-write of the same household_tasks key —
+    // running them concurrently via Promise.all let each one's write clobber
+    // the others' (all three would read the same starting snapshot, so
+    // whichever wrote last "won" and silently dropped the other two's
+    // additions). Sequenced here so each read sees the previous write.
+    // checkPantryVsMeals (familyos_shopping) and checkEmotionPatterns
+    // (household_memory) touch different keys and stay independent.
+    const [shoppingAdded, emotionsFlagged] = await Promise.all([
       checkPantryVsMeals(householdId),
-      checkBillsDueSoon(householdId),
-      checkCarMaintenanceDue(householdId),
-      checkConnectedGmail(householdId),
       checkEmotionPatterns(householdId),
     ]);
+    const tasksAdded = await checkBillsDueSoon(householdId);
+    const carMaintenanceAdded = await checkCarMaintenanceDue(householdId);
+    const gmailTasksAdded = await checkConnectedGmail(householdId);
     return { shoppingAdded, tasksAdded, carMaintenanceAdded, gmailTasksAdded, emotionsFlagged };
   } catch (e: any) {
     return { error: e?.message || 'unknown error' };
