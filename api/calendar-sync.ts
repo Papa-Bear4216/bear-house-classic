@@ -59,9 +59,12 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const events = await fetchCalendarEvents(accessToken, calendarId);
     const existing: any[] = (await dbGet('familyos_appointments', householdId)) || [];
-    const nonGcal = existing.filter((a: any) => a.source !== 'google_calendar');
-    const newAppointments = events.map((e: any) => googleEventToAppointment(e, person));
-    await dbSet('familyos_appointments', householdId, [...newAppointments, ...nonGcal]);
+    // Replace only THIS person+calendar's previously-synced events — a
+    // bare `source !== 'google_calendar'` filter would wipe every other
+    // household member's imported calendar on every sync.
+    const keep = existing.filter((a: any) => !(a.source === 'google_calendar' && a.person === person && a.calendarId === calendarId));
+    const newAppointments = events.map((e: any) => ({ ...googleEventToAppointment(e, person), calendarId }));
+    await dbSet('familyos_appointments', householdId, [...newAppointments, ...keep]);
     return j({ ok: true, synced: newAppointments.length });
   } catch (e: any) {
     return serverError(e?.message || 'Sync failed', 'calendar-sync', e);
