@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Video, Film, DollarSign, Moon, IceCream, PartyPopper, Gift,
 } from 'lucide-react';
@@ -7,6 +7,7 @@ import {
   saveJSON, KEYS, uid, computeSpendable, resolveClaim,
   RewardRedemption, RewardCatalogItem,
 } from '@/lib/familyos';
+import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
 import {
@@ -31,6 +32,17 @@ const RewardStore: React.FC = () => {
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>(() => loadRedemptions());
   const [balance, setBalance] = useState(() => loadPointsBalance());
   const [requestModal, setRequestModal] = useState<RewardCatalogItem | null>(null);
+
+  // Reflect a losing sync conflict (e.g. two devices resolving the same
+  // pending redemption) — sync.ts already writes the server-adopted value
+  // to localStorage on a 409 and fires this event; without this
+  // subscription this component's React state would keep showing its own
+  // locally-computed (already-superseded) balance/redemptions until the
+  // component happened to remount.
+  useEffect(() => onSyncUpdate((key) => {
+    if (key === KEYS.redemptions || key === '*') setRedemptions(loadRedemptions());
+    if (key === KEYS.points || key === '*') setBalance(loadPointsBalance());
+  }), []);
 
   const myBalance = currentUser ? (balance[currentUser.id] ?? 0) : 0;
   const mySpendable = currentUser ? computeSpendable(myBalance, redemptions, currentUser.id) : 0;

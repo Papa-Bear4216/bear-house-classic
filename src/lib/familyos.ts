@@ -579,7 +579,14 @@ export function computeSpendable(balance: number, redemptions: RewardRedemption[
 
 /** Approve or deny a pending redemption. Approving deducts its cost from the member's balance;
  * denying leaves the balance untouched. Does not re-check affordability — "Request" already
- * gated on computeSpendable() at request time, matching the plan's simple-balance (no ledger) design. */
+ * gated on computeSpendable() at request time, matching the plan's simple-balance (no ledger) design.
+ *
+ * Only acts on an entry still in 'pending' status — a second resolve on an
+ * already-approved/denied entry (e.g. a rapid double-click before the UI
+ * disables the button, or two devices independently resolving the same
+ * pending redemption before either sees the other's sync update) is a
+ * no-op instead of double-deducting the balance or flipping an already-
+ * resolved status. */
 export function resolveClaim(
   redemptions: RewardRedemption[],
   balance: PointsBalance,
@@ -588,7 +595,7 @@ export function resolveClaim(
   resolvedBy: string
 ): { redemptions: RewardRedemption[]; balance: PointsBalance } {
   const entry = redemptions.find((r) => r.id === redemptionId);
-  if (!entry) return { redemptions, balance };
+  if (!entry || entry.status !== 'pending') return { redemptions, balance };
 
   const nextRedemptions = redemptions.map((r) =>
     r.id === redemptionId ? { ...r, status, resolvedAt: Date.now(), resolvedBy } : r
