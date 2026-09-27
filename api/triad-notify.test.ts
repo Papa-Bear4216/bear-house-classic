@@ -36,21 +36,10 @@ describe('POST /api/triad-notify', () => {
     expect(res.status).toBe(204);
   });
 
-  it('rejects with 401 when no auth provided and caller is remote', async () => {
+  it('rejects with 401 when no auth provided', async () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue(null);
     const res = await handler(req({ title: 'Alert' }, '', 'remote-client.com'));
     expect(res.status).toBe(401);
-  });
-
-  it('allows access for local caller (localhost)', async () => {
-    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
-
-    const res = await handler(req({ title: 'Build Passed', body: '38/38 tests ok' }, '', 'localhost:3000'));
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.ok).toBe(true);
-    expect(data.delivered).toBe(true);
-    expect(notifyIFTTT).toHaveBeenCalledWith('triad_alert', 'Build Passed', '38/38 tests ok', 'info');
   });
 
   it('dispatches FCM push to registered household tokens', async () => {

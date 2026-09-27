@@ -12,7 +12,7 @@ vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 import handler from './voice-triggers';
 import { resolveHouseholdId } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
-import { dbGet, dbSet, dbGetHouseholdVoiceToken } from './_db.js';
+import { dbGet, dbSet, dbGetHouseholdVoiceToken, dbSetHouseholdVoiceToken } from './_db.js';
 
 function req(body: unknown, auth = 'Bearer valid-token') {
   return new Request('https://example.com/api/voice-triggers', {
@@ -84,12 +84,16 @@ describe('POST /api/voice-triggers', () => {
 
   it('rotates token', async () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
-    vi.mocked(dbSet).mockResolvedValue(undefined);
+    dbSetHouseholdVoiceToken.mockResolvedValue(undefined);
     const res = await handler(req({ action: 'rotateToken' }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.token).toBeTruthy();
+    // Web Crypto: 32 bytes → 64 hex chars
+    expect(body.token).toMatch(/^[0-9a-f]{64}$/);
+    // verify the setter was actually invoked
+    expect(dbSetHouseholdVoiceToken).toHaveBeenCalledWith('household-1', body.token);
   });
 
   it('rejects POST with 405', async () => {

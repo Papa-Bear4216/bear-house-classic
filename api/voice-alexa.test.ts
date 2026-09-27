@@ -62,14 +62,16 @@ describe('POST /api/voice-alexa', () => {
     } as any);
     const res = await handler(req({
       directive: {
-        header: { name: 'Alexa.PowerController.TurnOn', correlationToken: 'tok-1' },
-        endpoint: { endpointId: 'light.kitchen' },
+        header: { namespace: 'Alexa.PowerController', name: 'TurnOn', correlationToken: 'tok-1' },
+        endpoint: { endpointId: 'light.kitchen', scope: { type: 'BearerToken', token: 'at-1' } },
         payload: {},
       },
     }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.event.header.name).toBe('Response');
+    expect(body.event.endpoint.endpointId).toBe('light.kitchen');
+    expect(body.event.endpoint.scope.token).toBe('at-1');
   });
 
   it('handles TurnOff directive', async () => {
@@ -79,8 +81,8 @@ describe('POST /api/voice-alexa', () => {
     } as any);
     const res = await handler(req({
       directive: {
-        header: { name: 'Alexa.PowerController.TurnOff', correlationToken: 'tok-1' },
-        endpoint: { endpointId: 'switch.living' },
+        header: { namespace: 'Alexa.PowerController', name: 'TurnOff', correlationToken: 'tok-1' },
+        endpoint: { endpointId: 'switch.living', scope: { type: 'BearerToken', token: 'at-1' } },
         payload: {},
       },
     }));
@@ -95,14 +97,32 @@ describe('POST /api/voice-alexa', () => {
     vi.mocked(dispatchDevice).mockResolvedValueOnce({ ok: false, error: 'HA 500' });
     const res = await handler(req({
       directive: {
-        header: { name: 'Alexa.PowerController.TurnOn', correlationToken: 'tok-1' },
-        endpoint: { endpointId: 'light.kitchen' },
+        header: { namespace: 'Alexa.PowerController', name: 'TurnOn', correlationToken: 'tok-1' },
+        endpoint: { endpointId: 'light.kitchen', scope: { type: 'BearerToken', token: 'at-1' } },
         payload: {},
       },
     }));
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.event.header.name).toBe('ErrorResponse');
+  });
+
+  it('returns ErrorResponse for unsupported directive', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true, json: async () => [{ entity_id: 'light.kitchen', state: 'on' }],
+    } as any);
+    const res = await handler(req({
+      directive: {
+        header: { namespace: 'Alexa', name: 'DoNotExist', correlationToken: 'tok-1' },
+        endpoint: { endpointId: 'light.kitchen', scope: { type: 'BearerToken', token: 'at-1' } },
+        payload: {},
+      },
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.event.header.name).toBe('ErrorResponse');
+    expect(body.event.payload.type).toBe('INVALID_DIRECTIVE');
   });
 
   it('rejects POST with 405', async () => {
