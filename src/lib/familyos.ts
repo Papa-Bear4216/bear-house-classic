@@ -272,13 +272,13 @@ export async function voiceTriggersAdd(
     const token = await getAccessToken();
     const res = await authedFetch('/api/voice-triggers', {
       method: 'POST',
-      body: JSON.stringify({ action: 'add', trigger, deviceId, action: action, params }),
+      body: JSON.stringify({ action: 'add', trigger, deviceId, deviceAction: action, params }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       return { ok: false, error: data.error };
     }
-    return { ok: true, trigger: await res.json() };
+    return { ok: true, trigger: data.trigger };
   } catch (err: any) {
     return { ok: false, error: err?.message || 'Failed to add trigger' };
   }

@@ -68,12 +68,13 @@ function haEntityToAlexaEndpoint(entityId: string, householdId: string) {
     manufacturerName: 'FamilyOS',
     displayCategories: [domain],
     cookie: { householdId },
-    capabilities: [{ type: 'AlexaInterface', interface: capability, version: '3', properties: { supported: properties.map(p => ({ name: p })), proactivelyReport: false, retivable: false } }],
+    capabilities: [{ type: 'AlexaInterface', interface: capability, version: '3', properties: { supported: properties.map(p => ({ name: p })), proactivelyReport: false, retrievable: false } }],
   };
 }
 
-function mapAlexaDirectiveToFamilyOS(directiveName: string): string {
-  switch (directiveName) {
+function mapAlexaDirectiveToFamilyOS(namespace: string, name: string): string | null {
+  const id = `${namespace}.${name}`;
+  switch (id) {
     case 'Alexa.PowerController.TurnOn': return 'turn_on';
     case 'Alexa.PowerController.TurnOff': return 'turn_off';
     case 'Alexa.PowerController.Toggle': return 'toggle';
@@ -83,8 +84,10 @@ function mapAlexaDirectiveToFamilyOS(directiveName: string): string {
     case 'Alexa.ChannelController.Close': return 'close_cover';
     case 'Alexa.StartController.Start': return 'start';
     case 'Alexa.StartController.Stop': return 'stop';
-    case 'Alexa.ThermostatController.SetTargetTemperature': return 'set_temperature';
-    default: return 'turn_on';
+    case 'Alexa.ThermostatController.SetTargetTemperature':
+      return 'set_temperature';
+    default:
+      return null; // unsupported directive
   }
 }
 
@@ -92,14 +95,21 @@ function mapAlexaParams(directive: any): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   const payload = directive?.payload || {};
 
-  if (payload?.temperature != null) result.temperature = payload.temperature;
+  if (payload?.targetTemperature != null) result.temperature = payload.targetTemperature;
+  if (payload?.targetSetpoint != null) result.temperature = payload.targetSetpoint;
   if (payload?.brightness != null) result.brightness = payload.brightness;
   if (payload?.mode != null) result.mode = payload.mode;
 
   return result;
 }
 
-function buildAlexaResponse(correlationToken: string, status: string, errorCode?: string) {
+function buildAlexaResponse(
+  correlationToken: string,
+  endpointId: string,
+  bearerToken: string,
+  status: string,
+  errorCode?: string,
+) {
   return {
     event: {
       header: {
@@ -109,7 +119,7 @@ function buildAlexaResponse(correlationToken: string, status: string, errorCode?
         correlationToken,
         payloadVersion: '3',
       },
-      endpoint: { scope: { type: 'BearerToken', token: '' }, endpointId: '' },
+      endpoint: { scope: { type: 'BearerToken', token: bearerToken }, endpointId },
       payload: {},
     },
   };
@@ -134,9 +144,11 @@ export default async function handler(req: Request): Promise<Response> {
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
   const { header, endpoint, payload } = directive;
-  const name = header?.name;
+  const namespace = header?.namespace || '';
+  const name = header?.name || '';
   const correlationToken = header?.correlationToken || '';
   const entityId = endpoint?.endpointId;
+  const bearerToken = endpoint?.scope?.token || accessToken;
 
   if (name === 'Discover') {
     const states = await getHaStates(householdId);
@@ -152,17 +164,26 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   // Control directives
-  const familyAction = mapAlexaDirectiveToFamilyOS(name);
+  const familyAction = mapAlexaDirectiveToFamilyOS(namespace, name);
   const params = mapAlexaParams(directive);
+
+  if (familyAction == null) {
+    return j({
+      event: {
+        header: { namespace: 'Alexa', name: 'ErrorResponse', messageId: correlationToken, correlationToken, payloadVersion: '3' },
+        payload: { type: 'INVALID_DIRECTIVE', message: `Unsupported directive: ${namespace}.${name}` },
+      },
+    }, 400);
+  }
 
   const result = await dispatchDevice(householdId, {
     deviceId: entityId,
-    action: familyAction as any,
+    action: familyAction,
     params,
   });
 
   if (result.ok) {
-    const response = buildAlexaResponse(correlationToken, 'SUCCESS');
+    const response = buildAlexaResponse(correlationToken, entityId, bearerToken, 'SUCCESS');
     return j(response);
   }
 

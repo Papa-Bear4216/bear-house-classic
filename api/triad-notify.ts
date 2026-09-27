@@ -15,11 +15,7 @@ export default async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  const isLocal = req.headers.get('host')?.includes('localhost') || req.headers.get('host')?.includes('127.0.0.1');
-
-  if (!householdId && !isLocal) {
-    return j({ error: 'Unauthorized' }, 401);
-  }
+  if (!householdId) return j({ error: 'Unauthorized' }, 401);
 
   const rawBody = await req.json().catch(() => ({}));
   const { title = 'Autonomous Triad Alert', body = '', status = 'info' } = rawBody;

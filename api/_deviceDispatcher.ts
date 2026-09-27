@@ -76,11 +76,34 @@ export async function dispatchDevice(
 
   const service = domain === 'climate' && action === 'set_temperature' ? 'set_temperature'
     : domain === 'climate' && action === 'turn_on' ? 'turn_on'
+    : domain === 'light' && (action === 'set_brightness' || action === 'set_color') ? 'turn_on'
     : action;
 
   const body: Record<string, unknown> = { entity_id: cleanEntityId };
   if (command.params) {
+    // Allowed param keys per domain+action — reject anything that could
+    // target a different entity or broaden scope (e.g. entity_id, area_id).
+    const allowedParams: Record<string, string[]> = {
+      light: ['brightness', 'rgb_color', 'color_temp', 'transition'],
+      switch: [],
+      lock: [],
+      climate: ['temperature', 'hvac_mode'],
+      fan: [],
+      cover: ['position'],
+      vacuum: [],
+    };
+    const allowed = allowedParams[domain] || [];
+    for (const key of Object.keys(command.params)) {
+      if (!allowed.includes(key)) {
+        return { ok: false, error: `Parameter "${key}" not allowed for ${domain} ${action}` };
+      }
+    }
     Object.assign(body, command.params);
+  }
+
+  // Brightness/color: HA expects these on light.turn_on, not as separate services.
+  if (domain === 'light' && action === 'set_brightness' && body.brightness != null) {
+    body.brightness = Math.max(0, Math.min(255, Math.round(Number(body.brightness))));
   }
 
   try {

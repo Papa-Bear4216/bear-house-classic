@@ -71,28 +71,48 @@ async function getHaStates(householdId: string): Promise<any[]> {
   } catch { return []; }
 }
 
-function mapGoogleActionToFamilyOS(googleAction: string): string {
+function mapGoogleActionToFamilyOS(
+  googleAction: string,
+  params: Record<string, unknown>,
+): string | null {
   switch (googleAction) {
-    case 'action.devices.commands.OnOff': return 'turn_on';
-    case 'action.devices.commands.BrightnessAbsolute': return 'set_brightness';
-    case 'action.devices.commands.BrightnessRelative': return 'set_brightness';
-    case 'action.devices.commands.TemperatureSetting': return 'set_temperature';
-    case 'action.devices.commands.LockUnlock': return 'lock';
-    case 'action.devices.commands.OpenClose': return 'open_cover';
-    case 'action.devices.commands.StartStop': return 'start';
-    case 'action.devices.commands.Stop': return 'stop';
-    default: return 'turn_on';
+    case 'action.devices.commands.OnOff': {
+      const on = params.on;
+      if (on === true) return 'turn_on';
+      if (on === false) return 'turn_off';
+      return null; // 'on' param required
+    }
+    case 'action.devices.commands.BrightnessAbsolute':
+    case 'action.devices.commands.BrightnessRelative':
+      return 'set_brightness';
+    case 'action.devices.commands.TemperatureSetting':
+      return 'set_temperature';
+    case 'action.devices.commands.LockUnlock': {
+      const lock = params.lock;
+      if (lock === true) return 'lock';
+      if (lock === false) return 'unlock';
+      return null; // 'lock' param required
+    }
+    case 'action.devices.commands.OpenClose': {
+      const open = params.open;
+      if (open === true) return 'open_cover';
+      if (open === false) return 'close_cover';
+      return null; // 'open' param required
+    }
+    case 'action.devices.commands.StartStop':
+      return 'start';
+    case 'action.devices.commands.Stop':
+      return 'stop';
+    default:
+      return null; // unsupported command
   }
 }
 
 function mapGoogleParams(params: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  if (params.cmd) {
-    for (const cmd of (params.cmd as any[])) {
-      if (cmd?.setting?.brightness) result.brightness = cmd.setting.brightness;
-      if (cmd?.setting?.thermostatTemperatureSetpoint) result.temperature = cmd.setting.thermostatTemperatureSetpoint;
-    }
-  }
+  if (params.brightness != null) result.brightness = params.brightness;
+  if (params.thermostatTemperatureSetpoint != null) result.temperature = params.thermostatTemperatureSetpoint;
+  if (params.mode != null) result.mode = params.mode;
   return result;
 }
 
@@ -113,8 +133,10 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const inputs = rawBody.inputs || [];
   const results: any[] = [];
+  let requestId: string | undefined = rawBody.requestId;
 
   for (const input of inputs) {
+    requestId = input.requestId || requestId;
     const { intent, payload } = input || {};
 
     if (intent === 'action.devices.SYNC') {
@@ -124,21 +146,26 @@ export default async function handler(req: Request): Promise<Response> {
         .map((s: any) => haEntityToGoogleDevice(s.entity_id));
       results.push({
         requestId: input.requestId,
-        payload: { agentUserId: householdId, devices: { devices } },
+        payload: { agentUserId: householdId, devices },
       });
     }
 
     else if (intent === 'action.devices.QUERY') {
+      const requestedIds = new Set((payload?.devices || [])?.map((d: any) => d.id) || []);
       const states = await getHaStates(householdId);
-      const devices = states.map((s: any) => ({
-        id: s.entity_id,
-        status: s.state === 'on' ? 'SUCCESS' : s.state === 'off' ? 'SUCCESS' : 'ERROR',
-        online: true,
-        ...(s.attributes?.brightness != null ? { brightness: s.attributes.brightness } : {}),
-        ...(s.attributes?.temperature != null ? { temperature: s.attributes.temperature } : {}),
-        ...(s.attributes?.locked != null ? { isLocked: s.attributes.locked } : {}),
-      }));
-      results.push({ requestId: input.requestId, payload: { devices } });
+      // Return only the requested devices, keyed by device ID.
+      const queryResults: Record<string, any> = {};
+      for (const s of states) {
+        if (!s.entity_id || s.state === 'unavailable') continue;
+        if (requestedIds.size > 0 && !requestedIds.has(s.entity_id)) continue;
+        queryResults[s.entity_id] = {
+          on: { status: s.state === 'on' ? 'SUCCESS' : 'SUCCESS', online: true },
+          ...(s.attributes?.brightness != null ? { brightness: { status: 'SUCCESS', value: s.attributes.brightness } } : {}),
+          ...(s.attributes?.temperature != null ? { temperature: { status: 'SUCCESS', value: s.attributes.temperature } } : {}),
+          ...(s.attributes?.locked != null ? { lockState: { status: 'SUCCESS', value: s.attributes.locked ? 'LOCKED' : 'UNLOCKED' } } : {}),
+        };
+      }
+      results.push({ requestId: input.requestId, payload: { devices: queryResults } });
     }
 
     else if (intent === 'action.devices.EXECUTE') {
@@ -148,21 +175,30 @@ export default async function handler(req: Request): Promise<Response> {
       for (const cmd of commands) {
         for (const device of (cmd.devices || [])) {
           const entityId = device.id;
-          const domain = entityId.split('.')[0];
           const googleAction = cmd.execution?.[0]?.command;
-          const familyAction = mapGoogleActionToFamilyOS(googleAction || '');
-          const params = mapGoogleParams(cmd.execution?.[0]?.params || {});
+          const rawParams = cmd.execution?.[0]?.params || {};
+          const familyAction = mapGoogleActionToFamilyOS(googleAction || '', rawParams);
+          const params = mapGoogleParams(rawParams);
 
-          const result = await dispatchDevice(householdId, {
+          if (familyAction == null) {
+            executeResults.push({
+              ids: [entityId],
+              status: 'ERROR',
+              error: { type: 'INVALID_VALUE', message: `Unsupported or incomplete command: ${googleAction}` },
+            });
+            continue;
+          }
+
+          const dispatchResult = await dispatchDevice(householdId, {
             deviceId: entityId,
-            action: familyAction as any,
+            action: familyAction,
             params,
           });
 
           executeResults.push({
             ids: [entityId],
-            status: result.ok ? 'SUCCESS' : 'ERROR',
-            ...(result.ok ? {} : { error: result.error }),
+            status: dispatchResult.ok ? 'SUCCESS' : 'ERROR',
+            ...(dispatchResult.ok ? {} : { error: { type: 'INTERNAL_ERROR', message: dispatchResult.error } }),
           });
         }
       }
@@ -175,5 +211,11 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return j({ requestId: rawBody.requestId, payload: {}, results });
+  const response: any = { requestId };
+  if (results.length === 1 && results[0].payload !== undefined) {
+    response.payload = results[0].payload;
+  } else {
+    response.results = results;
+  }
+  return j(response);
 }

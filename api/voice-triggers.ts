@@ -88,7 +88,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (action === 'rotateToken') {
-      const newToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
+      const newToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
       await dbSetHouseholdVoiceToken(householdId, newToken);
       return j({ ok: true, token: newToken });
     }
