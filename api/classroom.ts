@@ -105,7 +105,12 @@ export default async function handler(req: Request): Promise<Response> {
         dueTimestamp = new Date(year, month - 1, day, 23, 59).getTime();
       }
 
-      const existingIdx = newTasks.findIndex(t => t.gcClassroomId === w.id);
+      // Dedup on assignment + student, not assignment alone — two household
+      // members enrolled in the same course would otherwise collide: the
+      // second sync would reassign the first student's task to the second
+      // (or, if already completed, silently skip creating the second
+      // student's task at all).
+      const existingIdx = newTasks.findIndex(t => t.gcClassroomId === w.id && t.person === person);
 
       const taskData = {
         text: `[${w.courseName}] ${w.title}`,
