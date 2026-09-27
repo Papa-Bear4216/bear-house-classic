@@ -274,8 +274,8 @@ export async function voiceTriggersAdd(
       method: 'POST',
       body: JSON.stringify({ action: 'add', trigger, deviceId, deviceAction: action, params }),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       return { ok: false, error: data.error };
     }
     return { ok: true, trigger: data.trigger };
