@@ -8,6 +8,7 @@ import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
 import { CLAUDE_MODELS, GEMINI_MODEL } from './_aiModels.js';
+import { handleStreamingChat } from '../server/streamChat.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
 // NOTE: these are now also exported from _aiModels.js as the single source of
@@ -152,6 +153,19 @@ export default async function handler(req: Request): Promise<Response> {
   if (preflight) return preflight;
 
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+  // Route streaming requests to the SSE handler early (before auth + body
+  // parse) so the client gets a streaming response without the non-streaming
+  // path doing duplicate work. Accept: text/event-stream is the signal.
+  const accept = req.headers.get('accept') || '';
+  if (accept.includes('text/event-stream') || accept.includes('*/*')) {
+    const streamMode = req.headers.get('x-stream') === 'true'
+      || req.url.searchParams.get('stream') === 'true'
+      || accept.includes('text/event-stream');
+    if (streamMode) {
+      return handleStreamingChat(req);
+    }
+  }
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
