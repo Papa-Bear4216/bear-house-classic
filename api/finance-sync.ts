@@ -37,6 +37,12 @@ async function maybeNotifyDailySummary(
 // True Vercel cron — no per-request session, so it fans out over every
 // household independently instead of assuming a single one.
 export default async function handler(req: Request): Promise<Response> {
+  const CRON_SECRET = process.env.CRON_SECRET;
+  const authHeader = req.headers.get('authorization') || '';
+  const suppliedToken = authHeader.replace(/^Bearer\s+/i, '');
+  if (!CRON_SECRET || suppliedToken !== CRON_SECRET) return j({ error: 'Unauthorized' }, 401);
+  if (req.method !== 'GET') return j({ error: 'Method not allowed' }, 405);
+
   const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const householdIds = await allHouseholdIds();
   const results = await Promise.all(householdIds.map(async (householdId) => {
