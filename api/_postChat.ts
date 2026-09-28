@@ -15,15 +15,15 @@
  *  - resolveAiKeys(householdId)
  *  - fetch (triad daemon only — only when isTriadDirect is true)
  *
- * Tests mock all of these. See server/postChat.test.ts.
+ * Tests mock all of these. See _postChat.test.ts.
  */
 
-import { parseBody, ChatBodySchema } from '../api/_schemas.js';
-import { json } from '../api/_responseHelpers.js';
-import { checkRateLimit } from '../api/_rateLimit.js';
-import { resolveHouseholdId, dbGetHermesModelTier } from '../api/_db.js';
-import { resolveAiKeys } from '../api/_aiKeys.js';
-import { CLAUDE_MODELS, type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from '../api/_aiModels.js';
+import { parseBody, ChatBodySchema } from './_schemas.js';
+import { json } from './_responseHelpers.js';
+import { checkRateLimit } from './_rateLimit.js';
+import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
+import { CLAUDE_MODELS, type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 
 // Treat unknown keys as 0 length so the SSE publisher can count deltas.
 export type DeltaCount = { count: number };
@@ -70,7 +70,7 @@ export type ChatResolution =
   | { kind: 'error'; status: number; body: unknown };
 
 export async function resolveChatInput(req: Request): Promise<ChatResolution> {
-  const preflight = (await import('../api/_cors.js')).handleCorsPreflight(req);
+  const preflight = (await import('./_cors.js')).handleCorsPreflight(req);
   if (preflight) return { kind: 'error', status: 204, body: preflight };
 
   if (req.method !== 'POST') {

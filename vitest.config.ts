@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['api/**/*.test.ts', 'src/**/*.test.ts', 'server/**/*.test.ts'],
+    include: ['api/**/*.test.ts', 'src/**/*.test.ts'],
     env: {
       // src/lib/sync.ts creates a Supabase client at module load time using
       // import.meta.env — these dummy values let it load under Vitest

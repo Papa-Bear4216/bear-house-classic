@@ -15,7 +15,7 @@
  * uses the Messages API `stream: true`.
  */
 
-import { GEMINI_MODEL } from '../api/_aiModels.js';
+import { GEMINI_MODEL } from './_aiModels.js';
 
 const PROVIDER_TIMEOUT_MS = 30_000;
 

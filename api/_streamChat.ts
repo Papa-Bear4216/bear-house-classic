@@ -9,9 +9,9 @@
  * Non-streaming path is unchanged in chat.ts.
  */
 
-import { sse } from '../api/_responders.js';
-import { resolveChatInput } from './postChat.js';
-import { fetchAiStream } from './streamBody.js';
+import { sse } from './_responders.js';
+import { resolveChatInput } from './_postChat.js';
+import { fetchAiStream } from './_streamBody.js';
 
 export async function handleStreamingChat(req: Request): Promise<Response> {
   const resolution = await resolveChatInput(req);

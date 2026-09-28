@@ -8,7 +8,7 @@ import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
 import { CLAUDE_MODELS, GEMINI_MODEL } from './_aiModels.js';
-import { handleStreamingChat } from '../server/streamChat.js';
+import { handleStreamingChat } from './_streamChat.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
 // NOTE: these are now also exported from _aiModels.js as the single source of

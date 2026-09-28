@@ -9,7 +9,7 @@
 // provider layer directly means real key resolution and no auth mismatch.
 
 import { normalizeMerchant } from './_subscriptions.js';
-import { fetchAi } from '../server/streamBody.js';
+import { fetchAi } from './_streamBody.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { CLAUDE_MODELS } from './_aiModels.js';
 

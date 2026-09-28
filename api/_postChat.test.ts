@@ -7,28 +7,28 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../api/_db.js', () => ({
+vi.mock('./_db.js', () => ({
   resolveHouseholdId: vi.fn(),
   dbGetHermesModelTier: vi.fn(),
 }));
 
-vi.mock('../api/_aiKeys.js', () => ({
+vi.mock('./_aiKeys.js', () => ({
   resolveAiKeys: vi.fn(),
 }));
 
-vi.mock('../api/_rateLimit.js', () => ({
+vi.mock('./_rateLimit.js', () => ({
   checkRateLimit: vi.fn(),
 }));
 
-vi.mock('../api/_aiModels.js', () => ({
+vi.mock('./_aiModels.js', () => ({
   HERMES_SYSTEM_PROMPT: 'You are Hermes, the Bear House family assistant. Hard rules apply.',
   CLAUDE_MODELS: { haiku: 'claude-haiku-4-5-20251001', sonnet: 'claude-sonnet-4-6' },
 }));
 
-import { resolveChatInput } from './postChat.js';
-import { resolveHouseholdId, dbGetHermesModelTier } from '../api/_db.js';
-import { resolveAiKeys } from '../api/_aiKeys.js';
-import { checkRateLimit } from '../api/_rateLimit.js';
+import { resolveChatInput } from './_postChat.js';
+import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
+import { resolveAiKeys } from './_aiKeys.js';
+import { checkRateLimit } from './_rateLimit.js';
 
 function req(body: unknown, auth = 'Bearer t') {
   return new Request('https://example.com/api/chat', {

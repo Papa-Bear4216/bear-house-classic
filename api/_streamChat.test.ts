@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('./postChat.js', () => ({
+vi.mock('./_postChat.js', () => ({
   resolveChatInput: vi.fn(),
 }));
 
-vi.mock('./streamBody.js', () => ({
+vi.mock('./_streamBody.js', () => ({
   fetchAiStream: vi.fn(),
 }));
 
-import { handleStreamingChat } from './streamChat.js';
-import { resolveChatInput } from './postChat.js';
-import { fetchAiStream } from './streamBody.js';
+import { handleStreamingChat } from './_streamChat.js';
+import { resolveChatInput } from './_postChat.js';
+import { fetchAiStream } from './_streamBody.js';
 
 function makeRequest(body: unknown, auth = 'Bearer t'): Request {
   return new Request('https://example.com/api/chat?stream=true', {

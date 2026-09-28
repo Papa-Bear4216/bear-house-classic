@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchAi, fetchAiStream } from './streamBody.js';
+import { fetchAi, fetchAiStream } from './_streamBody.js';
 
 function claudeStreamChunks(texts: string[]) {
   const events: string[] = [];

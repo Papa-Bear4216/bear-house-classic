@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../server/streamBody.js', () => ({ fetchAi: vi.fn() }));
+vi.mock('./_streamBody.js', () => ({ fetchAi: vi.fn() }));
 vi.mock('./_aiKeys.js', () => ({ resolveAiKeys: vi.fn() }));
 
 import { categorize } from './_categorize';
-import { fetchAi } from '../server/streamBody.js';
+import { fetchAi } from './_streamBody.js';
 import { resolveAiKeys } from './_aiKeys.js';
 
 beforeEach(() => {
