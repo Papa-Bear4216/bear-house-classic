@@ -17,7 +17,6 @@ import { handleStreamingChat } from '../server/streamChat.js';
 //   haiku: 'claude-haiku-4-5-20251001',
 //   sonnet: 'claude-sonnet-4-6',
 // } as const;
-const GEMINI_MODEL = 'gemini-2.5-flash';
 const PROVIDER_TIMEOUT_MS = 30_000;
 
 export const HERMES_SYSTEM_PROMPT = [
