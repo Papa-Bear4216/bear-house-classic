@@ -227,13 +227,26 @@ export default async function handler(req: Request): Promise<Response> {
         } else if (triadData.result?.synthesis) {
           formatted = triadData.result.synthesis;
         } else if (triadData.intent === 'DOCTOR') {
+  // The daemon returns advisors as a list of {name, ...} dicts; be liberal
+  // and also accept the older name->config map shape. Object.keys() on a
+  // list returns indices ("0, 1"), which is the bug this replaces.
+  const advisorNames = (advisors: unknown): string => {
+    if (Array.isArray(advisors)) {
+      return advisors
+        .map((a: any) => (a && typeof a === 'object' ? a.name : a) || '')
+        .filter(Boolean)
+        .join(', ');
+    }
+    if (advisors && typeof advisors === 'object') return Object.keys(advisors).join(', ');
+    return '';
+  };
           const subs = triadData.result || {};
           formatted = `Triad Health Report (Intent: DOCTOR):\n` +
             `• Pieces OS: ${subs.pieces_os ? '🟢 Online (39300)' : '🔴 Offline'}\n` +
             `• Hermes Relay: ${subs.hermes_relay ? '🟢 Online (8766)' : '🔴 Standby'}\n` +
             `• Pieces Proxy: ${subs.pieces_proxy ? '🟢 Online (8787)' : '🔴 Offline'}\n` +
             `• Ollama: ${subs.ollama ? '🟢 Online (11434)' : '🔴 Standby'}\n` +
-            `• Active Advisors: ${Object.keys(subs.advisors || {}).join(', ') || 'Claude, Codex'}`;
+            `• Active Advisors: ${advisorNames(subs.advisors) || 'Claude, Codex'}`;
         } else {
           formatted = JSON.stringify(triadData.result || triadData, null, 2);
         }
