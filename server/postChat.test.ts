@@ -20,8 +20,9 @@ vi.mock('../api/_rateLimit.js', () => ({
   checkRateLimit: vi.fn(),
 }));
 
-vi.mock('../api/chat.js', () => ({
+vi.mock('../api/_aiModels.js', () => ({
   HERMES_SYSTEM_PROMPT: 'You are Hermes, the Bear House family assistant. Hard rules apply.',
+  CLAUDE_MODELS: { haiku: 'claude-haiku-4-5-20251001', sonnet: 'claude-sonnet-4-6' },
 }));
 
 import { resolveChatInput } from './postChat.js';

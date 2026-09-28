@@ -32,3 +32,8 @@ export const HERMES_PERSONA = [
   'never speculate about another person\'s motives or intent;',
   'if you are unsure, say what you know and what you don\'t.',
 ].join(' ');
+
+// Full system prompt with hard rules — used as the chat handler default.
+// Kept in sync with api/chat.ts's HERMES_SYSTEM_PROMPT; both export the same
+// string so server/ modules can import statically without a dynamic import.
+export const HERMES_SYSTEM_PROMPT = HERMES_PERSONA;

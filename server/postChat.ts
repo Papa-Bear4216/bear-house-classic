@@ -21,10 +21,9 @@
 import { parseBody, ChatBodySchema } from '../api/_schemas.js';
 import { json } from '../api/_responseHelpers.js';
 import { checkRateLimit } from '../api/_rateLimit.js';
-import { resolveHouseholdId } from '../api/_db.js';
-import { dbGetHermesModelTier } from '../api/_db.js';
+import { resolveHouseholdId, dbGetHermesModelTier } from '../api/_db.js';
 import { resolveAiKeys } from '../api/_aiKeys.js';
-import { CLAUDE_MODELS, type ClaudeModelTier } from '../api/_aiModels.js';
+import { CLAUDE_MODELS, type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from '../api/_aiModels.js';
 
 // Treat unknown keys as 0 length so the SSE publisher can count deltas.
 export type DeltaCount = { count: number };
@@ -96,7 +95,7 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
   const messages: Array<{ role: string; content: string }> =
     msgArray || [{ role: 'user', content: prompt }];
   const tokens = maxTokens || 512;
-  const effectiveSystem = system || (await import('../api/chat.js')).HERMES_SYSTEM_PROMPT;
+  const effectiveSystem = system || HERMES_SYSTEM_PROMPT;
 
   const tier = (await dbGetHermesModelTier(householdId).catch(() => 'haiku' as const)) as ClaudeModelTier;
   const chosenModel = model || CLAUDE_MODELS[tier] || CLAUDE_MODELS.haiku;
