@@ -68,6 +68,7 @@ Below is the investigation that led to this decision, kept for context.
 - `api/finance.test.ts`: updated mock URLs from `simplefin.example` to `beta-bridge.simplefin.org` to match the real protocol and pass the allowlist.
 - `api/ha-cameras.ts`, `api/ha-control.ts`, `api/ha-fix.ts`, `api/ha-discover.ts`, `api/health-check.ts`: all outbound fetches to user-configured HA URLs now use `redirect: 'manual'`, stopping a 3xx from smuggling the request to an internal host.
 - `api/settings-ha.ts`: already had admin-or-superadmin role gate on POST (line 44-45) and `validateOutboundUrl` (line 64) + `redirect: 'manual'` (line 73) on the save-time test fetch. No change needed.
+- `api/settings-keys.ts`: same admin-only gap as `settings-ha.ts` — POST had no server-side role check even though the UI tab is admin-gated; fixed with the same `resolveCallerMember` + `isAdmin` pattern and covered by 6 new tests in `api/settings-keys.test.ts`.
 - DNS-rebinding limitation documented in `api/_urlSafety.ts`: Edge runtime can't pin the resolved IP at TCP-connect time, so a hostname that resolves to a public IP now and a private IP at fetch time is not caught. Paired with role-gating wherever the caller isn't already trusted.
 
 **Files**: `api/_simplefin.ts`, `api/_simplefin.test.ts` (new), `api/finance.test.ts`, `api/ha-cameras.ts`, `api/ha-control.ts`, `api/ha-fix.ts`, `api/ha-discover.ts`, `api/health-check.ts`
