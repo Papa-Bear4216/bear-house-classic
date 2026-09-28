@@ -53,7 +53,7 @@ async function callHaiku(prompt: string, apiKey: string): Promise<string> {
   return data?.content?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string, apiKey: string Promise<string> {
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
