@@ -116,7 +116,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (action === 'sync') {
-    const { days } = params;
+    const days = params.action === 'sync' ? (params.days ?? 30) : 30;
     try {
       if (isWebhookAuth) {
         // No per-request session — an external caller (HA/Tasker/SimpleFIN

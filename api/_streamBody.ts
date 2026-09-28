@@ -319,7 +319,8 @@ export async function fetchAi(
   }
   if (geminiKey) {
     const geminiModel = model.startsWith('gemini-') ? model : GEMINI_MODEL;
-    return await fetchGemini(geminiModel, system, messages, maxTokens, geminiKey);
+    const result = await fetchGemini(geminiModel, system, messages, maxTokens, geminiKey);
+    return { text: result.text, stopReason: null, usage: { cacheRead: 0, cacheCreated: 0 } };
   }
   throw new Error('No AI key configured');
 }

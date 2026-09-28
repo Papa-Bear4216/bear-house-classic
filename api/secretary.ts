@@ -6,7 +6,7 @@ export const config = { runtime: 'edge' };
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
-import { parseBody, SecretaryBodySchema } from './_schemas.js';
+import { parseBody, SecretaryBodySchema, SecretaryParseSchema } from './_schemas.js';
 import { json as j } from './_responseHelpers.js';
 import { GEMINI_MODEL, CLAUDE_MODELS, HERMES_PERSONA } from './_aiModels.js';
 
@@ -126,7 +126,7 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const existingTasks = await getRecentTasks(householdId);
 
-    const text = item.text || item.name || '';
+    const text = String(item.text || item.name || '');
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
     const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey);

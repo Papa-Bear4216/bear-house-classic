@@ -20,14 +20,18 @@ function fromBase64(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 }
 
+function bufferSource(bytes: Uint8Array): ArrayBuffer {
+  return bytes.slice().buffer as ArrayBuffer;
+}
+
 /** Returns "<iv-base64>:<ciphertext-base64>" — stored as-is in the DB. */
 export async function encryptSecret(plaintext: string): Promise<string> {
   const key = await getCryptoKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: bufferSource(iv) },
     key,
-    new TextEncoder().encode(plaintext)
+    bufferSource(new TextEncoder().encode(plaintext))
   );
   return `${toBase64(iv)}:${toBase64(new Uint8Array(ciphertext))}`;
 }
@@ -37,9 +41,9 @@ export async function decryptSecret(stored: string): Promise<string> {
   if (!ivB64 || !ctB64) throw new Error('Malformed encrypted secret');
   const key = await getCryptoKey();
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: fromBase64(ivB64) },
+    { name: 'AES-GCM', iv: bufferSource(fromBase64(ivB64)) },
     key,
-    fromBase64(ctB64)
+    bufferSource(fromBase64(ctB64))
   );
   return new TextDecoder().decode(plaintext);
 }
@@ -89,7 +93,7 @@ export async function verifyGmailState(rawToken: string): Promise<{ memberId: st
     const [bodyB64, sigB64] = parts;
     const key = await getHmacKey();
     const bodyBytes = fromBase64(bodyB64);
-    const valid = await crypto.subtle.verify('HMAC', key, fromBase64(sigB64), bodyBytes);
+  const valid = await crypto.subtle.verify('HMAC', key, bufferSource(fromBase64(sigB64)), bufferSource(bodyBytes));
     if (!valid) return null;
     const parsed = JSON.parse(new TextDecoder().decode(bodyBytes));
     if (typeof parsed.exp !== 'number' || Date.now() > parsed.exp) return null;

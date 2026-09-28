@@ -140,7 +140,7 @@ async function checkConnectedGmail(householdId: string): Promise<string[]> {
   if (!connectedIds.length) return [];
 
   const members = await dbGetHouseholdMembersByHouseholdId(householdId);
-  const memberById = new Map(members.map(m => [m.id, m]));
+  const memberById = new Map<string, any>(members.map((m: any): [string, any] => [m.id, m]));
   const tasks: any[] = (await dbGet('household_tasks', householdId)) ?? [];
   const newTasks: any[] = [];
   const added: string[] = [];

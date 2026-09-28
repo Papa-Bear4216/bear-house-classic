@@ -78,6 +78,30 @@ describe('POST /api/setup — setDevicePermission', () => {
   });
 });
 
+describe('POST /api/setup — pre-household rate limit', () => {
+  it('stops household creation when the atomic per-user limit is exhausted', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(jsonRes({ id: 'auth-1', email: 'parent@example.com' }))
+      .mockResolvedValueOnce(jsonRes(false));
+
+    const res = await handler(req({ action: 'createHousehold', householdName: 'Home', memberName: 'Parent' }));
+    expect(res.status).toBe(429);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/rpc/consume_setup_rate_limit');
+  });
+
+  it('fails closed if the rate-limit service is unavailable', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(jsonRes({ id: 'auth-1', email: 'parent@example.com' }));
+    fetchMock.mockRejectedValueOnce(new Error('network unavailable'));
+
+    const res = await handler(req({ action: 'createHousehold', householdName: 'Home', memberName: 'Parent' }));
+    expect(res.status).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('POST /api/setup — updateRole clears a stale device-control grant', () => {
   it('clears can_control_devices whenever a role change is applied', async () => {
     // Regression guard: a child granted device access, promoted to admin,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullFromCloud, pushToCloud, queueOfflineWrite, isWriteQueued } from './sync';
+import { pullFromCloud, pushToCloud, isWriteQueued } from './sync';
 
 // pullFromCloud goes through the Supabase JS client, not fetch — stub the
 // client's query chain so pushToCloud has a currentHouseholdId to work with

@@ -137,5 +137,5 @@ export function onAuthStateChange(cb: (loggedIn: boolean) => void): () => void {
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     cb(!!session);
   });
-  return () => subscription.unsubscribe();
+  return () => { subscription.unsubscribe(); };
 }

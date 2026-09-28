@@ -93,7 +93,7 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
 
   const { prompt, messages: msgArray, system, maxTokens, model } = parsed.data;
   const messages: Array<{ role: string; content: string }> =
-    msgArray || [{ role: 'user', content: prompt }];
+    (msgArray || [{ role: 'user', content: prompt || '' }]).map(m => ({ role: m.role || 'user', content: m.content || '' }));
   const tokens = maxTokens || 512;
   const effectiveSystem = system || HERMES_SYSTEM_PROMPT;
 

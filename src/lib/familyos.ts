@@ -4,7 +4,7 @@ import { apiUrl } from './api';
 import { authedFetch } from './householdAuth';
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────
-export type UserRole = 'superadmin' | 'admin' | 'child';
+export type UserRole = 'superadmin' | 'admin' | 'child' | 'pet';
 export type User = {
   id: string;
   name: string;
@@ -134,10 +134,10 @@ export function matchHaEntityForChore(
   roomEntities: string[],
   roomName?: string
 ): string | undefined {
-  if (!choreText || !roomEntities || roomEntities.length === 0) return undefined;
+  if (!choreText || roomEntities.length === 0) return undefined;
 
-  const choreWords = new Set(
-    (choreText.toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length >= 2)
+  const choreWords = new Set<string>(
+    ((choreText.toLowerCase().match(/[a-z0-9]+/g) || []) as string[]).filter((w) => w.length >= 2)
   );
   if (choreWords.size === 0) return undefined;
 

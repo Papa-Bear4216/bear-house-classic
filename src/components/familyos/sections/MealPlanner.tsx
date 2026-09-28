@@ -324,7 +324,7 @@ const MealPlanner: React.FC = () => {
         },
       });
     } else {
-      setSuggestError(prev => ({ ...prev, [key]: result.error }));
+      setSuggestError(prev => ({ ...prev, [key]: 'error' in result ? result.error : 'Recipe suggestion failed' }));
     }
     setLoading(null);
   }, [plan, cookProfiles, foodPreferenceByCook]);

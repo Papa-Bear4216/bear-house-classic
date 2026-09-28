@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
+import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment, type PantryItem } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';

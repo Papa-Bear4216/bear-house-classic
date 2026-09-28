@@ -25,12 +25,25 @@ export interface VoiceProvider {
   stopListening(): void;
 }
 
-function getSpeechRecognition(): typeof window.SpeechRecognition | undefined {
+type SpeechResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechResultEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  onspeechend: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+
+function getSpeechRecognition(): (new () => SpeechRecognitionLike) | undefined {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 }
 
 class BrowserVoiceProvider implements VoiceProvider {
-  private recognition: SpeechRecognition | null = null;
+  private recognition: SpeechRecognitionLike | null = null;
   private listening = false;
   private ended = false;
 
@@ -78,7 +91,7 @@ class BrowserVoiceProvider implements VoiceProvider {
       onEnd?.();
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechResultEvent) => {
       const transcript = event.results[0]?.[0]?.transcript;
       if (transcript) {
         onResult(transcript);

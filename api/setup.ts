@@ -35,19 +35,32 @@ export default async function handler(req: Request): Promise<Response> {
   const authUser = await getAuthUserId(accessToken);
   if (!authUser) return j({ error: 'Invalid or expired session' }, 401);
 
-  // NOTE: checkRateLimit() writes to family_data, whose household_id column
-  // has a foreign-key constraint against households(id) — it cannot be keyed
-  // by an auth user id, and no household exists yet at this point (that's
-  // what this route creates). Rate limiting this route needs a separate
-  // mechanism (e.g. a dedicated non-FK-constrained table or in-memory store);
-  // left unrated-limited for now, same as before this pass. Real protection
-  // here is the Supabase session requirement itself.
-
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(SetupBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const body = parsed.data;
   const { action } = body;
+
+  if (action === 'createHousehold' || action === 'inviteMember') {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    let rateLimitRes: Response;
+    try {
+      rateLimitRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/consume_setup_rate_limit`, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ p_user_id: authUser.id, p_limit: 10, p_window_seconds: 600 }),
+      });
+    } catch {
+      return j({ error: 'Setup is temporarily unavailable' }, 503);
+    }
+    if (!rateLimitRes.ok) return j({ error: 'Setup is temporarily unavailable' }, 503);
+    const allowed = await rateLimitRes.json().catch(() => false);
+    if (allowed !== true) return j({ error: 'Too many setup requests. Try again in 10 minutes.' }, 429);
+  }
 
   if (action === 'createHousehold') {
     const { householdName, memberName } = body;

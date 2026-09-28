@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' };
 
 import { handleCorsPreflight } from './_cors.js';
 import { json as j } from './_responseHelpers.js';
-import { resolveHouseholdId } from './_db.js';
+import { resolveCallerMember } from './_db.js';
 
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
@@ -11,17 +11,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  // Exact match only — the previous .includes() check accepted any Host
-  // header merely CONTAINING "localhost"/"127.0.0.1" (e.g. a caller-set
-  // "Host: localhost.evil.com"), bypassing auth entirely for any request
-  // that set that header, which any HTTP client can do trivially.
-  const hostHeader = req.headers.get('host') || '';
-  const isLocal = hostHeader === 'localhost' || hostHeader.startsWith('localhost:')
-    || hostHeader === '127.0.0.1' || hostHeader.startsWith('127.0.0.1:');
-
-  if (!householdId && !isLocal) {
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) {
     return j({ error: 'Unauthorized' }, 401);
+  }
+  if (caller.role !== 'admin' && caller.role !== 'superadmin') {
+    return j({ error: 'Forbidden' }, 403);
   }
 
   const TRIAD_URL = process.env.TRIAD_URL || 'http://127.0.0.1:8789';

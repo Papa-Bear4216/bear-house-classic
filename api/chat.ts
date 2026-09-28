@@ -7,7 +7,7 @@ import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
-import { CLAUDE_MODELS, GEMINI_MODEL } from './_aiModels.js';
+import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL } from './_aiModels.js';
 import { handleStreamingChat } from './_streamChat.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
@@ -17,7 +17,7 @@ import { handleStreamingChat } from './_streamChat.js';
 //   haiku: 'claude-haiku-4-5-20251001',
 //   sonnet: 'claude-sonnet-4-6',
 // } as const;
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = DEFAULT_GEMINI_MODEL;
 const PROVIDER_TIMEOUT_MS = 30_000;
 
 export const HERMES_SYSTEM_PROMPT = [
@@ -160,7 +160,7 @@ export default async function handler(req: Request): Promise<Response> {
   const accept = req.headers.get('accept') || '';
   if (accept.includes('text/event-stream') || accept.includes('*/*')) {
     const streamMode = req.headers.get('x-stream') === 'true'
-      || req.url.searchParams.get('stream') === 'true'
+      || new URL(req.url).searchParams.get('stream') === 'true'
       || accept.includes('text/event-stream');
     if (streamMode) {
       return handleStreamingChat(req);
@@ -180,7 +180,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema } = parsed.data;
 
-  const messages: ChatMessage[] = msgArray || [{ role: 'user', content: prompt }];
+  const messages: ChatMessage[] = (msgArray || [{ role: 'user', content: prompt || '' }]).map(m => ({ role: m.role || 'user', content: m.content || '' }));
   const tokens = maxTokens || 512;
 
   // JSON output mode: when `format: 'json'` or a non-empty `outputSchema` is

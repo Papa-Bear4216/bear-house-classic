@@ -164,7 +164,7 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     }
     save(items.map(i => i.id === id ? { ...i, status } : i));
   };
-  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : m)); };
+  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : i)); };
 
   const active = items.filter(i => !i.deletedAt).reverse();
   const pending = active.filter(i => i.status === 'pending');

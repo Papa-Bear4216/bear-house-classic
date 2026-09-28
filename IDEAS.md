@@ -8,6 +8,68 @@ anything that graduates into `PLAN.md` as a P1/P2 with an estimate.
 Conventions: each idea has a rough effort — **S** (< 1 day), **M** (1–3 days),
 **L** (3+ days / multi-surface). Anchor each to the routes/modules it touches.
 
+## Scoped delivery map (2026-09-28)
+
+This section groups the numbered ideas into workstreams so each can be estimated
+and shipped independently. It is a proposed sequence, not a commitment to build
+every idea. Keep the original idea numbers in issues/PRs so this map stays
+traceable to the inventory below. Before implementation, re-check the named
+routes and current data flow; filenames in the inventory are starting points,
+not proof that a feature already exists.
+
+### Suggested order
+
+1. **Integration reliability:** #6, then #16. Establish useful, accurate
+   connection status before offering recovery flows.
+2. **Daily rhythm:** #1, #3, #14, and #2. Start with one opted-in push
+   briefing; then add the weekly digest and voice routines. Bedtime is a
+   focused routine built on the voice/TTS and HA controls.
+3. **Household engagement:** #10 and #12. These can ship independently;
+   validate the current chores/rewards and memory data models first.
+4. **Finance and grocery:** #8, #7, then #9. Review/correction should inform
+   categorization; receipt capture supplies purchase history for pantry
+   suggestions. #9 can start from existing Walmart order history if receipt
+   capture is deferred.
+5. **School workflows:** #13, then the selected parts of #11. Ship school
+   email triage and reminders before expanding classroom capture/sign-off.
+6. **Home Assistant:** #4, then #5. Scenes are explicit user actions; presence
+   automations add background behavior and need a separate safety review.
+7. **Cross-household access:** #15. Treat the read-only role as a permissions
+   and RLS project, not a UI-only feature; decide audience and data visibility
+   before implementation.
+
+The co-parenting + ADHD extension below is a separate, already-detailed
+multi-phase proposal. It is not included in the order above; its open owner
+decisions and its own dependency order remain authoritative for that effort.
+
+### Workstream scopes
+
+| Workstream | Ideas | First shippable slice | Done when | Key dependency / decision |
+|---|---|---|---|---|
+| Integration reliability | #6, #16 | Show last-known health/freshness for one integration and link to its existing settings/reconnect flow. | Status is based on a real check or sync timestamp, stale state is visible, and reconnect does not silently discard existing configuration. Extend to other integrations, then offer guided reconnect after the agreed stale threshold. | Verify each integration exposes a reliable success/error timestamp and that current health checks do not leak credentials. Define what “broken for 7 days” means. |
+| Daily rhythm & family digest | #1, #2, #3, #14 | Opt-in scheduled push for one member with a configurable local time and a concise briefing assembled from existing data. | User can configure, pause, and receive the push once at the expected local time; missing integrations are omitted gracefully. Expand to weekly parent digest, voice routine grammar, then bedtime/school-leaving routine actions. | Choose scheduler approach and timezone/DST behavior. Check existing cron capacity, push preferences, voice unlock permissions, and HA control authorization. |
+| Household engagement & memories | #10, #12 | For #10, show a weekly view using the existing chore/reward data; for #12, surface one dated memory from existing notes/milestones. | Parent can verify/approve the source data; children see only the intended household content; empty states are useful. Add streak/leaderboard/rewards and anniversary/photo resurfacing as separate follow-ups. | Audit whether chores, points, milestones, and photos already have durable records or are localStorage/family_data blobs. Define parent approval and privacy rules before leaderboard/reward changes. |
+| Finance & grocery loop | #8, #7, #9 | #8: a review list for uncertain transactions with confirm/correct actions. #7: manually capture a receipt and review extracted line items before saving. | Corrections persist and affect future categorization; receipt items are user-confirmed before they affect budget totals; pantry suggestions can be dismissed and added to a list/order only after explicit confirmation. | Verify transaction identity/update paths and Walmart API capabilities. Define confidence threshold, duplicate handling, receipt retention, and whether #9 can use order history before receipt history exists. |
+| School workflow | #13, #11 | Detect likely school messages and present a reviewable digest; allow a parent to confirm a proposed deadline/reminder. | No email creates a calendar event without user confirmation; extracted date and source message are visible; duplicate reminders are avoided. Add classroom photo capture, assignment nudges, sign-off, and permission-slip detection as separate slices. | Verify Gmail scopes, current suggestion/scanning pipeline, calendar ownership, image/OCR path, and consent expectations for children's school data. Decide whether permission slips belong in #13 or #11. |
+| Home Assistant | #4, #5 | #4: let an authorized adult create/save and manually run one named scene using a small supported entity set. | Scene actions are previewable, authorized, auditable, and report partial failures. Only then prototype #5 with one presence event and reversible actions. | Verify HA scene/service support, current allowlists, camera privacy behavior, presence signal accuracy, and safe behavior when presence is unknown. Require explicit household opt-in and manual override for automations. |
+| Read-only extended family | #15 | Document the proposed viewer's permitted records and prove the access boundary with role/RLS tests before UI work. | A viewer can read only explicitly allowed household data, cannot mutate data or invoke integrations, and cross-household access tests fail closed. Then build the limited photos/milestones/digest view. | Decide whether viewers are in v1, invitation/consent flow, revocation behavior, and which records are visible. Coordinate with the RLS/role work in `PLAN.md`. |
+
+### Shared execution rules
+
+- Keep each first slice to one user-visible outcome. Split follow-ups when they
+  introduce a new data model, background schedule, external integration, or
+  permission boundary.
+- Before coding, inspect the current route, schema/migration history, client
+  surface, and tests named by the idea. Update the touched-module list and
+  estimate if the code disagrees with this scratchpad.
+- For background delivery, define opt-in, timezone, retry/idempotency, and
+  disable behavior before implementation. Never make an external action
+  (device control, calendar write, budget update, or order) from an unreviewed
+  model extraction.
+- Promote an idea to `PLAN.md` only after its first slice, owner decisions,
+  dependencies, and estimate are specific enough to implement. The co-parenting
+  proposal already has a separate detailed scope and should be tracked there.
+
 ---
 
 ## Briefing & Daily Rhythm
@@ -121,6 +183,13 @@ reconnect instead of a dead settings page. Retention insurance. **S**
 - Pet feeding tracker (who fed the dog?)
 
 *Last updated: 2026-09-25*
+
+### Execution status — 2026-09-28
+
+The operational completion pass is underway. The sixteen ideas and four
+parking-lot items below are **not marked shipped** by this tooling/security
+pass. Verified current-state implementation and remaining scope are recorded
+in `PLAN.md`; co-parenting remains a separate deferred workstream.
 
 ---
 
