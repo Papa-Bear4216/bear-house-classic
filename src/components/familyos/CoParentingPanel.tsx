@@ -1,5 +1,5 @@
 // src/components/familyos/CoParentingPanel.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Users, AlertTriangle, Check, Loader } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch, getAccessToken } from '@/lib/householdAuth';
@@ -196,7 +196,7 @@ export function CoParentingPanel() {
   };
 
   // Load status + members on mount and when household changes.
-  useState(() => {
+  useEffect(() => {
     if (householdId) {
       refreshStatus();
       refreshMembers();

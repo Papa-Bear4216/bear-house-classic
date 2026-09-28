@@ -50,7 +50,7 @@ export default async function handler(req: Request): Promise<Response> {
       return j({ error: 'Billing not configured for this family' }, 400);
     }
 
-    const stripeCustomerId = familyStripeCustomerId(fbilling ?? { stripeCustomerId: null, primaryHouseholdStripeCustomerId: null, primaryHouseholdId: householdId });
+    const stripeCustomerId = familyStripeCustomerId(fbilling);
     const hasPriorCustomer = Boolean(stripeCustomerId);
 
     const stripe = getStripeClient();
