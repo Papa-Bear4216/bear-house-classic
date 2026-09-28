@@ -59,6 +59,21 @@ Below is the investigation that led to this decision, kept for context.
 **Files**: `package.json`, `package-lock.json`, `src/App.tsx`, `src/pages/NotFound.tsx`, `src/components/theme-provider.tsx`
 **Estimate**: esbuild fix: <1 hour (not done). react-router v6→v7 migration: 2-3 days estimated; actual: same session, turned out much smaller than estimated because usage was minimal. react-router v7→v8 + React 18→19 follow-up: unplanned/unscoped, actual: same session.
 
+### 5. SSRF mitigation — SimpleFIN allowlist + HA redirect hardening
+**Status**: Done (2026-09-27).
+
+**What was done**:
+- `api/_simplefin.ts`: `claimAccessUrl` and `fetchAccounts` now reject any URL whose hostname doesn't end with `.simplefin.org`. The only host SimpleFIN Bridge ever returns is `beta-bridge.simplefin.org` and its siblings, so this is a complete allowlist for the SimpleFIN flow. Setup tokens that decode to non-SimpleFIN claim URLs are rejected before the claim POST.
+- `api/_simplefin.test.ts` (new): 6 tests covering valid simplefin.org hosts, rejected non-simplefin hosts, localhost, and wrong TLD.
+- `api/finance.test.ts`: updated mock URLs from `simplefin.example` to `beta-bridge.simplefin.org` to match the real protocol and pass the allowlist.
+- `api/ha-cameras.ts`, `api/ha-control.ts`, `api/ha-fix.ts`, `api/ha-discover.ts`, `api/health-check.ts`: all outbound fetches to user-configured HA URLs now use `redirect: 'manual'`, stopping a 3xx from smuggling the request to an internal host.
+- `api/settings-ha.ts`: already had admin-or-superadmin role gate on POST (line 44-45) and `validateOutboundUrl` (line 64) + `redirect: 'manual'` (line 73) on the save-time test fetch. No change needed.
+- DNS-rebinding limitation documented in `api/_urlSafety.ts`: Edge runtime can't pin the resolved IP at TCP-connect time, so a hostname that resolves to a public IP now and a private IP at fetch time is not caught. Paired with role-gating wherever the caller isn't already trusted.
+
+**Files**: `api/_simplefin.ts`, `api/_simplefin.test.ts` (new), `api/finance.test.ts`, `api/ha-cameras.ts`, `api/ha-control.ts`, `api/ha-fix.ts`, `api/ha-discover.ts`, `api/health-check.ts`
+
+**Estimate**: 1 day estimated; actual: same session.
+
 ## P1 - High (Next 6-8 Weeks)
 
 ### 5. Database Optimization

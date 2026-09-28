@@ -51,14 +51,14 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     if (entity) {
-      const res = await fetch(`${HA_URL}/api/camera_proxy/${encodeURIComponent(entity)}`, { headers: haHeaders });
+      const res = await fetch(`${HA_URL}/api/camera_proxy/${encodeURIComponent(entity)}`, { headers: haHeaders, redirect: 'manual' });
       if (!res.ok) return j({ error: `HA snapshot error: ${res.status}` }, res.status);
       const buf = await res.arrayBuffer();
       const b64 = bufToBase64(buf);
       return j({ entity, image: `data:image/jpeg;base64,${b64}` });
     }
 
-    const res = await fetch(`${HA_URL}/api/states`, { headers: haHeaders });
+    const res = await fetch(`${HA_URL}/api/states`, { headers: haHeaders, redirect: 'manual' });
     if (!res.ok) return j({ error: `HA states error: ${res.status}` }, res.status);
     const states = await res.json() as any[];
     const cameras = states

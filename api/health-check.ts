@@ -46,6 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
   try {
     const res = await fetch(`${HA_URL}/api/states`, {
       headers: { Authorization: `Bearer ${HA_TOKEN}` },
+      redirect: 'manual',
     });
     if (!res.ok) throw new Error(`HA states ${res.status}`);
     states = (await res.json()) as any[];

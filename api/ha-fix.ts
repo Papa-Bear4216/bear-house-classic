@@ -21,6 +21,7 @@ async function haService(householdId: string, domain: string, service: string, d
     method: 'POST',
     headers: { Authorization: `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    redirect: 'manual',
   });
   if (!res.ok) throw new Error(`HA service ${domain}.${service} failed: ${res.status}`);
   return res.json().catch(() => ({}));
@@ -31,6 +32,7 @@ async function restartAddon(householdId: string, slug: string) {
   const res = await fetch(`${HA_URL}/api/hassio/addons/${slug}/restart`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
+    redirect: 'manual',
   });
   if (!res.ok) throw new Error(`Addon restart ${slug} failed: ${res.status}`);
   return res.json().catch(() => ({}));
@@ -46,6 +48,7 @@ async function reloadByDomain(householdId: string, domain: string) {
   const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   const listRes = await fetch(`${HA_URL}/api/config/config_entries/entry`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` },
+    redirect: 'manual',
   });
   if (listRes.status === 404) {
     throw new Error('config_entries endpoint not exposed on this HA (websocket-only) — reload unavailable via REST');

@@ -37,7 +37,8 @@ describe('POST /api/finance — accounts (institution probe)', () => {
     // still awaiting; the re-check before writing must see the cleared
     // connection and skip the write, instead of resurrecting the old
     // accessUrl.
-    const liveConn = { accessUrl: 'https://simplefin.example/access/live', institutions: [], person: 'Alice', connectedAt: 1 };
+    const liveConn = { accessUrl: 'https://beta-bridge.simplefin.org/access/live', institutions: [], person: 'Alice', connectedAt: 1 };
+
     vi.mocked(dbGet)
       .mockResolvedValueOnce(liveConn) // initial read
       .mockResolvedValueOnce({}); // re-check right before write — disconnected in between
@@ -52,7 +53,7 @@ describe('POST /api/finance — accounts (institution probe)', () => {
   });
 
   it('writes the probed institutions back when the connection is unchanged', async () => {
-    const liveConn = { accessUrl: 'https://simplefin.example/access/live', institutions: [], person: 'Alice', connectedAt: 1 };
+    const liveConn = { accessUrl: 'https://beta-bridge.simplefin.org/access/live', institutions: [], person: 'Alice', connectedAt: 1 };
     vi.mocked(dbGet)
       .mockResolvedValueOnce(liveConn)
       .mockResolvedValueOnce(liveConn); // unchanged on re-check
@@ -72,8 +73,8 @@ describe('POST /api/finance — accounts (institution probe)', () => {
   });
 
   it('does not overwrite when the connection was reconnected (different accessUrl) while probing', async () => {
-    const oldConn = { accessUrl: 'https://simplefin.example/access/old', institutions: [], person: 'Alice', connectedAt: 1 };
-    const newConn = { accessUrl: 'https://simplefin.example/access/new', institutions: [], person: 'Alice', connectedAt: 2 };
+    const oldConn = { accessUrl: 'https://beta-bridge.simplefin.org/access/old', institutions: [], person: 'Alice', connectedAt: 1 };
+    const newConn = { accessUrl: 'https://beta-bridge.simplefin.org/access/new', institutions: [], person: 'Alice', connectedAt: 2 };
     vi.mocked(dbGet)
       .mockResolvedValueOnce(oldConn)
       .mockResolvedValueOnce(newConn); // reconnected with a different accessUrl in between

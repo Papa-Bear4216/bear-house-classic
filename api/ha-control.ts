@@ -55,6 +55,7 @@ export default async function handler(req: Request): Promise<Response> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HA_TOKEN}` },
       body: JSON.stringify({ entity_id: entityId }),
+      redirect: 'manual',
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
