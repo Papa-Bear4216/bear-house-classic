@@ -1,5 +1,5 @@
 // api/stripe-webhook.ts — Stripe-signed webhook receiver. Syncs
-// households.subscription_status/stripe_customer_id/stripe_subscription_id.
+// households AND families: subscription_status/stripe_customer_id/stripe_subscription_id.
 // Edge runtime (consistent with every other api/*.ts route in this repo);
 // uses constructEventAsync since Stripe's sync constructEvent needs Node's
 // Buffer APIs, not available on edge.
@@ -16,7 +16,7 @@ async function updateHousehold(householdId: string, fields: Record<string, strin
   const res = await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`, {
     method: 'PATCH',
     headers: {
-      apikey: serviceKey,
+      apikey: process.env.SUPABASE_SERVICE_KEY!,
       Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
@@ -26,6 +26,24 @@ async function updateHousehold(householdId: string, fields: Record<string, strin
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`Failed to update household ${householdId}: ${res.status} ${detail}`);
+  }
+}
+
+async function updateFamily(familyId: string, fields: Record<string, string | null>) {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/families?id=eq.${encodeURIComponent(familyId)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: process.env.SUPABASE_SERVICE_KEY!,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Failed to update family ${familyId}: ${res.status} ${detail}`);
   }
 }
 
@@ -51,8 +69,16 @@ export default async function handler(req: Request): Promise<Response> {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
       const householdId = session.metadata?.householdId;
+      const familyId = session.metadata?.familyId;
       if (householdId) {
         await updateHousehold(householdId, {
+          stripe_customer_id: session.customer,
+          stripe_subscription_id: session.subscription,
+          subscription_status: 'active',
+        });
+      }
+      if (familyId) {
+        await updateFamily(familyId, {
           stripe_customer_id: session.customer,
           stripe_subscription_id: session.subscription,
           subscription_status: 'active',
@@ -75,9 +101,13 @@ export default async function handler(req: Request): Promise<Response> {
     if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as any;
       const householdId = subscription.metadata?.householdId;
+      const familyId = subscription.metadata?.familyId;
+      const status = event.type === 'customer.subscription.deleted' ? 'canceled' : subscription.status;
       if (householdId) {
-        const status = event.type === 'customer.subscription.deleted' ? 'canceled' : subscription.status;
         await updateHousehold(householdId, { subscription_status: status });
+      }
+      if (familyId) {
+        await updateFamily(familyId, { subscription_status: status });
       }
     }
 
