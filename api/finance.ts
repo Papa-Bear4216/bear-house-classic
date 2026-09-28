@@ -24,7 +24,6 @@ export default async function handler(req: Request): Promise<Response> {
   if (preflight) return preflight;
 
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
-  const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const rawBody = (await req.json().catch(() => ({}))) as any;
 
   const webhookHouseholdId = rawBody.token ? await resolveHouseholdIdByWebhookToken(rawBody.token) : null;
@@ -126,14 +125,14 @@ export default async function handler(req: Request): Promise<Response> {
         const members = await dbGetHouseholdMembersByHouseholdId(householdId);
         let synced = 0, accountsTotal = 0, subsTotal = 0;
         for (const m of members) {
-          const r = await syncMemberFinance(baseUrl, householdId, m.id, days);
+          const r = await syncMemberFinance(householdId, m.id, days);
           synced += r.synced; accountsTotal += r.accounts; subsTotal += r.subscriptions;
         }
         return j({ synced, accounts: accountsTotal, subscriptions: subsTotal });
       }
 
       if (!memberId) return j({ error: 'Unauthorized' }, 401);
-      const r = await syncMemberFinance(baseUrl, householdId, memberId, days);
+      const r = await syncMemberFinance(householdId, memberId, days);
       if (r.message) return j({ synced: 0, transactions: [], recurringBills: [], message: r.message });
       return j({ synced: r.synced, transactions: r.transactions, recurringBills: r.recurringBills, accounts: r.accounts });
     } catch (e: any) {

@@ -6,7 +6,7 @@
  */
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, dbUpsertPushToken } from './_db.js';
+import { resolveCallerMember, dbUpsertPushToken } from './_db.js';
 import { json as j, serverError } from './_responseHelpers.js';
 import { handleCorsPreflight } from './_cors.js';
 
@@ -24,8 +24,9 @@ export default async function handler(req: Request): Promise<Response> {
   // never trusted from the client.
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = await resolveHouseholdId(accessToken);
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const caller = await resolveCallerMember(accessToken);
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
+  const { householdId } = caller;
 
   let body: any;
   try {
@@ -37,7 +38,17 @@ export default async function handler(req: Request): Promise<Response> {
   const token = typeof body?.token === 'string' ? body.token.trim() : '';
   if (!token) return j({ error: 'token is required' }, 400);
   const platform = typeof body?.platform === 'string' && body.platform ? body.platform : 'android';
-  const personId = typeof body?.personId === 'string' && body.personId ? body.personId : undefined;
+  // A device can only register a push token under the caller's OWN member
+  // id — src/lib/push.ts's only caller (AppContext) always passes
+  // session.member.id, so this is a pure hardening no-op for legitimate
+  // traffic. Without this, any authenticated household member could
+  // register a token under a different member's id and receive push
+  // notifications meant for them.
+  const requestedPersonId = typeof body?.personId === 'string' && body.personId ? body.personId : undefined;
+  if (requestedPersonId !== undefined && requestedPersonId !== caller.memberId) {
+    return j({ error: 'personId must match the authenticated caller' }, 403);
+  }
+  const personId = requestedPersonId;
 
   try {
     await dbUpsertPushToken(householdId, token, platform, personId);

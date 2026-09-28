@@ -12,7 +12,13 @@ export default async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  const isLocal = req.headers.get('host')?.includes('localhost') || req.headers.get('host')?.includes('127.0.0.1');
+  // Exact match only — the previous .includes() check accepted any Host
+  // header merely CONTAINING "localhost"/"127.0.0.1" (e.g. a caller-set
+  // "Host: localhost.evil.com"), bypassing auth entirely for any request
+  // that set that header, which any HTTP client can do trivially.
+  const hostHeader = req.headers.get('host') || '';
+  const isLocal = hostHeader === 'localhost' || hostHeader.startsWith('localhost:')
+    || hostHeader === '127.0.0.1' || hostHeader.startsWith('127.0.0.1:');
 
   if (!householdId && !isLocal) {
     return j({ error: 'Unauthorized' }, 401);

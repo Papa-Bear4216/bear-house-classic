@@ -85,6 +85,6 @@ describe('GET /api/finance-sync', () => {
     const res = await handler(req());
     const body = await res.json();
     expect(body.households[0].synced).toBe(2);
-    expect(syncMemberFinance).toHaveBeenCalledWith(expect.any(String), 'h1', 'm1', 30);
+    expect(syncMemberFinance).toHaveBeenCalledWith('h1', 'm1', 30);
   });
 });

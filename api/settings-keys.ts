@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, dbGetHouseholdKeys, dbSetHouseholdKey } from './_db.js';
+import { resolveCallerMember, dbGetHouseholdKeys, dbSetHouseholdKey } from './_db.js';
 import { encryptSecret, maskKey } from './_crypto.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, SettingsKeysBodySchema } from './_schemas.js';
@@ -11,14 +11,20 @@ import { handleCorsPreflight } from './_cors.js';
 // using this app's shared keys (see api/_aiKeys.ts, used by every AI route).
 // GET returns masked values only — the raw key is never sent back to the
 // browser once saved.
+//
+// Admin-or-superadmin only for POST (same gap/fix as settings-ha.ts): the
+// Settings UI's Integrations tab (where HouseholdAiKeysPanel lives) is
+// isAdmin-gated client-side only — this route had no server-side check, so
+// a child could set or clear the household's BYO API keys.
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
+  const { householdId } = caller;
 
   const rl = await checkRateLimit(householdId, 'settings-keys', 20);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
@@ -44,6 +50,9 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+  const isAdmin = caller.role === 'admin' || caller.role === 'superadmin';
+  if (!isAdmin) return j({ error: 'Only an admin can change API keys' }, 403);
 
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(SettingsKeysBodySchema, rawBody);

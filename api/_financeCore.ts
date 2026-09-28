@@ -27,7 +27,6 @@ export type MemberSyncResult = {
 };
 
 export async function syncMemberFinance(
-  baseUrl: string,
   householdId: string,
   memberId: string,
   days: number,
@@ -58,8 +57,8 @@ export async function syncMemberFinance(
     }
   }
 
-  // Categorize (uses cache; only new merchants hit the model via /api/chat).
-  const categorized = await categorize(baseUrl, raw, cache);
+  // Categorize (uses cache; only new merchants hit the model, via fetchAi directly).
+  const categorized = await categorize(householdId, raw, cache);
   await dbSet(cacheKey, householdId, cache, memberId); // categorize mutates cache in place
 
   const transactions = categorized.map((t) => ({

@@ -43,10 +43,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (!CRON_SECRET || suppliedToken !== CRON_SECRET) return j({ error: 'Unauthorized' }, 401);
   if (req.method !== 'GET') return j({ error: 'Method not allowed' }, 405);
 
-  const baseUrl = new URL(req.url).origin; // for self-call to /api/chat in categorize()
   const householdIds = await allHouseholdIds();
   const results = await Promise.all(householdIds.map(async (householdId) => {
-    const sync = await syncHousehold(baseUrl, householdId);
+    const sync = await syncHousehold(householdId);
     // Piggybacks on this cron rather than getting its own — see daily-brain.ts.
     const dailyBrain = await runDailyBrainChecks(householdId);
     await maybeNotifyDailySummary(householdId, dailyBrain);
@@ -61,12 +60,12 @@ export default async function handler(req: Request): Promise<Response> {
  * independent SimpleFIN connections. Fan out over the roster and sync
  * whichever members actually have one — most will have none.
  */
-async function syncHousehold(baseUrl: string, householdId: string): Promise<{ householdId: string; synced?: number; subscriptions?: number; message?: string; error?: string }> {
+async function syncHousehold(householdId: string): Promise<{ householdId: string; synced?: number; subscriptions?: number; message?: string; error?: string }> {
   try {
     const members = await dbGetHouseholdMembersByHouseholdId(householdId);
     let synced = 0, subscriptions = 0, anyConnected = false;
     for (const m of members) {
-      const r = await syncMemberFinance(baseUrl, householdId, m.id, 30);
+      const r = await syncMemberFinance(householdId, m.id, 30);
       if (r.accounts > 0 || r.synced > 0) anyConnected = true;
       synced += r.synced;
       subscriptions += r.subscriptions;
