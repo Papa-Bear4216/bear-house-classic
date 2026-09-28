@@ -33,10 +33,14 @@ export const VisionBodySchema = z.object({
 });
 
 export const ClientMetricBodySchema = z.object({
-  event: z.string().min(1),
-  totalMs: z.number().nonnegative(),
-  detail: z.record(z.string(), z.number()).optional(),
-  householdId: z.string().min(1).optional(),
+  event: z.literal('household_load'),
+  // Omit timing values above two minutes; raw request size is bounded by the
+  // client-metric handler before JSON parsing.
+  totalMs: z.number().int().nonnegative().max(120_000),
+  detail: z.object({
+    sessionMs: z.number().int().nonnegative().max(120_000).optional(),
+    pullFromCloudMs: z.number().int().nonnegative().max(120_000).optional(),
+  }).strict().optional(),
 });
 
 export const DataWriteBodySchema = z.object({
@@ -89,7 +93,6 @@ export const MemoryBodySchema = z.discriminatedUnion('action', [
 ]);
 
 export const ActivityBodySchema = z.object({
-  actorName: z.string().trim().min(1).max(100),
   text: z.string().trim().min(1).max(300),
 });
 

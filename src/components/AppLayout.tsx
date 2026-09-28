@@ -17,6 +17,7 @@ import MagicTrail from '@/components/familyos/MagicTrail';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
 import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
+import { getOfflineSyncStatus, onSyncUpdate } from '@/lib/sync';
 
 // Floating widgets rendered on every page, not the initial view itself —
 // lazy per the rule above so Dashboard can paint before these hydrate.
@@ -104,6 +105,7 @@ const AppLayout: React.FC = () => {
   );
 
   const [active, setActive] = useState<TopModule>('dashboard');
+  const [syncStatus, setSyncStatus] = useState(getOfflineSyncStatus);
   const [householdTab, setHouseholdTab] = useState<HouseholdTab>('tasks');
   const [now, setNow] = useState(new Date());
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -160,6 +162,19 @@ const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => setTick((t) => t + 1), [active, settingsOpen]);
+
+  useEffect(() => {
+    const refresh = () => setSyncStatus(getOfflineSyncStatus());
+    const unsubscribe = onSyncUpdate(refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('offline', refresh);
+    refresh();
+    return () => {
+      unsubscribe();
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('offline', refresh);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -393,6 +408,18 @@ const AppLayout: React.FC = () => {
       {!hasApiKey && isAdm && (
         <div className="bg-amber-950/40 border-b border-amber-500/30 text-amber-200 text-sm px-4 py-2 text-center">
           AI features need an Anthropic API key. <button onClick={() => setSettingsOpen(true)} className="underline font-semibold">Add one in Settings</button>.
+        </div>
+      )}
+
+      {(!syncStatus.online || syncStatus.syncing || syncStatus.pendingWrites > 0 || syncStatus.unassignedWrites > 0) && (
+        <div role="status" aria-live="polite" className="bg-slate-900/90 border-b border-white/10 text-slate-300 text-xs px-4 py-2 text-center">
+          {!syncStatus.online
+            ? 'Offline. Changes are saved on this device and will sync when connected.'
+            : syncStatus.syncing
+              ? 'Syncing saved changes…'
+              : syncStatus.unassignedWrites > 0
+                ? 'Some older offline changes need household review before they can sync.'
+                : `${syncStatus.pendingWrites} saved change${syncStatus.pendingWrites === 1 ? '' : 's'} waiting to sync.`}
         </div>
       )}
 

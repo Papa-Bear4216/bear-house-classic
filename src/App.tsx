@@ -14,7 +14,7 @@ import BillingLockedPage from "@/pages/BillingLocked";
 import Welcome from "@/pages/Welcome";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
-import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
+import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect, authedFetch } from "@/lib/householdAuth";
 import { pullFromCloud, subscribeToRealtime, supabase } from "@/lib/sync";
 import { apiUrl } from "@/lib/api";
 import { AppProvider, useAppContext } from "@/contexts/AppContext";
@@ -96,7 +96,7 @@ const App = () => {
       pullFromCloud(result.householdId).finally(() => {
         setSyncReady(true);
         const totalMs = performance.now() - loadStart;
-        fetch(apiUrl('/api/client-metric'), {
+        authedFetch('/api/client-metric', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -106,7 +106,6 @@ const App = () => {
               sessionMs: Math.round(sessionMs),
               pullFromCloudMs: Math.round(totalMs - sessionMs),
             },
-            householdId: result.householdId,
           }),
         }).catch(() => {}); // best-effort — never let a metric report block or error the UI
       });

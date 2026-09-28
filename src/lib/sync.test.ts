@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullFromCloud, pushToCloud, isWriteQueued } from './sync';
+import { pullFromCloud, pushToCloud, isWriteQueued, getOfflineSyncStatus, retryOfflineWrites } from './sync';
 
 // pullFromCloud goes through the Supabase JS client, not fetch — stub the
 // client's query chain so pushToCloud has a currentHouseholdId to work with
@@ -129,6 +129,14 @@ describe('pushToCloud write serialization', () => {
 
 describe('offline queue', () => {
   beforeEach(async () => {
+    // Drain any queued writes left by a previous test before this one starts
+    // — otherwise a leftover item sits ahead of this test's own key and
+    // swallows its replay attempt.
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ ok: true, updatedAt: 'T0' }), { status: 200 }))));
+    await pullFromCloud('household-1');
+    await vi.waitFor(() => expect(getOfflineSyncStatus()).toMatchObject({ syncing: false, pendingWrites: 0 }));
+
     store.clear();
     await pullFromCloud('household-1'); // syncEnabled = true, currentHouseholdId set
     vi.restoreAllMocks();
@@ -199,5 +207,51 @@ describe('offline queue', () => {
     const ok = await pushToCloud('chores', ['mop']);
     expect(ok).toBe(false);
     expect(isWriteQueued('chores')).toBe(true);
+  });
+
+  it('persists the household owner and never replays a queued value into another household', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+    await pushToCloud('private-notes', ['household one']);
+
+    const saved = JSON.parse(store.get('sync_offline_queue')!);
+    expect(saved.find((item: any) => item.key === 'private-notes').householdId).toBe('household-1');
+    expect(getOfflineSyncStatus().pendingWrites).toBeGreaterThan(0);
+
+    await pullFromCloud('household-2');
+    expect(isWriteQueued('private-notes')).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const matchingCallsBeforeReplay = fetchMock.mock.calls.filter((call: any[]) =>
+      JSON.parse(call[1].body).key === 'private-notes').length;
+    await pullFromCloud('household-1');
+    expect(isWriteQueued('private-notes')).toBe(true);
+    await vi.waitFor(() => expect(fetchMock.mock.calls.filter((call: any[]) =>
+      JSON.parse(call[1].body).key === 'private-notes').length).toBeGreaterThan(matchingCallsBeforeReplay));
+  });
+
+  it('runs only one queue replay at a time', async () => {
+    await vi.waitFor(() => expect(getOfflineSyncStatus().syncing).toBe(false));
+    const fail = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fail);
+    await pushToCloud('single-flight-key', 'saved');
+
+    const replayResponse = deferred<Response>();
+    const replayFetch = vi.fn().mockImplementation((_url, options) => {
+      const request = JSON.parse(options.body);
+      return request.key === 'single-flight-key'
+        ? replayResponse.promise
+        : Promise.resolve(new Response(JSON.stringify({ ok: true, updatedAt: 'T10' }), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', replayFetch);
+    const one = retryOfflineWrites();
+    const two = retryOfflineWrites();
+    await vi.waitFor(() => expect(replayFetch.mock.calls.some((call: any[]) =>
+      JSON.parse(call[1].body).key === 'single-flight-key')).toBe(true));
+    replayResponse.resolve(new Response(JSON.stringify({ ok: true, updatedAt: 'T11' }), { status: 200 }));
+    await Promise.all([one, two]);
+    expect(replayFetch.mock.calls.filter((call: any[]) =>
+      JSON.parse(call[1].body).key === 'single-flight-key')).toHaveLength(1);
+    expect(isWriteQueued('single-flight-key')).toBe(false);
   });
 });

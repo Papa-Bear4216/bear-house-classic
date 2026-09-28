@@ -16,23 +16,29 @@ ownership, uncached categorization failure, and setup household/role scoping.
 - [x] Require operator roles for Triad telemetry and test the denial path.
 - [x] Add pre-household rate limiting for household creation/invites, with an
   atomic counter and fail-closed behavior.
+- [x] Derive activity-feed actor identity from the authenticated member.
+- [x] Require authenticated metric submissions and derive rate-limit scope on
+  the server; whitelist metric fields to prevent log-field injection.
+- [x] Move durable offline writes to IndexedDB with localStorage migration and
+  fallback, household ownership, and single-flight replay. Legacy writes with
+  no owner remain quarantined; sync status is exposed to UI code.
 - [ ] Validate/apply the limiter migration through staging before production.
-- [ ] Verify API bundle/build in Linux CI; local Windows esbuild was blocked by
-  sandbox path access.
+- [ ] Verify API bundle/build in Linux CI; local bundle/build pass with broader
+  process access in this Windows environment.
 - [ ] Complete the remaining work-order scope listed below.
 
-Local verification: typecheck passes; 506 tests pass; lint passes with eight
-existing warnings. `check:api` and `build` could not be verified in this
-Windows sandbox because spawned esbuild processes receive “Cannot read
-directory `../..`: Access is denied” while resolving files in this repo. CI
-must confirm both on its Linux runner. Dependency advisory status was not
-revalidated because npm audit could not reach the registry.
+Local verification: typecheck passes; tests and lint pass with eight existing
+warnings; `check:api` and production build pass when run with the broader local
+process access esbuild needs. The production build still emits existing chunk
+size and duplicate dynamic/static import warnings. CI must still confirm the
+checks on its Linux runner. Dependency advisory status was not revalidated
+because npm audit could not reach the registry.
 
 Still open from the work order: deploy and staging validation of the new
 pre-household setup rate limiter; independent authorization/rate-limit coverage for every security finding; baseline
 browser/device tests and production smoke checks; staging migration and live
-Vercel verification; global/household feature flags; IndexedDB offline queue;
-English/Spanish localization; health UI; runbooks/ADR; and all unshipped
+Vercel verification; global/household feature flags; cache app shell and add a
+visible sync indicator; English/Spanish localization; health UI; runbooks/ADR; and all unshipped
 product ideas. The previously added security fixes are not evidence that the
 full security review is closed. Do not mark this work order complete until the
 remaining scope is implemented or given a specific evidence-backed disposition.
