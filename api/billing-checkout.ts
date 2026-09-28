@@ -5,6 +5,8 @@ import { requireBillingRole } from './_billingAuth.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, BillingActionBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { resolveFamilyId } from './_familyAuth.js';
+import { resolveFamilyBilling, familyStripeCustomerId, familySubscriptionStatus } from './_familyBilling.js';
 
 import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
@@ -20,6 +22,13 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { householdId } = parsed.data;
 
+  // Resolve caller's family — billing is per-family in co-parent mode.
+  const token = req.headers.get('authorization')?.replace('Bearer ', '');
+  if (!token) return j({ error: 'Missing bearer token' }, 401);
+  const family = await resolveFamilyId(token);
+  if (!family) return j({ error: 'Invalid session' }, 401);
+
+  // Resolve the caller's billing role against their household.
   const auth = await requireBillingRole(req, householdId);
   if (auth.ok === false) return j({ error: auth.error }, auth.status);
 
@@ -34,12 +43,15 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
-    const householdRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=stripe_customer_id`,
-      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
-    );
-    const householdRows = await householdRes.json() as any[];
-    const hasPriorCustomer = Boolean(householdRows[0]?.stripe_customer_id);
+    const fbilling = await resolveFamilyBilling(token);
+    if (!fbilling && family.mode === 'coparent') {
+      // Family row missing billing fields — should not happen after migration,
+      // but fall back gracefully.
+      return j({ error: 'Billing not configured for this family' }, 400);
+    }
+
+    const stripeCustomerId = familyStripeCustomerId(fbilling);
+    const hasPriorCustomer = Boolean(stripeCustomerId);
 
     const stripe = getStripeClient();
     const session = await stripe.checkout.sessions.create({
@@ -49,11 +61,11 @@ export default async function handler(req: Request): Promise<Response> {
       ],
       success_url: `${baseUrl}/setup?billing=success`,
       cancel_url: `${baseUrl}/setup?billing=cancelled`,
-      metadata: { householdId, clientIp },
+      metadata: { householdId, familyId: family.familyId, clientIp },
       payment_method_collection: 'if_required',
-      ...(hasPriorCustomer ? { customer: householdRows[0].stripe_customer_id } : {}),
+      ...(hasPriorCustomer && stripeCustomerId ? { customer: stripeCustomerId } : {}),
       subscription_data: {
-        metadata: { householdId, clientIp },
+        metadata: { householdId, familyId: family.familyId, clientIp },
         ...(hasPriorCustomer ? {} : { trial_period_days: 7 }),
       },
     });

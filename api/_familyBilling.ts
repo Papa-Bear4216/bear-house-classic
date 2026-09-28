@@ -79,16 +79,18 @@ export async function resolveFamilyBilling(
   };
 }
 
-export function familySubscriptionStatus(b: FamilyBilling): string {
+export function familySubscriptionStatus(b: FamilyBilling | null): string {
   // Family-level status wins when present; fall back to the primary household's
   // status for pre-migration single-mode families whose family row still has NULLs.
+  if (!b) return 'none';
   if (b.subscriptionStatus) return b.subscriptionStatus;
   if (b.primaryHouseholdSubscriptionStatus) return b.primaryHouseholdSubscriptionStatus;
   return 'none';
 }
 
-export function familyStripeCustomerId(b: FamilyBilling): string | null {
+export function familyStripeCustomerId(b: FamilyBilling | null): string | null {
   // Family-level customer wins; fall back to primary household's customer.
+  if (!b) return null;
   if (b.stripeCustomerId) return b.stripeCustomerId;
   return b.primaryHouseholdStripeCustomerId;
 }
