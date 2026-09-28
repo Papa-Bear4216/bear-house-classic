@@ -21,6 +21,21 @@ function req(body: unknown, auth = 'Bearer t') {
   });
 }
 
+// Real browsers send `Accept: */*` on fetch() by default. The streaming gate
+// added for SSE crashed on every such request (req.url.searchParams on a
+// string URL) — these helpers keep that gate honest.
+function browserReq(body: unknown, auth = 'Bearer t') {
+  return new Request('https://example.com/api/chat', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ' + auth,
+      'content-type': 'application/json',
+      accept: '*/*',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 function authed() {
   vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
@@ -62,6 +77,23 @@ describe('POST /api/chat', () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue(null);
     const res = await handler(req({ prompt: 'hi' }, ''));
     expect(res.status).toBe(401);
+  });
+
+  it('does not crash on Accept: */* (browser default) — unauthenticated still 401s', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    const res = await handler(browserReq({ prompt: 'hi' }, ''));
+    expect(res.status).toBe(401);
+  });
+
+  it('does not crash on Accept: */* (browser default) — authenticated chat still works', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('hello from claude'));
+
+    const res = await handler(browserReq({ prompt: 'hi' }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.text).toBe('hello from claude');
   });
 
   it('rejects with 401 when the token does not resolve to a household — wrong/stale token', async () => {

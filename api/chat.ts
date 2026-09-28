@@ -160,7 +160,7 @@ export default async function handler(req: Request): Promise<Response> {
   const accept = req.headers.get('accept') || '';
   if (accept.includes('text/event-stream') || accept.includes('*/*')) {
     const streamMode = req.headers.get('x-stream') === 'true'
-      || req.url.searchParams.get('stream') === 'true'
+      || new URL(req.url).searchParams.get('stream') === 'true'
       || accept.includes('text/event-stream');
     if (streamMode) {
       return handleStreamingChat(req);
