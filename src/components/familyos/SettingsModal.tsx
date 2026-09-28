@@ -10,6 +10,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { supabase } from '@/lib/sync';
 import { BillingPanel } from './BillingPanel';
+import { CoParentingPanel } from './CoParentingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HouseholdHAPanel } from './HouseholdHAPanel';
 import { HermesModelPanel } from './HermesModelPanel';
@@ -534,6 +535,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
 
               {/* Billing — hidden internally for non-admin roles */}
               <BillingPanel />
+
+              {/* Co-Parenting — co-parenting toggle and merge consent flow */}
+              <CoParentingPanel />
 
               {/* Webhooks — HA, Secretary, NFC */}
               <IntegrationCard
