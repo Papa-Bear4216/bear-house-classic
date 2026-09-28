@@ -1,26 +1,3 @@
-/**
- * Family mode switch — Phase 0 (bear-house-classic).
- *
- * New tables:
- *  - families (id, mode 'single' | 'coparent', created_at, updated_at)
- *  - household_family_link (household_id → family_id, role in that family)
- *
- * Backfill: every existing household gets its own single-member family with
- * mode='single'. No existing data is disturbed.
- *
- * Auth rework (application layer, not migration):
- *  - resolveFamilyId(accessToken) replaces bare resolveHouseholdId as the
- *    top-level tenant resolver. Returns { familyId, householdId, householdRole }.
- *  - All existing routes continue to work unchanged for single-family mode.
- *  - Routes that need family-scoped data call resolveFamilyId and thread
- *    familyId through to the new family-scoped helpers.
- *
- * Client:
- *  - useFamilyMode() hook exposes { mode, familyId, households, activeHouseholdId }
- *  - requireMode('coparent') helper for coparent-only surfaces
- */
-
-return `
 -- ============================================================
 -- 20260928000000_create_families_tables.sql
 -- Phase 0: family mode switch — new tables for multi-household families
@@ -93,23 +70,30 @@ create index if not exists household_family_link_family_id_idx
 create index if not exists household_family_link_household_id_idx
   on public.household_family_link(household_id);
 
--- Backfill: every existing household gets a single-member family
--- Skipped if families table already has data (safe for re-runs)
-do \$\$
+-- Backfill: every existing household gets its own single-member family.
+-- Per-row loop with RETURNING so each household is reliably paired with its own
+-- newly-created family row (not a Cartesian product). Safe for re-runs:
+-- skips households that already have a link.
+do $$
+declare
+  household_row record;
+  new_family_id uuid;
 begin
-  if not exists (select 1 from public.families limit 1) then
-    insert into public.families (id, mode)
-    select gen_random_uuid(), 'single'
-    from public.households;
+  for household_row in
+    select h.id
+    from public.households h
+    where not exists (
+      select 1
+      from public.household_family_link l
+      where l.household_id = h.id
+    )
+  loop
+    insert into public.families (mode)
+    values ('single')
+    returning id into new_family_id;
 
     insert into public.household_family_link (household_id, family_id, role_in_family)
-    select h.id, f.id, 'primary'
-    from public.households h
-    join public.families f on f.mode = 'single'
-    where not exists (
-      select 1 from public.household_family_link hfl where hfl.household_id = h.id
-    );
-  end if;
+    values (household_row.id, new_family_id, 'primary');
+  end loop;
 end;
-\$\$;
-`;
+$$
