@@ -43,6 +43,21 @@ describe('GET /api/triad-telemetry', () => {
     expect(body.available).toBe(false);
   });
 
+  it('rejects a Host header that merely contains "localhost" as a bypass attempt', async () => {
+    // Regression guard: the previous check used .includes('localhost'), so
+    // any caller could set Host: localhost.evil.com (trivial with any HTTP
+    // client) and skip authentication entirely.
+    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    const res = await handler(req('GET', '', 'localhost.evil.com'));
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a Host header that merely contains "127.0.0.1" as a bypass attempt', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue(null);
+    const res = await handler(req('GET', '', '127.0.0.1.evil.com'));
+    expect(res.status).toBe(401);
+  });
+
   it('returns standby when Triad daemon is offline / unreachable', async () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(fetch).mockRejectedValue(new Error('fetch failed'));
