@@ -551,7 +551,7 @@ async function callHermes(history: { role: string; content: string }[], househol
     const data = await res.json();
     const raw = (data.text || '').trim();
 
-    return parseHermesReply(raw);
+    return parseHermesReply<Action>(raw);
   } catch {
     return { text: 'Network error. Check your connection.' };
   }

@@ -2,7 +2,7 @@
 // for `{"text": "...", "actions": []}` but models also wrap it in code fences,
 // add prose around it, or get cut off by the token cap mid-object. In every one
 // of those cases the user must see the conversational text — never raw JSON.
-export type HermesReply = { text: string; actions: unknown[] };
+export type HermesReply<A = unknown> = { text: string; actions: A[] };
 
 const FALLBACK = 'Sorry, that reply got cut off. Could you ask again?';
 
@@ -24,28 +24,30 @@ function firstJsonObject(s: string): string | null {
   return null;
 }
 
-function fromObject(o: unknown): HermesReply | null {
+function fromObject<A>(o: unknown): HermesReply<A> | null {
   if (!o || typeof o !== 'object') return null;
   const { text, actions } = o as { text?: unknown; actions?: unknown };
   if (typeof text !== 'string') return null;
-  return { text, actions: Array.isArray(actions) ? actions : [] };
+  return { text, actions: Array.isArray(actions) ? (actions as A[]) : [] };
 }
 
-export function parseHermesReply(raw: string): HermesReply {
+// The model's actions are validated by the caller's action dispatcher; A is
+// only the shape the caller expects them to have.
+export function parseHermesReply<A = unknown>(raw: string): HermesReply<A> {
   const cleaned = raw.trim().replace(/```(?:json)?/gi, '').trim();
 
   try {
-    const whole = fromObject(JSON.parse(cleaned));
+    const whole = fromObject<A>(JSON.parse(cleaned));
     if (whole) return whole;
     // A JSON string literal, e.g. "\"hello\"".
     const s = JSON.parse(cleaned);
-    if (typeof s === 'string') return parseHermesReply(s);
+    if (typeof s === 'string') return parseHermesReply<A>(s);
   } catch { /* fall through */ }
 
   const obj = firstJsonObject(cleaned);
   if (obj) {
     try {
-      const found = fromObject(JSON.parse(obj));
+      const found = fromObject<A>(JSON.parse(obj));
       if (found) return found;
     } catch { /* fall through */ }
   }
