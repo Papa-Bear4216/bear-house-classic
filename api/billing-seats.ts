@@ -10,14 +10,36 @@ import { resolveFamilyId } from './_familyAuth.js';
 import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
-async function countAuthenticatingMembers(householdId: string): Promise<number> {
+// Counts distinct billable members across every household in the family, not
+// just the ones the calling user happens to belong to — resolveFamilyId's
+// household list is scoped to the caller's own memberships (see _familyAuth.ts),
+// which undercounts a family where the caller only has a row in one home.
+// Dedupes by auth_user_id/email so a parent or child with a row in both homes
+// (e.g. via a merge-in-progress) isn't billed as two seats.
+async function countAuthenticatingMembers(familyId: string): Promise<number> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(householdId)}&role=in.(superadmin,admin,child)&select=id`,
-    { headers: { apikey: process.env.SUPABASE_ANON_KEY!, Authorization: `Bearer ${serviceKey}` } }
+  const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
+
+  const linkRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${encodeURIComponent(familyId)}&select=household_id`,
+    { headers }
   );
-  const rows = await res.json() as any[];
-  return rows.length;
+  const linkRows = linkRes.ok ? (await linkRes.json() as any[]) : [];
+  const householdIds = linkRows.map((r) => r.household_id);
+  if (householdIds.length === 0) return 0;
+
+  const inClause = householdIds.map(encodeURIComponent).join(',');
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?household_id=in.(${inClause})&role=in.(superadmin,admin,child)&select=id,auth_user_id,email`,
+    { headers }
+  );
+  const rows = res.ok ? (await res.json() as any[]) : [];
+
+  const seen = new Set<string>();
+  for (const row of rows) {
+    seen.add(row.auth_user_id ?? row.email ?? row.id);
+  }
+  return seen.size;
 }
 
 async function getHousehold(householdId: string): Promise<{ stripe_subscription_id: string | null }> {
@@ -66,13 +88,12 @@ export default async function handler(req: Request): Promise<Response> {
   const family = await resolveFamilyId(accessToken, householdId);
   if (!family) return j({ error: 'Unable to resolve family' }, 401);
 
-  // Seat count: sum across every household in the family, not just the calling
-  // one. Copy the array first so we don't mutate the live household list.
-  let totalMembers = 0;
-  for (const h of [...family.households]) {
-    totalMembers += await countAuthenticatingMembers(h.householdId);
-  }
-  const seats = totalMembers;
+  // Seat count across every household in the family, deduped by member —
+  // family.households only lists the CALLER's own memberships (see
+  // _familyAuth.ts), which would undercount a family where the caller
+  // doesn't have a row in every linked household. Query the link table
+  // directly by family id instead.
+  const seats = await countAuthenticatingMembers(family.familyId);
   const extraSeats = Math.max(0, seats - 3);
 
   const billingRow = family.mode === 'coparent'

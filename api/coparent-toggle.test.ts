@@ -106,15 +106,15 @@ describe('POST /api/coparent-toggle', () => {
     expect(body.error).toMatch(/coparent-merge-consent/);
   });
 
-  it('enables coparenting: links the caller as primary and creates a new secondary household with a member row', async () => {
+  it('enables coparenting: caller is already linked as primary, creates a new secondary household with a member row', async () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
     mockFetchSequence([
       { ok: true, json: [{ family_id: 'family-1' }] }, // link lookup
       { ok: true, json: [{ id: 'family-1', mode: 'single', merge_consent_household_id: null }] }, // family
-      { ok: true, json: [] }, // existingLinkRes — no links yet
-      { ok: true, json: {} }, // POST link caller as primary (existingHouseholdIds check)
-      { ok: true, json: {} }, // POST link caller as primary (primaryHouseholdId check)
+      // existingLinkRes: the caller's household is always already linked as
+      // primary — that's how `family` was resolved above.
+      { ok: true, json: [{ household_id: 'household-1', role_in_family: 'primary' }] },
       { ok: true, json: [{ name: 'Home' }] }, // nameRes
       { ok: true, json: [{ id: 'household-2' }] }, // POST new secondary household
       { ok: true, json: {} }, // GET /auth/v1/user for the new member row
@@ -127,6 +127,7 @@ describe('POST /api/coparent-toggle', () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.mode).toBe('coparent');
+    expect(body.primaryHouseholdId).toBe('household-1');
     expect(body.secondaryHouseholdId).toBe('household-2');
   });
 
@@ -136,9 +137,7 @@ describe('POST /api/coparent-toggle', () => {
     const fetchMock = mockFetchSequence([
       { ok: true, json: [{ family_id: 'family-1' }] },
       { ok: true, json: [{ id: 'family-1', mode: 'single', merge_consent_household_id: null }] },
-      { ok: true, json: [] }, // existingLinkRes
-      { ok: true, json: {} }, // POST link caller as primary (existingHouseholdIds check)
-      { ok: true, json: {} }, // POST link caller as primary (primaryHouseholdId check)
+      { ok: true, json: [{ household_id: 'household-1', role_in_family: 'primary' }] }, // existingLinkRes
       { ok: true, json: [{ name: 'Home' }] }, // nameRes
       { ok: true, json: [{ id: 'household-2' }] }, // POST new secondary household
       { ok: true, json: {} }, // GET /auth/v1/user
@@ -152,5 +151,23 @@ describe('POST /api/coparent-toggle', () => {
       (c) => typeof c[0] === 'string' && c[0].includes('/rest/v1/households?id=eq.household-2') && c[1]?.method === 'DELETE'
     );
     expect(deleteCall).toBeDefined();
+  });
+
+  it('reuses the existing secondary household if co-parenting is toggled on again without a prior merge', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
+    mockFetchSequence([
+      { ok: true, json: [{ family_id: 'family-1' }] },
+      { ok: true, json: [{ id: 'family-1', mode: 'single', merge_consent_household_id: null }] },
+      { ok: true, json: [
+        { household_id: 'household-1', role_in_family: 'primary' },
+        { household_id: 'household-2', role_in_family: 'secondary' },
+      ] },
+      { ok: true, json: {} }, // PATCH families mode=coparent
+    ]);
+    const res = await handler(req({}));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.secondaryHouseholdId).toBe('household-2');
   });
 });

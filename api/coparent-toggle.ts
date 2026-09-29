@@ -29,10 +29,6 @@ export default async function handler(req: Request): Promise<Response> {
     'Content-Type': 'application/json',
   };
 
-  // Body: optional target household (defaults to caller's household if toggling on).
-  const body = await req.json().catch(() => ({}));
-  const targetHouseholdId = body.householdId || callerHouseholdId;
-
   // Fetch the family for this household via the link table (two-step lookup:
   // PostgREST ignores relation filters on the families table directly, so query
   // household_family_link first, then families by id).
@@ -54,8 +50,12 @@ export default async function handler(req: Request): Promise<Response> {
   if (famRows.length === 0) return j({ error: 'Family not found' }, 404);
   const family = famRows[0];
 
-  // Verify caller has admin/superadmin role in the target household.
-  const auth = await requireBillingRole(req, targetHouseholdId);
+  // Verify caller has admin/superadmin role in their own household. This must
+  // check callerHouseholdId (derived from the token), never a client-supplied
+  // household id — a caller who's admin of some unrelated household could
+  // otherwise pass its id to pass this check while the mutation below still
+  // acts on their own (different) household/family.
+  const auth = await requireBillingRole(req, callerHouseholdId);
   if (auth.ok === false) return j({ error: auth.error }, auth.status);
 
   const isCoparent = family.mode === 'coparent';
@@ -68,36 +68,21 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   // --- TOGGLE ON: enable co-parenting ---
+  // The caller's household is always already linked here — it's how `family`
+  // was resolved above (via household_family_link on callerHouseholdId) —
+  // and setup.ts always links a brand-new household as 'primary'. So the
+  // caller's own link always exists and is always 'primary'; there is
+  // nothing to create for it. Only the secondary side can be missing.
   const existingLinkRes = await fetch(
     `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&select=household_id,role_in_family`,
     { headers }
   );
   const existingLinks: any[] = await existingLinkRes.json();
-  const existingHouseholdIds = existingLinks.map((l) => l.household_id);
 
   let secondaryHouseholdId: string | null = null;
 
-  if (!existingHouseholdIds.includes(callerHouseholdId)) {
-    // The caller's household isn't linked to this family yet — link it as primary.
-    await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ household_id: callerHouseholdId, family_id: family.id, role_in_family: 'primary' }),
-    });
-  }
-
-  // Find or create a secondary household (different from primary).
   const primaryLink = existingLinks.find((l) => l.role_in_family === 'primary');
-  const primaryHouseholdId = primaryLink?.household_id;
-
-  if (!primaryHouseholdId) {
-    // No primary yet — caller's household becomes primary.
-    await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ household_id: callerHouseholdId, family_id: family.id, role_in_family: 'primary' }),
-    });
-  }
+  const primaryHouseholdId = primaryLink?.household_id ?? callerHouseholdId;
 
   // Find an existing secondary, or create one.
   const secondaryLink = existingLinks.find((l) => l.role_in_family === 'secondary');

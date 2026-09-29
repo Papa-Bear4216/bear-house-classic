@@ -187,18 +187,15 @@ async function checkAndMaybeMerge(
     });
   }
 
-  // Both consented — execute merge.
-  // 1. Set family mode back to single.
-  const famUpdate = await fetch(`${baseUrl}/rest/v1/families?id=eq.${familyId}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify({ mode: 'single', merge_initiated_by: null, merge_initiated_at: null }),
-  });
-  if (!famUpdate.ok) return serverError('Merge: failed to reset family mode', 'coparent-merge-consent', String(famUpdate.status));
+  // Both consented — execute merge. Order matters: mode flips to 'single'
+  // LAST. If any earlier step fails, the family is still correctly in
+  // 'coparent' mode — retrying the consent flow can pick up where it left
+  // off, instead of landing in a false 'single' state with orphaned members
+  // and a still-live secondary link that nothing can reach anymore.
 
-  // 2. Move all members from secondary to primary FIRST — do this before
-  //    removing the household_family_link, so a partial failure does not
-  //    orphan members (they would have no household record and resolveFamilyId
+  // 1. Move all members from secondary to primary FIRST — before removing
+  //    the household_family_link, so a partial failure does not orphan
+  //    members (they would have no household record and resolveFamilyId
   //    would return null for them going forward).
   const membersInSecondaryRes = await fetch(`${baseUrl}/rest/v1/household_members?household_id=eq.${secondaryHouseholdId}&select=id`, {
     headers: { ...headers, 'Prefer': 'return=minimal' },
@@ -213,12 +210,21 @@ async function checkAndMaybeMerge(
     if (!moveRes.ok) return serverError('Merge: failed to move a member to primary', 'coparent-merge-consent', String(moveRes.status));
   }
 
-  // 3. Only remove the secondary link once every member has moved successfully.
+  // 2. Only remove the secondary link once every member has moved successfully.
   const secLinkDelete = await fetch(`${baseUrl}/rest/v1/household_family_link?household_id=eq.${secondaryHouseholdId}&family_id=eq.${familyId}`, {
     method: 'DELETE',
     headers,
   });
   if (!secLinkDelete.ok && secLinkDelete.status !== 404) return serverError('Merge: failed to remove secondary link', 'coparent-merge-consent', String(secLinkDelete.status));
+
+  // 3. Set family mode back to single, now that the secondary is fully
+  //    unlinked and empty — this is the point of no return, so it goes last.
+  const famUpdate = await fetch(`${baseUrl}/rest/v1/families?id=eq.${familyId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ mode: 'single', merge_initiated_by: null, merge_initiated_at: null }),
+  });
+  if (!famUpdate.ok) return serverError('Merge: failed to reset family mode', 'coparent-merge-consent', String(famUpdate.status));
 
   // 4. Clean up consent rows.
   await fetch(`${baseUrl}/rest/v1/coparent_merge_consent?family_id=eq.${familyId}`, {

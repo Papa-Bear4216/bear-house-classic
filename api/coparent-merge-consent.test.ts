@@ -220,7 +220,7 @@ describe('POST /api/coparent-merge-consent', () => {
       expect(body.ready).toBe(false);
     });
 
-    it('executes the merge when both households have consented, moving members before unlinking the secondary', async () => {
+    it('executes the merge when both households have consented, moving members before unlinking the secondary, flipping mode last', async () => {
       vi.mocked(resolveHouseholdId).mockResolvedValue('household-primary');
       vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
       const fetchMock = mockFetchSequence([
@@ -230,11 +230,11 @@ describe('POST /api/coparent-merge-consent', () => {
         { ok: true, json: [{ household_id: 'household-secondary' }] }, // secondary already consented
         { ok: true, json: {} }, // POST consent row for primary (caller)
         { ok: true, json: [{ household_id: 'household-primary' }, { household_id: 'household-secondary' }] }, // re-fetch: both
-        { ok: true, json: {} }, // PATCH families mode=single
         { ok: true, json: [{ id: 'member-1' }, { id: 'member-2' }] }, // members in secondary
         { ok: true, json: {} }, // PATCH member-1 -> primary household
         { ok: true, json: {} }, // PATCH member-2 -> primary household
         { ok: true, json: {} }, // DELETE household_family_link for secondary
+        { ok: true, json: {} }, // PATCH families mode=single (last)
         { ok: true, json: {} }, // DELETE coparent_merge_consent rows
       ]);
       const res = await handler(req({ action: 'consent', phrase: 'Make my family whole again' }));
@@ -243,7 +243,7 @@ describe('POST /api/coparent-merge-consent', () => {
       expect(body.status).toBe('merged');
       expect(body.mode).toBe('single');
 
-      // Assert ordering: both member PATCHes happen before the link DELETE.
+      // Assert ordering: member PATCHes -> link DELETE -> mode PATCH, in that order.
       const calls = fetchMock.mock.calls;
       const memberPatchIndices = calls
         .map((c, i) => ({ i, url: c[0], method: c[1]?.method }))
@@ -252,11 +252,16 @@ describe('POST /api/coparent-merge-consent', () => {
       const linkDeleteIndex = calls.findIndex(
         (c) => typeof c[0] === 'string' && c[0].includes('/rest/v1/household_family_link?household_id=eq.household-secondary') && c[1]?.method === 'DELETE'
       );
+      const modePatchIndex = calls.findIndex(
+        (c) => typeof c[0] === 'string' && c[0].includes('/rest/v1/families?id=eq.') && c[1]?.method === 'PATCH'
+          && JSON.parse(c[1].body as string).mode === 'single'
+      );
       expect(memberPatchIndices.length).toBe(2);
       expect(Math.max(...memberPatchIndices)).toBeLessThan(linkDeleteIndex);
+      expect(linkDeleteIndex).toBeLessThan(modePatchIndex);
     });
 
-    it('aborts before unlinking the secondary if moving a member fails', async () => {
+    it('aborts before unlinking the secondary or flipping mode if moving a member fails', async () => {
       vi.mocked(resolveHouseholdId).mockResolvedValue('household-primary');
       vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
       const fetchMock = mockFetchSequence([
@@ -266,7 +271,6 @@ describe('POST /api/coparent-merge-consent', () => {
         { ok: true, json: [{ household_id: 'household-secondary' }] },
         { ok: true, json: {} }, // POST consent row for primary
         { ok: true, json: [{ household_id: 'household-primary' }, { household_id: 'household-secondary' }] },
-        { ok: true, json: {} }, // PATCH families mode=single
         { ok: true, json: [{ id: 'member-1' }] }, // members in secondary
         { ok: false, status: 500, json: { error: 'boom' } }, // PATCH member-1 fails
       ]);
@@ -276,6 +280,14 @@ describe('POST /api/coparent-merge-consent', () => {
         (c) => typeof c[0] === 'string' && c[0].includes('/rest/v1/household_family_link?household_id=eq.household-secondary') && c[1]?.method === 'DELETE'
       );
       expect(linkDeleteCall).toBeUndefined();
+      // Mode must stay 'coparent' on a partial failure — flipping to 'single'
+      // here would falsely report the family as merged while the secondary
+      // household and its members are still live and unmigrated.
+      const modePatchCall = fetchMock.mock.calls.find(
+        (c) => typeof c[0] === 'string' && c[0].includes('/rest/v1/families?id=eq.') && c[1]?.method === 'PATCH'
+          && JSON.parse(c[1].body as string).mode === 'single'
+      );
+      expect(modePatchCall).toBeUndefined();
     });
   });
 
