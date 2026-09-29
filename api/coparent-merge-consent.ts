@@ -53,7 +53,25 @@ export default async function handler(req: Request): Promise<Response> {
   if (famRows.length === 0) return j({ error: 'Family not found' }, 404);
   const family = famRows[0];
 
+  // A household starts in single mode and stays there until someone enables
+  // co-parenting — this is the default, expected state, not an error. The
+  // status action must succeed here (the UI polls it on every load) so it
+  // can show "not enabled yet" instead of erroring; the mutating actions
+  // below genuinely have nothing to do without a real coparent-mode family.
   if (family.mode !== 'coparent') {
+    if (action === 'status') {
+      return j({
+        ok: true,
+        status: 'idle',
+        mode: 'single',
+        primaryHouseholdId: callerHouseholdId,
+        secondaryHouseholdId: null,
+        consentedHouseholdIds: [],
+        initiatedBy: null,
+        initiatedAt: null,
+        ready: false,
+      });
+    }
     return j({ error: 'Not in co-parenting mode — nothing to merge' }, 400);
   }
 

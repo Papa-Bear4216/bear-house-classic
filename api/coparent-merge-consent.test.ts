@@ -70,10 +70,24 @@ describe('POST /api/coparent-merge-consent', () => {
     expect(res.status).toBe(400);
   });
 
-  it('400s when the family is not in coparent mode', async () => {
+  it('returns an idle status (not an error) for the default single-mode family', async () => {
+    // Single mode is the default every household starts in — the UI polls
+    // status on every load, so this must succeed, not 400.
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-primary');
     mockFetchSequence(baseSequence({ mode: 'single' }));
     const res = await handler(req({ action: 'status' }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.mode).toBe('single');
+    expect(body.status).toBe('idle');
+    expect(body.ready).toBe(false);
+  });
+
+  it('400s a mutating action (not status) when the family is not in coparent mode', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-primary');
+    mockFetchSequence(baseSequence({ mode: 'single' }));
+    const res = await handler(req({ action: 'request' }));
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.error).toMatch(/not in co-parenting mode/i);
