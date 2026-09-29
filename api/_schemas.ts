@@ -322,9 +322,17 @@ const US_STATE_CODES = [
 ] as const;
 
 export const CoparentAddressBodySchema = z.object({
-  addressStreet: z.string().trim().min(1).max(200),
-  addressCity: z.string().trim().min(1).max(100),
-  addressState: z.enum(US_STATE_CODES),
-  addressZip: z.string().trim().regex(/^\d{5}(-\d{4})?$/, 'ZIP must be 5 digits or ZIP+4'),
-  contactPhone: z.string().trim().regex(/^[\d\s\-().+]{7,20}$/, 'Enter a valid phone number'),
+  addressStreet: z.string().trim().min(1).max(200).optional(),
+  addressCity: z.string().trim().min(1).max(100).optional(),
+  addressState: z.enum(US_STATE_CODES).optional(),
+  addressZip: z.string().trim().regex(/^\d{5}(-\d{4})?$/, 'ZIP must be 5 digits or ZIP+4').optional(),
+  contactPhone: z.string().trim().regex(/^[\d\s\-().+]{7,20}$/, 'Enter a valid phone number').optional(),
+  // Withhold the address/phone from the other parent (protective order or
+  // equivalent). When set, the address fields become optional.
+  confidential: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if (v.confidential) return;
+  for (const k of ['addressStreet', 'addressCity', 'addressState', 'addressZip', 'contactPhone'] as const) {
+    if (v[k] === undefined) ctx.addIssue({ code: 'custom', path: [k], message: 'Required' });
+  }
 });

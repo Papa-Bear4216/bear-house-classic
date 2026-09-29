@@ -92,10 +92,34 @@ export default async function handler(req: Request): Promise<Response> {
   const primaryLink = existingLinks.find((l) => l.role_in_family === 'primary');
   const primaryHouseholdId = primaryLink?.household_id ?? callerHouseholdId;
 
+  // Most custody/parenting orders require each parent to disclose their
+  // address and contact info to the other — see /api/coparent-address's
+  // GET response's `other` field and coparent_disclosure_statutes for the
+  // state-specific citation. Require it before any write, so a rejection
+  // never leaves an orphaned secondary household or a half-marked member
+  // behind (a retry would then skip creation and never re-mark the member).
+  // A parent who marked their address confidential (protective order or
+  // equivalent) is exempt — the other parent never sees it.
+  const addressGate = async (): Promise<Response | null> => {
+    const callerHhRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=address_street,address_city,address_state,address_zip,contact_phone,address_confidential`,
+      { headers }
+    );
+    if (!callerHhRes.ok) return serverError('Household lookup failed', 'coparent-toggle', callerHhRes.status);
+    const [callerHh] = await callerHhRes.json() as any[];
+    const hasAddress = !!(callerHh?.address_street && callerHh?.address_city && callerHh?.address_state && callerHh?.address_zip && callerHh?.contact_phone);
+    if (!hasAddress && !callerHh?.address_confidential) {
+      return j({ error: 'Enter your household address and phone number before enabling co-parenting (required for the other parent to reach you).' }, 400);
+    }
+    return null;
+  };
+
   // Find an existing secondary, or create one.
   const secondaryLink = existingLinks.find((l) => l.role_in_family === 'secondary');
   if (secondaryLink) {
     secondaryHouseholdId = secondaryLink.household_id;
+    const blocked = await addressGate();
+    if (blocked) return blocked;
   } else {
     if (!transitioningMemberId) {
       return j({ error: 'transitioningMemberId is required to enable co-parenting — pick the household member moving to the new home.' }, 400);
@@ -123,6 +147,9 @@ export default async function handler(req: Request): Promise<Response> {
     if (remainingAdmins.length === 0) {
       return j({ error: 'Cannot transition the only admin/superadmin — your household would be left without one' }, 400);
     }
+
+    const blocked = await addressGate();
+    if (blocked) return blocked;
 
     // Create a new secondary household.
     const nameRes = await fetch(
@@ -172,23 +199,6 @@ export default async function handler(req: Request): Promise<Response> {
       const detail = await markRes.text().catch(() => '');
       return serverError(`Failed to mark transitioning member: ${detail}`, 'coparent-toggle:transition', detail);
     }
-  }
-
-  // Most custody/parenting orders require each parent to disclose their
-  // address and contact info to the other — see /api/coparent-address's
-  // GET response's `other` field and coparent_disclosure_statutes for the
-  // state-specific citation. Require it before committing the mode change
-  // rather than letting a family run co-parenting without ever exchanging
-  // this information.
-  const callerHhRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=address_street,address_city,address_state,address_zip,contact_phone`,
-    { headers }
-  );
-  if (!callerHhRes.ok) return serverError('Household lookup failed', 'coparent-toggle', callerHhRes.status);
-  const [callerHh] = await callerHhRes.json() as any[];
-  const hasAddress = !!(callerHh?.address_street && callerHh?.address_city && callerHh?.address_state && callerHh?.address_zip && callerHh?.contact_phone);
-  if (!hasAddress) {
-    return j({ error: 'Enter your household address and phone number before enabling co-parenting (required for the other parent to reach you).' }, 400);
   }
 
   // Set mode to coparent.
