@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Gamepad2, Volume2, VolumeX, Rocket, Cherry, Flame, Trophy, Sparkles } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { awardPoints, loadPointsBalance } from '@/lib/familyos';
+import { arcadePlayers } from '@/lib/arcadePlayers';
 import SockPythonGame from './SockPythonGame';
 import CosmicClutterGame from './CosmicClutterGame';
 import PantryChomperGame from './PantryChomperGame';
@@ -11,20 +12,21 @@ type ArcadeGameId = 'asteroids' | 'pacman' | 'snake';
 const DAILY_LIMIT = 50;
 
 export const ArcadeHub: React.FC = () => {
-  const { householdMembers, currentUser } = useAppContext();
+  const { householdMembers, currentUser, currentRole } = useAppContext();
+  const players = useMemo(() => arcadePlayers(householdMembers, currentUser, currentRole), [householdMembers, currentUser, currentRole]);
   const [activeGame, setActiveGame] = useState<ArcadeGameId>('snake');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>(() => {
-    return currentUser?.id || householdMembers[0]?.id || '';
+    return currentUser?.id || '';
   });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [pointsClaimedToday, setPointsClaimedToday] = useState<number>(0);
 
-  // Sync player on auth load
+  // Keep the player valid: on auth load, and if a child somehow holds an
+  // adult's id, snap back to a profile they're allowed to play as.
   useEffect(() => {
-    if (currentUser?.id && !selectedPlayerId) {
-      setSelectedPlayerId(currentUser.id);
-    }
-  }, [currentUser, selectedPlayerId]);
+    if (players.length === 0) return;
+    if (!players.some((p) => p.id === selectedPlayerId)) setSelectedPlayerId(players[0].id);
+  }, [players, selectedPlayerId]);
 
   // Load today's claimed points across the arcade
   useEffect(() => {
@@ -50,6 +52,7 @@ export const ArcadeHub: React.FC = () => {
 
   const handleScoreEarned = (starsToAdd: number) => {
     if (!selectedPlayerId || starsToAdd <= 0) return;
+    if (!players.some((p) => p.id === selectedPlayerId)) return;
     const actual = Math.min(starsToAdd, dailyRemaining);
     if (actual <= 0) return;
 
@@ -96,17 +99,23 @@ export const ArcadeHub: React.FC = () => {
 
         {/* Global Controls: Player & Sound */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+          {players.length > 1 ? (
           <select
             value={selectedPlayerId}
             onChange={(e) => setSelectedPlayerId(e.target.value)}
             className="px-3.5 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-amber-500 transition-all shadow-sm"
           >
-            {householdMembers.map((m) => (
+            {players.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name} ({m.role})
               </option>
             ))}
           </select>
+          ) : (
+            <span className="px-3.5 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white">
+              {playerName}
+            </span>
+          )}
 
           <button
             onClick={() => setSoundEnabled((v) => !v)}

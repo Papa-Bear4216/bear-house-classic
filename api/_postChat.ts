@@ -18,6 +18,7 @@
  * Tests mock all of these. See _postChat.test.ts.
  */
 
+import { isTriadHousehold } from './_triadAccess.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json } from './_responseHelpers.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -102,9 +103,9 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
 
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || prompt || '';
   const cleanQuery = lastUserMsg.trim();
-  const isTriadDirect =
+  const isTriadDirect = isTriadHousehold(householdId) && (
     /^(triad|\/triad)\b/i.test(cleanQuery) ||
-    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery);
+    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery));
 
   if (isTriadDirect) {
     const strippedPrompt = cleanQuery.replace(/^(\/)?triad\s*:?\s*/i, '').trim() || 'doctor';

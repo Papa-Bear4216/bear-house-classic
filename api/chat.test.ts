@@ -131,7 +131,21 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(429);
   });
 
+  it('does not route "triad" to the daemon for a household that is not the Triad household', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(claudeOk('normal llm answer'));
+
+    const res = await handler(req({ prompt: 'triad doctor' }));
+    const body = await res.json();
+    expect(body.text).toBe('normal llm answer');
+    expect(fetchMock.mock.calls.every((c) => !String(c[0]).includes('8789'))).toBe(true);
+  });
+
   it('routes Triad queries directly to ambient Triad daemon on port 8789', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     // Notice resolveAiKeys is NOT called or required for Triad queries!
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -153,6 +167,7 @@ describe('POST /api/chat', () => {
   });
 
   it('gracefully falls back to LLM when Triad daemon is offline during a triad query', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
 

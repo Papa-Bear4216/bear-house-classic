@@ -1,3 +1,4 @@
+import { parseHermesReply } from '@/lib/hermesReply';
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment, type PantryItem } from '@/lib/familyos';
@@ -389,14 +390,16 @@ async function executeAction(
 }
 
 // ─── Context builder ─────────────────────────────────────────────────────────
-function buildSystemPrompt(householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined): string {
+function buildSystemPrompt(householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, currentRole?: string | null): string {
+  // Bills and expenses are adults' money — child/pet accounts never get them in Hermes' context.
+  const canSeeMoney = currentRole === 'admin' || currentRole === 'superadmin';
   const tasks = loadJSON<any[]>(KEYS.tasks, []);
   const open = tasks.filter(t => !t.completed);
   const high = open.filter(t => t.priority === 'High').slice(0, 8);
   const medium = open.filter(t => t.priority === 'Medium').slice(0, 5);
   const shopping = loadJSON<any[]>('familyos_shopping', []).filter((i: any) => !i.completed);
-  const bills = loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid);
-  const expenses = loadJSON<any[]>('familyos_expenses', []);
+  const bills = canSeeMoney ? loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid) : [];
+  const expenses = canSeeMoney ? loadJSON<any[]>('familyos_expenses', []) : [];
   const appts = loadJSON<any[]>('familyos_appointments', []).slice(0, 6);
   const emotions = loadJSON<any[]>(KEYS.emotions, []).slice(0, 6);
   const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 6);
@@ -439,9 +442,9 @@ OVERDUE: ${open.filter(t => t.dueDate && t.dueDate < Date.now()).length} tasks
 
 SHOPPING (${shopping.length} items): ${shopping.slice(0, 10).map(i => `${i.name} ×${i.quantity || 1}`).join(', ') || 'empty'}
 
-BILLS UNPAID (${bills.length}): ${bills.slice(0, 6).map(b => `${b.name} $${b.amount}`).join(', ') || 'none'}
+BILLS UNPAID: ${!canSeeMoney ? 'not available to this account' : `(${bills.length}) ${bills.slice(0, 6).map(b => `${b.name} $${b.amount}`).join(', ') || 'none'}`}
 
-FINANCE: ${expenses.length ? `${expenses.length} tracked expenses, most recent: ${expenses.slice(0, 5).map(e => `${e.notes || e.category} $${e.amount} (${e.date})`).join(', ')}` : 'no expenses synced yet — bank not connected or sync hasn\'t been run in the Finance tab'}
+FINANCE: ${!canSeeMoney ? 'not available to this account' : expenses.length ? `${expenses.length} tracked expenses, most recent: ${expenses.slice(0, 5).map(e => `${e.notes || e.category} $${e.amount} (${e.date})`).join(', ')}` : 'no expenses synced yet — bank not connected or sync hasn\'t been run in the Finance tab'}
 
 APPOINTMENTS: ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}`).join(' | ') : 'none'}
 
@@ -528,7 +531,7 @@ queryTriad: {type, params: {query: "doctor"|"gate"|"status"|"review diff"|"debug
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet'): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet', currentRole?: string | null): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
     const res = await fetch(apiUrl('/api/chat'), {
@@ -539,8 +542,8 @@ async function callHermes(history: { role: string; content: string }[], househol
       },
       body: JSON.stringify({
         messages: history,
-        system: buildSystemPrompt(householdMembers, currentUserName),
-        maxTokens: 600,
+        system: buildSystemPrompt(householdMembers, currentUserName, currentRole),
+        maxTokens: 1200, // meal plans with recipes overran 600 and got cut off mid-JSON
         model: modelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
       }),
     });
@@ -548,15 +551,7 @@ async function callHermes(history: { role: string; content: string }[], househol
     const data = await res.json();
     const raw = (data.text || '').trim();
 
-    // Try to parse as JSON — extract from code fences if needed
-    const cleaned = raw.replace(/^```json?\s*/i, '').replace(/```$/i, '').trim();
-    try {
-      const parsed = JSON.parse(cleaned);
-      return { text: parsed.text || raw, actions: parsed.actions || [] };
-    } catch {
-      // If AI didn't return JSON, treat as plain text
-      return { text: raw, actions: [] };
-    }
+    return parseHermesReply(raw);
   } catch {
     return { text: 'Network error. Check your connection.' };
   }
@@ -643,7 +638,8 @@ function followUpsFor(lastMsg: Message | undefined): string[] {
 }
 
 const HermesChat: React.FC = () => {
-  const { currentUser, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
+  const { currentUser, currentRole, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
+  const isAdult = currentRole === 'admin' || currentRole === 'superadmin';
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -712,7 +708,7 @@ const HermesChat: React.FC = () => {
       content: m.text,
     }));
 
-    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier);
+    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole);
 
     // Execute any actions
     const executed: ExecutedAction[] = [];
@@ -784,6 +780,13 @@ const HermesChat: React.FC = () => {
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+    setInput('');
+  };
+
+  // Household-wide and destructive, so adults only — and kept off the main
+  // header so it can't be mistaken for "clear chat".
   const clearMemory = async () => {
     if (confirm('Clear Hermes memory for the whole household? He will forget all learned preferences on every device.')) {
       await clearHermesMemory();
@@ -830,15 +833,20 @@ const HermesChat: React.FC = () => {
               <div className="text-[10px] font-semibold text-amber-300/90 flex items-center gap-1">
                 <Brain className="w-2.5 h-2.5 text-amber-400" />
                 {memoryCount > 0 ? `${memoryCount} memories learned` : 'Active & learning…'}
+                {isAdult && memoryCount > 0 && (
+                  <button onClick={clearMemory} className="ml-1 underline text-slate-500 hover:text-rose-400" title="Forget everything Hermes has learned about the household">
+                    forget
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {memoryCount > 0 && (
+              {messages.length > 0 && (
                 <button
-                  onClick={clearMemory}
-                  className="text-xs text-slate-400 hover:text-rose-400 px-2 py-1 rounded-lg transition-colors"
+                  onClick={clearChat}
+                  className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg transition-colors"
                 >
-                  clear memory
+                  clear chat
                 </button>
               )}
               <button

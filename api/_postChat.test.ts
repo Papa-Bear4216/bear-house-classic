@@ -133,6 +133,7 @@ describe('server/postChat.resolveChatInput', () => {
   });
 
   it('returns kind: "triad" when the prompt is a triad query', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 
@@ -141,11 +142,22 @@ describe('server/postChat.resolveChatInput', () => {
   });
 
   it('returns kind: "triad" when the prompt is /triad', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 
     const res = await resolveChatInput(req({ prompt: '/triad gate' }));
     expect(res).toMatchObject({ kind: 'triad', prompt: 'gate' });
+  });
+
+  it('treats "triad ..." as a normal chat message for a household that is not the Triad household', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
+    vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
+
+    const res = await resolveChatInput(req({ prompt: 'triad doctor' }));
+    expect(res).toMatchObject({ kind: 'ai' });
   });
 
   it('returns 400 when the body fails ChatBodySchema validation', async () => {
