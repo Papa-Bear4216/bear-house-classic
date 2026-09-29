@@ -15,10 +15,11 @@ import {
 const oauthError = (error: string, status = 400) => j({ error }, status);
 
 function clientCredentials(req: Request, form: URLSearchParams): { id: string; secret: string } {
-  const basic = (req.headers.get('authorization') || '').match(/^Basic\s+(.+)$/i);
-  if (basic) {
+  const header = (req.headers.get('authorization') || '').trim();
+  // Plain string handling, not a regex: this is an attacker-controlled header.
+  if (header.slice(0, 6).toLowerCase() === 'basic ') {
     try {
-      const [id, ...rest] = atob(basic[1]).split(':');
+      const [id, ...rest] = atob(header.slice(6).trim()).split(':');
       return { id: decodeURIComponent(id), secret: decodeURIComponent(rest.join(':')) };
     } catch { /* fall through to body */ }
   }
