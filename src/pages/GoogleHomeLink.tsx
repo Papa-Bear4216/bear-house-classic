@@ -28,7 +28,7 @@ const GoogleHomeLinkPage: React.FC<{ params: GoogleHomeLinkParams }> = ({ params
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4 text-center">
         <Home className="w-8 h-8 text-amber-400 mx-auto" />
-        <h1 className="text-white text-lg font-semibold">Link Bear House to Google Home</h1>
+        <h1 className="text-white text-lg font-semibold">Link FamilyOS to Google Home</h1>
         {isAdult ? (
           <>
             <p className="text-slate-400 text-sm">
@@ -43,7 +43,7 @@ const GoogleHomeLinkPage: React.FC<{ params: GoogleHomeLinkParams }> = ({ params
         ) : (
           <>
             <p className="text-slate-400 text-sm">Only a parent (admin) account can link Google Home. Ask a parent to do this from their own account.</p>
-            <button onClick={() => { clearPendingLink(); window.location.href = '/'; }} className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg px-4 py-2">Back to Bear House</button>
+            <button onClick={() => { clearPendingLink(); window.location.href = '/'; }} className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg px-4 py-2">Back to FamilyOS</button>
           </>
         )}
       </div>

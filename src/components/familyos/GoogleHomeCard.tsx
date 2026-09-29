@@ -13,8 +13,8 @@ export const GoogleHomeCard: React.FC = () => (
     <ol className="text-xs text-slate-300 list-decimal ml-4 space-y-0.5">
       <li>Open the Google Home app on your phone.</li>
       <li>Tap <b>+</b> &rarr; <b>Set up device</b> &rarr; <b>Works with Google</b>.</li>
-      <li>Search for <b>Bear House</b> and sign in with your parent account.</li>
+      <li>Search for <b>FamilyOS</b> and sign in with your parent account.</li>
     </ol>
-    <p className="text-[11px] text-slate-500">To unlink, remove Bear House from the Google Home app. Only parent (admin) accounts can link.</p>
+    <p className="text-[11px] text-slate-500">To unlink, remove FamilyOS from the Google Home app. Only parent (admin) accounts can link.</p>
   </div>
 );
