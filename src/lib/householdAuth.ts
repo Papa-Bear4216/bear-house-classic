@@ -87,9 +87,14 @@ export async function getHouseholdSession(): Promise<{ member: HouseholdMember; 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
 
+  // households!household_members_household_id_fkey disambiguates which FK to
+  // embed through — household_members now has a second FK to households via
+  // pending_transition_household_id (co-parenting transitions), so PostgREST
+  // can no longer infer this relationship on its own and errors without the
+  // explicit hint (which silently surfaced here as "no household found").
   const { data, error } = await supabase
     .from('household_members')
-    .select('id, household_id, name, email, role, color, can_control_devices, households(subscription_status, bypass_billing, voice_unlocked, hermes_model_tier)')
+    .select('id, household_id, name, email, role, color, can_control_devices, households!household_members_household_id_fkey(subscription_status, bypass_billing, voice_unlocked, hermes_model_tier)')
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
 
