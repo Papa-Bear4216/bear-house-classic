@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Users, AlertTriangle, Check, Loader } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
-import { authedFetch, getAccessToken } from '@/lib/householdAuth';
+import { authedFetch, getAccessToken, getHouseholdRoster } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
 import { CoParentAddressForm } from './CoParentAddressForm';
 
@@ -54,23 +54,12 @@ export function CoParentingPanel() {
     }
   };
 
+  // Same RLS-scoped roster read AppContext uses. (This used to POST to
+  // /api/members, a route that was never written — so the list stayed empty.)
   const refreshMembers = async () => {
     if (!householdId) return;
-    const token = await getAccessToken();
-    if (!token) return;
-    try {
-      const res = await fetch(apiUrl('/api/members'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ householdId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.members) setMembers(data.members);
-      }
-    } catch {
-      // ignore
-    }
+    const roster = await getHouseholdRoster(householdId);
+    setMembers(roster.map((m) => ({ id: m.id, name: m.name, role: m.role, household_id: m.householdId })));
   };
 
   const toggleCoparenting = async (isCurrentlyCoparent: boolean) => {
