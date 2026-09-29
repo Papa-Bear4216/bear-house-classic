@@ -63,10 +63,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   // Fetch both household links.
   const primRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.primary&select=household_id`
+    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.primary&select=household_id`,
+    { headers }
   );
   const secRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.secondary&select=household_id`
+    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.secondary&select=household_id`,
+    { headers }
   );
   const [primRows, secRows] = await Promise.all([primRes.json(), secRes.json()]);
   const primaryHouseholdId = primRows[0]?.household_id;
@@ -78,7 +80,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   // Check existing consents in the dual-consent table.
   const consentRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/coparent_merge_consent?family_id=eq.${family.id}&select=household_id`
+    `${SUPABASE_URL}/rest/v1/coparent_merge_consent?family_id=eq.${family.id}&select=household_id`,
+    { headers }
   );
   const consentRows: any[] = consentRes.ok ? await consentRes.json() : [];
   const consentedHouseholds = new Set(consentRows.map((r) => r.household_id));
@@ -136,9 +139,12 @@ export default async function handler(req: Request): Promise<Response> {
       return serverError('Failed to record consent', 'coparent-merge-consent', String(upsertRes.status));
     }
 
-    // Re-fetch consents after insert.
+    // Re-fetch consents after insert. In the race window between our initial
+    // fetch and now, the other household may have also consented, so only the
+    // caller's household is certain to be in the result.
     const updatedConsentRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/coparent_merge_consent?family_id=eq.${family.id}&select=household_id`
+      `${SUPABASE_URL}/rest/v1/coparent_merge_consent?family_id=eq.${family.id}&select=household_id`,
+      { headers }
     );
     const updatedRows: any[] = updatedConsentRes.ok ? await updatedConsentRes.json() : consentRows;
     const updatedSet = new Set(updatedRows.map((r) => r.household_id));

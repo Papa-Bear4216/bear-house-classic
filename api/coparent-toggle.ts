@@ -69,7 +69,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   // --- TOGGLE ON: enable co-parenting ---
   const existingLinkRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&select=household_id,role_in_family`
+    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&select=household_id,role_in_family`,
+    { headers }
   );
   const existingLinks: any[] = await existingLinkRes.json();
   const existingHouseholdIds = existingLinks.map((l) => l.household_id);
@@ -105,7 +106,8 @@ export default async function handler(req: Request): Promise<Response> {
   } else {
     // Create a new secondary household.
     const nameRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=name`
+      `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=name`,
+      { headers }
     );
     const nameRows: any[] = await nameRes.json();
     const primaryName = nameRows[0]?.name || 'Home';

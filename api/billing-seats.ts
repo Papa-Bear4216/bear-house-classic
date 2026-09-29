@@ -67,11 +67,9 @@ export default async function handler(req: Request): Promise<Response> {
   if (!family) return j({ error: 'Unable to resolve family' }, 401);
 
   // Seat count: sum across every household in the family, not just the calling
-  // one. In coparent mode a single Stripe subscription covers both homes, so
-  // counting only the calling household undercounts seats and causes concurrent
-  // calls from each household to race and overwrite each other.
+  // one. Copy the array first so we don't mutate the live household list.
   let totalMembers = 0;
-  for (const h of family.households) {
+  for (const h of [...family.households]) {
     totalMembers += await countAuthenticatingMembers(h.householdId);
   }
   const seats = totalMembers;
