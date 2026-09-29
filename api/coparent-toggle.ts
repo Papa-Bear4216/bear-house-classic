@@ -174,6 +174,23 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
+  // Most custody/parenting orders require each parent to disclose their
+  // address and contact info to the other — see /api/coparent-address's
+  // GET response's `other` field and coparent_disclosure_statutes for the
+  // state-specific citation. Require it before committing the mode change
+  // rather than letting a family run co-parenting without ever exchanging
+  // this information.
+  const callerHhRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=address_street,address_city,address_state,address_zip,contact_phone`,
+    { headers }
+  );
+  if (!callerHhRes.ok) return serverError('Household lookup failed', 'coparent-toggle', callerHhRes.status);
+  const [callerHh] = await callerHhRes.json() as any[];
+  const hasAddress = !!(callerHh?.address_street && callerHh?.address_city && callerHh?.address_state && callerHh?.address_zip && callerHh?.contact_phone);
+  if (!hasAddress) {
+    return j({ error: 'Enter your household address and phone number before enabling co-parenting (required for the other parent to reach you).' }, 400);
+  }
+
   // Set mode to coparent.
   const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/families?id=eq.${family.id}`, {
     method: 'PATCH',

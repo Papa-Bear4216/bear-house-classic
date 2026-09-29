@@ -168,6 +168,7 @@ describe('POST /api/coparent-toggle', () => {
       { ok: true, json: [{ id: 'household-2' }] }, // POST new secondary household
       { ok: true, json: {} }, // POST link secondary
       { ok: true, json: {} }, // PATCH mark transitioning member
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] }, // address lookup
       { ok: true, json: {} }, // PATCH families mode=coparent
     ]);
     const res = await handler(req({ transitioningMemberId: 'member-coparent' }));
@@ -219,6 +220,7 @@ describe('POST /api/coparent-toggle', () => {
         { household_id: 'household-1', role_in_family: 'primary' },
         { household_id: 'household-2', role_in_family: 'secondary' },
       ] },
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] }, // address lookup
       { ok: true, json: {} }, // PATCH families mode=coparent
     ]);
     const res = await handler(req({}));

@@ -64,7 +64,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
   if (!householdId) return noContent();
 
-  let rl: Awaited<ReturnType<typeof checkRateLimit>>;
+  let rl: Awaited<ReturnType<typeof checkRateLimit>> = { allowed: true } as Awaited<ReturnType<typeof checkRateLimit>>;
   try {
     rl = await checkRateLimit(householdId, 'client-metric', 60);
   } catch {
