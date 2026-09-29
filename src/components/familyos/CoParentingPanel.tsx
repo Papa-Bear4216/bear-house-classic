@@ -4,6 +4,7 @@ import { Eye, EyeOff, Users, AlertTriangle, Check, Loader } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch, getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { CoParentAddressForm } from './CoParentAddressForm';
 
 interface CoparentStatus {
   mode: 'single' | 'coparent';
@@ -277,6 +278,10 @@ export function CoParentingPanel() {
           </select>
         </div>
       )}
+
+      {/* Address + phone — required before enabling; the other home's is shown
+          here once co-parenting is on. */}
+      <CoParentAddressForm isCoparent={isCoparent} />
 
       {/* Toggle button */}
       <button
