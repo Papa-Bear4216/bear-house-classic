@@ -42,6 +42,59 @@ export interface FamilyResolution {
 }
 
 /**
+ * Applies a pending household transition for a single member row, if one is
+ * set: moves the member itself, then re-homes any of their personally-owned
+ * family_data rows and device tokens so the data actually follows them
+ * rather than staying invisible in the old household.
+ *
+ * Called lazily on the member's first authenticated request after
+ * coparent-toggle marks them pending — there's no separate migration job.
+ * Best-effort ordering (member row first, so a failure partway still leaves
+ * the member reachable in their new household on retry; the owned-data
+ * moves are idempotent re-homes keyed by owner_member_id, safe to retry).
+ */
+async function applyPendingTransition(
+  member: { id: string; household_id: string; pending_transition_household_id: string | null; pending_transition_role: string | null },
+  serviceKey: string
+): Promise<{ id: string; household_id: string; role: string } | null> {
+  if (!member.pending_transition_household_id) return null;
+  const targetHouseholdId = member.pending_transition_household_id;
+  const targetRole = member.pending_transition_role ?? 'superadmin';
+
+  const moveRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members?id=eq.${member.id}`, {
+    method: 'PATCH',
+    headers: { ...headers(serviceKey), Prefer: 'return=representation' },
+    body: JSON.stringify({
+      household_id: targetHouseholdId,
+      role: targetRole,
+      pending_transition_household_id: null,
+      pending_transition_role: null,
+    }),
+  });
+  if (!moveRes.ok) return null;
+  const [moved] = (await moveRes.json()) as any[];
+
+  // Re-home this member's own family_data rows (bank connections, personal
+  // expenses, etc. — see 20260913000000_scope_family_data_by_owner.sql) so
+  // they follow into the new household instead of becoming invisible under
+  // the old one's RLS scoping.
+  await fetch(`${SUPABASE_URL}/rest/v1/family_data?owner_member_id=eq.${member.id}`, {
+    method: 'PATCH',
+    headers: headers(serviceKey),
+    body: JSON.stringify({ household_id: targetHouseholdId }),
+  });
+
+  // Re-home their push-notification device tokens the same way.
+  await fetch(`${SUPABASE_URL}/rest/v1/device_tokens?person_id=eq.${member.id}`, {
+    method: 'PATCH',
+    headers: headers(serviceKey),
+    body: JSON.stringify({ household_id: targetHouseholdId }),
+  });
+
+  return { id: moved.id, household_id: moved.household_id, role: moved.role };
+}
+
+/**
  * Resolve the caller's family from a verified Supabase access token.
  *
  * Returns the family, every household the caller belongs to (a child in a
@@ -68,12 +121,22 @@ export async function resolveFamilyId(
 
   // Every household_members row for this auth user.
   const memberRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=id,household_id,role`,
+    `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${user.id}&select=id,household_id,role,pending_transition_household_id,pending_transition_role`,
     { headers: headers(serviceKey) }
   );
   if (!memberRes.ok) return null;
   const memberRows: any[] = await memberRes.json();
   if (memberRows.length === 0) return null;
+
+  // Apply any pending household transition (co-parenting: an existing member
+  // moving into a newly-created secondary household) before resolving family
+  // context, so the rest of this call sees their post-transition household.
+  for (let i = 0; i < memberRows.length; i++) {
+    if (memberRows[i].pending_transition_household_id) {
+      const applied = await applyPendingTransition(memberRows[i], serviceKey);
+      if (applied) memberRows[i] = { ...memberRows[i], ...applied };
+    }
+  }
 
   // Each household's family link.
   const householdIds = memberRows.map((r) => r.household_id);

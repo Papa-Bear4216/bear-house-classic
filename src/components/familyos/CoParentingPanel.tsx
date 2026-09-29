@@ -31,6 +31,7 @@ export function CoParentingPanel() {
   const [error, setError] = useState('');
   const [phrase, setPhrase] = useState('');
   const [showConsentForm, setShowConsentForm] = useState(false);
+  const [transitioningMemberId, setTransitioningMemberId] = useState('');
 
   const isAdmin = currentRole === 'admin' || currentRole === 'superadmin';
 
@@ -71,8 +72,12 @@ export function CoParentingPanel() {
     }
   };
 
-  const toggleCoparenting = async () => {
+  const toggleCoparenting = async (isCurrentlyCoparent: boolean) => {
     if (!isAdmin) return;
+    if (!isCurrentlyCoparent && !transitioningMemberId) {
+      setError('Pick which household member is moving to the new home first.');
+      return;
+    }
     setActionLoading('toggle');
     setError('');
     try {
@@ -80,7 +85,7 @@ export function CoParentingPanel() {
       if (!token) return;
       const res = await authedFetch(apiUrl('/api/coparent-toggle'), {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify(isCurrentlyCoparent ? {} : { transitioningMemberId }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -252,9 +257,30 @@ export function CoParentingPanel() {
         <div className="text-xs text-red-400 bg-red-950/50 rounded px-3 py-2">{error}</div>
       )}
 
+      {/* Member picker — required before enabling co-parenting. This person
+          becomes superadmin of the new secondary household (and their own
+          data follows them there) the next time they sign in. */}
+      {!isCoparent && (
+        <div className="space-y-1">
+          <label className="text-xs text-slate-400">Who is moving to the new home?</label>
+          <select
+            value={transitioningMemberId}
+            onChange={(e) => setTransitioningMemberId(e.target.value)}
+            className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white"
+          >
+            <option value="">Select a household member…</option>
+            {members
+              .filter((m) => m.role === 'admin' || m.role === 'superadmin')
+              .map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+          </select>
+        </div>
+      )}
+
       {/* Toggle button */}
       <button
-        onClick={toggleCoparenting}
+        onClick={() => toggleCoparenting(isCoparent)}
         disabled={actionLoading !== null}
         className={`w-full text-xs rounded px-3 py-2 transition flex items-center justify-center gap-2 ${
           isCoparent

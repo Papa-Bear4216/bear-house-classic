@@ -21,6 +21,14 @@ export default async function handler(req: Request): Promise<Response> {
   const callerHouseholdId = await resolveHouseholdId(token);
   if (!callerHouseholdId) return j({ error: 'Invalid session' }, 401);
 
+  // The id of an existing household_members row in the caller's own
+  // household — that person becomes superadmin of the new secondary
+  // household on their next authenticated request (see
+  // _familyAuth.ts's applyPendingTransition). Required when toggling on;
+  // ignored when toggling off (redirects to the merge flow instead).
+  const body = await req.json().catch(() => ({}));
+  const transitioningMemberId: string | undefined = body?.transitioningMemberId;
+
   // Service-role for writes.
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const headers = {
@@ -89,6 +97,33 @@ export default async function handler(req: Request): Promise<Response> {
   if (secondaryLink) {
     secondaryHouseholdId = secondaryLink.household_id;
   } else {
+    if (!transitioningMemberId) {
+      return j({ error: 'transitioningMemberId is required to enable co-parenting — pick the household member moving to the new home.' }, 400);
+    }
+
+    // The transitioning member must be an existing row in the caller's OWN
+    // household — never trust a client-supplied member id without checking
+    // it actually belongs to the household the caller controls.
+    const householdMembersRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(callerHouseholdId)}&select=id,name,role`,
+      { headers }
+    );
+    if (!householdMembersRes.ok) return serverError('Household member lookup failed', 'coparent-toggle', householdMembersRes.status);
+    const householdMemberRows: any[] = await householdMembersRes.json();
+    const transitioningMember = householdMemberRows.find((m) => m.id === transitioningMemberId);
+    if (!transitioningMember) {
+      return j({ error: 'transitioningMemberId must be an existing member of your own household' }, 400);
+    }
+
+    // Don't strand the primary household without an admin — require at
+    // least one other superadmin/admin remaining after this member leaves.
+    const remainingAdmins = householdMemberRows.filter(
+      (m) => m.id !== transitioningMemberId && (m.role === 'superadmin' || m.role === 'admin')
+    );
+    if (remainingAdmins.length === 0) {
+      return j({ error: 'Cannot transition the only admin/superadmin — your household would be left without one' }, 400);
+    }
+
     // Create a new secondary household.
     const nameRes = await fetch(
       `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=name`,
@@ -106,39 +141,37 @@ export default async function handler(req: Request): Promise<Response> {
     const [newHh] = await newHhRes.json() as any[];
     secondaryHouseholdId = newHh.id;
 
-    // The caller needs a membership row in the new secondary household so they
-    // aren't locked out of it — mirror the superadmin pattern setup.ts uses for
-    // a fresh household.
-    // Resolve the caller's auth user id so the membership row is owned (mirrors
-    // setup.ts's getAuthUserId pattern). Fall back to null if the Auth API is
-    // unreachable — the row can be claimed on a later sign-in.
-    const authUserRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { apikey: process.env.SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}` },
-    });
-    const authUser = authUserRes.ok ? (await authUserRes.json() as any) : null;
-    const authUserId = authUser?.id ?? null;
-
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members`, {
-      method: 'POST',
-      headers: { ...headers, Prefer: 'return=representation' },
-      body: JSON.stringify({
-        household_id: newHh.id,
-        auth_user_id: authUserId,
-        name: primaryName,
-        role: 'superadmin',
-        color: 'emerald',
-      }),
-    });
-    if (!memberRes.ok) {
-      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers });
-      const detail = await memberRes.text().catch(() => '');
-      return serverError(`Failed to add caller to secondary household: ${detail}`, 'coparent-toggle:member', detail);
-    }
-    await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
+    const linkNewRes = await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ household_id: secondaryHouseholdId, family_id: family.id, role_in_family: 'secondary' }),
     });
+    if (!linkNewRes.ok) {
+      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers });
+      const detail = await linkNewRes.text().catch(() => '');
+      return serverError(`Failed to link secondary household: ${detail}`, 'coparent-toggle:link', detail);
+    }
+
+    // Mark the transitioning member for the move. They become superadmin of
+    // the new secondary household — and their own family_data/device_tokens
+    // follow them — on their next authenticated request (see
+    // _familyAuth.ts's applyPendingTransition), not immediately here. This
+    // lets them keep their current session in the old household until they
+    // actually visit next, rather than yanking their access mid-session.
+    const markRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members?id=eq.${transitioningMember.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        pending_transition_household_id: secondaryHouseholdId,
+        pending_transition_role: 'superadmin',
+      }),
+    });
+    if (!markRes.ok) {
+      await fetch(`${SUPABASE_URL}/rest/v1/household_family_link?household_id=eq.${secondaryHouseholdId}`, { method: 'DELETE', headers });
+      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers });
+      const detail = await markRes.text().catch(() => '');
+      return serverError(`Failed to mark transitioning member: ${detail}`, 'coparent-toggle:transition', detail);
+    }
   }
 
   // Set mode to coparent.

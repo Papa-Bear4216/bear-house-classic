@@ -15,15 +15,26 @@ import {
 
 interface FetchMockConfig {
   userId?: string;
-  memberRows?: Array<{ id: string; household_id: string; role: string }>;
+  memberRows?: Array<{
+    id: string;
+    household_id: string;
+    role: string;
+    pending_transition_household_id?: string | null;
+    pending_transition_role?: string | null;
+  }>;
   linkRows?: Array<{ household_id: string; family_id: string; role_in_family: string }>;
   familyRows?: Array<{ id: string; mode: string }>;
   activeHouseholdMemberRows?: Array<{ id: string; household_id: string; role: string; can_control_devices: boolean }>;
+  /** Response for the PATCH that applies a pending transition to a member row. */
+  transitionMovePatchOk?: boolean;
+  transitionMovedRow?: { id: string; household_id: string; role: string };
 }
 
-function makeFetchMock(config: FetchMockConfig) {
-  return async (input: any) => {
+function makeFetchMock(config: FetchMockConfig, calls: Array<{ url: string; method?: string; body?: string }>) {
+  return async (input: any, init?: any) => {
     const url = typeof input === 'string' ? input : input.url;
+    const method = init?.method ?? 'GET';
+    calls.push({ url, method, body: init?.body });
     const params = new URLSearchParams(url.includes('?') ? url.split('?')[1] : '');
 
     if (url.includes('/auth/v1/user')) {
@@ -34,6 +45,13 @@ function makeFetchMock(config: FetchMockConfig) {
     }
 
     if (url.includes('/rest/v1/household_members')) {
+      if (method === 'PATCH') {
+        const ok = config.transitionMovePatchOk ?? true;
+        return new Response(
+          JSON.stringify(ok ? [config.transitionMovedRow ?? {}] : { error: 'boom' }),
+          { status: ok ? 200 : 500, headers: { 'content-type': 'application/json' } }
+        );
+      }
       // First call in resolveFamilyId: auth_user_id only (find all households for user).
       if (params.has('auth_user_id') && !params.has('household_id')) {
         return new Response(JSON.stringify(config.memberRows ?? []), {
@@ -49,6 +67,14 @@ function makeFetchMock(config: FetchMockConfig) {
         });
       }
       return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    if (url.includes('/rest/v1/family_data') || url.includes('/rest/v1/device_tokens')) {
+      // Re-homing PATCHes for the transitioning member's owned data.
+      return new Response(JSON.stringify({}), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
@@ -76,7 +102,9 @@ function makeFetchMock(config: FetchMockConfig) {
 }
 
 function setFetchMock(config: FetchMockConfig) {
-  vi.spyOn(globalThis, 'fetch').mockImplementation(makeFetchMock(config)) as any;
+  const calls: Array<{ url: string; method?: string; body?: string }> = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation(makeFetchMock(config, calls) as any);
+  return calls;
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +339,98 @@ describe('resolveCallerMember', () => {
     );
     const result = await resolveCallerMember('bad-token');
     expect(result).toBeNull();
+    vi.restoreAllMocks();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyPendingTransition (co-parenting: exercised through resolveFamilyId,
+// since it's an internal helper invoked lazily on the member's next request)
+// ---------------------------------------------------------------------------
+
+describe('resolveFamilyId — pending household transition', () => {
+  it('moves a member with a pending transition into their new household before resolving family context', async () => {
+    const calls = setFetchMock({
+      userId: 'coparent-1',
+      memberRows: [
+        {
+          id: 'm-coparent',
+          household_id: 'h-old',
+          role: 'admin',
+          pending_transition_household_id: 'h-new',
+          pending_transition_role: 'superadmin',
+        },
+      ],
+      transitionMovedRow: { id: 'm-coparent', household_id: 'h-new', role: 'superadmin' },
+      linkRows: [{ household_id: 'h-new', family_id: 'family-coparent', role_in_family: 'secondary' }],
+      familyRows: [{ id: 'family-coparent', mode: 'coparent' }],
+    });
+
+    const result = await resolveFamilyId('valid-token');
+    expect(result).not.toBeNull();
+    // Family context reflects the post-transition household, not the old one.
+    expect(result!.households).toHaveLength(1);
+    expect(result!.households[0].householdId).toBe('h-new');
+    expect(result!.households[0].memberRole).toBe('superadmin');
+
+    // The member-move PATCH actually fired with the right target household/role.
+    const movePatch = calls.find(
+      (c) => c.method === 'PATCH' && c.url.includes('/rest/v1/household_members?id=eq.m-coparent')
+    );
+    expect(movePatch).toBeDefined();
+    const patchBody = JSON.parse(movePatch!.body!);
+    expect(patchBody.household_id).toBe('h-new');
+    expect(patchBody.role).toBe('superadmin');
+    expect(patchBody.pending_transition_household_id).toBeNull();
+
+    // Owned data re-homed to the new household too.
+    const familyDataPatch = calls.find((c) => c.method === 'PATCH' && c.url.includes('/rest/v1/family_data?owner_member_id=eq.m-coparent'));
+    const deviceTokenPatch = calls.find((c) => c.method === 'PATCH' && c.url.includes('/rest/v1/device_tokens?person_id=eq.m-coparent'));
+    expect(familyDataPatch).toBeDefined();
+    expect(deviceTokenPatch).toBeDefined();
+    expect(JSON.parse(familyDataPatch!.body!).household_id).toBe('h-new');
+    expect(JSON.parse(deviceTokenPatch!.body!).household_id).toBe('h-new');
+
+    vi.restoreAllMocks();
+  });
+
+  it('leaves the member in their old household if the move PATCH fails', async () => {
+    setFetchMock({
+      userId: 'coparent-1',
+      memberRows: [
+        {
+          id: 'm-coparent',
+          household_id: 'h-old',
+          role: 'admin',
+          pending_transition_household_id: 'h-new',
+          pending_transition_role: 'superadmin',
+        },
+      ],
+      transitionMovePatchOk: false,
+      linkRows: [{ household_id: 'h-old', family_id: 'family-coparent', role_in_family: 'primary' }],
+      familyRows: [{ id: 'family-coparent', mode: 'coparent' }],
+    });
+
+    const result = await resolveFamilyId('valid-token');
+    // Move failed, so the member is still resolved in their original household.
+    expect(result).not.toBeNull();
+    expect(result!.households[0].householdId).toBe('h-old');
+
+    vi.restoreAllMocks();
+  });
+
+  it('does not touch a member with no pending transition', async () => {
+    const calls = setFetchMock({
+      userId: 'parent-1',
+      memberRows: [{ id: 'm1', household_id: 'h1', role: 'admin' }],
+      linkRows: [{ household_id: 'h1', family_id: 'family-single', role_in_family: 'primary' }],
+      familyRows: [{ id: 'family-single', mode: 'single' }],
+    });
+
+    await resolveFamilyId('valid-token');
+    const movePatch = calls.find((c) => c.method === 'PATCH' && c.url.includes('/rest/v1/household_members'));
+    expect(movePatch).toBeUndefined();
+
     vi.restoreAllMocks();
   });
 });
