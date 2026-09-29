@@ -42,7 +42,16 @@ describe('POST /api/triad-notify', () => {
     expect(res.status).toBe(401);
   });
 
+  it('403s for a household that is not the Triad household, without firing IFTTT or push', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    const res = await handler(req({ title: 'Spam' }));
+    expect(res.status).toBe(403);
+    expect(sendPushToTokens).not.toHaveBeenCalled();
+  });
+
   it('dispatches FCM push to registered household tokens', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(dbGetPushTokensByHouseholdId).mockResolvedValue(['token-fcm-galaxy-s26']);
     vi.mocked(sendPushToTokens).mockResolvedValue(1);

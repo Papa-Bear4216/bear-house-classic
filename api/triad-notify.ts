@@ -5,6 +5,7 @@ import { handleCorsPreflight } from './_cors.js';
 import { json as j, serverError } from './_responseHelpers.js';
 import { resolveHouseholdId, dbGetPushTokensByHouseholdId } from './_db.js';
 import { sendPushToTokens, notifyIFTTT } from './_notify.js';
+import { isTriadHousehold } from './_triadAccess.js';
 
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
@@ -16,6 +17,8 @@ export default async function handler(req: Request): Promise<Response> {
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
   const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  // Triad alerts fire the server's shared IFTTT webhook — owner's household only.
+  if (!isTriadHousehold(householdId)) return j({ error: 'Forbidden' }, 403);
 
   const rawBody = await req.json().catch(() => ({}));
   const { title = 'Autonomous Triad Alert', body = '', status = 'info' } = rawBody;

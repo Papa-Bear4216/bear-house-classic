@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
-import { supabase } from './sync';
+import { supabase, clearLocalHouseholdCache } from './sync';
 
 import { apiUrl } from './api';
 
@@ -65,6 +65,8 @@ export function initNativeAuthRedirect(): () => void {
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
+  // Don't leave this household's cached data on the device for the next person.
+  clearLocalHouseholdCache();
 }
 
 export async function getAccessToken(): Promise<string | null> {

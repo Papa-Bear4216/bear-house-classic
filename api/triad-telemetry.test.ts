@@ -50,7 +50,17 @@ describe('GET /api/triad-telemetry', () => {
     expect(res.status).toBe(401);
   });
 
+  it('answers "disabled" without contacting the daemon for another household\'s admin', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
+    vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm1', role: 'superadmin', canControlDevices: false });
+    const res = await handler(req());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ available: false, status: 'disabled' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('returns standby when Triad daemon is offline / unreachable', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm1', role: 'admin', canControlDevices: false });
     vi.mocked(fetch).mockRejectedValue(new Error('fetch failed'));
 
@@ -63,6 +73,7 @@ describe('GET /api/triad-telemetry', () => {
   });
 
   it('returns online state and telemetry when Triad daemon responds', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm1', role: 'superadmin', canControlDevices: false });
 
     vi.mocked(fetch).mockImplementation(async (url: any) => {

@@ -5,6 +5,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { onSyncUpdate } from '@/lib/sync';
 import { tryOnDeviceText } from '@/lib/onDeviceVision';
+import ConnectBankGuide from './ConnectBankGuide';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
 
@@ -160,7 +161,6 @@ interface TabProps {
 
 const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any[]) => void }> = ({ currentUser, onSync }) => {
   const [accounts, setAccounts] = useState<LinkedAccount[]>([]);
-  const [token, setToken] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState<'ok'|'err'|''>('');
@@ -175,17 +175,17 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
   }, []);
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
 
-  const connect = async () => {
-    if (!token.trim()) { flash('Paste your SimpleFIN setup token first', 'err'); return; }
+  const connect = async (setupToken: string): Promise<boolean> => {
     setConnecting(true);
     try {
-      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'connect', setupToken: token.trim(), person: currentUser?.name }) });
+      const r = await authedFetch('/api/finance', { method: 'POST', body: JSON.stringify({ action: 'connect', setupToken, person: currentUser?.name }) });
       const d = await r.json();
       // institutions are resolved lazily (see api/finance.ts) — never populated
       // on the connect response itself, so don't try to name them here.
-      if (d.ok) { flash('✓ Connected — loading account details…'); setToken(''); loadAccounts(); }
-      else flash(d.error || 'Connect failed', 'err');
-    } catch (e: any) { flash(e.message, 'err'); } finally { setConnecting(false); }
+      if (d.ok) { flash('✓ Connected — loading account details…'); loadAccounts(); return true; }
+      flash(d.error || 'Connect failed', 'err');
+      return false;
+    } catch (e: any) { flash(e.message, 'err'); return false; } finally { setConnecting(false); }
   };
 
   const disconnect = async () => {
@@ -213,7 +213,7 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
     <div className="bg-bark-700/40 border border-cream-400/10 rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Landmark className="w-4 h-4 text-sage-500" />
-        <span className="text-white text-sm font-semibold">Your Linked Bank Accounts (SimpleFIN)</span>
+        <span className="text-white text-sm font-semibold">Your Linked Bank Accounts</span>
         {accounts.length > 0 && <span className="bg-sage-600/50 border border-sage-600/30 text-sage-200 text-xs px-1.5 py-0.5 rounded-full">{accounts.length}</span>}
       </div>
       <p className="text-cream-400/60 text-[11px] -mt-1">
@@ -230,18 +230,9 @@ const SimpleFinPanel: React.FC<{ currentUser: any; onSync: (t: Expense[], b: any
           </div>))}
         </div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-cream-400/60 text-xs">Get a setup token at beta-bridge.simplefin.org, then paste it here.</p>
-          <input value={token} onChange={e => setToken(e.target.value)} placeholder="SimpleFIN setup token"
-            className="w-full bg-bark-800 border border-cream-400/10 rounded px-2 py-1.5 text-white text-xs outline-none" />
-        </div>
+        <ConnectBankGuide connecting={connecting} onConnect={connect} />
       )}
       <div className="flex gap-2">
-        {accounts.length === 0 && (
-          <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 bg-honey-500 hover:bg-honey-400 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">
-            {connecting ? 'Connecting…' : 'Connect'}
-          </button>
-        )}
         {accounts.length > 0 && (
           <>
             <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 bg-honey-500 hover:bg-honey-400 disabled:opacity-60 text-white text-xs px-3 py-2 rounded-lg focus-ring">

@@ -15,6 +15,7 @@ import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HouseholdHAPanel } from './HouseholdHAPanel';
 import { HermesModelPanel } from './HermesModelPanel';
 import { GmailIntegrationPanel } from './GmailIntegrationPanel';
+import { GoogleHomeCard } from './GoogleHomeCard';
 import { ThemeToggle } from './ThemeToggle';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 
@@ -356,6 +357,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               {isAdmin && <HouseholdAiKeysPanel />}
 
               {isAdmin && <GmailIntegrationPanel />}
+              {isAdmin && <GoogleHomeCard />}
 
               {/* AI toggle — big and obvious */}
               <label className={`flex items-center justify-between rounded-xl border px-5 py-4 cursor-pointer transition ${settings.aiEnabled ? 'border-indigo-500/50 bg-indigo-950/30' : 'border-slate-700 bg-slate-900'}`}>

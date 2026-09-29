@@ -9,6 +9,7 @@ import { json as j, serverError } from './_responseHelpers.js';
 import { handleCorsPreflight } from './_cors.js';
 import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL } from './_aiModels.js';
 import { handleStreamingChat } from './_streamChat.js';
+import { isTriadHousehold } from './_triadAccess.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
 // NOTE: these are now also exported from _aiModels.js as the single source of
@@ -205,8 +206,10 @@ export default async function handler(req: Request): Promise<Response> {
   // Intercept Triad queries and route to ambient Triad daemon on port 8789 ($0 token cost)
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || prompt || '';
   const cleanQuery = lastUserMsg.trim();
-  const isTriadDirect = /^(triad|\/triad)\b/i.test(cleanQuery) ||
-    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery);
+  // Triad is scoped to the owner's household only; everyone else's "triad ..."
+  // is just a normal chat message.
+  const isTriadDirect = isTriadHousehold(householdId) && (/^(triad|\/triad)\b/i.test(cleanQuery) ||
+    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery));
 
   if (isTriadDirect) {
     const TRIAD_URL = process.env.TRIAD_URL || 'http://127.0.0.1:8789';

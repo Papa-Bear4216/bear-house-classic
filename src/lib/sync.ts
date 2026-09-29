@@ -30,6 +30,39 @@ type QueuedWrite = { id: string; key: string; value: unknown; householdId: strin
 const OFFLINE_DB_NAME = 'familyos-sync';
 const OFFLINE_STORE = 'writes';
 const OFFLINE_LS_KEY = 'sync_offline_queue';
+
+// Which household the localStorage data cache belongs to. Every synced value
+// (messages, meds, bills, memory, ...) lives in localStorage and is only ever
+// *overlaid* by a pull — so without this, signing into a second household on
+// the same browser kept showing (and could push back) the first one's data.
+const DATA_OWNER_KEY = 'sync_data_owner';
+
+// Device-level keys that are not household data and must survive a purge.
+function isDeviceKey(key: string): boolean {
+  return key === OFFLINE_LS_KEY || key === DATA_OWNER_KEY || key === 'theme'
+    || key === 'hermes_voice_output' || key.startsWith('sb-');
+}
+
+/** Removes every cached household value from localStorage, keeping only
+ * device-level keys (auth session, theme, the offline write queue). */
+export function purgeLocalHouseholdData(): void {
+  try {
+    const ls = globalThis.localStorage;
+    if (!ls || typeof ls.length !== 'number' || typeof ls.key !== 'function') return;
+    const doomed: string[] = [];
+    for (let i = 0; i < ls.length; i++) {
+      const k = ls.key(i);
+      if (k && !isDeviceKey(k)) doomed.push(k);
+    }
+    for (const k of doomed) ls.removeItem(k);
+  } catch { /* storage unavailable */ }
+}
+
+/** Call on sign-out: drop the cache and the owner marker. */
+export function clearLocalHouseholdCache(): void {
+  purgeLocalHouseholdData();
+  try { globalThis.localStorage?.removeItem(DATA_OWNER_KEY); } catch { /* ignore */ }
+}
 const offlineQueue: QueuedWrite[] = readLocalQueue();
 let syncingQueue = false;
 let queueDb: Promise<IDBDatabase | null> | null = null;
@@ -243,12 +276,26 @@ export async function pullFromCloud(householdId: string): Promise<void> {
       knownVersions.clear();
     }
     await queueReady;
+    // The cache belongs to a different household: wipe it before anything
+    // can render it. (Unknown owner = pre-fix cache; wiped after the fetch
+    // succeeds, below, so an offline first load isn't left empty.)
+    const cacheOwner = localStorage.getItem(DATA_OWNER_KEY);
+    const foreignCache = cacheOwner !== null && cacheOwner !== householdId;
+    if (foreignCache) purgeLocalHouseholdData();
     const { data, error } = await supabase
       .from('family_data')
       .select('key, value, updated_at')
       .eq('household_id', householdId);
     if (error) { console.warn('Sync pull failed:', error.message); return; }
     if (generation !== householdGeneration) return;
+    if (cacheOwner === null || foreignCache) {
+      if (cacheOwner === null) purgeLocalHouseholdData();
+      // Re-apply this household's own unflushed offline edits the purge removed.
+      for (const item of offlineQueue) {
+        if (item.householdId === householdId) localStorage.setItem(item.key, JSON.stringify(item.value));
+      }
+    }
+    localStorage.setItem(DATA_OWNER_KEY, householdId);
     for (const row of data ?? []) {
       // Never clobber a write still sitting in the offline queue — the
       // local value is newer than what the server has. It'll be replayed

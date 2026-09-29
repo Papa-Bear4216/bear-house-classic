@@ -4,6 +4,7 @@ export const config = { runtime: 'edge' };
 import { handleCorsPreflight } from './_cors.js';
 import { json as j } from './_responseHelpers.js';
 import { resolveCallerMember } from './_db.js';
+import { isTriadHousehold } from './_triadAccess.js';
 
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
@@ -17,6 +18,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
   if (caller.role !== 'admin' && caller.role !== 'superadmin') {
     return j({ error: 'Forbidden' }, 403);
+  }
+
+  // Triad is the owner's private tool — other households get a neutral
+  // "disabled" answer and the daemon is never contacted.
+  if (!isTriadHousehold(caller.householdId)) {
+    return j({ available: false, status: 'disabled' });
   }
 
   const TRIAD_URL = process.env.TRIAD_URL || 'http://127.0.0.1:8789';

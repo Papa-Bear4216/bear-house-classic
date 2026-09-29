@@ -45,7 +45,9 @@ const SystemHealth: React.FC = () => {
         const res = await authedFetch('/api/triad-telemetry');
         if (res.ok) {
           const data = await res.json();
-          if (!cancelled) {
+          if (!cancelled && data.status === 'disabled') {
+            setTriadStatus(null); // not this household's tool — show nothing
+          } else if (!cancelled) {
             setTriadStatus({
               available: data.available,
               status: data.status,
