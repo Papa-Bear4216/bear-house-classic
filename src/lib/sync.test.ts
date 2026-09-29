@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullFromCloud, pushToCloud, isWriteQueued, getOfflineSyncStatus, retryOfflineWrites } from './sync';
+import { pullFromCloud, pushToCloud, isWriteQueued, getOfflineSyncStatus, retryOfflineWrites, clearLocalHouseholdCache } from './sync';
 
 // pullFromCloud goes through the Supabase JS client, not fetch — stub the
 // client's query chain so pushToCloud has a currentHouseholdId to work with
@@ -32,6 +32,8 @@ vi.stubGlobal('localStorage', {
   getItem: (k: string) => store.get(k) ?? null,
   setItem: (k: string, v: string) => { store.set(k, v); },
   removeItem: (k: string) => { store.delete(k); },
+  key: (i: number) => [...store.keys()][i] ?? null,
+  get length() { return store.size; },
 });
 
 describe('pushToCloud write serialization', () => {
@@ -253,5 +255,51 @@ describe('offline queue', () => {
     expect(replayFetch.mock.calls.filter((call: any[]) =>
       JSON.parse(call[1].body).key === 'single-flight-key')).toHaveLength(1);
     expect(isWriteQueued('single-flight-key')).toBe(false);
+  });
+});
+
+describe('household data cache isolation', () => {
+  beforeEach(() => { store.clear(); });
+
+  it('wipes another household\'s cached data when a different household signs in', async () => {
+    await pullFromCloud('household-A');
+    store.set('familyos_messages', '[{"text":"A private"}]');
+    store.set('familyos_bills', '[{"amount":100}]');
+    await pullFromCloud('household-B');
+    expect(store.has('familyos_messages')).toBe(false);
+    expect(store.has('familyos_bills')).toBe(false);
+    expect(store.get('sync_data_owner')).toBe('household-B');
+  });
+
+  it('keeps the cache when the same household pulls again', async () => {
+    await pullFromCloud('household-A');
+    store.set('familyos_messages', '[{"text":"mine"}]');
+    await pullFromCloud('household-A');
+    expect(store.get('familyos_messages')).toBe('[{"text":"mine"}]');
+  });
+
+  it('wipes a pre-fix cache with no recorded owner', async () => {
+    store.set('familyos_medications', '[{"name":"someone else"}]');
+    await pullFromCloud('household-A');
+    expect(store.has('familyos_medications')).toBe(false);
+  });
+
+  it('keeps device-level keys through a switch', async () => {
+    await pullFromCloud('household-A');
+    store.set('theme', 'dark');
+    store.set('sb-abc-auth-token', 'session');
+    await pullFromCloud('household-B');
+    expect(store.get('theme')).toBe('dark');
+    expect(store.get('sb-abc-auth-token')).toBe('session');
+  });
+
+  it('clears the cache and owner marker on sign-out', async () => {
+    await pullFromCloud('household-A');
+    store.set('familyos_messages', 'x');
+    store.set('theme', 'dark');
+    clearLocalHouseholdCache();
+    expect(store.has('familyos_messages')).toBe(false);
+    expect(store.has('sync_data_owner')).toBe(false);
+    expect(store.get('theme')).toBe('dark');
   });
 });
