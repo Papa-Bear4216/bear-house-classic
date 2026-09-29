@@ -1,19 +1,17 @@
 /**
- * /api/voice-google — Google Home Graph adapter (Edge Runtime).
+ * /api/voice-google — Google Smart Home fulfillment (Edge Runtime).
  *
- * Receives Google Home Graph commands (SYNC, QUERY, EXECUTE) and
- * maps them to FamilyOS devices via the shared device dispatcher.
+ * Google calls this with SYNC / QUERY / EXECUTE / DISCONNECT after a user has
+ * linked their account (see _googleHome.ts). Devices are the household's Home
+ * Assistant entities; commands go through the shared device dispatcher.
  *
- * Google sends POST with { inputs: [{ intent, payload }] }.
- * Returns Google-aligned response structure.
+ * Auth: the access token issued by /api/google-home-token ("ght1.…"). A plain
+ * Supabase session token is still accepted so the route can be exercised by
+ * hand. Either way the member must be allowed to control devices.
  *
- * Device discovery queries HA for all controllable entities and
- * maps them to Google device objects (OnOff, Brightness, Temperature, etc.).
- *
- * OAuth account linking is configured in Google Cloud Console —
- * FamilyOS handles the token exchange here and resolves householdId.
- *
- * Env vars: HOME_ASSISTANT_URL, HOME_ASSISTANT_TOKEN (shared fallback)
+ * Formats follow Google's cloud-to-cloud spec: device types are
+ * action.devices.types.*, QUERY state is one flat object per device,
+ * brightness/openPercent are 0–100, temperatures are Celsius.
  */
 export const config = { runtime: 'edge' };
 
@@ -22,204 +20,195 @@ import { resolveHaConfig } from './_haConfig.js';
 import { dispatchDevice } from './_deviceDispatcher.js';
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
-import { json as j, serverError } from './_responseHelpers.js';
+import { json as j } from './_responseHelpers.js';
+import { resolveGoogleHomeCaller, revokeLink } from './_googleHome.js';
 
-const HA_DOMAIN_TO_GOOGLE_TYPE: Record<string, string> = {
-  light: 'light',
-  switch: 'switch',
-  lock: 'lock',
-  climate: 'thermostat',
-  fan: 'fan',
-  cover: 'cover',
-  vacuum: 'vacuum',
+const T = (n: string) => `action.devices.types.${n}`;
+const TR = (n: string) => `action.devices.traits.${n}`;
+
+const DOMAINS: Record<string, { type: string; traits: string[] }> = {
+  light: { type: T('LIGHT'), traits: [TR('OnOff'), TR('Brightness')] },
+  switch: { type: T('SWITCH'), traits: [TR('OnOff')] },
+  lock: { type: T('LOCK'), traits: [TR('LockUnlock')] },
+  climate: { type: T('THERMOSTAT'), traits: [TR('TemperatureSetting')] },
+  fan: { type: T('FAN'), traits: [TR('OnOff')] },
+  cover: { type: T('BLINDS'), traits: [TR('OpenClose')] },
+  vacuum: { type: T('VACUUM'), traits: [TR('StartStop')] },
 };
 
-const HA_DOMAIN_TO_GOOGLE_TRAITS: Record<string, string[]> = {
-  light: ['action.devices.traits.OnOff', 'action.devices.traits.Brightness'],
-  switch: ['action.devices.traits.OnOff'],
-  lock: ['action.devices.traits.LockUnlock'],
-  climate: ['action.devices.traits.TemperatureSetting'],
-  fan: ['action.devices.traits.OnOff'],
-  cover: ['action.devices.traits.OpenClose'],
-  vacuum: ['action.devices.traits.OnOff', 'action.devices.traits.StartStop'],
-};
+type HaState = { entity_id: string; state: string; attributes?: Record<string, any> };
+const domainOf = (id: string) => id.split('.')[0];
+const isSupported = (s: HaState) => !!s?.entity_id && !!DOMAINS[domainOf(s.entity_id)];
 
-function haEntityToGoogleDevice(entityId: string) {
-  const domain = entityId.split('.')[0];
-  const type = HA_DOMAIN_TO_GOOGLE_TYPE[domain];
-  const traits = HA_DOMAIN_TO_GOOGLE_TRAITS[domain] || [];
-  const name = entityId.split('.')[1].replace(/_/g, ' ');
-  return {
-    id: entityId,
-    type,
-    traits,
-    name: { name },
-    willReportState: true,
-    attributes: domain === 'climate' ? { temperatureRange: { minC: 10, maxC: 35 }, temperatureUnit: 'C' } : {},
-  };
-}
-
-async function getHaStates(householdId: string): Promise<any[]> {
+async function getHaStates(householdId: string): Promise<HaState[]> {
   const { haUrl, haToken } = await resolveHaConfig(householdId);
   if (!haUrl || !haToken) return [];
   try {
-    const res = await fetch(`${haUrl}/api/states`, {
-      headers: { Authorization: `Bearer ${haToken}` },
-    });
-    if (!res.ok) return [];
-    return await res.json();
+    const res = await fetch(`${haUrl}/api/states`, { headers: { Authorization: `Bearer ${haToken}` } });
+    return res.ok ? await res.json() : [];
   } catch { return []; }
 }
 
-function mapGoogleActionToFamilyOS(
-  googleAction: string,
-  params: Record<string, unknown>,
-): string | null {
-  switch (googleAction) {
-    case 'action.devices.commands.OnOff': {
-      const on = params.on;
-      if (on === true) return 'turn_on';
-      if (on === false) return 'turn_off';
-      return null; // 'on' param required
-    }
-    case 'action.devices.commands.BrightnessAbsolute':
-    case 'action.devices.commands.BrightnessRelative':
-      return 'set_brightness';
-    case 'action.devices.commands.TemperatureSetting':
-      return 'set_temperature';
-    case 'action.devices.commands.LockUnlock': {
-      const lock = params.lock;
-      if (lock === true) return 'lock';
-      if (lock === false) return 'unlock';
-      return null; // 'lock' param required
-    }
-    case 'action.devices.commands.OpenClose': {
-      const open = params.open;
-      if (open === true) return 'open_cover';
-      if (open === false) return 'close_cover';
-      return null; // 'open' param required
-    }
-    case 'action.devices.commands.StartStop':
-      return 'start';
-    case 'action.devices.commands.Stop':
-      return 'stop';
+// Home Assistant reports/accepts temperatures in its own unit system; Google
+// always speaks Celsius.
+async function getHaTempUnit(householdId: string): Promise<'C' | 'F'> {
+  const { haUrl, haToken } = await resolveHaConfig(householdId);
+  if (!haUrl || !haToken) return 'C';
+  try {
+    const res = await fetch(`${haUrl}/api/config`, { headers: { Authorization: `Bearer ${haToken}` } });
+    if (!res.ok) return 'C';
+    const cfg = await res.json();
+    return String(cfg?.unit_system?.temperature || '').includes('F') ? 'F' : 'C';
+  } catch { return 'C'; }
+}
+const toC = (v: number, u: 'C' | 'F') => (u === 'F' ? Math.round(((v - 32) * 5 / 9) * 10) / 10 : v);
+const fromC = (v: number, u: 'C' | 'F') => (u === 'F' ? Math.round((v * 9 / 5 + 32) * 10) / 10 : v);
+
+function toGoogleDevice(s: HaState, unit: 'C' | 'F') {
+  const domain = domainOf(s.entity_id);
+  const def = DOMAINS[domain];
+  const attributes: Record<string, unknown> =
+    domain === 'climate' ? { availableThermostatModes: ['off', 'heat', 'cool', 'heatcool'], thermostatTemperatureUnit: unit }
+    : domain === 'cover' ? { discreteOnlyOpenClose: true }
+    : {};
+  return {
+    id: s.entity_id,
+    type: def.type,
+    traits: def.traits,
+    name: { name: s.attributes?.friendly_name || s.entity_id.split('.')[1].replace(/_/g, ' ') },
+    willReportState: false,
+    attributes,
+  };
+}
+
+const HVAC_TO_GOOGLE: Record<string, string> = { off: 'off', heat: 'heat', cool: 'cool', heat_cool: 'heatcool', auto: 'heatcool' };
+
+function toGoogleState(s: HaState, unit: 'C' | 'F'): Record<string, unknown> {
+  if (s.state === 'unavailable') return { status: 'SUCCESS', online: false };
+  const a = s.attributes || {};
+  const base: Record<string, unknown> = { status: 'SUCCESS', online: true };
+  switch (domainOf(s.entity_id)) {
+    case 'light':
+      return { ...base, on: s.state === 'on', ...(a.brightness != null ? { brightness: Math.round((Number(a.brightness) / 255) * 100) } : {}) };
+    case 'switch':
+    case 'fan':
+      return { ...base, on: s.state === 'on' };
+    case 'lock':
+      return { ...base, isLocked: s.state === 'locked', isJammed: s.state === 'jammed' };
+    case 'cover':
+      return { ...base, openPercent: a.current_position != null ? Number(a.current_position) : s.state === 'open' ? 100 : 0 };
+    case 'climate':
+      return {
+        ...base,
+        thermostatMode: HVAC_TO_GOOGLE[s.state] ?? 'off',
+        ...(a.temperature != null ? { thermostatTemperatureSetpoint: toC(Number(a.temperature), unit) } : {}),
+        ...(a.current_temperature != null ? { thermostatTemperatureAmbient: toC(Number(a.current_temperature), unit) } : {}),
+      };
+    case 'vacuum':
+      return { ...base, isRunning: s.state === 'cleaning' };
     default:
-      return null; // unsupported command
+      return base;
   }
 }
 
-function mapGoogleParams(params: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  if (params.brightness != null) result.brightness = params.brightness;
-  if (params.thermostatTemperatureSetpoint != null) result.temperature = params.thermostatTemperatureSetpoint;
-  if (params.mode != null) result.mode = params.mode;
-  return result;
+type Mapped = { action: string; params?: Record<string, unknown> } | null;
+
+function mapCommand(command: string, p: Record<string, any>, unit: 'C' | 'F'): Mapped {
+  switch (command) {
+    case 'action.devices.commands.OnOff':
+      return typeof p.on === 'boolean' ? { action: p.on ? 'turn_on' : 'turn_off' } : null;
+    case 'action.devices.commands.BrightnessAbsolute': {
+      const pct = Number(p.brightness);
+      if (!Number.isFinite(pct)) return null;
+      return pct <= 0 ? { action: 'turn_off' } : { action: 'set_brightness', params: { brightness: Math.round((Math.min(pct, 100) / 100) * 255) } };
+    }
+    case 'action.devices.commands.LockUnlock':
+      return typeof p.lock === 'boolean' ? { action: p.lock ? 'lock' : 'unlock' } : null;
+    case 'action.devices.commands.OpenClose': {
+      const pct = Number(p.openPercent);
+      return Number.isFinite(pct) ? { action: pct > 0 ? 'open_cover' : 'close_cover' } : null;
+    }
+    case 'action.devices.commands.StartStop':
+      return typeof p.start === 'boolean' ? { action: p.start ? 'start' : 'stop' } : null;
+    case 'action.devices.commands.ThermostatTemperatureSetpoint': {
+      const c = Number(p.thermostatTemperatureSetpoint);
+      return Number.isFinite(c) ? { action: 'set_temperature', params: { temperature: fromC(c, unit) } } : null;
+    }
+    case 'action.devices.commands.ThermostatSetMode':
+      return typeof p.thermostatMode === 'string' ? { action: p.thermostatMode === 'off' ? 'turn_off' : 'turn_on' } : null;
+    default:
+      return null;
+  }
 }
 
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
-
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const authHeader = req.headers.get('authorization') || '';
-  const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!accessToken) return j({ error: 'Unauthorized' }, 401);
+  const viaGoogle = accessToken.startsWith('ght1.');
+  const link = viaGoogle ? await resolveGoogleHomeCaller(accessToken) : null;
+  const caller = viaGoogle ? link : await resolveCallerMember(accessToken);
   if (!caller) return j({ error: 'Unauthorized' }, 401);
-  if (!canControlDevices(caller)) {
-    return j({ error: 'This account is not permitted to control devices' }, 403);
-  }
+  if (!canControlDevices(caller)) return j({ error: 'This account is not permitted to control devices' }, 403);
   const { householdId } = caller;
 
   const rl = await checkRateLimit(householdId, 'voice-google', 30);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const rawBody = await req.json().catch(() => ({}));
-  const inputs = rawBody.inputs || [];
-  const results: any[] = [];
-  let requestId: string | undefined = rawBody.requestId;
+  const rawBody = await req.json().catch(() => ({})) as any;
+  const requestId: string | undefined = rawBody.requestId ?? rawBody.inputs?.[0]?.requestId;
+  const input = rawBody.inputs?.[0];
+  const intent: string | undefined = input?.intent;
+  const payload = input?.payload;
 
-  for (const input of inputs) {
-    requestId = input.requestId || requestId;
-    const { intent, payload } = input || {};
+  if (intent === 'action.devices.SYNC') {
+    const states = (await getHaStates(householdId)).filter((s) => isSupported(s) && s.state !== 'unavailable');
+    const unit = states.some((s) => domainOf(s.entity_id) === 'climate') ? await getHaTempUnit(householdId) : 'C';
+    return j({ requestId, payload: { agentUserId: householdId, devices: states.map((s) => toGoogleDevice(s, unit)) } });
+  }
 
-    if (intent === 'action.devices.SYNC') {
-      const states = await getHaStates(householdId);
-      const devices = states
-        .filter((s: any) => s.entity_id && s.state !== 'unavailable')
-        .map((s: any) => haEntityToGoogleDevice(s.entity_id));
-      results.push({
-        requestId: input.requestId,
-        payload: { agentUserId: householdId, devices },
-      });
+  if (intent === 'action.devices.QUERY') {
+    const wanted = new Set<string>((payload?.devices || []).map((d: any) => d.id));
+    const all = (await getHaStates(householdId)).filter(isSupported);
+    const unit = all.some((s) => domainOf(s.entity_id) === 'climate') ? await getHaTempUnit(householdId) : 'C';
+    const devices: Record<string, unknown> = {};
+    for (const s of all) {
+      if (wanted.size > 0 && !wanted.has(s.entity_id)) continue;
+      devices[s.entity_id] = toGoogleState(s, unit);
     }
+    // A device Google asked about that HA no longer has.
+    for (const id of wanted) if (!(id in devices)) devices[id] = { status: 'ERROR', errorCode: 'deviceNotFound' };
+    return j({ requestId, payload: { devices } });
+  }
 
-    else if (intent === 'action.devices.QUERY') {
-      const requestedIds = new Set((payload?.devices || [])?.map((d: any) => d.id) || []);
-      const states = await getHaStates(householdId);
-      // Return only the requested devices, keyed by device ID.
-      const queryResults: Record<string, any> = {};
-      for (const s of states) {
-        if (!s.entity_id || s.state === 'unavailable') continue;
-        if (requestedIds.size > 0 && !requestedIds.has(s.entity_id)) continue;
-        queryResults[s.entity_id] = {
-          on: { status: s.state === 'on' ? 'SUCCESS' : 'SUCCESS', online: true },
-          ...(s.attributes?.brightness != null ? { brightness: { status: 'SUCCESS', value: s.attributes.brightness } } : {}),
-          ...(s.attributes?.temperature != null ? { temperature: { status: 'SUCCESS', value: s.attributes.temperature } } : {}),
-          ...(s.attributes?.locked != null ? { lockState: { status: 'SUCCESS', value: s.attributes.locked ? 'LOCKED' : 'UNLOCKED' } } : {}),
-        };
-      }
-      results.push({ requestId: input.requestId, payload: { devices: queryResults } });
-    }
-
-    else if (intent === 'action.devices.EXECUTE') {
-      const commands = (payload as any)?.commands || [];
-      const executeResults: any[] = [];
-
-      for (const cmd of commands) {
-        for (const device of (cmd.devices || [])) {
-          const entityId = device.id;
-          const googleAction = cmd.execution?.[0]?.command;
-          const rawParams = cmd.execution?.[0]?.params || {};
-          const familyAction = mapGoogleActionToFamilyOS(googleAction || '', rawParams);
-          const params = mapGoogleParams(rawParams);
-
-          if (familyAction == null) {
-            executeResults.push({
-              ids: [entityId],
-              status: 'ERROR',
-              error: { type: 'INVALID_VALUE', message: `Unsupported or incomplete command: ${googleAction}` },
-            });
-            continue;
-          }
-
-          const dispatchResult = await dispatchDevice(householdId, {
-            deviceId: entityId,
-            action: familyAction,
-            params,
-          });
-
-          executeResults.push({
-            ids: [entityId],
-            status: dispatchResult.ok ? 'SUCCESS' : 'ERROR',
-            ...(dispatchResult.ok ? {} : { error: { type: 'INTERNAL_ERROR', message: dispatchResult.error } }),
-          });
+  if (intent === 'action.devices.EXECUTE') {
+    const commands: any[] = [];
+    let unit: 'C' | 'F' | null = null;
+    for (const cmd of payload?.commands || []) {
+      for (const device of cmd.devices || []) {
+        const id: string = device.id;
+        let failure: { errorCode: string; debugString?: string } | null = null;
+        for (const exec of cmd.execution || []) {
+          if (domainOf(id) === 'climate' && unit === null) unit = await getHaTempUnit(householdId);
+          const mapped = mapCommand(exec.command, exec.params || {}, unit ?? 'C');
+          if (!mapped) { failure = { errorCode: 'functionNotSupported', debugString: `Unsupported or incomplete command: ${exec.command}` }; break; }
+          const result = await dispatchDevice(householdId, { deviceId: id, action: mapped.action, params: mapped.params });
+          if (!result.ok) { failure = { errorCode: 'hardError', debugString: result.error }; break; }
         }
+        commands.push(failure ? { ids: [id], status: 'ERROR', ...failure } : { ids: [id], status: 'SUCCESS', states: { online: true } });
       }
-
-      results.push({ requestId: input.requestId, payload: { commands: executeResults } });
     }
-
-    else {
-      results.push({ requestId: input.requestId, error: `Unknown intent: ${intent}` });
-    }
+    return j({ requestId, payload: { commands } });
   }
 
-  const response: any = { requestId };
-  if (results.length === 1 && results[0].payload !== undefined) {
-    response.payload = results[0].payload;
-  } else {
-    response.results = results;
+  if (intent === 'action.devices.DISCONNECT') {
+    // The user unlinked us in the Google Home app: kill this link's tokens.
+    if (link) await revokeLink(link.linkId);
+    return j({});
   }
-  return j(response);
+
+  return j({ requestId, payload: { errorCode: 'protocolError', debugString: `Unknown intent: ${intent}` } });
 }

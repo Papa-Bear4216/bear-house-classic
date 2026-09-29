@@ -8,6 +8,8 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import GoogleHomeLinkPage from "@/pages/GoogleHomeLink";
+import { readPendingLink, stashLinkParams } from "@/lib/googleHomeLink";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
@@ -30,6 +32,10 @@ type AuthState = 'loading' | 'signed_out' | 'needs_setup' | 'ready';
 const AuthedApp: React.FC = () => {
   const { subscriptionStatus, bypassBilling } = useAppContext();
 
+  // Google is waiting on the user to approve account linking (see googleHomeLink.ts).
+  const linkParams = readPendingLink();
+  if (linkParams) return <GoogleHomeLinkPage params={linkParams} />;
+
   if (!bypassBilling && subscriptionStatus !== null && subscriptionStatus !== 'active') {
     return <BillingLockedPage />;
   }
@@ -47,6 +53,9 @@ const AuthedApp: React.FC = () => {
 };
 
 const App = () => {
+  // Google Smart Home account linking arrives at /link/google-home; park its
+  // params before any sign-in redirect can lose them.
+  useState(() => { stashLinkParams(window.location.pathname, window.location.search); return null; });
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [syncReady, setSyncReady] = useState(false);
   // Latest authState for async continuations (onAuthStateChange, claimInvite)
