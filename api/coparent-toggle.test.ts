@@ -164,6 +164,7 @@ describe('POST /api/coparent-toggle', () => {
         { id: 'member-caller', name: 'Caller', role: 'superadmin' },
         { id: 'member-coparent', name: 'Co-parent', role: 'admin' },
       ] }, // householdMembersRes
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] }, // address lookup
       { ok: true, json: [{ name: 'Home' }] }, // nameRes
       { ok: true, json: [{ id: 'household-2' }] }, // POST new secondary household
       { ok: true, json: {} }, // POST link secondary
@@ -190,6 +191,7 @@ describe('POST /api/coparent-toggle', () => {
         { id: 'member-caller', name: 'Caller', role: 'superadmin' },
         { id: 'member-coparent', name: 'Co-parent', role: 'admin' },
       ] },
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] }, // address lookup
       { ok: true, json: [{ name: 'Home' }] },
       { ok: true, json: [{ id: 'household-2' }] }, // POST new secondary household
       { ok: true, json: {} }, // POST link secondary
@@ -219,11 +221,50 @@ describe('POST /api/coparent-toggle', () => {
         { household_id: 'household-1', role_in_family: 'primary' },
         { household_id: 'household-2', role_in_family: 'secondary' },
       ] },
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] }, // address lookup
       { ok: true, json: {} }, // PATCH families mode=coparent
     ]);
     const res = await handler(req({}));
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.secondaryHouseholdId).toBe('household-2');
+  });
+
+  const noAddr = { ok: true, json: [{ address_street: null, address_city: null, address_state: null, address_zip: null, contact_phone: null, address_confidential: false }] };
+  const seq = [
+    { ok: true, json: [{ family_id: 'family-1' }] },
+    { ok: true, json: [{ id: 'family-1', mode: 'single', merge_consent_household_id: null }] },
+    { ok: true, json: [{ household_id: 'household-1', role_in_family: 'primary' }] },
+    { ok: true, json: [
+      { id: 'member-caller', name: 'Caller', role: 'superadmin' },
+      { id: 'member-coparent', name: 'Co-parent', role: 'admin' },
+    ] },
+  ];
+
+  it('rejects a missing address BEFORE any write — no orphaned secondary household', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
+    const fetchMock = mockFetchSequence([...seq, noAddr]);
+    const res = await handler(req({ transitioningMemberId: 'member-coparent' }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/address/i);
+    const writes = fetchMock.mock.calls.filter((c) => c[1]?.method && c[1].method !== 'GET');
+    expect(writes).toHaveLength(0);
+  });
+
+  it('a confidential household is exempt from the address requirement', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
+    mockFetchSequence([
+      ...seq,
+      { ok: true, json: [{ address_street: null, address_city: null, address_state: null, address_zip: null, contact_phone: null, address_confidential: true }] },
+      { ok: true, json: [{ name: 'Home' }] },
+      { ok: true, json: [{ id: 'household-2' }] },
+      { ok: true, json: {} },
+      { ok: true, json: {} },
+      { ok: true, json: {} },
+    ]);
+    const res = await handler(req({ transitioningMemberId: 'member-coparent' }));
+    expect(res.status).toBe(200);
   });
 });

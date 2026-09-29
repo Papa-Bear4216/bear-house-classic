@@ -309,3 +309,30 @@ export const SecretaryParseSchema = z.object({
     secretaryNote: z.string().max(500).optional(),
   }),
 });
+
+// US state/territory 2-letter codes, matching coparent_disclosure_statutes'
+// primary key — kept in sync manually with that table's seed data.
+const US_STATE_CODES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+  'DC',
+] as const;
+
+export const CoparentAddressBodySchema = z.object({
+  addressStreet: z.string().trim().min(1).max(200).optional(),
+  addressCity: z.string().trim().min(1).max(100).optional(),
+  addressState: z.enum(US_STATE_CODES).optional(),
+  addressZip: z.string().trim().regex(/^\d{5}(-\d{4})?$/, 'ZIP must be 5 digits or ZIP+4').optional(),
+  contactPhone: z.string().trim().regex(/^[\d\s\-().+]{7,20}$/, 'Enter a valid phone number').optional(),
+  // Withhold the address/phone from the other parent (protective order or
+  // equivalent). When set, the address fields become optional.
+  confidential: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if (v.confidential) return;
+  for (const k of ['addressStreet', 'addressCity', 'addressState', 'addressZip', 'contactPhone'] as const) {
+    if (v[k] === undefined) ctx.addIssue({ code: 'custom', path: [k], message: 'Required' });
+  }
+});
