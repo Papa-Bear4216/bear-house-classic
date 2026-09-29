@@ -33,11 +33,23 @@ export default async function handler(req: Request): Promise<Response> {
   const body = await req.json().catch(() => ({}));
   const targetHouseholdId = body.householdId || callerHouseholdId;
 
-  // Fetch the family for this household.
-  const famRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/families?household_family_link.household_id=eq.${encodeURIComponent(targetHouseholdId)}&select=id,mode,merge_consent_household_id`
+  // Fetch the family for this household via the link table (two-step lookup:
+  // PostgREST ignores relation filters on the families table directly, so query
+  // household_family_link first, then families by id).
+  const linkRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_family_link?household_id=eq.${encodeURIComponent(callerHouseholdId)}&select=family_id`,
+    { headers }
   );
-  if (!famRes.ok) return serverError('Family lookup failed', 'coparent-toggle', famRes.status);
+  if (!linkRes.ok) return serverError('Household link lookup failed', 'coparent-toggle', String(linkRes.status));
+  const linkRows: any[] = await linkRes.json();
+  if (linkRows.length === 0) return j({ error: 'Household is not linked to a family' }, 400);
+  const familyId = linkRows[0].family_id;
+
+  const famRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/families?id=eq.${encodeURIComponent(familyId)}&select=id,mode,merge_consent_household_id`,
+    { headers }
+  );
+  if (!famRes.ok) return serverError('Family lookup failed', 'coparent-toggle', String(famRes.status));
   const famRows: any[] = await famRes.json();
   if (famRows.length === 0) return j({ error: 'Family not found' }, 404);
   const family = famRows[0];
@@ -49,67 +61,13 @@ export default async function handler(req: Request): Promise<Response> {
   const isCoparent = family.mode === 'coparent';
 
   if (isCoparent) {
-    // --- TOGGLE OFF: merge back to single ---
-    // Both households must have consented (merge_consent_household_id set to both primary and secondary).
-    const primRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.primary&select=household_id`
-    );
-    const secRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&role_in_family=eq.secondary&select=household_id`
-    );
-    const [primRows, secRows] = await Promise.all([primRes.json(), secRes.json()]);
-    const primaryHouseholdId = primRows[0]?.household_id;
-    const secondaryHouseholdId = secRows[0]?.household_id;
-
-    if (!primaryHouseholdId) return j({ error: 'Primary household not found' }, 400);
-
-    // Check consent: both households must have set merge_consent_household_id.
-    const consentHouseholdId = family.merge_consent_household_id;
-    if (!consentHouseholdId) {
-      return j({ error: 'Merge not consented by all households. Both parents must type the consent phrase first.' }, 403);
-    }
-
-    // Execute merge: set mode to single, clear merge consent fields, remove secondary link.
-    const afterMerge = await fetch(`${SUPABASE_URL}/rest/v1/families?id=eq.${family.id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({
-        mode: 'single',
-        merge_consent_household_id: null,
-        merge_initiated_by: null,
-        merge_initiated_at: null,
-      }),
-    });
-    if (!afterMerge.ok) return serverError('Merge failed', 'coparent-toggle', afterMerge.status);
-
-    // Remove the secondary household family link (household itself stays, just unlinked).
-    if (secondaryHouseholdId) {
-      await fetch(`${SUPABASE_URL}/rest/v1/household_family_link?household_id=eq.${secondaryHouseholdId}`, {
-        method: 'DELETE',
-        headers,
-      });
-    }
-
-    // Move all members from secondary to primary (if secondary existed).
-    if (secondaryHouseholdId) {
-      await fetch(`${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${secondaryHouseholdId}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ household_id: primaryHouseholdId }),
-      });
-    }
-
-    return j({ ok: true, mode: 'single', merged: true });
+    // Merge is handled by the dual-consent flow — both households must
+    // consent first. Redirect callers here rather than attempting a
+    // one-sided merge that would leave the family in an inconsistent state.
+    return j({ error: 'Use /api/coparent-merge-consent to merge — both households must consent first.' }, 400);
   }
 
   // --- TOGGLE ON: enable co-parenting ---
-  // Create the secondary household if it doesn't exist yet.
-  const hhRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/households?select=id,name&limit=100`,
-    { headers }
-  );
-  const allHouseholds: any[] = await hhRes.json();
-
   const existingLinkRes = await fetch(
     `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${family.id}&select=household_id,role_in_family`
   );
@@ -154,14 +112,41 @@ export default async function handler(req: Request): Promise<Response> {
 
     const newHhRes = await fetch(`${SUPABASE_URL}/rest/v1/households`, {
       method: 'POST',
-      headers,
+      headers: { ...headers, Prefer: 'return=representation' },
       body: JSON.stringify({ name: `${primaryName} — Second Home` }),
     });
     if (!newHhRes.ok) return serverError('Failed to create secondary household', 'coparent-toggle', newHhRes.status);
-    const newHh = await newHhRes.json();
+    const [newHh] = await newHhRes.json() as any[];
     secondaryHouseholdId = newHh.id;
 
-    // Link it to the family as secondary.
+    // The caller needs a membership row in the new secondary household so they
+    // aren't locked out of it — mirror the superadmin pattern setup.ts uses for
+    // a fresh household.
+    // Resolve the caller's auth user id so the membership row is owned (mirrors
+    // setup.ts's getAuthUserId pattern). Fall back to null if the Auth API is
+    // unreachable — the row can be claimed on a later sign-in.
+    const authUserRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: process.env.SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}` },
+    });
+    const authUser = authUserRes.ok ? (await authUserRes.json() as any) : null;
+    const authUserId = authUser?.id ?? null;
+
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        household_id: newHh.id,
+        auth_user_id: authUserId,
+        name: primaryName,
+        role: 'superadmin',
+        color: 'emerald',
+      }),
+    });
+    if (!memberRes.ok) {
+      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers });
+      const detail = await memberRes.text().catch(() => '');
+      return serverError(`Failed to add caller to secondary household: ${detail}`, 'coparent-toggle:member', detail);
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
       method: 'POST',
       headers,

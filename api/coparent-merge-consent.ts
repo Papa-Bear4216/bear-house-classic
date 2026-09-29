@@ -33,9 +33,20 @@ export default async function handler(req: Request): Promise<Response> {
   const body = await req.json().catch(() => ({}));
   const { action, phrase } = body as { action?: string; phrase?: string };
 
-  // Fetch the family for the caller's household.
+  // Fetch the family for the caller's household via the link table (two-step
+  // lookup: PostgREST ignores relation filters on the families table directly).
+  const linkRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_family_link?household_id=eq.${encodeURIComponent(callerHouseholdId)}&select=family_id`,
+    { headers }
+  );
+  if (!linkRes.ok) return serverError('Household link lookup failed', 'coparent-merge-consent', String(linkRes.status));
+  const linkRows: any[] = await linkRes.json();
+  if (linkRows.length === 0) return j({ error: 'Household is not linked to a family' }, 400);
+  const familyId = linkRows[0].family_id;
+
   const famRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/families?household_family_link.household_id=eq.${encodeURIComponent(callerHouseholdId)}&select=id,mode`
+    `${SUPABASE_URL}/rest/v1/families?id=eq.${encodeURIComponent(familyId)}&select=id,mode`,
+    { headers }
   );
   if (!famRes.ok) return serverError('Family lookup failed', 'coparent-merge-consent', String(famRes.status));
   const famRows: any[] = await famRes.json();
@@ -115,7 +126,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Insert consent row.
-    const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/coparent_merge_consent?family_id=eq.${family.id}&household_id=eq.${callerHouseholdId}`, {
+    const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/coparent_merge_consent`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ family_id: family.id, household_id: callerHouseholdId }),
@@ -179,25 +190,29 @@ async function checkAndMaybeMerge(
   });
   if (!famUpdate.ok) return serverError('Merge: failed to reset family mode', 'coparent-merge-consent', String(famUpdate.status));
 
-  // 2. Remove the secondary household family link.
-  const secLinkDelete = await fetch(`${baseUrl}/rest/v1/household_family_link?household_id=eq.${secondaryHouseholdId}&family_id=eq.${familyId}`, {
-    method: 'DELETE',
-    headers,
-  });
-  if (!secLinkDelete.ok && secLinkDelete.status !== 404) return serverError('Merge: failed to remove secondary link', 'coparent-merge-consent', String(secLinkDelete.status));
-
-  // 3. Move all members from secondary to primary.
+  // 2. Move all members from secondary to primary FIRST — do this before
+  //    removing the household_family_link, so a partial failure does not
+  //    orphan members (they would have no household record and resolveFamilyId
+  //    would return null for them going forward).
   const membersInSecondaryRes = await fetch(`${baseUrl}/rest/v1/household_members?household_id=eq.${secondaryHouseholdId}&select=id`, {
     headers: { ...headers, 'Prefer': 'return=minimal' },
   });
   const membersInSecondary: any[] = membersInSecondaryRes.ok ? await membersInSecondaryRes.json() : [];
   for (const member of membersInSecondary) {
-    await fetch(`${baseUrl}/rest/v1/household_members?id=eq.${member.id}`, {
+    const moveRes = await fetch(`${baseUrl}/rest/v1/household_members?id=eq.${member.id}`, {
       method: 'PATCH',
       headers,
       body: JSON.stringify({ household_id: primaryHouseholdId }),
     });
+    if (!moveRes.ok) return serverError('Merge: failed to move a member to primary', 'coparent-merge-consent', String(moveRes.status));
   }
+
+  // 3. Only remove the secondary link once every member has moved successfully.
+  const secLinkDelete = await fetch(`${baseUrl}/rest/v1/household_family_link?household_id=eq.${secondaryHouseholdId}&family_id=eq.${familyId}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!secLinkDelete.ok && secLinkDelete.status !== 404) return serverError('Merge: failed to remove secondary link', 'coparent-merge-consent', String(secLinkDelete.status));
 
   // 4. Clean up consent rows.
   await fetch(`${baseUrl}/rest/v1/coparent_merge_consent?family_id=eq.${familyId}`, {

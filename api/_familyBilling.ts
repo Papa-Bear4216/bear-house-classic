@@ -45,12 +45,20 @@ export async function resolveFamilyBilling(
 
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
 
-  // Primary household: the one whose Stripe fields we inherit for the family.
-  const primary = family.households.find((h) => h.familyRole === 'primary');
-  if (!primary) return null;
+  // Primary household: query the link table directly by family_id with the
+  // service key so a secondary-only member (who isn't in family.households at
+  // all) can still find the primary household's Stripe fields.
+  const linkRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_family_link?family_id=eq.${encodeURIComponent(family.familyId)}&role_in_family=eq.primary&select=household_id`,
+    { headers: headers(serviceKey) },
+  );
+  if (!linkRes.ok) return null;
+  const linkRows: any[] = await linkRes.json();
+  const primaryHouseholdId = linkRows[0]?.household_id;
+  if (!primaryHouseholdId) return null;
 
   const hhRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(primary.householdId)}&select=stripe_customer_id,stripe_subscription_id,subscription_status`,
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(primaryHouseholdId)}&select=stripe_customer_id,stripe_subscription_id,subscription_status`,
     { headers: headers(serviceKey) },
   );
   if (!hhRes.ok) return null;
@@ -72,7 +80,7 @@ export async function resolveFamilyBilling(
     stripeCustomerId: fam.stripe_customer_id ?? null,
     stripeSubscriptionId: fam.stripe_subscription_id ?? null,
     subscriptionStatus: fam.subscription_status ?? null,
-    primaryHouseholdId: primary.householdId,
+    primaryHouseholdId: primaryHouseholdId,
     primaryHouseholdStripeCustomerId: hh.stripe_customer_id ?? null,
     primaryHouseholdStripeSubscriptionId: hh.stripe_subscription_id ?? null,
     primaryHouseholdSubscriptionStatus: hh.subscription_status ?? null,

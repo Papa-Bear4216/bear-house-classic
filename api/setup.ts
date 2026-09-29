@@ -91,6 +91,31 @@ export default async function handler(req: Request): Promise<Response> {
     }
     const [household] = await householdRes.json() as any[];
 
+    // Every household needs a family + link so resolveFamilyId can find it.
+    const familyRes = await fetch(`${SUPABASE_URL}/rest/v1/families`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({ mode: 'single' }),
+    });
+    if (!familyRes.ok) {
+      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${household.id}`, { method: 'DELETE', headers });
+      const detail = await familyRes.text().catch(() => '');
+      return serverError(`Failed to create family: ${detail}`, 'setup:family', detail);
+    }
+    const [family] = await familyRes.json() as any[];
+
+    const linkRes = await fetch(`${SUPABASE_URL}/rest/v1/household_family_link`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ household_id: household.id, family_id: family.id, role_in_family: 'primary' }),
+    });
+    if (!linkRes.ok) {
+      await fetch(`${SUPABASE_URL}/rest/v1/families?id=eq.${family.id}`, { method: 'DELETE', headers });
+      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${household.id}`, { method: 'DELETE', headers });
+      const detail = await linkRes.text().catch(() => '');
+      return serverError(`Failed to link household to family: ${detail}`, 'setup:link', detail);
+    }
+
     const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=representation' },

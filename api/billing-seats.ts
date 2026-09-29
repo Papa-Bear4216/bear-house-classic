@@ -62,12 +62,20 @@ export default async function handler(req: Request): Promise<Response> {
   const rl = await checkRateLimit(householdId, 'billing-seats', 15);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
 
-  const seats = await countAuthenticatingMembers(householdId);
-  const extraSeats = Math.max(0, seats - 3);
-
   // Family-aware: in co-parent mode the family owns the subscription.
   const family = await resolveFamilyId(accessToken, householdId);
   if (!family) return j({ error: 'Unable to resolve family' }, 401);
+
+  // Seat count: sum across every household in the family, not just the calling
+  // one. In coparent mode a single Stripe subscription covers both homes, so
+  // counting only the calling household undercounts seats and causes concurrent
+  // calls from each household to race and overwrite each other.
+  let totalMembers = 0;
+  for (const h of family.households) {
+    totalMembers += await countAuthenticatingMembers(h.householdId);
+  }
+  const seats = totalMembers;
+  const extraSeats = Math.max(0, seats - 3);
 
   const billingRow = family.mode === 'coparent'
     ? (await getFamily(family.familyId)) ?? { stripe_subscription_id: null }
