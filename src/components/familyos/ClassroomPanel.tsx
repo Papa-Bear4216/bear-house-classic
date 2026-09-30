@@ -33,7 +33,7 @@ export function ClassroomPanel() {
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { void refresh(); }, []);
 
   // After the OAuth redirect lands back on / with ?classroom_oauth=…, refresh and clean the URL.
   useEffect(() => {
@@ -44,7 +44,7 @@ export function ClassroomPanel() {
       const detail = params.get('detail') || 'unknown error';
       setError(ERROR_HINT[detail] || `Connection failed: ${detail}`);
     }
-    refresh();
+    void refresh();
     params.delete('classroom_oauth');
     params.delete('detail');
     const next = params.toString();
