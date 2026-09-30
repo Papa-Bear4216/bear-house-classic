@@ -329,9 +329,14 @@ const US_STATE_CODES = [
 export const CoparentAddressBodySchema = z.object({
   addressStreet: z.string().trim().min(1).max(200).optional(),
   addressCity: z.string().trim().min(1).max(100).optional(),
-  addressState: z.enum(US_STATE_CODES).optional(),
+  addressState: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.enum(US_STATE_CODES)).optional(),
   addressZip: z.string().trim().regex(/^\d{5}(-\d{4})?$/, 'ZIP must be 5 digits or ZIP+4').optional(),
-  contactPhone: z.string().trim().regex(/^[\d\s\-().+]{7,20}$/, 'Enter a valid phone number').optional(),
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(/^[\d\s\-().+]{7,20}$/, 'Enter a valid phone number')
+    .refine((s) => s.replace(/\D/g, '').length >= 7, { message: 'Phone number must contain at least 7 digits' })
+    .optional(),
   // Withhold the address/phone from the other parent (protective order or
   // equivalent). When set, the address fields become optional.
   confidential: z.boolean().optional(),

@@ -168,16 +168,42 @@ describe('POST /api/coparent-address', () => {
 
   it('saves a valid address and clears the confidential flag', async () => {
     asCaller(family('single'));
-    const fetchMock = mockFetchSequence([{ ok: true, json: [] }]);
+    const fetchMock = mockFetchSequence([{ ok: true, json: [{ id: 'household-1' }] }]);
     const res = await post(VALID);
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).address_confidential).toBe(false);
   });
 
+  it('normalizes lowercase state code to uppercase', async () => {
+    asCaller(family('single'));
+    const fetchMock = mockFetchSequence([{ ok: true, json: [{ id: 'household-1' }] }]);
+    const res = await post({ ...VALID, addressState: 'il' });
+    expect(res.status).toBe(200);
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.address_state).toBe('IL');
+  });
+
+  it('400s on phone number with fewer than 7 digits', async () => {
+    asCaller(family('single'));
+    const res = await post({ ...VALID, contactPhone: '(((---)))' });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/at least 7 digits/i);
+  });
+
+  it('404s when the household to update does not exist', async () => {
+    asCaller(family('single'));
+    mockFetchSequence([{ ok: true, json: [] }]);
+    const res = await post(VALID);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toMatch(/Household not found/i);
+  });
+
   it('accepts confidential with no address and stores the flag', async () => {
     asCaller(family('single'));
-    const fetchMock = mockFetchSequence([{ ok: true, json: [] }]);
+    const fetchMock = mockFetchSequence([{ ok: true, json: [{ id: 'household-1' }] }]);
     expect((await post({ confidential: true })).status).toBe(200);
     const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(sent.address_confidential).toBe(true);
