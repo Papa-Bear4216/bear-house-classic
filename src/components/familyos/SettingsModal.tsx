@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Key, Bell, Clock, Users, Trash2, Plus, Download, Eye, EyeOff,
-  Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home, BookOpen,
+  Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home,
   ShoppingCart, ExternalLink, Grid2x2 as Grid2x2Icon,
 } from 'lucide-react';
 import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid, loadMemberPreferences, preferencesKey } from '@/lib/familyos';
@@ -358,7 +358,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               {isAdmin && <HouseholdAiKeysPanel />}
 
               {isAdmin && <GmailIntegrationPanel />}
-              {isAdmin && <ClassroomPanel />}
               {isAdmin && <GoogleHomeCard />}
 
               {/* AI toggle — big and obvious */}
@@ -652,20 +651,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
                 </div>
               </IntegrationCard>
 
-              {/* Google Classroom */}
-              <IntegrationCard
-                icon={<BookOpen className="w-4 h-4 text-blue-400" />}
-                title="Google Classroom"
-                badge="Auto via OAuth"
-                badgeColor="sky"
-                description="Syncs assignments as tasks for kids in the household. Works after Google sign-in."
-                expanded={expandedIntegration === 'classroom'}
-                onToggle={() => toggleIntegration('classroom')}
-              >
-                <p className="text-xs text-slate-400 mb-2">No separate setup needed — the Classroom API uses the same Google OAuth token as sign-in. Make sure the Google account you sign in with has access to the kids' Classroom.</p>
-                <CodeRow label="Sync endpoint" value={`${BASE_URL}/api/classroom`} />
-                <p className="text-xs text-slate-500 mt-2">POST with <code className="bg-slate-950 px-1 rounded font-mono">{"{ accessToken, person: \"<child name>\" }"}</code> to pull assignments.</p>
-              </IntegrationCard>
+              {/* Google Classroom: per-student account linking + grades */}
+              <ClassroomPanel />
 
               {/* Walmart */}
               <IntegrationCard
