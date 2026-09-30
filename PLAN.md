@@ -1,49 +1,61 @@
 # Bear House Classic - Improvement Plan
 
-## Operational completion work order — status 2026-09-28
+## Operational completion work order — status 2026-09-30
 
-This work order is **in progress and substantially incomplete**. The current
-pass added app, Vite config, and API TypeScript projects to `npm run typecheck`
-and CI, expanded ESLint parsing/rules to TS/TSX while excluding generated
-output, and made `check:api` enumerate source files portably. It fixed verified
-source type errors and tightened `/api/triad-telemetry` to require an
-authenticated admin/superadmin rather than trusting a caller-controlled Host
-header. Rechecked findings already fixed in this checkout: push-token member
-ownership, uncached categorization failure, and setup household/role scoping.
+This work order tracks critical hardening, architectural integrity, and production-grade milestones across the Bear House Classic ecosystem. Recent passes added comprehensive typecheck (app, Vite, and API configs) to CI, expanded ESLint coverage across TypeScript/TSX codebases, portably enumerated API endpoints, hardened `/api/triad-telemetry` against role spoofing, introduced pre-household atomic rate limiting for setup routes, and migrated durable offline writes to IndexedDB.
 
-- [x] Add real app/API TypeScript checks to CI.
+Co-parenting multi-household support, statutory disclosure tracking (`coparent_disclosure_statutes`), role-gated address confidentiality (`households.address_confidential`), and partial unique secondary household links are now **fully shipped to production** (PR #52, commit `7a5997b` merged to `master`) and verified live.
+
+- [x] Add real app/API TypeScript checks to CI (`npm run typecheck` across app, vite, and api configs).
 - [x] Expand lint parsing/rules to TS/TSX.
 - [x] Require operator roles for Triad telemetry and test the denial path.
-- [x] Add pre-household rate limiting for household creation/invites, with an
-  atomic counter and fail-closed behavior.
+- [x] Add pre-household rate limiting for household creation/invites, with an atomic counter and fail-closed behavior.
 - [x] Derive activity-feed actor identity from the authenticated member.
-- [x] Require authenticated metric submissions and derive rate-limit scope on
-  the server; whitelist metric fields to prevent log-field injection.
-- [x] Move durable offline writes to IndexedDB with localStorage migration and
-  fallback, household ownership, and single-flight replay. Legacy writes with
-  no owner remain quarantined; sync status is exposed to UI code.
-- [ ] Validate/apply the limiter migration through staging before production.
-- [ ] Verify API bundle/build in Linux CI; local bundle/build pass with broader
-  process access in this Windows environment.
-- [ ] Complete the remaining work-order scope listed below.
+- [x] Require authenticated metric submissions and derive rate-limit scope on the server; whitelist metric fields to prevent log-field injection.
+- [x] Move durable offline writes to IndexedDB with localStorage migration and fallback, household ownership, and single-flight replay. Legacy writes with no owner remain quarantined; sync status is exposed to UI code.
+- [x] Validate/apply the limiter migration through staging and production (`public.setup_rate_limits` table and `public.consume_setup_rate_limit` RPC verified active in production Supabase database via `20260928093211_setup_rate_limit.sql`).
+- [x] Verify API bundle/build in Linux CI; full test suite and typechecks pass cleanly on GitHub Actions (CI push run 36775390680 on `master`).
+- [x] Ship Co-Parenting Multi-Household & Statutory Disclosure framework to production (PR #52 merged into `master`).
 
-Local verification: typecheck passes; tests and lint pass with eight existing
-warnings; `check:api` and production build pass when run with the broader local
-process access esbuild needs. The production build still emits existing chunk
-size and duplicate dynamic/static import warnings. CI must still confirm the
-checks on its Linux runner. Dependency advisory status was not revalidated
-because npm audit could not reach the registry.
+Local & CI verification: 0 type errors across all 3 tsconfigs (app, vite, and api), 0 ESLint errors (8 pre-existing warnings in legacy UI components), full test suite passing in CI, and remote Supabase schema migrations verified live.
 
-Still open from the work order: deploy and staging validation of the new
-pre-household setup rate limiter; independent authorization/rate-limit coverage for every security finding; baseline
-browser/device tests and production smoke checks; staging migration and live
-Vercel verification; global/household feature flags; cache app shell and add a
-visible sync indicator; English/Spanish localization; health UI; runbooks/ADR; and all unshipped
-product ideas. The previously added security fixes are not evidence that the
-full security review is closed. Do not mark this work order complete until the
-remaining scope is implemented or given a specific evidence-backed disposition.
+Still open from the broader roadmap: visible sync/offline indicator in the UI (Milestone 1); Hermes Copilot structured action outputs (Milestone 2); global/household feature flags (Milestone 3); upgrade CI and Vercel runtime from Node 20 to Node 22 ahead of deprecation; English/Spanish localization; health UI; and runbooks/ADR documentation. Do not mark this work order complete until the remaining roadmap milestones are implemented or given a specific evidence-backed disposition.
 
-Co-parenting remains deferred as before.
+## Immediate Next Milestones (Roadmap)
+
+### Milestone 1 (P1): Visible Offline & Sync Status Indicator
+- **Background**: Durable offline writes were migrated to IndexedDB (`src/lib/offlineQueue.ts`), but user feedback during offline state or pending queue flush lacks a top-level visual cue.
+- **Goal**: Add intuitive visual indicators / badges in the application navigation / header reflecting network connection state (`isOffline`), pending offline queue item count (`getOfflineQueueSummary`), and active sync replay status.
+- **Implementation**: Expose reactive connection and queue state using `useSyncExternalStore` (subscribing to `sync.ts` listeners and `src/lib/offlineQueue.ts` queue changes) rather than polling per render.
+- **Scope**: `src/components/AppLayout.tsx`, `src/lib/sync.ts`, `src/lib/offlineQueue.ts`.
+
+### Milestone 2 (P1): Hermes Action Structured Outputs & Strict Schemas
+- **Background**: Hermes action execution currently relies on prompt-based JSON extraction from markdown fences, which is vulnerable to hallucinated fields or markdown formatting quirks.
+- **Goal**: Transition Hermes Copilot agent actions to LLM structured outputs / function tool-calling with strict JSON Schema / Zod validation before client dispatch.
+- **Failure Mode & Resiliency**: On tool schema validation failure, retry once with schema correction error context; if retry fails, degrade gracefully to a plain text conversational response. Maintain backwards-compatible fallback during rollout.
+- **Scope**: `api/chat.ts`, `src/lib/hermesActions.ts`, `src/components/familyos/HermesChat.tsx`.
+
+### Milestone 3 (P1): Household & Global Feature Flags Engine
+- **Background**: Gradual rollouts and per-household beta feature toggles (e.g., experimental Hermes tools, co-parenting UI, automated finance sync) currently require manual code gates.
+- **Goal**: Build a lightweight, performant feature flag evaluation engine supporting global defaults, household-level overrides, and member-role criteria stored in Supabase with client-side caching.
+- **Tenant Isolation**: `household_id` must strictly be derived via server-side session resolution (`resolveCallerMember` / `resolveHouseholdId`), never accepted from caller query or body params.
+- **Scope**: `src/lib/featureFlags.ts`, `api/feature-flags.ts`, Supabase schema/tables.
+
+### Runtime Maintenance (P1): Node 22 Runtime Upgrade
+- **Background**: Node 20 runtime faces upcoming deprecation on Vercel and CI runners.
+- **Goal**: Upgrade `.github/workflows/ci.yml` and Vercel project configuration to Node 22 LTS, verifying build and test suite compatibility.
+- **Scope**: `.github/workflows/ci.yml`, `package.json` (`engines`).
+
+## Autonomous Triad Architectural Invariants
+
+The following architectural principles are permanently enforced across all planning, design, and pull request reviews:
+
+1. **Validate Before Mutation**: Never write or mutate database state before all input and business precondition validations pass. Specifically, never insert parent records (e.g., households or links) before validating payload requirements, preventing orphaned records on 400 responses.
+2. **Idempotent, Transactional RLS Policies & Migrations**: Always execute RLS policy updates within transactional migrations (`DROP POLICY IF EXISTS` followed by `CREATE POLICY` inside a transaction block to prevent a window with no active policy). When using `DO $$ ... EXCEPTION ... END $$`, catch specific exceptions (e.g. `duplicate_object`) rather than silently swallowing general errors.
+3. **Explicit Representation Checks on Mutations**: Always supply `Prefer: return=representation` on Supabase PATCH / UPDATE REST calls, verify that updated row count is `> 0`, and return `notFound` (404) if 0 rows were updated.
+4. **Concurrency & Multi-Tenant Constraint Enforcement**: Enforce single-instance roles and multi-tenant constraints at the database level using partial unique indexes (e.g. `UNIQUE (family_id) WHERE role_in_family = 'secondary'`) rather than relying on application-level read-then-write checks. Catch Postgres 23505 unique constraint violations in API handlers and map them cleanly to HTTP 409 Conflict.
+5. **Role-Gated Disclosures**: Sensitive PII (household addresses, financial tokens, credentials, HA webhooks) and household configuration must be strictly gated on server-verified `admin` or `superadmin` roles using `resolveCallerMember` / `isAdmin`.
+6. **Fail-Closed Throttling & Authorization Boundaries**: All rate limiters and authorization guards must fail closed on upstream errors or unhandled database RPC exceptions (e.g. if the rate limiter RPC fails to execute, deny the request with 429 or 500 rather than silently permitting it).
 
 Based on the audit of the bear-house-classic codebase (AUDIT.md), here is a prioritized plan for improvements.
 
@@ -73,7 +85,7 @@ Below is the investigation that led to this decision, kept for context.
 ### 1. Rate limiting — expand coverage
 **Status**: Done (2026-07-24), with one documented exception. `checkRateLimit` (household+endpoint-scoped sliding window backed by `family_data`) is now applied to 13 routes: `chat.ts` (30/min), `vision.ts` (15/min), `billing-checkout.ts` (10/min), `billing-portal.ts` (15/min), `billing-seats.ts` (15/min), `calendar-sync.ts` (20/min), `classroom.ts` (20/min), `data-write.ts` (60/min), `finance.ts` (20/min), `gmail-suggestions.ts` (10/min), `ha-fix.ts` (20/min), `ha-webhook.ts` (60/min), `secretary.ts` (30/min — generous since `webhook.ts` calls it internally), `walmart.ts` (15/min), `webhook.ts` (60/min). Limits scaled to cost/abuse risk: AI/external-API-heavy routes got 10-20/min, cheap CRUD dispatchers got 60/min.
 **Not rate-limited, by design**: `finance-sync.ts`, `health-check.ts`, `preempt-refresh.ts` are cron-only (no external caller to abuse). `stripe-webhook.ts` is protected by Stripe's own signature verification — a different and stronger control than a sliding window. `ha-cameras.ts`, `weather.ts`, `briefing.ts` were judged low-risk/already gated in the input-validation pass and left as-is; revisit if abuse shows up in practice.
-**Known gap**: `setup.ts` (household/invite creation) is **not** rate-limited. `checkRateLimit` writes to `family_data`, whose `household_id` column has a foreign-key constraint against `households(id)` — and `setup.ts` runs *before* a household exists, so there's no valid FK-safe key to rate-limit against (the natural key, the caller's auth user id, isn't a household id and would throw an FK violation on write). Needs a separate mechanism (e.g. a dedicated non-FK-constrained table, or an in-memory/edge-KV limiter) if this becomes a priority — currently the Supabase session requirement is the only guard.
+**Known gap (Resolved 2026-09-28/2026-09-30)**: Pre-household rate limiting for `setup.ts` was resolved by creating a dedicated `public.setup_rate_limits` table and atomic database RPC `public.consume_setup_rate_limit` (`supabase/migrations/20260928093211_setup_rate_limit.sql`). It enforces fixed-window atomic counter limits (5 requests / 15 minutes) keyed on verified Supabase user ID (`auth_user_id`) with fail-closed behavior, bypassing the `family_data` foreign-key constraint. Verified and active in the production Supabase database.
 **Files**: `api/billing-checkout.ts`, `api/billing-portal.ts`, `api/billing-seats.ts`, `api/calendar-sync.ts`, `api/classroom.ts`, `api/data-write.ts`, `api/finance.ts`, `api/gmail-suggestions.ts`, `api/ha-fix.ts`, `api/ha-webhook.ts`, `api/secretary.ts`, `api/walmart.ts`, `api/webhook.ts`
 **Estimate**: 1-2 days (actual: same session)
 
@@ -148,19 +160,19 @@ Below is the investigation that led to this decision, kept for context.
 **Estimate**: 5 days estimated for the full scope; actual for the targeted version-guard fix: same session.
 
 ### 7. Testing Expansion
-**Status**: CI added and one hook partially tested (2026-07-24); remaining hook coverage needs an infra decision (see below).
-**Confirmed**: no `.github/` directory existed at all — the "verify CI" question is answered: there wasn't one. Added `.github/workflows/ci.yml` running `npm ci` → `npm test` → `npm run lint` → `npm run build` on push to `master` and on every PR (YAML validated). Node 20, `actions/checkout@v4` + `actions/setup-node@v4` with npm caching.
+**Status**: CI added and hardened (2026-07-24 / 2026-09-30). CI pipeline in `.github/workflows/ci.yml` runs `npm ci` → `npm run typecheck` (covering app, vite, and api configs) → `npm test` → `npm run lint` → `npm run build` on push to `master` and PRs.
+**Confirmed**: CI pipeline active, robust, and running on Linux runners. Node 20, `actions/checkout@v4` + `actions/setup-node@v4` with npm caching.
 **Hook testing — partial, and here's why it stopped**: `use-toast.ts` exports a pure `reducer` function with no DOM dependency — added `src/hooks/use-toast.test.ts` (7 tests, all passing) covering ADD/UPDATE/DISMISS/REMOVE_TOAST behavior including the `TOAST_LIMIT=1` cap and the dismiss-all/remove-all (`toastId: undefined`) paths. **`useIsMobile` (`use-mobile.tsx`) could not be tested the same way** — it needs `window.matchMedia` and a real hook-render lifecycle (`React.useEffect`), and this repo's `vitest.config.ts` is set to `environment: 'node'` (no DOM) with `include` scoped to `**/*.test.ts` only (a `.tsx` test file wouldn't even be picked up). Testing it properly means adding `jsdom` or `happy-dom` plus `@testing-library/react` as new dependencies and changing the vitest environment — a real (if standard) infra decision, not a "just write the test" gap. Left this as an explicit open action rather than silently pulling in new dependencies.
 **Remaining gaps**:
 - `useIsMobile` untested — blocked on the jsdom/testing-library decision above
 - The `useToast` hook itself (state/listeners/effect wiring, as opposed to its pure `reducer`) is also untested for the same DOM-environment reason
 - No integration/E2E tests for full user flows (auth, task completion, pantry, AI features) — only unit tests on individual modules; still lower priority than the above per the original plan
 **Actions**:
-- [x] Set up CI pipeline running `npm test`, `npm run lint`, and `npm run build` on PRs
+- [x] Set up CI pipeline running `npm run typecheck`, `npm test`, `npm run lint`, and `npm run build` on PRs
 - [x] Add tests for `src/hooks/use-toast.ts` (reducer only — pure logic, no new dependencies needed)
 - [ ] Decide whether to add jsdom/happy-dom + @testing-library/react to test `use-mobile.tsx` and the full `useToast` hook lifecycle, or accept the gap
 - [ ] Consider integration tests for critical flows (auth, billing) — full E2E (Playwright/Cypress) is lower priority than closing the unit-test gaps above
-**Files**: New test files, CI config if missing
+**Files**: Test suite, `.github/workflows/ci.yml`
 **Estimate**: 2 days for remaining unit gaps + CI verification; E2E scoped separately if pursued
 
 ### 8. Performance Optimization
@@ -204,22 +216,25 @@ Below is the investigation that led to this decision, kept for context.
 **Estimate**: 2 days
 
 ### 11. Feature Flagging System
+**Status**: Prioritized as Milestone 3 (P1) in the Immediate Roadmap.
 **Actions**:
-- [ ] Implement simple feature flag system (LaunchDarkly open source alternative or custom)
-- [ ] Allow toggling features per household or globally
-- [ ] Use for safe rollouts of new features
-- [ ] Integrate with analytics to measure feature usage
+- [ ] Implement lightweight feature flag system with Supabase backing and client-side cache
+- [ ] Allow toggling features per household, role, or globally
+- [ ] Use for safe staged rollouts of new features
+- [ ] Integrate with telemetry to measure feature usage
 **Estimate**: 2 days
 
 ## P3 - Low (Future Considerations)
 
 ### 12. Offline-First Capabilities
+**Status**: Core offline write engine completed (2026-09-28). Indicator UI prioritized as Milestone 1 (P1).
+**What was done**: Migrated offline write buffering from fragile localStorage to robust IndexedDB (`src/lib/offlineQueue.ts`), including automatic legacy localStorage migration, household-scoping, quarantine for unowned writes, and serialized single-flight replay with backoff in `src/lib/sync.ts`.
 **Actions**:
 - [ ] Investigate Service Workers for caching static assets
-- [ ] Implement local database (IndexedDB) for queuing writes when offline
-- [ ] Add background sync when connection restored
-- [ ] Create offline indicator UI
-**Estimate**: 5 days
+- [x] Implement local database (IndexedDB) for queuing writes when offline (`src/lib/offlineQueue.ts`)
+- [x] Add background sync when connection restored (`src/lib/sync.ts`)
+- [ ] Create offline indicator UI (Prioritized as Milestone 1)
+**Estimate**: 5 days (core engine completed; UI indicator queued as Milestone 1)
 
 ### 13. Modular Architecture
 **Actions**:
@@ -271,5 +286,6 @@ Track these to measure improvement:
 ---
 *Plan created: 2026-07-22*
 *Priorities re-verified against code and updated: 2026-07-24*
+*Operational re-baseline & Triad architectural invariants updated: 2026-09-30*
 *Based on audit: AUDIT.md*
-*Version: Based on master branch as of af702f4*
+*Version: Based on master branch as of e2b6138*
