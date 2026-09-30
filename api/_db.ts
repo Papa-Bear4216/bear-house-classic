@@ -442,6 +442,54 @@ export async function dbGetMemberGmailToken(memberId: string): Promise<{ encrypt
   return { encryptedRefreshToken: row.gmail_refresh_token_encrypted, connectedEmail: row.gmail_connected_email };
 }
 
+/** Store a member's Classroom refresh token (encrypted by the caller), or clear it with nulls */
+export async function dbSetMemberClassroomToken(
+  memberId: string,
+  encryptedRefreshToken: string | null,
+  connectedEmail: string | null
+): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(memberId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({
+        classroom_refresh_token_encrypted: encryptedRefreshToken,
+        classroom_connected_email: connectedEmail,
+        classroom_connected_at: encryptedRefreshToken ? new Date().toISOString() : null,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetMemberClassroomToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Get connected-email status for Classroom for every member in a household (no tokens) */
+export async function dbGetHouseholdClassroomStatus(householdId: string): Promise<Array<{ id: string; classroom_connected_email: string | null }>> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(householdId)}&select=id,classroom_connected_email`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return [];
+  return await res.json() as any[];
+}
+
+/** Get a member's encrypted Classroom refresh token, if any */
+export async function dbGetMemberClassroomToken(memberId: string): Promise<{ encryptedRefreshToken: string; connectedEmail: string } | null> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(memberId)}&select=classroom_refresh_token_encrypted,classroom_connected_email`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return null;
+  const row = ((await res.json()) as any[])[0];
+  if (!row?.classroom_refresh_token_encrypted) return null;
+  return { encryptedRefreshToken: row.classroom_refresh_token_encrypted, connectedEmail: row.classroom_connected_email };
+}
+
 /** Mark a household's premium voice as unlocked (service role, bypasses RLS) */
 export async function dbSetVoiceUnlocked(householdId: string): Promise<void> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;

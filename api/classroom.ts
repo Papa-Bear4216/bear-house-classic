@@ -14,7 +14,8 @@ export const config = { runtime: 'edge' };
  *   classroom.student-submissions.me.readonly
  */
 
-import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId, resolveCallerMember, dbGetHouseholdMembersByHouseholdId } from './_db.js';
+import { getMemberClassroomAccessToken, fetchGrades } from './_classroom.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ClassroomBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -55,7 +56,23 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ClassroomBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { accessToken, person } = parsed.data;
+  let accessToken = parsed.data.accessToken ?? '';
+  let person = parsed.data.person ?? '';
+  const linkedMemberId = parsed.data.memberId;
+
+  if (linkedMemberId) {
+    // Linked school account: admins may sync any member, everyone else only themselves.
+    const caller = await resolveCallerMember(accessTokenSupabase);
+    if (!caller || caller.householdId !== householdId) return j({ error: 'Unauthorized' }, 401);
+    const isAdmin = caller.role === 'admin' || caller.role === 'superadmin';
+    if (linkedMemberId !== caller.memberId && !isAdmin) return j({ error: 'Only an admin can sync another member' }, 403);
+    const target = (await dbGetHouseholdMembersByHouseholdId(householdId)).find(m => m.id === linkedMemberId);
+    if (!target) return j({ error: 'Member not found in this household' }, 404);
+    const linkedToken = await getMemberClassroomAccessToken(linkedMemberId);
+    if (!linkedToken) return j({ error: 'Classroom is not linked for this member, or access was revoked' }, 409);
+    accessToken = linkedToken;
+    person = target.name;
+  }
 
   try {
     // 1. Get active courses
@@ -140,7 +157,16 @@ export default async function handler(req: Request): Promise<Response> {
 
     await setKey(TASKS_KEY, householdId, newTasks);
 
-    return j({ added, total: upcoming.length, courses: courses.length, assignments: upcoming.map((w: any) => ({ id: w.id, title: w.title, course: w.courseName, dueDate: w.dueDate })) });
+    // Grades: stored per member, readable only by that member and superadmins
+    // in the browser (RLS owner_member_id); parents read them through the API.
+    let gradeCount: number | undefined;
+    if (linkedMemberId) {
+      const grades = await fetchGrades(accessToken);
+      await dbSet(`school_grades:${linkedMemberId}`, householdId, { syncedAt: Date.now(), grades }, linkedMemberId);
+      gradeCount = grades.length;
+    }
+
+    return j({ added, gradeCount, total: upcoming.length, courses: courses.length, assignments: upcoming.map((w: any) => ({ id: w.id, title: w.title, course: w.courseName, dueDate: w.dueDate })) });
   } catch (e: any) {
     return serverError((e as any)?.message || 'Classroom sync failed', 'classroom', e);
   }

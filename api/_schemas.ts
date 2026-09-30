@@ -125,8 +125,13 @@ export const CalendarSyncBodySchema = z.object({
 });
 
 export const ClassroomBodySchema = z.object({
-  accessToken: z.string().min(1),
-  person: z.string().min(1),
+  /** Legacy: a Google access token from the caller's own sign-in. */
+  accessToken: z.string().min(1).optional(),
+  person: z.string().min(1).optional(),
+  /** Preferred: sync this member's linked school account (see classroom-link). */
+  memberId: z.string().min(1).optional(),
+}).refine(b => (b.memberId || (b.accessToken && b.person)), {
+  message: 'Provide memberId, or accessToken and person',
 });
 
 export const GmailSuggestionsBodySchema = z.object({
