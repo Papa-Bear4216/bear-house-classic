@@ -69,7 +69,7 @@ async function getHmacKey(): Promise<CryptoKey> {
 }
 
 /** Signs a short-lived (10 min) state payload for the Gmail OAuth flow. */
-export async function signGmailState(payload: { memberId: string; householdId: string }): Promise<string> {
+export async function signGmailState(payload: { memberId: string; householdId: string; purpose?: string }): Promise<string> {
   const body = JSON.stringify({ ...payload, exp: Date.now() + 10 * 60 * 1000 });
   const key = await getHmacKey();
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
@@ -85,7 +85,7 @@ export async function signGmailState(payload: { memberId: string; householdId: s
  * unhandled 500 instead of a clean redirect. Returns null if invalid,
  * tampered, expired, or malformed.
  */
-export async function verifyGmailState(rawToken: string): Promise<{ memberId: string; householdId: string } | null> {
+export async function verifyGmailState(rawToken: string, purpose?: string): Promise<{ memberId: string; householdId: string } | null> {
   try {
     const token = decodeURIComponent(rawToken);
     const parts = token.split('.');
@@ -98,6 +98,8 @@ export async function verifyGmailState(rawToken: string): Promise<{ memberId: st
     const parsed = JSON.parse(new TextDecoder().decode(bodyBytes));
     if (typeof parsed.exp !== 'number' || Date.now() > parsed.exp) return null;
     if (!parsed.memberId || !parsed.householdId) return null;
+    // A state minted for one flow (e.g. classroom) must not complete another.
+    if (parsed.purpose !== purpose) return null;
     return { memberId: parsed.memberId, householdId: parsed.householdId };
   } catch {
     return null;

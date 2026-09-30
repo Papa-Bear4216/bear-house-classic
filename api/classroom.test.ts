@@ -4,11 +4,18 @@ vi.mock('./_db.js', () => ({
   dbGet: vi.fn(),
   dbSet: vi.fn(),
   resolveHouseholdId: vi.fn(),
+  resolveCallerMember: vi.fn(),
+  dbGetHouseholdMembersByHouseholdId: vi.fn(),
+}));
+vi.mock('./_classroom.js', () => ({
+  getMemberClassroomAccessToken: vi.fn(),
+  fetchGrades: vi.fn(),
 }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
 import handler from './classroom';
-import { dbGet, dbSet, resolveHouseholdId } from './_db.js';
+import { dbGet, dbSet, resolveHouseholdId, resolveCallerMember, dbGetHouseholdMembersByHouseholdId } from './_db.js';
+import { getMemberClassroomAccessToken, fetchGrades } from './_classroom.js';
 import { checkRateLimit } from './_rateLimit.js';
 
 function req(body: unknown, auth = 'Bearer valid-token') {
@@ -89,5 +96,42 @@ describe('POST /api/classroom', () => {
     expect(written).toHaveLength(1);
     expect(written[0].id).toBe('t1');
     expect(written[0].text).toBe('[Math] Worksheet 1');
+  });
+
+  describe('linked school account (memberId)', () => {
+    const members = [
+      { id: 'p1', name: 'Parent', role: 'admin', household_id: 'h1' },
+      { id: 'k1', name: 'Kid', role: 'child', household_id: 'h1' },
+      { id: 'k2', name: 'Kid2', role: 'child', household_id: 'h1' },
+    ] as any;
+
+    beforeEach(() => {
+      vi.mocked(dbGetHouseholdMembersByHouseholdId).mockResolvedValue(members);
+      vi.mocked(getMemberClassroomAccessToken).mockResolvedValue('school-token');
+      vi.mocked(fetchGrades).mockResolvedValue([{ courseId: 'c1', courseName: 'Math', workId: 'w1', title: 'Quiz', state: 'RETURNED', grade: 9, maxPoints: 10, late: false, dueDate: null }]);
+    });
+
+    it('syncs a child\'s linked account for an admin and stores grades owned by the child', async () => {
+      vi.mocked(resolveCallerMember).mockResolvedValue({ memberId: 'p1', role: 'admin', householdId: 'h1' } as any);
+      mockGoogleClassroom(vi.mocked(fetch) as any, 'a1');
+      const res = await handler(req({ memberId: 'k1' }));
+      expect(res.status).toBe(200);
+      expect((await res.json()).gradeCount).toBe(1);
+      expect(getMemberClassroomAccessToken).toHaveBeenCalledWith('k1');
+      expect(dbSet).toHaveBeenCalledWith('school_grades:k1', 'h1', expect.objectContaining({ grades: expect.any(Array) }), 'k1');
+    });
+
+    it('forbids a child from syncing a sibling', async () => {
+      vi.mocked(resolveCallerMember).mockResolvedValue({ memberId: 'k1', role: 'child', householdId: 'h1' } as any);
+      const res = await handler(req({ memberId: 'k2' }));
+      expect(res.status).toBe(403);
+      expect(getMemberClassroomAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 when the member has not linked Classroom', async () => {
+      vi.mocked(resolveCallerMember).mockResolvedValue({ memberId: 'p1', role: 'admin', householdId: 'h1' } as any);
+      vi.mocked(getMemberClassroomAccessToken).mockResolvedValue(null);
+      expect((await handler(req({ memberId: 'k1' }))).status).toBe(409);
+    });
   });
 });
