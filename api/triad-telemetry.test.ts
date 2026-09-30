@@ -32,15 +32,15 @@ describe('GET /api/triad-telemetry', () => {
     expect(res.status).toBe(401);
   });
 
-  it('allows access for local caller (localhost)', async () => {
+  it('rejects a local Host header with no token (Host is client-controlled)', async () => {
+    // Regression guard for the removed isLocal bypass: the Host header is
+    // fully client-controlled, so it can never grant access. A caller with
+    // no token must get 401 even when Host claims to be localhost.
     vi.mocked(resolveHouseholdId).mockResolvedValue(null);
-    vi.mocked(fetch).mockRejectedValue(new Error('connection refused'));
-
     const res = await handler(req('GET', '', 'localhost:3000'));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body.status).toBe('standby');
-    expect(body.available).toBe(false);
+    expect(body.error).toBe('Unauthorized');
   });
 
   it('rejects a Host header that merely contains "localhost" as a bypass attempt', async () => {
