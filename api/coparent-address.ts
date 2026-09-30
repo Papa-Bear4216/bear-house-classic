@@ -6,7 +6,7 @@
 export const config = { runtime: 'edge' };
 
 import { requireBillingRole } from './_billingAuth.js';
-import { json as j, serverError } from './_responseHelpers.js';
+import { json as j, serverError, notFound } from './_responseHelpers.js';
 import { handleCorsPreflight } from './_cors.js';
 import { resolveFamilyId, resolveHouseholdId } from './_familyAuth.js';
 import { parseBody, CoparentAddressBodySchema } from './_schemas.js';
@@ -146,7 +146,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}`, {
     method: 'PATCH',
-    headers,
+    headers: { ...headers, Prefer: 'return=representation' },
     body: JSON.stringify({
       address_street: addressStreet ?? null,
       address_city: addressCity ?? null,
@@ -157,6 +157,10 @@ export default async function handler(req: Request): Promise<Response> {
     }),
   });
   if (!updateRes.ok) return serverError('Failed to save address', 'coparent-address', updateRes.status);
+  const updatedRows = await updateRes.json().catch(() => null);
+  if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
+    return notFound('Household not found');
+  }
 
   return j({ ok: true });
 }
