@@ -189,7 +189,7 @@ reconnect instead of a dead settings page. Retention insurance. **S**
 The operational completion pass is underway. The sixteen ideas and four
 parking-lot items below are **not marked shipped** by this tooling/security
 pass. Verified current-state implementation and remaining scope are recorded
-in `PLAN.md`; co-parenting remains a separate deferred workstream.
+in `PLAN.md`; co-parenting multi-household core, statutory disclosure tracking, and address confidentiality are now shipped to production (PR #52).
 
 ---
 
