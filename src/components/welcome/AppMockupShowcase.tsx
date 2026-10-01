@@ -20,7 +20,9 @@ import {
   Send,
   Volume2,
   Check,
-  HeartHandshake
+  HeartHandshake,
+  DoorOpen,
+  Lock
 } from 'lucide-react';
 import { triggerConfetti } from '@/lib/confetti';
 
@@ -32,7 +34,7 @@ const CHORE_SAMPLES = [
 ];
 
 export function AppMockupShowcase() {
-  const [activeTab, setActiveTab] = useState<'focus' | 'dashboard' | 'hermes' | 'scanner' | 'biff'>('focus');
+  const [activeTab, setActiveTab] = useState<'focus' | 'dashboard' | 'hermes' | 'scanner' | 'biff' | 'kidroom'>('focus');
   const [deviceMode, setDeviceMode] = useState<'mobile' | 'desktop'>('mobile');
   const [choreIndex, setChoreIndex] = useState(0);
   const [completedCount, setCompletedCount] = useState(8);
@@ -40,8 +42,14 @@ export function AppMockupShowcase() {
   const [scannerActionDone, setScannerActionDone] = useState(false);
   const [hermesActionDone, setHermesActionDone] = useState(false);
   const [biffCopied, setBiffCopied] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<'glitter' | 'night-market' | 'orbit'>('glitter');
 
   const currentChore = CHORE_SAMPLES[choreIndex % CHORE_SAMPLES.length];
+
+  const handleThemeSelect = (theme: 'glitter' | 'night-market' | 'orbit', e: React.MouseEvent) => {
+    triggerConfetti(e.clientX, e.clientY, 35);
+    setSelectedTheme(theme);
+  };
 
   const handleCompleteChore = (e: React.MouseEvent) => {
     triggerConfetti(e.clientX, e.clientY, 40);
@@ -82,7 +90,7 @@ export function AppMockupShowcase() {
           Take FamilyOS for a test drive
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          Tap through the live tabs below: test the <strong className="text-white">AI Room Chore Scanner</strong> detecting real-world clutter, try the <strong className="text-white">ADHD Focus Hero</strong> with 5-minute timers, polish an angry draft with the <strong className="text-white">Hermes BIFF Tone Check</strong>, or tour the Bento Dashboard.
+          Tap through the live tabs below: test the <strong className="text-white">AI Room Chore Scanner</strong> detecting real-world clutter, explore themed <strong className="text-white">Kid Rooms & Sealed Private Journals</strong>, try the <strong className="text-white">ADHD Focus Hero</strong> with 5-minute timers, or polish an angry draft with the <strong className="text-white">Hermes BIFF Tone Check</strong>.
         </p>
       </div>
 
@@ -101,24 +109,14 @@ export function AppMockupShowcase() {
             <Zap className="w-4 h-4 fill-current" /> ADHD Focus Hero
           </button>
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => setActiveTab('kidroom')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
-              activeTab === 'dashboard'
+              activeTab === 'kidroom'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" /> Bento Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('hermes')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
-              activeTab === 'hermes'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Bot className="w-4 h-4" /> Hermes Copilot
+            <DoorOpen className="w-4 h-4" /> Kid Room & Journal
           </button>
           <button
             onClick={() => setActiveTab('scanner')}
@@ -139,6 +137,26 @@ export function AppMockupShowcase() {
             }`}
           >
             <HeartHandshake className="w-4 h-4" /> BIFF Tone Check
+          </button>
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+              activeTab === 'dashboard'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" /> Bento Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('hermes')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+              activeTab === 'hermes'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Bot className="w-4 h-4" /> Hermes Copilot
           </button>
         </div>
 
@@ -220,6 +238,12 @@ export function AppMockupShowcase() {
                     onShuffle={handleShuffle}
                   />
                 )}
+                {activeTab === 'kidroom' && (
+                  <KidRoomMockupContent
+                    selectedTheme={selectedTheme}
+                    onSelectTheme={handleThemeSelect}
+                  />
+                )}
                 {activeTab === 'dashboard' && (
                   <DashboardMockupContent 
                     completedCount={completedCount}
@@ -248,20 +272,23 @@ export function AppMockupShowcase() {
               {/* Realistic Floating Island Navigation Dock at Bottom of Phone */}
               <div className="absolute bottom-3 left-4 right-4 z-30">
                 <div className="bg-slate-900/90 backdrop-blur-xl border border-white/15 rounded-2xl px-3 py-2 flex items-center justify-around shadow-2xl">
-                  <button onClick={() => setActiveTab('dashboard')} className={`p-1.5 rounded-xl transition ${activeTab === 'dashboard' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
-                    <LayoutDashboard className="w-4 h-4" />
-                  </button>
                   <button onClick={() => setActiveTab('focus')} className={`p-1.5 rounded-xl transition ${activeTab === 'focus' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
                     <Zap className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setActiveTab('kidroom')} className={`p-1.5 rounded-xl transition ${activeTab === 'kidroom' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
+                    <DoorOpen className="w-4 h-4" />
                   </button>
                   <button onClick={() => setActiveTab('scanner')} className={`p-1.5 rounded-xl transition ${activeTab === 'scanner' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
                     <Camera className="w-4 h-4" />
                   </button>
-                  <button onClick={() => setActiveTab('hermes')} className={`p-1.5 rounded-xl transition ${activeTab === 'hermes' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
-                    <Bot className="w-4 h-4" />
-                  </button>
                   <button onClick={() => setActiveTab('biff')} className={`p-1.5 rounded-xl transition ${activeTab === 'biff' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
                     <HeartHandshake className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setActiveTab('dashboard')} className={`p-1.5 rounded-xl transition ${activeTab === 'dashboard' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
+                    <LayoutDashboard className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setActiveTab('hermes')} className={`p-1.5 rounded-xl transition ${activeTab === 'hermes' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
+                    <Bot className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -303,6 +330,14 @@ export function AppMockupShowcase() {
                     completedCount={completedCount}
                     onComplete={handleCompleteChore}
                     onShuffle={handleShuffle}
+                  />
+                </div>
+              )}
+              {activeTab === 'kidroom' && (
+                <div className="max-w-2xl mx-auto">
+                  <KidRoomMockupContent
+                    selectedTheme={selectedTheme}
+                    onSelectTheme={handleThemeSelect}
                   />
                 </div>
               )}
@@ -748,6 +783,108 @@ function BiffMockupContent({
 
       <div className="text-[10px] text-slate-400 text-center">
         HotMessExpress never sends messages directly. You copy or edit, keeping full control.
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MOCKUP VIEW: Kid Room & Sealed Private Journal
+   ========================================================================= */
+function KidRoomMockupContent({
+  selectedTheme,
+  onSelectTheme,
+}: {
+  selectedTheme: 'glitter' | 'night-market' | 'orbit';
+  onSelectTheme: (theme: 'glitter' | 'night-market' | 'orbit', e: React.MouseEvent) => void;
+}) {
+  const themeStyles = {
+    glitter: {
+      bg: 'from-pink-950 via-purple-950 to-slate-950 border-pink-500/40',
+      badge: 'bg-pink-500/20 text-pink-300 border-pink-500/40',
+      name: 'Glitter Pop',
+    },
+    'night-market': {
+      bg: 'from-cyan-950 via-slate-950 to-emerald-950 border-cyan-500/40',
+      badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      name: 'Night Market',
+    },
+    orbit: {
+      bg: 'from-indigo-950 via-blue-950 to-slate-950 border-indigo-500/40',
+      badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      name: 'Orbit Space',
+    },
+  }[selectedTheme];
+
+  return (
+    <div className="space-y-3">
+      {/* Kid Profile Header */}
+      <div className={`p-4 rounded-2xl bg-gradient-to-br ${themeStyles.bg} border shadow-lg space-y-3 transition-colors duration-500`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl shadow-inner">
+              🎧
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                Leo's Room <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${themeStyles.badge}`}>{themeStyles.name}</span>
+              </div>
+              <div className="text-[11px] text-slate-300 flex items-center gap-2 mt-0.5">
+                <span>⚡ Mood: Hyped</span>
+                <span>·</span>
+                <span className="truncate max-w-[120px]">🎵 Daft Punk</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-bold text-amber-400">120 pts</div>
+            <div className="text-[10px] text-slate-400">chores balance</div>
+          </div>
+        </div>
+
+        {/* Theme Picker Pills */}
+        <div className="pt-1">
+          <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
+            <span>Unlock Theme with Points</span>
+            <span className="text-amber-300 font-normal">Tap to switch</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['glitter', 'night-market', 'orbit'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={(e) => onSelectTheme(t, e)}
+                className={`px-2 py-1.5 rounded-xl text-[11px] font-semibold border transition active:scale-95 text-center ${
+                  selectedTheme === t
+                    ? 'bg-white/20 border-white text-white shadow-md'
+                    : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                {t === 'glitter' ? '✨ Glitter' : t === 'night-market' ? '🏮 Neon' : '🪐 Orbit'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sealed Private Journal Preview Card */}
+      <div className="bg-slate-900/90 border border-purple-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-purple-400" /> Sealed Private Journal
+          </span>
+          <span className="text-[10px] font-mono text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-full">
+            Device-Only Lock
+          </span>
+        </div>
+        <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-white/5 italic">
+          "Today was transition day to Dad's house. I was sad leaving Bruno the dog, but Dad helped me unpack my Lego space shuttle..."
+        </p>
+        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+          <span className="text-emerald-400 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Encrypted on Leo's phone only
+          </span>
+          <span className="text-rose-400/90">Parents cannot see entries</span>
+        </div>
       </div>
     </div>
   );

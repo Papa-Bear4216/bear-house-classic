@@ -1,6 +1,7 @@
 import {
   Camera,
   Zap,
+  DoorOpen,
   HeartHandshake,
   CalendarDays,
   Pill,
@@ -9,6 +10,7 @@ import {
   Landmark,
   Trophy,
   Home,
+  ShieldCheck,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -27,6 +29,14 @@ const FEATURES = [
       'When executive dysfunction sets in and the household to-do list feels suffocating, Focus Mode wipes away the clutter to show exactly ONE micro-task. Paired with a 5-minute beat-the-clock timer, dopamine-boosting confetti, and instant points to build momentum.',
     color: 'text-amber-300',
     bg: 'bg-amber-400/10 border-amber-400/20',
+  },
+  {
+    icon: DoorOpen,
+    title: 'Kid Rooms & Sealed Private Journal',
+    description:
+      'Give every child their own digital space. Kids spend earned chore points to unlock themed room aesthetics (Glitter Pop, Night Market, Orbit, Moss Fort), pick avatars, and broadcast their mood. Includes a sealed personal journal stored strictly on their device—never synced to the family database, never visible to parents.',
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10 border-purple-500/20',
   },
   {
     icon: HeartHandshake,
@@ -86,11 +96,19 @@ const FEATURES = [
   },
   {
     icon: Home,
-    title: 'Smart home & COPPA privacy',
+    title: 'Smart home & allowlist controls',
     description:
-      'Optionally link your Home Assistant instance for allowlisted morning wake-up lights or fresh camera snapshot checks. Built with verified guardian consent for under-13 kids, zero ad tracking, and strictly private household data boundaries.',
+      'Optionally link your Home Assistant instance for allowlisted morning wake-up lights, routine-triggered scenes, or fresh security camera snapshot checks. Keeps sensitive smart home controls behind an admin-approved allowlist.',
     color: 'text-orange-400',
     bg: 'bg-orange-500/10 border-orange-500/20',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'COPPA verified child privacy',
+    description:
+      'Engineered from day one for child safety. Adding under-13 family members requires verified parental consent with strict audit logs. Private family boundaries, zero ad tracking, zero data brokering, and sealed context protect your household.',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10 border-emerald-500/20',
   },
 ];
 

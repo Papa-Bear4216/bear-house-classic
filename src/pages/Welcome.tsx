@@ -16,7 +16,7 @@ const STEPS = [
   {
     step: '2',
     title: 'Get the basics rolling',
-    body: 'Chores, the AI room scanner, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
+    body: 'Chores, the AI room scanner, kid rooms with sealed private journals, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
   },
   {
     step: '3',
@@ -95,6 +95,9 @@ export default function Welcome() {
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Kid rooms & sealed private journal: spend chore points on room themes + device-only journal
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer, routines & 120Hz arcade
