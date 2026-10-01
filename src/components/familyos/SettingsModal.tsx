@@ -20,8 +20,14 @@ import { GoogleHomeCard } from './GoogleHomeCard';
 import { ThemeToggle } from './ThemeToggle';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
 import { FeatureSwitchboardPanel } from './FeatureSwitchboardPanel';
+import type { SettingsIntent } from '@/lib/connectionHealth';
 
-interface Props { open: boolean; onClose: () => void; }
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  initialTab?: SettingsIntent['tab'];
+  initialIntegration?: SettingsIntent['integration'];
+}
 
 const BASE_URL = 'https://www.hotmessexpress.lol';
 
@@ -210,7 +216,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
 
 type Tab = 'general' | 'integrations' | 'switchboard' | 'family';
 
-const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
+const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialIntegration }) => {
   const { currentUser, currentRole, householdMembers, householdId } = useAppContext();
   const isAdmin = currentRole === 'superadmin' || currentRole === 'admin';
 
@@ -257,7 +263,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     }
   };
 
-  const [tab, setTab] = useState<Tab>('general');
+  const [tab, setTab] = useState<Tab>(() =>
+    initialTab === 'integrations' && isAdmin ? 'integrations' : 'general'
+  );
   const [apiKey, setApiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -274,7 +282,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const [nfcTags, setNfcTags] = useState<Record<string, string>>(NFC_TAG_DEFAULTS);
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagVal, setNewTagVal] = useState('');
-  const [expandedIntegration, setExpandedIntegration] = useState<string | null>(null);
+  const [expandedIntegration, setExpandedIntegration] = useState<string | null>(() =>
+    initialIntegration === 'ha' && isAdmin ? 'ha' : null
+  );
 
   useEffect(() => {
     if (open) {

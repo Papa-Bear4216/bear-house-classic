@@ -18,6 +18,7 @@ import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTrack
 import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
 import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
 import { getOfflineSyncStatus, onSyncUpdate } from '@/lib/sync';
+import { OPEN_SETTINGS_EVENT, resolveSettingsOpenRequest, type SettingsIntent } from '@/lib/connectionHealth';
 
 // Floating widgets rendered on every page, not the initial view itself —
 // lazy per the rule above so Dashboard can paint before these hydrate.
@@ -109,6 +110,8 @@ const AppLayout: React.FC = () => {
   const [householdTab, setHouseholdTab] = useState<HouseholdTab>('tasks');
   const [now, setNow] = useState(new Date());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsIntent, setSettingsIntent] = useState<SettingsIntent | null>(null);
+  const [settingsNonce, setSettingsNonce] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [hasApiKey, setHasApiKey] = useState(true);
@@ -162,6 +165,18 @@ const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => setTick((t) => t + 1), [active, settingsOpen]);
+
+  useEffect(() => {
+    const onOpenSettings = (event: Event) => {
+      const intent = resolveSettingsOpenRequest(currentRole, (event as CustomEvent).detail);
+      if (!intent) return;
+      setSettingsIntent(intent);
+      setSettingsNonce((n) => n + 1);
+      setSettingsOpen(true);
+    };
+    window.addEventListener(OPEN_SETTINGS_EVENT, onOpenSettings);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, onOpenSettings);
+  }, [currentRole]);
 
   useEffect(() => {
     const refresh = () => setSyncStatus(getOfflineSyncStatus());
@@ -501,7 +516,15 @@ const AppLayout: React.FC = () => {
       </nav>
 
       <Suspense fallback={null}>
-        {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && (
+          <SettingsModal
+            key={settingsNonce}
+            open={settingsOpen}
+            initialTab={settingsIntent?.tab}
+            initialIntegration={settingsIntent?.integration}
+            onClose={() => { setSettingsOpen(false); setSettingsIntent(null); }}
+          />
+        )}
         {historyOpen && <HistoryModal open={historyOpen} onClose={() => { setHistoryOpen(false); setTick((t) => t + 1); }} />}
         <BrainBatteryModal open={batteryModalOpen} onClose={() => setBatteryModalOpen(false)} />
       </Suspense>

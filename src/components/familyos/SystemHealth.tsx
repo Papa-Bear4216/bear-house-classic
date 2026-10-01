@@ -1,29 +1,38 @@
 // src/components/familyos/SystemHealth.tsx
 import React, { useEffect, useState } from 'react';
-import { Activity, RefreshCw, AlertTriangle, CheckCircle2, Cpu } from 'lucide-react';
-import { loadJSON, isAdmin, KEYS } from '@/lib/familyos';
+import { Activity, RefreshCw, AlertTriangle, CheckCircle2, Cpu, Settings } from 'lucide-react';
+import { loadJSON, isAdmin } from '@/lib/familyos';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import { formatAge, interpretHaHealth, requestOpenHaSettings, type HaTone } from '@/lib/connectionHealth';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 
-type IntegrationHealth = {
-  id: string; label: string;
-  status: 'up' | 'degraded' | 'down';
-  unavailable: number; unknown: number; total: number; autoHealed?: boolean;
-};
-type Snapshot = {
-  updatedAt: number;
-  integrations: IntegrationHealth[];
-  overall: 'green' | 'yellow' | 'red';
-  haUnreachable?: boolean;
+const TONE_DOT: Record<HaTone, string> = {
+  up: 'bg-emerald-500',
+  degraded: 'bg-amber-500',
+  down: 'bg-rose-500',
+  stale: 'bg-slate-400',
 };
 
-const DOT: Record<string, string> = {
+const TONE_LABEL: Record<HaTone, string> = {
+  up: 'Healthy',
+  degraded: 'Degraded',
+  down: 'Down',
+  stale: 'Stale',
+};
+
+const ROW_DOT: Record<string, string> = {
   up: 'bg-emerald-500', degraded: 'bg-amber-500', down: 'bg-rose-500',
 };
 
 const SystemHealth: React.FC = () => {
   const { currentRole } = useAppContext();
-  const [snap, setSnap] = useState<Snapshot | null>(() => loadJSON('system_health', null));
+  const connectionHealthOn = useFeatureFlag('connection_health');
+  const admin = !!currentRole && isAdmin(currentRole);
+  const [raw, setRaw] = useState<unknown>(() => loadJSON('system_health', null));
+  const [now, setNow] = useState(() => Date.now());
+  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [awaitingConfig, setAwaitingConfig] = useState(true);
   const [fixing, setFixing] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [triadStatus, setTriadStatus] = useState<{
@@ -34,11 +43,36 @@ const SystemHealth: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    const t = setInterval(() => setSnap(loadJSON('system_health', null)), 5000);
+    const t = setInterval(() => {
+      setRaw(loadJSON('system_health', null));
+      setNow(Date.now());
+    }, 5000);
     return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
+    if (!connectionHealthOn || !admin) return;
+    let cancelled = false;
+    authedFetch('/api/settings-ha', { method: 'GET' })
+      .then(async (res) => {
+        if (!res.ok) {
+          if (!cancelled) setConfigured(null);
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        if (!cancelled) setConfigured(data?.set === true);
+      })
+      .catch(() => {
+        if (!cancelled) setConfigured(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAwaitingConfig(false);
+      });
+    return () => { cancelled = true; };
+  }, [connectionHealthOn, admin]);
+
+  useEffect(() => {
+    if (!admin) return;
     let cancelled = false;
     const fetchTriad = async () => {
       try {
@@ -68,10 +102,13 @@ const SystemHealth: React.FC = () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [admin]);
 
-  if (!currentRole || !isAdmin(currentRole)) return null;
-  if (!snap) return null;
+  if (!admin) return null;
+
+  const view = interpretHaHealth(raw, { configured, awaitingConfig, now });
+  const showHa = connectionHealthOn && view.kind !== 'hidden';
+  if (!showHa && !triadStatus) return null;
 
   const fixIt = async (integration: string) => {
     setFixing(integration); setMsg('');
@@ -102,39 +139,64 @@ const SystemHealth: React.FC = () => {
 
   return (
     <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center gap-2">
+      {showHa && <div className="flex items-center gap-2">
         <Activity className="w-4 h-4 text-emerald-400" />
         <span className="text-white text-sm font-semibold">System Health</span>
-        <span className={`ml-auto w-2.5 h-2.5 rounded-full ${
-          snap.overall === 'green' ? 'bg-emerald-500' : snap.overall === 'yellow' ? 'bg-amber-500' : 'bg-rose-500'
-        }`} />
-        <span className="text-slate-500 text-xs">
-          {snap.updatedAt ? new Date(snap.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}
-        </span>
-      </div>
+        {view.kind === 'snapshot' && (
+          <>
+            <span className={`ml-auto w-2.5 h-2.5 rounded-full ${TONE_DOT[view.tone]}`} />
+            <span className="text-slate-300 text-xs">{TONE_LABEL[view.tone]}</span>
+            <span className="text-slate-500 text-xs">{view.checkedLabel}</span>
+          </>
+        )}
+      </div>}
 
-      {snap.haUnreachable && (
+      {showHa && view.kind === 'unchecked' && (
+        <p className="text-slate-400 text-xs">Home Assistant — not checked yet. Checks run daily.</p>
+      )}
+      {showHa && view.kind === 'unknown' && (
+        <p className="text-slate-400 text-xs">
+          Status unknown{view.hint ? `. ${view.hint}` : ''}
+        </p>
+      )}
+      {showHa && view.kind === 'snapshot' && view.haUnreachable && (
         <div className="flex items-center gap-2 text-rose-300 text-xs">
-          <AlertTriangle className="w-3.5 h-3.5" /> Home Assistant unreachable
+          <AlertTriangle className="w-3.5 h-3.5" />
+          {view.freshness === 'stale' ? 'Home Assistant was unreachable' : 'Home Assistant unreachable'}
         </div>
       )}
+      {showHa && view.kind === 'snapshot' && view.tone === 'stale' && (
+        <p className="text-slate-400 text-xs">Daily check may have failed</p>
+      )}
+      {showHa && view.kind === 'snapshot' && view.showOpenSettings && (
+        <button
+          type="button"
+          onClick={requestOpenHaSettings}
+          className="inline-flex items-center gap-1.5 text-xs text-rose-200 hover:text-white"
+        >
+          <Settings className="w-3.5 h-3.5" /> Open Settings
+        </button>
+      )}
 
-      {msg && <div className="text-xs text-slate-300">{msg}</div>}
+      {showHa && msg && <div className="text-xs text-slate-300">{msg}</div>}
 
+      {showHa && view.kind === 'snapshot' && (
       <div className="space-y-2">
-        {snap.integrations.map((it) => (
+        {view.integrations.map((it) => (
           <div key={it.id} className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2">
-            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${DOT[it.status]}`} />
+            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${view.freshness === 'stale' && it.status === 'up' ? TONE_DOT.stale : ROW_DOT[it.status]}`} />
             <div className="flex-1 min-w-0">
               <div className="text-white text-sm truncate">{it.label}</div>
               <div className="text-slate-500 text-xs">
-                {it.status === 'up'
+                {view.freshness === 'stale' && it.status === 'up'
+                  ? <span>Last known healthy · {formatAge(view.ageMs)}</span>
+                  : it.status === 'up'
                   ? <span className="inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> healthy</span>
                   : `${it.unavailable} down · ${it.unknown} unknown of ${it.total}`}
                 {it.autoHealed && ' · self-healed'}
               </div>
             </div>
-            {it.status !== 'up' && (
+            {it.canFix && (
               <button
                 onClick={() => fixIt(it.id)}
                 disabled={fixing === it.id}
@@ -147,6 +209,7 @@ const SystemHealth: React.FC = () => {
           </div>
         ))}
       </div>
+      )}
 
       {triadStatus && (
         <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl px-3 py-2.5 space-y-1">
