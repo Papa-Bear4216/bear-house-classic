@@ -174,9 +174,21 @@ export default async function handler(req: Request): Promise<Response> {
       body: JSON.stringify({ household_id: secondaryHouseholdId, family_id: family.id, role_in_family: 'secondary' }),
     });
     if (!linkNewRes.ok) {
-      await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers });
+      const delRes = await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${newHh.id}`, { method: 'DELETE', headers }).catch(() => null);
+      if (!delRes || !delRes.ok) {
+        console.error('Failed to cleanup orphan household after link failure:', newHh.id);
+      }
       const detail = await linkNewRes.text().catch(() => '');
-      return serverError(`Failed to link secondary household: ${detail}`, 'coparent-toggle:link', detail);
+      let code: string | undefined;
+      try {
+        code = JSON.parse(detail)?.code;
+      } catch {
+        /* non-JSON response body */
+      }
+      if (linkNewRes.status === 409 && code === '23505') {
+        return j({ error: 'Secondary household already exists for this family' }, 409);
+      }
+      return serverError('Failed to link secondary household', 'coparent-toggle:link', detail);
     }
 
     // Mark the transitioning member for the move. They become superadmin of
