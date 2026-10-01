@@ -551,15 +551,9 @@ async function callHermes(history: { role: string; content: string }[], househol
     const rawText = (data.text || '').trim();
 
     let result: { text: string; actions?: Action[] };
-    if (data.toolsDegraded) {
-      const parsed = parseHermesReply<Action>(rawText);
+    if (Array.isArray(data.actions)) {
       result = {
-        text: parsed.text || rawText || 'Done.',
-        actions: parsed.actions,
-      };
-    } else if (Array.isArray(data.actions)) {
-      result = {
-        text: rawText || 'Done.',
+        text: rawText || (data.toolsDegraded ? 'Hermes tools are temporarily degraded.' : 'Done.'),
         actions: data.actions,
       };
     } else {
@@ -571,7 +565,7 @@ async function callHermes(history: { role: string; content: string }[], househol
     }
 
     if (data.toolsDegraded) {
-      const banner = '*(Hermes tools temporarily degraded to text mode; actions parsed from response.)*';
+      const banner = '*(Hermes tools are temporarily in text mode; no actions were executed.)*';
       result.text = result.text ? `${result.text}\n\n${banner}` : banner;
     } else if (data.truncated || (data.droppedActions && data.droppedActions > 0)) {
       const warning = data.droppedActions
@@ -744,7 +738,7 @@ const HermesChat: React.FC = () => {
     const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
     const canControlDevices = currentUser?.canControlDevices ?? isAdult;
     for (const action of response.actions || []) {
-      if (!isAdult && (action.type === 'manageMember' || action.type === 'notifyPerson' || action.type === 'addBill' || action.type === 'markBillPaid')) {
+      if (!isAdult && (action.type === 'manageMember' || action.type === 'notifyPerson' || action.type === 'addBill' || action.type === 'markBillPaid' || action.type === 'clearWeekMeals')) {
         executed.push({ ...action, result: 'Permission denied (admin required)', ok: false });
         continue;
       }
@@ -762,6 +756,15 @@ const HermesChat: React.FC = () => {
             executed.push({ ...action, result: 'Cancelled by user (security confirmation declined)', ok: false });
             continue;
           }
+        }
+      }
+      if (action.type === 'clearWeekMeals') {
+        const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+          ? window.confirm('Hermes wants to clear the entire weekly meal plan. Confirm?')
+          : true;
+        if (!confirmed) {
+          executed.push({ ...action, result: 'Cancelled by user (clear confirmation declined)', ok: false });
+          continue;
         }
       }
       if (action.type === 'genericAction' && action.params?.op === 'clear') {

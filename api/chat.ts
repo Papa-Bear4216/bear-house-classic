@@ -312,7 +312,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
   if (!householdId) {
-    if (callerError && fallbackError) {
+    if (callerError || fallbackError) {
       return j({ error: 'Database unavailable. Please try again shortly.' }, 503);
     }
     return j({ error: 'Unauthorized' }, 401);
@@ -352,7 +352,7 @@ export default async function handler(req: Request): Promise<Response> {
   const isTriad = isTriadHousehold(householdId);
   const scopedTools = tools?.filter((t) => {
     if (t.name === 'queryTriad') return isTriad;
-    if (t.name === 'manageMember' || t.name === 'notifyPerson' || t.name === 'addBill' || t.name === 'markBillPaid') return isAdmin;
+    if (t.name === 'manageMember' || t.name === 'notifyPerson' || t.name === 'addBill' || t.name === 'markBillPaid' || t.name === 'clearWeekMeals') return isAdmin;
     if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return canControlDevices;
     return true;
   });

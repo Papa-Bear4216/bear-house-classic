@@ -83,19 +83,17 @@ export function runGenericAction(
   }
 
   const match = (params.match || '').toLowerCase();
-  const matchingIndices: number[] = [];
-  items.forEach((item, index) => {
-    if (params.id && item.id === params.id) {
-      matchingIndices.push(index);
-    } else if (match && String(item[spec.matchField] ?? '').toLowerCase().includes(match)) {
-      matchingIndices.push(index);
-    }
+  const matchingIndices = items.flatMap((item, index) => {
+    const matches = params.id
+      ? item.id === params.id
+      : !!match && String(item[spec.matchField] ?? '').toLowerCase().includes(match);
+    return matches ? [index] : [];
   });
 
   if (matchingIndices.length === 0) {
-    return { result: `No ${spec.domain} item matching "${params.match ?? params.id}"`, ok: false };
+    return { result: `No ${spec.domain} item matching "${params.id ?? params.match}"`, ok: false };
   }
-  if (matchingIndices.length > 1 && !params.id) {
+  if (matchingIndices.length > 1) {
     return { result: `Multiple ${spec.domain} items match "${params.match}". Please be more specific.`, ok: false };
   }
   const idx = matchingIndices[0];
