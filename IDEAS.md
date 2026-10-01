@@ -331,7 +331,7 @@ Step 0 (done) → Hermes follow-ups (a,b,c) → Phase 0 → Phase 1 → **Phase 
 
 ## Hermes: better at his job without spending more
 
-*Ranked by impact. All $0 marginal cost. #1 shipped 2026-09-25 (PR #40).*
+*Ranked by impact. High efficiency / cost-optimized. #1 shipped 2026-09-25 (PR #40).*
 
 1. **Prompt caching — SHIPPED (PR #40).** The system prompt (persona, 22-action
    catalog, memory facts) is now an Anthropic ephemeral-cacheable block.

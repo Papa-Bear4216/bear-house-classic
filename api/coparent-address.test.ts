@@ -172,6 +172,8 @@ describe('POST /api/coparent-address', () => {
     const res = await post(VALID);
     expect(res.status).toBe(200);
     expect((await res.json()).ok).toBe(true);
+    expect(fetchMock.mock.calls[0][0]).toContain('&select=id');
+    expect(fetchMock.mock.calls[0][1].headers.Prefer).toBe('return=representation');
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).address_confidential).toBe(false);
   });
 
@@ -184,12 +186,42 @@ describe('POST /api/coparent-address', () => {
     expect(sent.address_state).toBe('IL');
   });
 
+  it('treats empty string state as unset (fails validation when not confidential)', async () => {
+    asCaller(family('single'));
+    const res = await post({ ...VALID, addressState: '' });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/addressState: Required/i);
+  });
+
   it('400s on phone number with fewer than 7 digits', async () => {
     asCaller(family('single'));
     const res = await post({ ...VALID, contactPhone: '(((---)))' });
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/at least 7 digits/i);
+  });
+
+  it('400s on phone number exceeding 15 digits', async () => {
+    asCaller(family('single'));
+    const res = await post({ ...VALID, contactPhone: '+1 (555) 123-4567-89012' });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/cannot exceed 15 digits/i);
+  });
+
+  it('500s when database PATCH response is malformed non-JSON', async () => {
+    asCaller(family('single'));
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => { throw new Error('Bad JSON'); },
+      status: 200,
+    } as unknown as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await post(VALID);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toMatch(/Failed to parse database response/i);
   });
 
   it('404s when the household to update does not exist', async () => {
@@ -213,5 +245,22 @@ describe('POST /api/coparent-address', () => {
   it('still requires every field when not confidential', async () => {
     asCaller(family('single'));
     expect((await post({ addressStreet: '123 Main St' })).status).toBe(400);
+  });
+
+  it('accepts confidential with empty string address fields and treats them as null/omitted', async () => {
+    asCaller(family('single'));
+    const fetchMock = mockFetchSequence([{ ok: true, json: [{ id: 'household-1' }] }]);
+    const res = await post({
+      confidential: true,
+      addressStreet: '',
+      addressCity: '',
+      addressState: '',
+      addressZip: '',
+      contactPhone: '',
+    });
+    expect(res.status).toBe(200);
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.address_confidential).toBe(true);
+    expect(sent.address_state).toBeNull();
   });
 });

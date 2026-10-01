@@ -267,4 +267,21 @@ describe('POST /api/coparent-toggle', () => {
     const res = await handler(req({ transitioningMemberId: 'member-coparent' }));
     expect(res.status).toBe(200);
   });
+
+  it('returns 409 Conflict when a race creates a secondary link concurrently (23505 unique constraint)', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(requireBillingRole).mockResolvedValue({ ok: true });
+    mockFetchSequence([
+      ...seq,
+      { ok: true, json: [{ address_street: '123 Test St', address_city: 'Testcity', address_state: 'CA', address_zip: '90210', contact_phone: '555-1234' }] },
+      { ok: true, json: [{ name: 'Home' }] },
+      { ok: true, json: [{ id: 'household-2' }] },
+      { ok: false, status: 409, json: { code: '23505', message: 'duplicate key value violates unique constraint "idx_unique_secondary_household_link"' } },
+      { ok: true, json: {} },
+    ]);
+    const res = await handler(req({ transitioningMemberId: 'member-coparent' }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toMatch(/Secondary household already exists/i);
+  });
 });

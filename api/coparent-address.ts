@@ -144,7 +144,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { addressStreet, addressCity, addressState, addressZip, contactPhone, confidential } = parsed.data;
 
-  const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}`, {
+  const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(callerHouseholdId)}&select=id`, {
     method: 'PATCH',
     headers: { ...headers, Prefer: 'return=representation' },
     body: JSON.stringify({
@@ -158,6 +158,9 @@ export default async function handler(req: Request): Promise<Response> {
   });
   if (!updateRes.ok) return serverError('Failed to save address', 'coparent-address', updateRes.status);
   const updatedRows = await updateRes.json().catch(() => null);
+  if (updatedRows === null) {
+    return serverError('Failed to parse database response', 'coparent-address');
+  }
   if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
     return notFound('Household not found');
   }
