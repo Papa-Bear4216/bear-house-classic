@@ -4,7 +4,31 @@ import { Hero } from '@/components/welcome/Hero';
 import { AppMockupShowcase } from '@/components/welcome/AppMockupShowcase';
 import { FeatureGrid } from '@/components/welcome/FeatureGrid';
 import { FamilyRoles } from '@/components/welcome/FamilyRoles';
-import { Sparkles, Flame } from 'lucide-react';
+import { signInWithGoogle } from '@/lib/householdAuth';
+import { Flame } from 'lucide-react';
+
+const STEPS = [
+  {
+    step: '1',
+    title: 'Sign in with Google',
+    body: 'Create a household or accept an invite. Inviting a child asks a guardian to confirm consent first.',
+  },
+  {
+    step: '2',
+    title: 'Use the household list',
+    body: 'Chores, routines, custody, medications, school notes, and rewards work without a bank or a smart home.',
+  },
+  {
+    step: '3',
+    title: 'Connect only what you want',
+    body: 'An admin can add SimpleFIN, Google Calendar, Gmail, or a Home Assistant instance. Each one stays disconnected until that happens.',
+  },
+  {
+    step: '4',
+    title: 'Start the 7-day trial',
+    body: 'A new household goes to checkout after setup. The trial is 7 days, and a card is not required to start it.',
+  },
+];
 
 export default function Welcome() {
   return (
@@ -34,24 +58,64 @@ export default function Welcome() {
       </aside>
 
       <Hero />
+
+      <section id="how-it-works" className="px-4 py-8 max-w-5xl mx-auto relative z-10">
+        <h2 className="text-3xl font-black text-white text-center font-display mb-8">How a household starts</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {STEPS.map((s) => (
+            <div key={s.step} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="text-amber-300 text-xs font-bold mb-2">Step {s.step}</div>
+              <h3 className="text-white font-bold mb-2">{s.title}</h3>
+              <p className="text-sm text-slate-300 leading-relaxed">{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <AppMockupShowcase />
       <FeatureGrid />
       <FamilyRoles />
+
+      <section id="pricing" className="px-4 py-8 max-w-xl mx-auto relative z-10">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8">
+          <h2 className="text-2xl font-bold text-white font-display mb-2">Pricing</h2>
+          <p className="text-sm text-slate-300 mb-6">One plan. A new household starts with a 7-day trial.</p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-extrabold text-white">$9.99</span>
+            <span className="text-slate-400">/month after the trial</span>
+          </div>
+          <p className="text-sm text-slate-300 mt-3">Includes up to 3 household members.</p>
+          <p className="text-sm text-slate-300 mt-1">Each additional member is $2.99/month. Pets are not billed as seats.</p>
+          <ul className="mt-6 space-y-2 text-sm text-slate-300">
+            <li>Chores, routines, custody, health log, school notes, and Hermes chat</li>
+            <li>Read-only SimpleFIN, and one Home Assistant connection if you add it</li>
+            <li>Cancel from the billing portal</li>
+          </ul>
+          <Button
+            onClick={() => signInWithGoogle()}
+            className="mt-6 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+          >
+            Sign in with Google
+          </Button>
+        </div>
+      </section>
 
       <section className="text-center px-4 py-20 relative z-10">
         <div className="max-w-xl mx-auto p-8 rounded-3xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/10 backdrop-blur-xl shadow-2xl">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4">
             <Flame className="w-6 h-6 animate-pulse" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-2">Ready to tame the Hot Mess Express?</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-2">Sign in and set up the household</h2>
           <p className="text-sm text-slate-300 mb-6 max-w-sm mx-auto">
-            Stop letting executive dysfunction run the house. Sync your household today.
+            Google sign-in, then a household name. New households start a 7-day trial.
           </p>
-          <Link to="/login">
-            <Button size="lg" className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-8 py-6 rounded-2xl shadow-xl shadow-amber-500/25 transition active:scale-[0.98]">
-              <Sparkles className="w-5 h-5 mr-2" /> Hop on the Hot Mess Express
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            onClick={() => signInWithGoogle()}
+            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-8 py-6 rounded-2xl shadow-xl shadow-amber-500/25 transition active:scale-[0.98]"
+          >
+            Sign in with Google
+          </Button>
         </div>
       </section>
 
@@ -62,7 +126,7 @@ export default function Welcome() {
           <span>HotMessExpress is a <strong className="text-amber-400">Dysfunction Junction</strong> venture.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-          Crafted with caffeine, neurodivergence, and zero spreadsheets. Because normal brains are boring.
+          FamilyOS for one household or two. You confirm scans, messages, and device actions before they happen.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2">
           <Link to="/privacy" className="hover:text-amber-400 transition underline underline-offset-2">

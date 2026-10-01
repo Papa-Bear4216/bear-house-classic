@@ -1,15 +1,17 @@
 const ROLES = [
   { label: 'Superadmin', emoji: '👑', color: 'bg-indigo-500' },
   { label: 'Admin', emoji: '🛠️', color: 'bg-pink-500' },
-  { label: 'Kid', emoji: '🎨', color: 'bg-blue-500' },
+  { label: 'Child', emoji: '🎨', color: 'bg-blue-500' },
   { label: 'Pet', emoji: '🐾', color: 'bg-amber-500' },
 ];
 
 export function FamilyRoles() {
   return (
     <section className="text-center px-4 py-16 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold text-white mb-2">Built for the whole family</h2>
-      <p className="text-slate-400 mb-8">Every member gets a role that fits — yes, even the dog.</p>
+      <h2 className="text-2xl font-bold text-white mb-2">Four roles</h2>
+      <p className="text-slate-400 mb-8 max-w-lg mx-auto">
+        Superadmin handles billing. Admins manage members and integrations. Children use chores, routines, and rewards, and a guardian confirms consent when they are invited. Pets are on the roster and are not billed as seats.
+      </p>
       <div className="flex flex-wrap justify-center gap-4">
         {ROLES.map((r) => (
           <div key={r.label} className="flex flex-col items-center gap-2">

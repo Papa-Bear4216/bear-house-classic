@@ -68,13 +68,13 @@ export function AppMockupShowcase() {
       {/* Section Header */}
       <div className="text-center max-w-2xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-300 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Real Interactive Renditions
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Sample only
         </div>
         <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight font-display">
-          See FamilyOS in Action
+          A sample of focus mode
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          Interactive previews of the real application. Try tapping buttons, shuffling tasks, or triggering dopamine confetti!
+          This phone is an illustration with made-up chores. It is not your household, and the buttons do not save anything. In the app, you confirm a scan before it becomes a task, and points apply when a chore is marked done.
         </p>
       </div>
 
@@ -523,8 +523,8 @@ function HermesMockupContent({
             <Bot className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-xs font-bold text-white">Hermes Copilot</div>
-            <div className="text-[10px] text-slate-400 font-mono">step-3.7-flash (Free) · HA Active</div>
+            <div className="text-xs font-bold text-white">Hermes</div>
+            <div className="text-[10px] text-slate-400 font-mono">Sample reply · nothing is sent</div>
           </div>
         </div>
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -542,13 +542,13 @@ function HermesMockupContent({
         {/* Hermes Response */}
         <div className="flex justify-start">
           <div className="bg-slate-900/90 border border-white/15 text-slate-200 px-3.5 py-3 rounded-2xl rounded-tl-sm max-w-[90%] shadow-lg space-y-2">
-            <p>Nice work, Chef! 🍳 Dinner recorded, and rice & garlic deducted from pantry stock.</p>
-            <p className="font-semibold text-amber-300">Remaining before showtime:</p>
+            <p>Two things are still open before 8:00. I have not changed the pantry or the lights.</p>
+            <p className="font-semibold text-amber-300">Still on the list:</p>
             <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5 space-y-1">
-              <div>1. Quick counter wipe (assigned to Leo, +25 pts)</div>
-              <div>2. Start eco cycle on dishwasher</div>
+              <div>1. Wipe the counter</div>
+              <div>2. Start the dishwasher, if you want</div>
             </div>
-            <p className="text-slate-400">Ready to trigger movie mode on Home Assistant?</p>
+            <p className="text-slate-400">I can ask Home Assistant to turn on the living room lights. You would confirm that in the app.</p>
           </div>
         </div>
       </div>
@@ -562,7 +562,7 @@ function HermesMockupContent({
             className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 text-xs px-3 py-1.5 rounded-xl transition active:scale-95"
           >
             {hermesActionDone ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {hermesActionDone ? 'Movie Mode Enabled!' : '🎬 Dim Living Room to 25%'}
+            {hermesActionDone ? 'Sample only — lights unchanged' : 'Turn on living room lights'}
           </button>
           <button
             className="bg-slate-800/80 border border-white/10 text-slate-300 text-xs px-3 py-1.5 rounded-xl transition hover:bg-slate-700/80"
@@ -576,7 +576,7 @@ function HermesMockupContent({
 }
 
 /* =========================================================================
-   MOCKUP VIEW: AI Vision Chore Scanner (Gemini Nano)
+   MOCKUP VIEW: sample chore scan. The app asks you to save suggestions.
    ========================================================================= */
 function ScannerMockupContent({ 
   scannerActionDone, 
@@ -595,23 +595,23 @@ function ScannerMockupContent({
         {/* Viewfinder Reticles */}
         <div className="flex justify-between items-center z-10">
           <span className="flex items-center gap-1.5 text-[10px] font-mono text-cyan-300 bg-cyan-500/20 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-            <ScanLine className="w-3 h-3 animate-spin" /> GEMINI VISION NANO
+            <ScanLine className="w-3 h-3 animate-spin" /> SAMPLE SCAN
           </span>
           <span className="text-[10px] text-slate-400 font-mono">LIVING ROOM · 3 DETECTED</span>
         </div>
 
         {/* AR Bounding Box Overlays */}
         <div className="absolute top-12 left-6 border border-cyan-400/80 bg-cyan-400/10 rounded-lg p-1.5 text-[10px] text-cyan-200 shadow-md">
-          ☕ 3 dirty coffee mugs (+15 pts)
+          ☕ Mugs on the table
         </div>
         <div className="absolute bottom-14 right-6 border border-amber-400/80 bg-amber-400/10 rounded-lg p-1.5 text-[10px] text-amber-200 shadow-md">
-          🛋️ Couch pillows scattered (+10 pts)
+          🛋️ Pillows out of place
         </div>
 
         {/* Viewfinder Bottom Status */}
         <div className="z-10 flex justify-between items-center text-[10px] text-slate-400 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/5">
           <span>Est. tidy time: 4 mins</span>
-          <span className="text-emerald-400 font-bold">+25 pts total</span>
+          <span className="text-slate-300">Not saved yet</span>
         </div>
       </div>
 
@@ -621,17 +621,17 @@ function ScannerMockupContent({
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-cyan-400" /> 2 Quick Wins Identified
           </span>
-          <span className="text-[10px] text-slate-400">Auto-prioritized</span>
+          <span className="text-[10px] text-slate-400">You choose what to save</span>
         </div>
 
         <div className="space-y-1.5 text-xs">
           <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-white/5">
             <span className="text-slate-300">Move mugs to kitchen sink</span>
-            <span className="text-cyan-400 font-bold">+15 pts</span>
+            <span className="text-cyan-400 font-bold">Suggestion</span>
           </div>
           <div className="flex justify-between items-center bg-slate-950/60 p-2 rounded-xl border border-white/5">
             <span className="text-slate-300">Straighten couch pillows</span>
-            <span className="text-cyan-400 font-bold">+10 pts</span>
+            <span className="text-cyan-400 font-bold">Suggestion</span>
           </div>
         </div>
 
@@ -640,7 +640,7 @@ function ScannerMockupContent({
           className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-black text-xs py-2.5 rounded-xl transition shadow-lg shadow-cyan-500/25 active:scale-95 flex items-center justify-center gap-1.5"
         >
           {scannerActionDone ? <Check className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-          {scannerActionDone ? 'Added to Household Chores!' : 'Add Both Chores to Queue (+25 pts)'}
+          {scannerActionDone ? 'Sample only — nothing saved' : 'Save both to the chore list'}
         </button>
       </div>
     </div>

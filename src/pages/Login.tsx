@@ -14,42 +14,42 @@ const HOW_IT_WORKS = [
     tile: 'var(--sage-100)',
     tint: 'var(--sage-600)',
     step: 'STEP 1',
-    title: 'Connect your household',
-    body: 'Link your bank, your smart home, and your family’s calendar — takes a few minutes, once.',
+    title: 'Sign in with Google',
+    body: 'Create a household or accept an invite. Bank, calendar, Gmail, and Home Assistant stay off until an admin connects them.',
   },
   {
     icon: MessageCircleHeart,
     tile: 'rgba(0,112,192,0.12)',
     tint: 'var(--sky-500)',
     step: 'STEP 2',
-    title: 'Hermes organizes it',
-    body: 'Your AI assistant turns raw data — transactions, chores, camera events — into things you can act on.',
+    title: 'Hermes can suggest',
+    body: 'Chat about chores, the calendar, and spending. Hermes does not pay bills, send messages, or give medical or legal advice.',
   },
   {
     icon: ListChecks,
     tile: 'var(--honey-100)',
     tint: 'var(--honey-600)',
     step: 'STEP 3',
-    title: 'One focused view',
-    body: 'A single daily briefing instead of six apps. See what matters today, not everything at once.',
+    title: 'One next chore',
+    body: 'The dashboard can show one next task and a short timer. A daily briefing exists, and it only includes data you have already added.',
   },
   {
     icon: HeartHandshake,
     tile: 'rgba(192,32,160,0.12)',
     tint: 'var(--berry-600)',
     step: 'STEP 4',
-    title: 'The whole house stays in sync',
-    body: 'Chores, promises, and plans update in real time for everyone — no group texts required.',
+    title: 'The household shares one record',
+    body: 'Tasks, promises, and notes sync for members of the household. Offline edits wait and replay when you are back online.',
   },
 ];
 
 const FEATURES = [
-  { icon: MessageCircleHeart, title: 'Hermes AI chat', body: 'Ask it anything about your household — schedules, spending, chores — and get a real answer.' },
-  { icon: PiggyBank, title: 'Bank sync', body: 'Secure, read-only account sync — balances, transactions, and spending trends, always current.' },
-  { icon: Camera, title: 'Smart home cameras', body: 'Check every connected camera and system health from one screen, no separate app.' },
-  { icon: ListChecks, title: 'Chore & receipt scanning', body: 'Snap a photo — chores get logged and credited, receipts get categorized automatically.' },
-  { icon: HeartHandshake, title: 'Promises & quality time', body: 'A gentle pulse on commitments kept and time spent together, not just tasks done.' },
-  { icon: CloudSun, title: 'Weather & daily briefings', body: 'A morning rundown of what matters today, so nothing slips through the cracks.' },
+  { icon: MessageCircleHeart, title: 'Hermes chat', body: 'Ask about chores, the calendar, and spending. You confirm before a device action runs.' },
+  { icon: PiggyBank, title: 'Read-only bank sync', body: 'SimpleFIN lists accounts and transactions. Uncertain categories stay in a review inbox until you confirm them.' },
+  { icon: Camera, title: 'Your Home Assistant', body: 'If you connect your own instance, authorized members can open its cameras and run allowlisted devices.' },
+  { icon: ListChecks, title: 'Scans you confirm', body: 'A room photo can suggest chores. A receipt can suggest pantry items. Nothing is saved until you confirm it.' },
+  { icon: HeartHandshake, title: 'Custody, promises, and routines', body: 'Schedules, swap requests, promises, quality time, and shared routines for the people in the household.' },
+  { icon: CloudSun, title: 'Weather and a daily briefing', body: 'A briefing can include the calendar, weather, and bills you already track. It does not pay those bills.' },
 ];
 
 function GetStartedButton({
@@ -98,7 +98,7 @@ export default function LoginPage() {
             className="inline-flex items-center rounded-[var(--radius-full)] font-bold text-sm px-5 py-2.5"
             style={{ background: 'var(--brand-primary)', color: '#fff', boxShadow: 'var(--shadow-brand)' }}
           >
-            Get started
+            Sign in with Google
           </button>
         </div>
       </div>
@@ -122,16 +122,20 @@ export default function LoginPage() {
               className="bh-font-display font-extrabold text-white mb-5"
               style={{ fontSize: 'clamp(36px, 4.6vw, 56px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}
             >
-              Your household,<br />actually running itself.
+              Your household,<br />on one list.
             </h1>
             <p className="text-lg leading-relaxed max-w-[460px] mb-8" style={{ color: 'rgba(255,248,238,0.72)' }}>
-              FamilyOS brings your finances, your smart home, and your family's day-to-day
-              into one place — with an AI assistant that keeps up so you don't have to.
+              FamilyOS keeps chores, custody, medications, school notes, and read-only
+              bank sync in one household. You confirm scans and device actions before they happen.
             </p>
             <div className="flex gap-3.5 flex-wrap">
-              <GetStartedButton variant="primary">Get started free</GetStartedButton>
-              <a href="#demo">
-                <GetStartedButton variant="ghost">See how it works</GetStartedButton>
+              <GetStartedButton variant="primary">Sign in with Google</GetStartedButton>
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-full)] font-bold text-[15px] px-7 py-3.5"
+                style={{ background: 'transparent', color: '#fff', border: '1.5px solid rgba(255,255,255,0.3)' }}
+              >
+                See how it works
               </a>
             </div>
           </div>
@@ -146,10 +150,10 @@ export default function LoginPage() {
         <div className="max-w-[1000px] mx-auto flex justify-between gap-8 flex-wrap text-center">
           <div className="flex-1 basis-[200px]">
             <div className="bh-font-display text-[40px] font-extrabold" style={{ color: 'var(--brand-primary)' }}>
-              6-in-1
+              7-day
             </div>
             <div className="text-sm font-semibold mt-1.5" style={{ color: 'var(--fg-muted)' }}>
-              finance, home, chores, and more — one app instead of six
+              trial for a new household, then $9.99/month
             </div>
           </div>
           <div className="flex-1 basis-[200px]">
@@ -162,10 +166,10 @@ export default function LoginPage() {
           </div>
           <div className="flex-1 basis-[200px]">
             <div className="bh-font-display text-[40px] font-extrabold" style={{ color: 'var(--brand-accent)' }}>
-              instant
+              read-only
             </div>
             <div className="text-sm font-semibold mt-1.5" style={{ color: 'var(--fg-muted)' }}>
-              answers from Hermes, and points the moment a chore's done
+              bank sync — the app does not move money
             </div>
           </div>
         </div>
@@ -182,7 +186,7 @@ export default function LoginPage() {
               className="bh-font-display font-extrabold max-w-[640px] mx-auto"
               style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}
             >
-              From six scattered apps to one calm view.
+              Sign in, name the household, then connect only what you use.
             </h2>
           </div>
           <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
@@ -224,7 +228,7 @@ export default function LoginPage() {
               className="bh-font-display font-extrabold max-w-[640px] mx-auto"
               style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}
             >
-              Every part of home life, in one place.
+              What the app actually does.
             </h2>
           </div>
           <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
@@ -274,7 +278,7 @@ export default function LoginPage() {
           <h2 className="bh-font-display font-extrabold mb-2" style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}>
             Simple pricing
           </h2>
-          <p style={{ color: 'var(--fg-muted)' }}>One plan. No tiers to compare.</p>
+            <p style={{ color: 'var(--fg-muted)' }}>One plan. A new household starts a 7-day trial.</p>
 
           <div
             className="mt-8 rounded-[var(--radius-xl)] p-8 text-left bg-white"
@@ -284,25 +288,25 @@ export default function LoginPage() {
               <span className="bh-font-display text-4xl font-extrabold" style={{ color: 'var(--bark-700)' }}>
                 $9.99
               </span>
-              <span style={{ color: 'var(--fg-muted)' }}>/month</span>
+              <span style={{ color: 'var(--fg-muted)' }}>/month after the trial</span>
             </div>
             <p className="mt-2 text-sm" style={{ color: 'var(--fg-muted)' }}>
-              Covers up to 3 household members.
+              Covers up to 3 household members. Pets are not billed as seats.
             </p>
             <div className="mt-4 pt-4 text-sm" style={{ borderTop: '1px solid var(--border-light)', color: 'var(--fg-muted)' }}>
               + $2.99/month for each additional member
             </div>
             <ul className="mt-6 space-y-2 text-sm" style={{ color: 'var(--fg-secondary)' }}>
-              <li>&#10003; Everything in FamilyOS — finance, home, family tracking, AI assistant</li>
-              <li>&#10003; Unlimited bank & smart home connections</li>
-              <li>&#10003; Cancel anytime</li>
+              <li>&#10003; Chores, routines, custody, health log, school notes, and Hermes chat</li>
+              <li>&#10003; Read-only SimpleFIN, and one Home Assistant connection if you add it</li>
+              <li>&#10003; Cancel from the billing portal</li>
             </ul>
             <button
               onClick={() => signInWithGoogle()}
               className="w-full mt-8 rounded-[var(--radius-full)] font-bold text-[15px] py-3.5"
               style={{ background: 'var(--brand-primary)', color: '#fff', boxShadow: 'var(--shadow-brand)' }}
             >
-              Get started
+              Sign in with Google
             </button>
           </div>
         </div>
@@ -319,13 +323,13 @@ export default function LoginPage() {
             Ready for a calmer house?
           </h2>
           <p className="text-base mb-8" style={{ color: 'rgba(255,248,238,0.7)' }}>
-            Connect your first account in under a minute. Free to try for your household.
+            Sign in with Google. A new household starts a 7-day trial, and a card is not required to start it.
           </p>
           <div className="flex gap-3.5 justify-center flex-wrap">
-            <GetStartedButton variant="primary">Get started free</GetStartedButton>
+            <GetStartedButton variant="primary">Sign in with Google</GetStartedButton>
           </div>
           <div className="text-[13px] mt-4" style={{ color: 'rgba(255,248,238,0.5)' }}>
-            No credit card required.
+            $9.99/month after the trial, for up to 3 members.
           </div>
         </div>
       </div>
