@@ -14,6 +14,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { LeaderboardWidget } from './LeaderboardWidget';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Video, Film, DollarSign, Moon, IceCream, PartyPopper,
@@ -28,6 +30,7 @@ const COLOR_DOT: Record<string, string> = {
 const RewardStore: React.FC = () => {
   const { householdMembers, currentUser, currentRole } = useAppContext();
   const isAdm = currentRole === 'superadmin' || currentRole === 'admin';
+  const streaksEnabled = useFeatureFlag('streaks_leaderboards');
 
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>(() => loadRedemptions());
   const [balance, setBalance] = useState(() => loadPointsBalance());
@@ -89,6 +92,8 @@ const RewardStore: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {streaksEnabled && <LeaderboardWidget />}
+
       <div>
         <h2 className="text-base font-bold text-white mb-3 font-display">Squad Point Balances</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

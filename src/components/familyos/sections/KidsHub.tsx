@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2, Sun } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
+import RoutinesHub from './RoutinesHub';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
 const HW_STATUSES = ['Not Started', 'In Progress', 'Done'];
@@ -57,10 +59,13 @@ interface AllowanceEntry {
 
 const KidsHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
+  const routinesEnabled = useFeatureFlag('shared_routines');
   const kids = householdMembers.filter((m) => m.role === 'child').map((m) => m.name);
-  const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance' | 'arcade'>('homework');
+  const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance' | 'arcade' | 'routines'>('homework');
+  const activeTab = tab === 'routines' && !routinesEnabled ? 'homework' : tab;
   const isAdm = currentRole && canDelete(currentRole);
   const TABS = [
+    ...(routinesEnabled ? [{ id: 'routines' as const, label: 'Routines', icon: Sun }] : []),
     { id: 'homework' as const, label: 'Homework', icon: BookOpen },
     { id: 'grades' as const, label: 'Grades', icon: Star },
     { id: 'activities' as const, label: 'Activities', icon: Activity },
@@ -76,18 +81,19 @@ const KidsHub: React.FC = () => {
           const Icon = t.icon;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${tab === t.id ? 'bg-berry-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${activeTab === t.id ? 'bg-berry-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" /> {t.label}
             </button>
           );
         })}
       </div>
 
-      {tab === 'homework' && <HomeworkTab isAdm={!!isAdm} kids={kids} />}
-      {tab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
-      {tab === 'activities' && <ActivitiesTab isAdm={!!isAdm} kids={kids} />}
-      {tab === 'allowance' && <AllowanceTab isAdm={!!isAdm} kids={kids} />}
-      {tab === 'arcade' && <ArcadeHub />}
+      {activeTab === 'routines' && routinesEnabled && <RoutinesHub />}
+      {activeTab === 'homework' && <HomeworkTab isAdm={!!isAdm} kids={kids} />}
+      {activeTab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
+      {activeTab === 'activities' && <ActivitiesTab isAdm={!!isAdm} kids={kids} />}
+      {activeTab === 'allowance' && <AllowanceTab isAdm={!!isAdm} kids={kids} />}
+      {activeTab === 'arcade' && <ArcadeHub />}
     </div>
   );
 };

@@ -22,6 +22,8 @@ interface AdhdFocusHeroProps {
   onLaunchFocusMode: () => void;
   todayCompletedCount: number;
   todayTotalCount: number;
+  activeStreak?: number;
+  streakActiveToday?: boolean;
 }
 
 export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
@@ -30,6 +32,8 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
   onLaunchFocusMode,
   todayCompletedCount,
   todayTotalCount,
+  activeStreak,
+  streakActiveToday,
 }) => {
   // Open tasks prioritized: High priority first, then estimated minutes ascending (easiest wins first for ADHD momentum!)
   const openTasks = useMemo(() => {
@@ -94,8 +98,30 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
           </div>
         </div>
 
-        {/* Progress bar pill */}
+        {/* Streak badge & Progress bar pill */}
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {activeStreak !== undefined && activeStreak > 0 && (
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
+                streakActiveToday
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                  : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+              }`}
+              title={
+                streakActiveToday
+                  ? 'Active today! Keep crushing it.'
+                  : 'At risk today! Complete a task to keep the streak alive.'
+              }
+            >
+              <Flame
+                className={`w-3.5 h-3.5 ${
+                  streakActiveToday ? 'text-amber-400 animate-pulse' : 'text-rose-400'
+                }`}
+              />
+              <span>{activeStreak}d {streakActiveToday ? 'Streak' : 'At Risk!'}</span>
+            </div>
+          )}
+
           <div className="flex-1 sm:w-44 h-3 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
             <div
               className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 transition-all duration-700 ease-out"

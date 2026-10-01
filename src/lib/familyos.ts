@@ -48,6 +48,9 @@ export const KEYS = {
   custodySwaps: 'familyos_custody_swaps',
   medDoses: 'familyos_med_doses',
   coppaConsents: 'familyos_coppa_consents',
+  routines: 'familyos_routines',
+  routineRuns: 'familyos_routine_runs',
+  memberStreaks: 'familyos_member_streaks',
 };
 
 export const DEFAULT_SETTINGS = {
@@ -193,12 +196,12 @@ export async function triggerHaDevice(
       return { ok: false, error: 'Entity ID must include a domain prefix, e.g. light.kitchen' };
     }
     const domain = cleanEntityId.split('.')[0];
-    const validDomains = ['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum'];
+    const validDomains = ['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum', 'scene'];
     if (!validDomains.includes(domain)) {
       return { ok: false, error: `Unsupported domain "${domain}". Supported: ${validDomains.join(', ')}` };
     }
-    const defaultService = domain === 'lock' ? 'unlock' : domain === 'vacuum' ? 'start' : domain === 'climate' ? 'turn_on' : 'toggle';
-    const service = (domain === 'climate' && action === 'toggle') ? 'turn_on' : (action || defaultService);
+    const defaultService = domain === 'lock' ? 'unlock' : domain === 'vacuum' ? 'start' : domain === 'climate' || domain === 'scene' ? 'turn_on' : 'toggle';
+    const service = (domain === 'climate' && action === 'toggle') ? 'turn_on' : (domain === 'scene' ? 'turn_on' : (action || defaultService));
     const res = await authedFetch('/api/ha-control', {
       method: 'POST',
       body: JSON.stringify({ domain, service, entityId: cleanEntityId }),

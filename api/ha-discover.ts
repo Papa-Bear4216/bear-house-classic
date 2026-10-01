@@ -18,7 +18,7 @@ import { checkRateLimit } from './_rateLimit.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 // Same allowlist as HaControlBodySchema in _schemas.ts — keep in sync.
-const CONTROLLABLE_DOMAINS = new Set(['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum']);
+const CONTROLLABLE_DOMAINS = new Set(['light', 'switch', 'lock', 'climate', 'fan', 'cover', 'vacuum', 'scene']);
 
 interface HaEntity {
   entity_id: string;

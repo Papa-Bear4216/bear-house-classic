@@ -10,6 +10,8 @@ import { onSyncUpdate } from '@/lib/sync';
 import { logActivity } from '@/lib/householdActivity';
 import { triggerConfetti } from '@/lib/confetti';
 import { resolveMemberIdByName } from './HouseholdBrain';
+import { getMemberStreak, recordMemberActivityForToday } from '@/lib/streaks';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 import AlertModal from './AlertModal';
 import WeatherWidget from './WeatherWidget';
@@ -31,19 +33,29 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
   const { householdMembers, currentUser } = useAppContext();
+  const streaksEnabled = useFeatureFlag('streaks_leaderboards');
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
+  const [userStreak, setUserStreak] = useState(() =>
+    currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null
+  );
 
   useEffect(() => {
+    const refresh = () =>
+      setUserStreak(currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null);
+    refresh();
     return onSyncUpdate((key) => {
-      if (key === KEYS.tasks) {
+      if (key === KEYS.tasks || key === '*') {
         setTasks(loadJSON(KEYS.tasks, []));
       }
+      if (key === KEYS.memberStreaks || key === '*') {
+        refresh();
+      }
     });
-  }, []);
+  }, [currentUser?.id, currentUser?.name]);
 
   const [, forceWeatherRefresh] = useState(0);
   useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);
@@ -63,7 +75,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     if (currentUser) logActivity(currentUser.name, `completed "${target.text}"`);
 
     const memberId = resolveMemberIdByName(householdMembers, target.person);
-    if (memberId) awardPoints(memberId, POINT_VALUES.default);
+    if (memberId) {
+      awardPoints(memberId, POINT_VALUES.default);
+      recordMemberActivityForToday(memberId, target.person);
+    }
 
     if (target.recurrence) {
       const nextAt = nextRecurrence(now, target.recurrence);
@@ -416,6 +431,8 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
             onLaunchFocusMode={() => setFocusModeOpen(true)}
             todayCompletedCount={stats.todayCompletedCount}
             todayTotalCount={stats.todayTotalCount}
+            activeStreak={streaksEnabled ? userStreak?.currentStreak : undefined}
+            streakActiveToday={streaksEnabled ? userStreak?.activeToday : undefined}
           />
 
           {/* Quick Action Chips */}
