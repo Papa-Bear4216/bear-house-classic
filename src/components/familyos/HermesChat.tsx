@@ -14,6 +14,7 @@ import { getVoiceProvider } from '@/lib/voice';
 import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
 import { loadHermesWeather, cachedHermesWeather } from '@/lib/hermesWeather';
 import { buildMorningBrief } from '@/lib/morningBrief';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -465,12 +466,9 @@ HOMEWORK OPEN (${homework.length}): ${homework.length ? homework.slice(0, 6).map
 ${memory ? `═══ MY MEMORY ═══\n${memory}\n` : ''}
 ${(() => { const hb = memoryFactBlock(); return hb ? `═══ HOUSEHOLD BRAIN (rules/inventory/procedures set by the family) ═══\n${hb}\n` : ''; })()}
 
-═══ RESPONSE FORMAT ═══
-ALWAYS return valid JSON. Never plain text. Never markdown outside the text field:
-{
-  "text": "Your conversational response (plain text, warm, first names, under 120 words unless asked)",
-  "actions": []
-}
+═══ INSTRUCTIONS ═══
+Speak warmly and practically using first names, keeping replies concise (under 120 words unless asked).
+${isFeatureEnabled('hermes_neutral') ? '═══ CO-PARENTING MEDIATION MODE (ACTIVE) ═══\nMaintain an empathetic, completely neutral, de-escalating tone. Never take sides or blame either household. Frame schedules, pickups, and responsibilities objectively around child wellbeing.\n' : ''}When the user asks you to do something (add, complete, mark, log, etc.), use your available actions/tools.
 
 ═══ AVAILABLE ACTIONS ═══
 addTask: {type, params: {text, person, priority: High|Medium|Low, category: Shopping|Maintenance|Scheduling|Pet|Important Dates|General, dueEstimate: Today|This Week|This Month|No Deadline}}
@@ -543,15 +541,46 @@ async function callHermes(history: { role: string; content: string }[], househol
       body: JSON.stringify({
         messages: history,
         system: buildSystemPrompt(householdMembers, currentUserName, currentRole),
+        enableTools: true,
         maxTokens: 1200, // meal plans with recipes overran 600 and got cut off mid-JSON
         model: modelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
       }),
     });
     if (!res.ok) return { text: 'Something went wrong. Try again.' };
     const data = await res.json();
-    const raw = (data.text || '').trim();
+    const rawText = (data.text || '').trim();
 
-    return parseHermesReply<Action>(raw);
+    let result: { text: string; actions?: Action[] };
+    if (data.toolsDegraded) {
+      const parsed = parseHermesReply<Action>(rawText);
+      result = {
+        text: parsed.text || rawText || 'Done.',
+        actions: parsed.actions,
+      };
+    } else if (Array.isArray(data.actions)) {
+      result = {
+        text: rawText || 'Done.',
+        actions: data.actions,
+      };
+    } else {
+      const parsed = parseHermesReply<Action>(rawText);
+      result = {
+        text: parsed.text || rawText || 'Done.',
+        actions: parsed.actions,
+      };
+    }
+
+    if (data.toolsDegraded) {
+      const banner = '*(Hermes tools temporarily degraded to text mode; actions parsed from response.)*';
+      result.text = result.text ? `${result.text}\n\n${banner}` : banner;
+    } else if (data.truncated || (data.droppedActions && data.droppedActions > 0)) {
+      const warning = data.droppedActions
+        ? '*(Some requested actions could not be validated or were cut off by token limits. Please verify or repeat.)*'
+        : '*(Response was cut off by token limits. Please verify or repeat.)*';
+      result.text = result.text ? `${result.text}\n\n${warning}` : warning;
+    }
+
+    return result;
   } catch {
     return { text: 'Network error. Check your connection.' };
   }
@@ -702,10 +731,10 @@ const HermesChat: React.FC = () => {
     setMessages(nextMessages);
     setLoading(true);
 
-    // Build history for API (last 12 turns, user/assistant only)
+    // Build history for API (last 12 turns, user/assistant only, stripping any UI warning banners)
     const history = nextMessages.slice(-12).map(m => ({
       role: m.role as 'user' | 'assistant',
-      content: m.text,
+      content: m.text.replace(/\n\n\*\((?:Some requested actions|Response was cut off).*?\)\*$/s, ''),
     }));
 
     const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole);
@@ -713,7 +742,37 @@ const HermesChat: React.FC = () => {
     // Execute any actions
     const executed: ExecutedAction[] = [];
     const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
+    const canControlDevices = currentUser?.canControlDevices ?? isAdult;
     for (const action of response.actions || []) {
+      if (!isAdult && (action.type === 'manageMember' || action.type === 'notifyPerson' || action.type === 'addBill' || action.type === 'markBillPaid')) {
+        executed.push({ ...action, result: 'Permission denied (admin required)', ok: false });
+        continue;
+      }
+      if (!canControlDevices && (action.type === 'controlDevice' || action.type === 'discoverSmartHome')) {
+        executed.push({ ...action, result: 'Permission denied (smart home access required)', ok: false });
+        continue;
+      }
+      if (action.type === 'controlDevice') {
+        const svc = String(action.params?.service || '');
+        if (svc === 'unlock' || svc === 'open_cover') {
+          const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+            ? window.confirm(`Hermes wants to ${svc.replace('_', ' ')} ${action.params?.entityId}. Confirm?`)
+            : true;
+          if (!confirmed) {
+            executed.push({ ...action, result: 'Cancelled by user (security confirmation declined)', ok: false });
+            continue;
+          }
+        }
+      }
+      if (action.type === 'genericAction' && action.params?.op === 'clear') {
+        const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+          ? window.confirm(`Hermes wants to clear all items in ${action.params?.domain}. Confirm?`)
+          : true;
+        if (!confirmed) {
+          executed.push({ ...action, result: 'Cancelled by user (clear confirmation declined)', ok: false });
+          continue;
+        }
+      }
       const { result, ok } = await executeAction(action, defaultPerson, householdMembers);
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated

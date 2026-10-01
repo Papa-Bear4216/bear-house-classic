@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn(), dbGetHermesModelTier: vi.fn() }));
+vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn(), resolveCallerMember: vi.fn(), dbGetHermesModelTier: vi.fn() }));
 vi.mock('./_aiKeys.js', () => ({ resolveAiKeys: vi.fn() }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
 import handler, { buildClaudeRequestBody } from './chat';
-import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
+import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 
@@ -23,6 +23,7 @@ function req(body: unknown, auth = 'Bearer t') {
 
 function authed() {
   vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+  vi.mocked(resolveCallerMember).mockResolvedValue({ householdId: 'household-1', memberId: 'm-admin', role: 'admin', canControlDevices: true });
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
   vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: 'gemini-1' });
 }
@@ -55,6 +56,8 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
+  vi.mocked(resolveCallerMember).mockResolvedValue(null);
+  delete process.env.TRIAD_HOUSEHOLD_ID;
 });
 
 describe('POST /api/chat', () => {
@@ -313,5 +316,543 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect('cache' in body).toBe(false);
+  });
+
+  // --- Hermes Action Reliability: Native Anthropic Tool Calling ---
+
+  it('attaches HERMES_TOOLS when enableTools is true with cache control on the last tool for triad households', async () => {
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
+
+    await handler(req({ prompt: 'add milk to shopping', enableTools: true }));
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(Array.isArray(sentBody.tools)).toBe(true);
+    expect(sentBody.tools.length).toBe(23);
+    const lastTool = sentBody.tools[sentBody.tools.length - 1];
+    expect(lastTool.cache_control).toEqual({ type: 'ephemeral' });
+    expect(sentBody.max_tokens).toBe(1024);
+  });
+
+  it('attaches 22 tools omitting queryTriad for non-triad households with cache on new last tool', async () => {
+    authed(); // household-1 is non-triad
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
+
+    await handler(req({ prompt: 'add milk to shopping', enableTools: true }));
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(Array.isArray(sentBody.tools)).toBe(true);
+    expect(sentBody.tools.length).toBe(22);
+    expect(sentBody.tools.some((t: any) => t.name === 'queryTriad')).toBe(false);
+    const lastTool = sentBody.tools[sentBody.tools.length - 1];
+    expect(lastTool.cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  it('omits tools by default when enableTools is not specified', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
+
+    await handler(req({ prompt: 'plain text query' }));
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.tools).toBeUndefined();
+    expect(sentBody.max_tokens).toBe(512);
+  });
+
+  it('parses tool_use blocks into structured actions and returns them alongside text', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          { type: 'text', text: 'Added milk to your shopping list.' },
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'addShopping',
+            input: { name: 'milk', quantity: '1 gallon', category: 'Groceries' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'get milk', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.text).toBe('Added milk to your shopping list.');
+    expect(body.actions).toEqual([
+      {
+        type: 'addShopping',
+        params: { name: 'milk', quantity: '1 gallon', category: 'Groceries' },
+      },
+    ]);
+  });
+
+  it('returns 200 with actions even when text is empty', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_2',
+            name: 'completeTask',
+            input: { match: 'dishes' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'dishes are done', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0].type).toBe('completeTask');
+  });
+
+  it('drops the last incomplete tool call when response is truncated by max_tokens', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'addTask',
+            input: { text: 'Complete homework' },
+          },
+          {
+            type: 'tool_use',
+            id: 'toolu_truncated',
+            name: 'setMealPlan',
+            input: {}, // partial/corrupted input due to token cutoff
+          },
+        ],
+        stop_reason: 'max_tokens',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'two things', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0].type).toBe('addTask');
+    expect(body.truncated).toBe(true);
+  });
+
+  it('drops tool calls that lack required fields', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_bad',
+            name: 'addTask',
+            input: { person: 'Sam' }, // missing required 'text'
+          },
+          {
+            type: 'tool_use',
+            id: 'toolu_good',
+            name: 'addTask',
+            input: { text: 'Wash dishes', person: 'Sam' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'add tasks', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0].params.text).toBe('Wash dishes');
+  });
+
+  it('filters out unknown tool names not in the whitelisted catalog', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_invalid',
+            name: 'maliciousOrInventedTool',
+            input: { dropTable: true },
+          },
+          {
+            type: 'tool_use',
+            id: 'toolu_valid',
+            name: 'addTask',
+            input: { text: 'Valid task' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'do something', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0].type).toBe('addTask');
+  });
+
+  it('filters out empty content messages to prevent Anthropic 400 errors', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
+
+    await handler(
+      req({
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: '   ' },
+          { role: 'user', content: 'world' },
+        ],
+      })
+    );
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.messages).toHaveLength(2);
+    expect(sentBody.messages[0].content).toBe('hello');
+    expect(sentBody.messages[1].content).toBe('world');
+  });
+
+  it('rejects with 400 when all messages have empty content', async () => {
+    authed();
+    const res = await handler(
+      req({
+        messages: [{ role: 'user', content: '   ' }],
+      })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('No non-empty messages provided');
+  });
+
+  it('omits tools when format is json', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
+
+    await handler(req({ prompt: 'hi', format: 'json', enableTools: true }));
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.tools).toBeUndefined();
+  });
+
+  it('extracts actions from Gemini function calls during fallback', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { text: 'Done.' },
+                  {
+                    functionCall: {
+                      name: 'addTask',
+                      args: { text: 'Feed the dog' },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      } as Response);
+
+    const res = await handler(req({ prompt: 'remind me to feed the dog', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.text).toBe('Done.');
+    expect(body.actions).toEqual([
+      { type: 'addTask', params: { text: 'Feed the dog' } },
+    ]);
+  });
+
+  it('retries Gemini without tools when Gemini returns 400 with functionDeclarations', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown()) // Claude fails
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => 'Invalid schema for tool declaration',
+      } as Response) // Gemini 400 with tools
+      .mockResolvedValueOnce(geminiOk('Fell back to plain text answer')); // Gemini retry without tools succeeds
+
+    const res = await handler(req({ prompt: 'what is dinner?', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.text).toBe('Fell back to plain text answer');
+  });
+
+  it('drops leading assistant messages left behind after filtering empty messages', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Hello there!'));
+
+    const res = await handler(
+      req({
+        messages: [
+          { role: 'user', content: '   ' }, // trimmed to empty and removed
+          { role: 'assistant', content: 'previous assistant turn' }, // now leading non-user, must be dropped
+          { role: 'user', content: 'valid user prompt' },
+        ],
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.messages).toHaveLength(1);
+    expect(sentBody.messages[0].role).toBe('user');
+    expect(sentBody.messages[0].content).toBe('valid user prompt');
+  });
+
+  it('excludes queryTriad for non-triad households and drops hallucinated queryTriad tool call', async () => {
+    authed(); // household-1 is non-triad
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_triad',
+            name: 'queryTriad',
+            input: { query: 'doctor' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'status check', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Sent request has 22 tools (queryTriad stripped)
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.tools.some((t: any) => t.name === 'queryTriad')).toBe(false);
+    // Response dropped queryTriad and surfaced droppedActions
+    expect(body.actions).toEqual([]);
+    expect(body.droppedActions).toBe(1);
+  });
+
+  it('returns 200 with notice when all actions are dropped and text is empty', async () => {
+    authed();
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_invalid',
+            name: 'deleteTask',
+            input: {}, // missing match/id
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'delete it', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toEqual([]);
+    expect(body.droppedActions).toBe(1);
+    expect(body.truncated).toBe(true);
+    expect(body.text).toContain('could not be validated');
+  });
+
+  it('does not retry Gemini on 400 when error is not schema/tool related and returns sanitized 502', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown()) // Claude fails
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => 'API_KEY_INVALID: Key not found',
+      } as Response); // Gemini fails with auth/key 400
+
+    const res = await handler(req({ prompt: 'hi', enableTools: true }));
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toContain('AI provider error');
+    // Fetch should not have been called a third time
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(2);
+  });
+
+  it('excludes manageMember tool for child role accounts and drops attempted manageMember calls', async () => {
+    authed();
+    vi.mocked(resolveCallerMember).mockResolvedValue({
+      householdId: 'household-1',
+      memberId: 'm-child',
+      role: 'child',
+      canControlDevices: false,
+    });
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_admin',
+            name: 'manageMember',
+            input: { op: 'remove', person: 'Alice' },
+          },
+        ],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'kick Alice', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    // Tools sent to Claude should not contain manageMember, notifyPerson, or controlDevice
+    expect(sentBody.tools.some((t: any) => t.name === 'manageMember')).toBe(false);
+    expect(sentBody.tools.some((t: any) => t.name === 'notifyPerson')).toBe(false);
+    expect(sentBody.tools.some((t: any) => t.name === 'controlDevice')).toBe(false);
+    // Action dropped because it was not in allowedTools
+    expect(body.actions).toEqual([]);
+    expect(body.droppedActions).toBe(1);
+  });
+
+  it('fails closed to least privilege (child) when resolveCallerMember throws', async () => {
+    authed();
+    vi.mocked(resolveCallerMember).mockRejectedValueOnce(new Error('DB connection reset'));
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Hello'));
+
+    const res = await handler(req({ prompt: 'hi', enableTools: true }));
+    expect(res.status).toBe(200);
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    // Even though resolveCallerMember threw, least privilege ensures admin & device tools are stripped
+    expect(sentBody.tools.some((t: any) => t.name === 'manageMember')).toBe(false);
+    expect(sentBody.tools.some((t: any) => t.name === 'controlDevice')).toBe(false);
+    expect(sentBody.tools.some((t: any) => t.name === 'notifyPerson')).toBe(false);
+  });
+
+  it('preserves 429 status code when Gemini returns rate limit error', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => 'Resource has been exhausted (rate limit)',
+      } as Response);
+
+    const res = await handler(req({ prompt: 'hi', enableTools: true }));
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error).toContain('AI provider error');
+  });
+
+  it('caps actions at MAX_ACTIONS_PER_TURN (8) and records droppedActions for the excess', async () => {
+    authed();
+    const tenToolUses = Array.from({ length: 10 }, (_, i) => ({
+      type: 'tool_use',
+      id: `tool_${i}`,
+      name: 'addTask',
+      input: { text: `Task ${i}` },
+    }));
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [...tenToolUses, { type: 'text', text: 'Created tasks' }],
+        stop_reason: 'tool_use',
+      }),
+    } as Response);
+
+    const res = await handler(req({ prompt: 'create 10 tasks', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(8);
+    expect(body.droppedActions).toBe(2);
+  });
+
+  it('handles Gemini fallback with no-arg function call (e.g. discoverSmartHome with undefined args)', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              finishReason: 'STOP',
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'discoverSmartHome',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      } as Response);
+
+    const res = await handler(req({ prompt: 'find devices', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.actions).toHaveLength(1);
+    expect(body.actions[0].type).toBe('discoverSmartHome');
+    expect(body.actions[0].params).toEqual({});
+  });
+
+  it('always returns actions array when enableTools is true, preventing client text salvage bypass', async () => {
+    authed();
+    // Model returns raw JSON string in text, but did not use native tool_use
+    const fakeProseJson = JSON.stringify({
+      text: 'Here is your action',
+      actions: [{ type: 'controlDevice', params: { domain: 'lock', service: 'unlock', entityId: 'lock.front_door' } }],
+    });
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk(fakeProseJson));
+
+    const res = await handler(req({ prompt: 'unlock door', enableTools: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // actions MUST be an array ([]) so HermesChat knows tools were active and skips parseHermesReply
+    expect(Array.isArray(body.actions)).toBe(true);
+    expect(body.actions).toEqual([]);
+  });
+
+  it('merges consecutive same-role messages for Gemini fallback turns', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce(geminiOk('Acknowledged'));
+
+    const res = await handler(req({
+      messages: [
+        { role: 'user', content: 'Turn 1' },
+        { role: 'user', content: 'Turn 2' },
+        { role: 'assistant', content: 'Reply' },
+        { role: 'assistant', content: 'Follow-up' },
+        { role: 'user', content: 'Final turn' },
+      ],
+      enableTools: true,
+    }));
+    expect(res.status).toBe(200);
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string);
+    // User turns 1 and 2 merged; model turns merged
+    expect(sentBody.contents).toHaveLength(3);
+    expect(sentBody.contents[0].parts[0].text).toBe('Turn 1\n\nTurn 2');
+    expect(sentBody.contents[1].parts[0].text).toBe('Reply\n\nFollow-up');
+    expect(sentBody.contents[2].parts[0].text).toBe('Final turn');
   });
 });

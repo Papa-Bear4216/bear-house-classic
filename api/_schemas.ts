@@ -24,6 +24,7 @@ export const ChatBodySchema = z.object({
   model: z.string().optional(), // free-form: passed straight to Anthropic (chat.ts:59), not restricted to a fixed set
   format: z.string().optional(), // 'json' opts the LLM into JSON output mode
   outputSchema: z.string().max(2000).optional(), // advisory JSON shape hint planted in the system prompt
+  enableTools: z.boolean().optional(), // true enables native Hermes action tool calling
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
 
 export const VisionBodySchema = z.object({

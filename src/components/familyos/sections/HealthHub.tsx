@@ -3,6 +3,7 @@ import { Plus, Trash2, Pill, Calendar, Heart } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 const FREQUENCIES = ['Daily', 'Twice daily', 'Weekly', 'As needed', 'Other'];
 
@@ -43,11 +44,18 @@ const HealthHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
   const people = householdMembers.filter((m) => m.role !== 'pet').map((m) => m.name);
   const pet = householdMembers.find((m) => m.role === 'pet');
-  const [tab, setTab] = useState<'medications' | 'appointments' | 'pet'>('medications');
+  const medsEnabled = useFeatureFlag('med_tracker');
+  const [tab, setTab] = useState<'medications' | 'appointments' | 'pet'>(() => (medsEnabled ? 'medications' : 'appointments'));
   const isAdm = currentRole && canDelete(currentRole);
 
+  useEffect(() => {
+    if (!medsEnabled && tab === 'medications') {
+      setTab('appointments');
+    }
+  }, [medsEnabled, tab]);
+
   const TABS = [
-    { id: 'medications' as const, label: 'Medications', icon: Pill },
+    ...(medsEnabled ? [{ id: 'medications' as const, label: 'Medications', icon: Pill }] : []),
     { id: 'appointments' as const, label: 'Appointments', icon: Calendar },
     ...(pet ? [{ id: 'pet' as const, label: pet.name, icon: Heart }] : []),
   ];
@@ -66,7 +74,7 @@ const HealthHub: React.FC = () => {
           );
         })}
       </div>
-      {tab === 'medications' && <MedsTab isAdm={!!isAdm} people={people} />}
+      {medsEnabled && tab === 'medications' && <MedsTab isAdm={!!isAdm} people={people} />}
       {tab === 'appointments' && <ApptTab isAdm={!!isAdm} people={people} />}
       {tab === 'pet' && pet && <LucyTab isAdm={!!isAdm} />}
     </div>

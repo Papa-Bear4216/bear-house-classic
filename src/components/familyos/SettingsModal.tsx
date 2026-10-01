@@ -19,6 +19,7 @@ import { ClassroomPanel } from './ClassroomPanel';
 import { GoogleHomeCard } from './GoogleHomeCard';
 import { ThemeToggle } from './ThemeToggle';
 import { HOME_LOCATION_CHANGED_EVENT } from './WeatherWidget';
+import { FeatureSwitchboardPanel } from './FeatureSwitchboardPanel';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -141,7 +142,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   );
 }
 
-type Tab = 'general' | 'integrations' | 'family';
+type Tab = 'general' | 'integrations' | 'switchboard' | 'family';
 
 const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const { currentUser, currentRole, householdMembers, householdId } = useAppContext();
@@ -295,6 +296,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const TABS: { id: Tab; label: string }[] = [
     { id: 'general', label: 'General' },
     ...(isAdmin ? [{ id: 'integrations' as Tab, label: 'Integrations' }] : []),
+    ...(isAdmin ? [{ id: 'switchboard' as Tab, label: 'Switchboard' }] : []),
     { id: 'family', label: 'Family' },
   ];
 
@@ -673,6 +675,11 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               </IntegrationCard>
 
             </div>
+          )}
+
+          {/* ── SWITCHBOARD TAB ── */}
+          {tab === 'switchboard' && isAdmin && (
+            <FeatureSwitchboardPanel />
           )}
 
           {/* ── FAMILY TAB ── */}

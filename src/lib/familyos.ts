@@ -43,6 +43,7 @@ export const KEYS = {
   points: 'household_points',
   redemptions: 'reward_redemptions',
   roomMap: 'household_room_map',
+  featureFlags: 'familyos_feature_flags',
 };
 
 export const DEFAULT_SETTINGS = {

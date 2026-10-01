@@ -83,10 +83,22 @@ export function runGenericAction(
   }
 
   const match = (params.match || '').toLowerCase();
-  const idx = items.findIndex(
-    (i) => (params.id && i.id === params.id) || (match && String(i[spec.matchField] ?? '').toLowerCase().includes(match))
-  );
-  if (idx === -1) return { result: `No ${spec.domain} item matching "${params.match ?? params.id}"`, ok: false };
+  const matchingIndices: number[] = [];
+  items.forEach((item, index) => {
+    if (params.id && item.id === params.id) {
+      matchingIndices.push(index);
+    } else if (match && String(item[spec.matchField] ?? '').toLowerCase().includes(match)) {
+      matchingIndices.push(index);
+    }
+  });
+
+  if (matchingIndices.length === 0) {
+    return { result: `No ${spec.domain} item matching "${params.match ?? params.id}"`, ok: false };
+  }
+  if (matchingIndices.length > 1 && !params.id) {
+    return { result: `Multiple ${spec.domain} items match "${params.match}". Please be more specific.`, ok: false };
+  }
+  const idx = matchingIndices[0];
 
   if (op === 'delete') {
     const [removed] = items.splice(idx, 1);
