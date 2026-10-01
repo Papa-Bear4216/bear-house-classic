@@ -358,3 +358,55 @@ export function respondToCustodySwap(params: {
   saveCustodySwaps(current);
   return { ok: true, swap: updated };
 }
+
+export interface CustodyScheduleSettings {
+  template?: string;
+  pattern?: CustodyPattern;
+  startDate: string;
+  primaryHouseholdName?: string;
+  secondaryHouseholdName?: string;
+  primaryHouseName?: string;
+  secondaryHouseName?: string;
+  transitionDay?: string;
+  transitionTime?: string;
+  transitionLocation?: string;
+}
+
+/**
+ * Calculates overnight counts given either a CustodySchedule or CustodyScheduleSettings.
+ */
+export function calculateCustodyOvernights(
+  scheduleOrSettings: CustodySchedule | CustodyScheduleSettings,
+  startDateStr: string,
+  endDateStr: string,
+  swaps: CustodySwapRequest[] = [],
+  childName?: string,
+): { primary: number; secondary: number; total: number; primaryPercent: number; secondaryPercent: number } {
+  const pattern = (('template' in scheduleOrSettings ? (scheduleOrSettings as any).template : undefined) ||
+    scheduleOrSettings.pattern ||
+    '2-2-3') as CustodyPattern;
+  const primaryHouseName =
+    ('primaryHouseholdName' in scheduleOrSettings ? (scheduleOrSettings as any).primaryHouseholdName : undefined) ||
+    ('primaryHouseName' in scheduleOrSettings ? (scheduleOrSettings as any).primaryHouseName : undefined) ||
+    'Primary House';
+  const secondaryHouseName =
+    ('secondaryHouseholdName' in scheduleOrSettings ? (scheduleOrSettings as any).secondaryHouseholdName : undefined) ||
+    ('secondaryHouseName' in scheduleOrSettings ? (scheduleOrSettings as any).secondaryHouseName : undefined) ||
+    'Secondary House';
+
+  const schedule: CustodySchedule = {
+    id: 'id' in scheduleOrSettings ? (scheduleOrSettings as any).id : 'schedule',
+    pattern,
+    startDate: scheduleOrSettings.startDate,
+    primaryHouseName,
+    secondaryHouseName,
+    primaryParentName: 'primaryParentName' in scheduleOrSettings ? (scheduleOrSettings as any).primaryParentName : 'Parent A',
+    secondaryParentName: 'secondaryParentName' in scheduleOrSettings ? (scheduleOrSettings as any).secondaryParentName : 'Parent B',
+    transitionTime: scheduleOrSettings.transitionTime || '17:00',
+    overrides: 'overrides' in scheduleOrSettings ? (scheduleOrSettings as any).overrides : undefined,
+    children: 'children' in scheduleOrSettings ? (scheduleOrSettings as any).children : undefined,
+  };
+
+  return calculateOvernights(startDateStr, endDateStr, schedule, swaps, childName);
+}
+

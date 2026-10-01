@@ -14,7 +14,8 @@ import { getVoiceProvider } from '@/lib/voice';
 import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
 import { loadHermesWeather, cachedHermesWeather } from '@/lib/hermesWeather';
 import { buildMorningBrief } from '@/lib/morningBrief';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { isFeatureEnabled, useFeatureFlag } from '@/lib/featureFlags';
+import BiffToneCheckModal from './sections/BiffToneCheckModal';
 
 // ─── Action types ────────────────────────────────────────────────────────────
 type ActionType =
@@ -529,7 +530,7 @@ queryTriad: {type, params: {query: "doctor"|"gate"|"status"|"review diff"|"debug
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet', currentRole?: string | null): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet', currentRole?: string | null, neutralMode?: boolean): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
     const res = await fetch(apiUrl('/api/chat'), {
@@ -542,6 +543,7 @@ async function callHermes(history: { role: string; content: string }[], househol
         messages: history,
         system: buildSystemPrompt(householdMembers, currentUserName, currentRole),
         enableTools: true,
+        neutralMode: neutralMode === true,
         maxTokens: 1200, // meal plans with recipes overran 600 and got cut off mid-JSON
         model: modelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
       }),
@@ -663,6 +665,10 @@ function followUpsFor(lastMsg: Message | undefined): string[] {
 const HermesChat: React.FC = () => {
   const { currentUser, currentRole, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
   const isAdult = currentRole === 'admin' || currentRole === 'superadmin';
+  const neutralFlagEnabled = useFeatureFlag('hermes_neutral');
+  const [neutralMode, setNeutralMode] = useState(false);
+  const effectiveNeutralMode = neutralFlagEnabled && neutralMode;
+  const [toneCheckOpen, setToneCheckOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -731,7 +737,7 @@ const HermesChat: React.FC = () => {
       content: m.text.replace(/\n\n\*\((?:Some requested actions|Response was cut off).*?\)\*$/s, ''),
     }));
 
-    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole);
+    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole, effectiveNeutralMode);
 
     // Execute any actions
     const executed: ExecutedAction[] = [];
@@ -903,6 +909,19 @@ const HermesChat: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {neutralFlagEnabled && (
+                <button
+                  onClick={() => setNeutralMode((n) => !n)}
+                  title={effectiveNeutralMode ? 'Neutral Co-Parent Mode Active' : 'Enable Neutral Co-Parent Mode'}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all border ${
+                    effectiveNeutralMode
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🌿 Neutral
+                </button>
+              )}
               {messages.length > 0 && (
                 <button
                   onClick={clearChat}
@@ -932,6 +951,21 @@ const HermesChat: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {/* Neutral mode active banner */}
+          {effectiveNeutralMode && (
+            <div className="bg-emerald-950/60 border-b border-emerald-500/20 px-4 py-1.5 flex items-center justify-between text-[11px] text-emerald-300 flex-shrink-0">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span>🌿 BIFF Neutral Mode Active</span>
+              </span>
+              <button
+                onClick={() => setToneCheckOpen(true)}
+                className="underline hover:text-white font-semibold text-[10px]"
+              >
+                Tone Check Draft
+              </button>
+            </div>
+          )}
 
           {/* Voice unlock */}
           {unlockOpen && !voiceUnlocked && (
@@ -1077,6 +1111,15 @@ const HermesChat: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {neutralFlagEnabled && (
+        <BiffToneCheckModal
+          open={toneCheckOpen}
+          onOpenChange={setToneCheckOpen}
+          initialText={input}
+          onApplyText={(cleanText) => setInput(cleanText)}
+        />
       )}
     </>
   );

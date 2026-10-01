@@ -20,6 +20,7 @@ import MemberProfileModal from './MemberProfileModal';
 import ActivityFeed from './ActivityFeed';
 import AdhdFocusHero from './AdhdFocusHero';
 import FocusMode from './FocusMode';
+import WeeklyRoundupModal from './sections/WeeklyRoundupModal';
 
 // recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
 // needed when the user opens the Trends tab — split it into its own chunk.
@@ -34,10 +35,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
   const { householdMembers, currentUser } = useAppContext();
   const streaksEnabled = useFeatureFlag('streaks_leaderboards');
+  const weeklyRoundupEnabled = useFeatureFlag('weekly_roundup');
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
+  const [roundupModalOpen, setRoundupModalOpen] = useState(false);
   const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
   const [userStreak, setUserStreak] = useState(() =>
     currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null
@@ -330,6 +333,9 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       {profileMemberId && (
         <MemberProfileModal memberId={profileMemberId} onClose={() => setProfileMemberId(null)} />
       )}
+      {weeklyRoundupEnabled && (
+        <WeeklyRoundupModal open={roundupModalOpen} onOpenChange={setRoundupModalOpen} />
+      )}
 
       {/* Hero Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -351,6 +357,17 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         </div>
 
         <div className="flex items-center gap-2">
+          {weeklyRoundupEnabled && (
+            <button
+              onClick={() => setRoundupModalOpen(true)}
+              className="px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 transition-all shadow-md focus-ring"
+              title="Weekly Family Logistics Digest"
+            >
+              <Calendar className="w-4 h-4 text-indigo-400" />
+              <span>Weekly Digest</span>
+            </button>
+          )}
+
           <button
             onClick={() => setFocusModeOpen((f) => !f)}
             className={`px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md focus-ring ${

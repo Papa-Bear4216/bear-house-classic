@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Settings,
   Trash2,
+  Calendar,
+  Sparkles,
 } from 'lucide-react';
 import {
   CustodySchedule,
@@ -26,8 +28,15 @@ import {
 import { KEYS } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import BiffToneCheckModal from './BiffToneCheckModal';
+import WeeklyRoundupModal from './WeeklyRoundupModal';
 
 export const CustodyCalendar: React.FC = () => {
+  const neutralEnabled = useFeatureFlag('hermes_neutral');
+  const roundupEnabled = useFeatureFlag('weekly_roundup');
+  const [showToneCheck, setShowToneCheck] = useState(false);
+  const [showRoundupModal, setShowRoundupModal] = useState(false);
   const { currentUser, currentRole, householdMembers } = useAppContext();
   const canCoordinate = currentRole === 'admin' || currentRole === 'superadmin';
 
@@ -241,6 +250,15 @@ export const CustodyCalendar: React.FC = () => {
 
           {canCoordinate && (
             <div className="flex items-center gap-2 flex-wrap">
+              {roundupEnabled && (
+                <button
+                  onClick={() => setShowRoundupModal(true)}
+                  className="flex items-center gap-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-semibold px-3 py-2 rounded-xl text-xs border border-indigo-500/30 active:scale-95 transition"
+                  title="Weekly Family Logistics Digest"
+                >
+                  <Calendar className="w-3.5 h-3.5" /> Weekly Digest
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowSwapModal(true);
@@ -641,7 +659,18 @@ export const CustodyCalendar: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">Reason / Note</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-400 font-medium">Reason / Note</label>
+                  {neutralEnabled && swapReason.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowToneCheck(true)}
+                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold underline flex items-center gap-1"
+                    >
+                      🌿 Check BIFF Tone
+                    </button>
+                  )}
+                </div>
                 <input
                   value={swapReason}
                   onChange={(e) => setSwapReason(e.target.value)}
@@ -788,6 +817,18 @@ export const CustodyCalendar: React.FC = () => {
           </div>
         </div>
       )}
+
+      <BiffToneCheckModal
+        open={showToneCheck}
+        onOpenChange={setShowToneCheck}
+        initialText={swapReason}
+        onApplyText={(clean) => setSwapReason(clean)}
+      />
+
+      <WeeklyRoundupModal
+        open={showRoundupModal}
+        onOpenChange={setShowRoundupModal}
+      />
     </div>
   );
 };

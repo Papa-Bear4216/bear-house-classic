@@ -25,6 +25,7 @@ export const ChatBodySchema = z.object({
   format: z.string().optional(), // 'json' opts the LLM into JSON output mode
   outputSchema: z.string().max(2000).optional(), // advisory JSON shape hint planted in the system prompt
   enableTools: z.boolean().optional(), // true enables native Hermes action tool calling
+  neutralMode: z.boolean().optional(), // true enables Hermes Neutral Co-Parent tone de-escalation
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
 
 export const VisionBodySchema = z.object({

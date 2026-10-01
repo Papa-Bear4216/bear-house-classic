@@ -327,7 +327,7 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema, enableTools } = parsed.data;
+  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema, enableTools, neutralMode } = parsed.data;
 
   // Tools are opt-in for Hermes Chat callers (`enableTools: true`) to prevent token overhead
   // and unexpected tool calling on general text-completion endpoints.
@@ -366,7 +366,16 @@ export default async function handler(req: Request): Promise<Response> {
   const jsonHint = outputSchema
     ? `\n\nYou must return valid JSON matching this shape:\n${outputSchema}\nNo other keys.`
     : '';
-  const effectiveSystem = (system || HERMES_SYSTEM_PROMPT) + jsonHint;
+  const neutralHint = neutralMode
+    ? `\n\n[Hermes Neutral Co-Parent Mode Active]:
+You are acting as an objective, conflict-deescalating co-parenting communication assistant.
+Adhere strictly to the BIFF communication standard (Brief, Informative, Friendly, Firm):
+- Focus 100% on child logistics, schedules, needs, and well-being.
+- Strip away accusations, blame, emotional digs, sarcasm, and past marital grievances.
+- Keep tone neutral, respectful, constructive, and firm.
+- Never take sides or validate hostile language. Convert hostile questions into clear, polite yes/no or logistical proposals.`
+    : '';
+  const effectiveSystem = (system || HERMES_SYSTEM_PROMPT) + jsonHint + neutralHint;
 
   // The household's self-serve tier toggle (api/hermes-model.ts) picks the
   // Claude model. An explicit `model` in the request still overrides it.

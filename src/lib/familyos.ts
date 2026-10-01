@@ -13,6 +13,14 @@ export type User = {
   color: string;
   canControlDevices: boolean;
 };
+export type HouseholdMember = {
+  id: string;
+  name: string;
+  role: UserRole;
+  color?: string;
+  email?: string;
+  canControlDevices?: boolean;
+};
 
 export function canDelete(role: UserRole) { return role === 'superadmin' || role === 'admin'; }
 export function isSuperAdmin(role: UserRole) { return role === 'superadmin'; }
@@ -45,7 +53,9 @@ export const KEYS = {
   roomMap: 'household_room_map',
   featureFlags: 'familyos_feature_flags',
   custodySchedule: 'familyos_custody_schedule',
+  custodySchedules: 'familyos_custody_schedule',
   custodySwaps: 'familyos_custody_swaps',
+  medications: 'familyos_medications',
   medDoses: 'familyos_med_doses',
   coppaConsents: 'familyos_coppa_consents',
   routines: 'familyos_routines',

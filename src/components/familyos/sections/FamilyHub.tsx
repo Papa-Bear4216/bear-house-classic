@@ -6,11 +6,17 @@ import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import CustodyCalendar from './CustodyCalendar';
+import WeeklyRoundupModal from './WeeklyRoundupModal';
+import BiffToneCheckModal from './BiffToneCheckModal';
 
 const FamilyHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
   const custodyEnabled = useFeatureFlag('custody_calendar');
+  const weeklyRoundupEnabled = useFeatureFlag('weekly_roundup');
+  const hermesNeutralEnabled = useFeatureFlag('hermes_neutral');
   const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight' | 'custody'>('messages');
+  const [showRoundup, setShowRoundup] = useState(false);
+  const [showToneCheck, setShowToneCheck] = useState(false);
   const isAdm = currentRole && canDelete(currentRole);
 
   useEffect(() => {
@@ -41,6 +47,28 @@ const FamilyHub: React.FC = () => {
           </h2>
           <p className="text-xs text-slate-400 mt-1">Chat, permissions, shared memories, watchlists & game nights</p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {hermesNeutralEnabled && (
+            <button
+              onClick={() => setShowToneCheck(true)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition shadow-sm active:scale-95"
+              title="BIFF Tone Checker"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>BIFF Tone Check</span>
+            </button>
+          )}
+          {weeklyRoundupEnabled && (
+            <button
+              onClick={() => setShowRoundup(true)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 transition shadow-sm active:scale-95"
+              title="Weekly Family Logistics Digest"
+            >
+              <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Weekly Digest</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -70,6 +98,15 @@ const FamilyHub: React.FC = () => {
       {tab === 'bucket' && <BucketListTab isAdm={!!isAdm} />}
       {tab === 'watchlist' && <WatchlistTab isAdm={!!isAdm} />}
       {tab === 'gamenight' && <GameNightTab isAdm={!!isAdm} householdMembers={householdMembers} />}
+
+      <WeeklyRoundupModal
+        open={showRoundup}
+        onOpenChange={setShowRoundup}
+      />
+      <BiffToneCheckModal
+        open={showToneCheck}
+        onOpenChange={setShowToneCheck}
+      />
     </div>
   );
 };
