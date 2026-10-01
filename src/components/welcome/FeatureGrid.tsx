@@ -1,29 +1,53 @@
 import {
-  Zap, Bot, Camera, Landmark, Users, GraduationCap, Trophy, Home, Brain,
+  HeartHandshake,
+  CalendarDays,
+  Pill,
+  GraduationCap,
+  Camera,
+  Landmark,
+  Zap,
+  Trophy,
+  Home,
 } from 'lucide-react';
 
 const FEATURES = [
   {
-    icon: Zap,
-    title: 'One next chore',
+    icon: HeartHandshake,
+    title: 'Hermes BIFF tone check',
     description:
-      'When the list is long, the dashboard offers one next task, a short timer, and points when you mark it done.',
+      'Drafting a message to your co-parent? Hermes checks it for blame, sarcasm, or accusations, suggesting Brief, Informative, Friendly, and Firm edits before you hit send.',
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/10 border-rose-500/20',
+  },
+  {
+    icon: CalendarDays,
+    title: 'Custody & calm swaps',
+    description:
+      'Visual schedules both parents can rely on. Request day swaps without triggering arguments, and export a clean weekly logistics digest via SMS or email with one tap.',
     color: 'text-amber-400',
     bg: 'bg-amber-500/10 border-amber-500/20',
   },
   {
-    icon: Bot,
-    title: 'Hermes, in the app',
+    icon: Pill,
+    title: 'Medication & dosing safety',
     description:
-      'Chat about tasks, the calendar, and spending. Hermes can suggest a Home Assistant action from an allowlist. It does not pay bills, send messages, or give medical or legal advice.',
+      'Did they take their antibiotic before school or at the other house? Cross-home dose timing checks and allergy alerts ensure nobody double-doses or skips.',
     color: 'text-sky-400',
     bg: 'bg-sky-500/10 border-sky-500/20',
   },
   {
-    icon: Camera,
-    title: 'Photos you confirm',
+    icon: GraduationCap,
+    title: 'School Stuff Adder',
     description:
-      'A room photo can suggest chores. A receipt or pantry shelf can suggest items. Nothing is added until you save it.',
+      'Snap a photo of a crumpled backpack flyer or forward a teacher email. Hermes pulls out homework deadlines, field trip slips, and dress-up days for your approval.',
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10 border-teal-500/20',
+  },
+  {
+    icon: Camera,
+    title: 'Receipts & pantry vision',
+    description:
+      'Take a picture of the grocery receipt or open fridge door. FamilyOS drafts items and checks current pantry stock so neither house buys a fourth jar of mayo.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10 border-emerald-500/20',
   },
@@ -31,49 +55,33 @@ const FEATURES = [
     icon: Landmark,
     title: 'Read-only bank sync',
     description:
-      'SimpleFIN shows accounts and transactions. Uncertain categories wait in a review inbox. The app does not move money.',
+      'SimpleFIN displays balances and split expenses. Uncertain transactions wait in a 1-tap review inbox—your decisions teach the system permanently. Never moves money.',
     color: 'text-indigo-400',
     bg: 'bg-indigo-500/10 border-indigo-500/20',
   },
   {
-    icon: Users,
-    title: 'Two households',
+    icon: Zap,
+    title: 'One next chore (ADHD focus)',
     description:
-      'Custody schedules, swap requests, a medication dose log, and a weekly digest for co-parents. A tone check can rewrite a draft before you send it yourself.',
-    color: 'text-rose-400',
-    bg: 'bg-rose-500/10 border-rose-500/20',
-  },
-  {
-    icon: GraduationCap,
-    title: 'School and routines',
-    description:
-      'Paste or photograph a school note, then confirm the dates before they land on the family list. Shared routines and streaks sit next to homework.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-500/10 border-teal-500/20',
+      'When the house is a disaster and your brain is fried, the app serves up exactly one micro-task with a 5-minute timer, calming sounds, and instant points.',
+    color: 'text-amber-300',
+    bg: 'bg-amber-400/10 border-amber-400/20',
   },
   {
     icon: Trophy,
-    title: 'Points and a leaderboard',
+    title: 'Routines, streaks & arcade',
     description:
-      'Completed chores keep a streak and add points. There is a family leaderboard and a small arcade. Points are not awarded for a scan you have not saved.',
+      'Morning and bedtime checklists keep kids moving without nagging. Done chores keep streaks alive and earn game tokens for the 120Hz retro canvas arcade.',
     color: 'text-pink-400',
     bg: 'bg-pink-500/10 border-pink-500/20',
   },
   {
     icon: Home,
-    title: 'Your Home Assistant',
+    title: 'Smart home & COPPA privacy',
     description:
-      'An admin can connect the household’s own instance. Authorized members can run allowlisted devices and open connected cameras. A daily check shows whether that snapshot is still fresh.',
+      'Optional Home Assistant allowlist controls morning lights or camera snapshots. Built with verified parental consent for under-13 kids and strict zero-ad data boundaries.',
     color: 'text-orange-400',
     bg: 'bg-orange-500/10 border-orange-500/20',
-  },
-  {
-    icon: Brain,
-    title: 'Shared household notes',
-    description:
-      'Tasks, promises, emotion check-ins, and notes you ask Hermes to remember are visible to the household. They are not a private journal.',
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10 border-violet-500/20',
   },
 ];
 
@@ -81,9 +89,11 @@ export function FeatureGrid() {
   return (
     <section id="features" className="px-4 py-16 max-w-5xl mx-auto">
       <div className="text-center max-w-2xl mx-auto mb-10">
-        <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-display">What is in the app</h2>
+        <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-display">
+          Everything shipped in FamilyOS
+        </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          These are the tools in FamilyOS today. Bank, calendar, Gmail, and Home Assistant stay off until an admin connects them.
+          Real tools built for the real chaos of shared family life. Bank, calendar, Gmail, and Home Assistant stay completely disconnected until an admin turns them on.
         </p>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

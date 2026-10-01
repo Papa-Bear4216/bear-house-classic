@@ -8,9 +8,9 @@ const ROLES = [
 export function FamilyRoles() {
   return (
     <section className="text-center px-4 py-16 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold text-white mb-2">Four roles</h2>
+      <h2 className="text-2xl font-bold text-white mb-2">Four clear roles</h2>
       <p className="text-slate-400 mb-8 max-w-lg mx-auto">
-        Superadmin handles billing. Admins manage members and integrations. Children use chores, routines, and rewards, and a guardian confirms consent when they are invited. Pets are on the roster and are not billed as seats.
+        Superadmin handles setup and billing. Admins (like a co-parent or partner) manage schedules and calm swaps. Kids get chores, routines, and arcade games—with guardian consent required. Pets track feeding and walks, and they never count against your subscription seats (pets don’t pay rent either).
       </p>
       <div className="flex flex-wrap justify-center gap-4">
         {ROLES.map((r) => (

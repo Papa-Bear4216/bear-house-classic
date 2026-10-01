@@ -19,7 +19,8 @@ import {
   Trophy, 
   Send,
   Volume2,
-  Check
+  Check,
+  HeartHandshake
 } from 'lucide-react';
 import { triggerConfetti } from '@/lib/confetti';
 
@@ -31,13 +32,14 @@ const CHORE_SAMPLES = [
 ];
 
 export function AppMockupShowcase() {
-  const [activeTab, setActiveTab] = useState<'focus' | 'dashboard' | 'hermes' | 'scanner'>('focus');
+  const [activeTab, setActiveTab] = useState<'focus' | 'dashboard' | 'hermes' | 'scanner' | 'biff'>('focus');
   const [deviceMode, setDeviceMode] = useState<'mobile' | 'desktop'>('mobile');
   const [choreIndex, setChoreIndex] = useState(0);
   const [completedCount, setCompletedCount] = useState(8);
   const [batteryMode, setBatteryMode] = useState<'high' | 'fried'>('high');
   const [scannerActionDone, setScannerActionDone] = useState(false);
   const [hermesActionDone, setHermesActionDone] = useState(false);
+  const [biffCopied, setBiffCopied] = useState(false);
 
   const currentChore = CHORE_SAMPLES[choreIndex % CHORE_SAMPLES.length];
 
@@ -61,6 +63,12 @@ export function AppMockupShowcase() {
     triggerConfetti(e.clientX, e.clientY, 35);
     setHermesActionDone(true);
     setTimeout(() => setHermesActionDone(false), 3000);
+  };
+
+  const handleCopyBiff = (e: React.MouseEvent) => {
+    triggerConfetti(e.clientX, e.clientY, 40);
+    setBiffCopied(true);
+    setTimeout(() => setBiffCopied(false), 3000);
   };
 
   return (
@@ -121,6 +129,16 @@ export function AppMockupShowcase() {
             }`}
           >
             <Camera className="w-4 h-4" /> Room Scanner
+          </button>
+          <button
+            onClick={() => setActiveTab('biff')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
+              activeTab === 'biff'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <HeartHandshake className="w-4 h-4" /> BIFF Tone Check
           </button>
         </div>
 
@@ -219,6 +237,12 @@ export function AppMockupShowcase() {
                     onScannerAdd={handleScannerAdd}
                   />
                 )}
+                {activeTab === 'biff' && (
+                  <BiffMockupContent
+                    biffCopied={biffCopied}
+                    onCopyBiff={handleCopyBiff}
+                  />
+                )}
               </div>
 
               {/* Realistic Floating Island Navigation Dock at Bottom of Phone */}
@@ -235,6 +259,9 @@ export function AppMockupShowcase() {
                   </button>
                   <button onClick={() => setActiveTab('hermes')} className={`p-1.5 rounded-xl transition ${activeTab === 'hermes' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
                     <Bot className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setActiveTab('biff')} className={`p-1.5 rounded-xl transition ${activeTab === 'biff' ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400'}`}>
+                    <HeartHandshake className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -299,6 +326,14 @@ export function AppMockupShowcase() {
                   <ScannerMockupContent
                     scannerActionDone={scannerActionDone}
                     onScannerAdd={handleScannerAdd}
+                  />
+                </div>
+              )}
+              {activeTab === 'biff' && (
+                <div className="max-w-2xl mx-auto">
+                  <BiffMockupContent
+                    biffCopied={biffCopied}
+                    onCopyBiff={handleCopyBiff}
                   />
                 </div>
               )}
@@ -642,6 +677,77 @@ function ScannerMockupContent({
           {scannerActionDone ? <Check className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
           {scannerActionDone ? 'Sample only — nothing saved' : 'Save both to the chore list'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MOCKUP VIEW: Hermes BIFF Tone Check & Conflict Shield
+   ========================================================================= */
+function BiffMockupContent({
+  biffCopied,
+  onCopyBiff,
+}: {
+  biffCopied: boolean;
+  onCopyBiff: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {/* Hermes BIFF Badge */}
+      <div className="flex items-center justify-between bg-slate-900/80 border border-rose-500/30 rounded-2xl px-3.5 py-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <HeartHandshake className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white">Hermes BIFF Tone Check</div>
+            <div className="text-[10px] text-slate-400 font-mono">Brief · Informative · Friendly · Firm</div>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full">
+          Conflict Shield
+        </span>
+      </div>
+
+      {/* Raw Draft Card */}
+      <div className="bg-slate-950/70 border border-rose-500/20 rounded-2xl p-3 space-y-1.5">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="font-semibold text-rose-300 flex items-center gap-1">
+            <span>⚠️</span> Emotionally charged draft:
+          </span>
+          <span className="text-slate-500 text-[10px]">Unsent draft</span>
+        </div>
+        <p className="text-xs text-slate-300 italic bg-slate-900/60 p-2.5 rounded-xl border border-white/5">
+          "You're late picking him up again. Don't bother showing up unless you can actually stick to the custody agreement."
+        </p>
+        <div className="flex items-center gap-1.5 text-[10px] text-amber-300/90 pt-0.5">
+          <span>💡</span> Hermes flagged: accusatory tone, ultimatum, escalates tension.
+        </div>
+      </div>
+
+      {/* BIFF De-escalated Polish */}
+      <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> BIFF Polish (Calm & Clear)
+          </span>
+          <span className="text-[10px] text-emerald-400/80 font-mono">0 drama</span>
+        </div>
+        <p className="text-xs text-white font-medium bg-slate-900/90 p-3 rounded-xl border border-emerald-500/20 leading-relaxed">
+          "Hi Mark. Checking in on today's 4:00 PM transition. Please let me know your ETA when you have a moment so Leo knows when to expect you. Thanks!"
+        </p>
+        <button
+          onClick={onCopyBiff}
+          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs py-2.5 rounded-xl transition shadow-lg shadow-emerald-500/25 active:scale-95 flex items-center justify-center gap-1.5"
+        >
+          {biffCopied ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+          {biffCopied ? 'Copied to clipboard!' : 'Use BIFF Polish'}
+        </button>
+      </div>
+
+      <div className="text-[10px] text-slate-400 text-center">
+        HotMessExpress never sends messages directly. You copy or edit, keeping full control.
       </div>
     </div>
   );

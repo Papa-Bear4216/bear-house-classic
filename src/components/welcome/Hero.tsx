@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { signInWithGoogle } from '@/lib/householdAuth';
-import { Zap, Camera, Bot, CalendarDays } from 'lucide-react';
+import { Zap, HeartHandshake, CalendarDays, Pill, GraduationCap } from 'lucide-react';
 
 export function Hero() {
   return (
@@ -25,26 +25,32 @@ export function Hero() {
       </div>
 
       <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[1.1] tracking-tight font-display relative z-10">
-        One household list, <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 bg-clip-text text-transparent">both homes</span>.
+        Divorce is a mess.{' '}
+        <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 bg-clip-text text-transparent">
+          The logistics don't have to be.
+        </span>
       </h1>
 
       <p className="text-base sm:text-lg text-slate-300 max-w-xl relative z-10 leading-relaxed">
-        HotMessExpress is FamilyOS: chores, routines, custody, medications, school notes, and read-only bank sync in one place. Hermes can help you sort the day. You confirm before anything is saved, sent, or paid — and nothing here pays a bill.
+        One kid, two houses, one life. HotMessExpress keeps custody schedules, calm swap requests, safe medication handoffs, school flyers, and read-only bank sync in one quiet place. With a built-in BIFF tone check so nobody sends a text they'll regret.
       </p>
 
       {/* Micro-feature highlights */}
       <div className="flex flex-wrap items-center justify-center gap-2.5 relative z-10 text-xs text-slate-300">
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5 text-amber-400 fill-current" /> One next chore
+          <HeartHandshake className="w-3.5 h-3.5 text-rose-400" /> BIFF tone check
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <Bot className="w-3.5 h-3.5 text-sky-400" /> Hermes chat
+          <CalendarDays className="w-3.5 h-3.5 text-amber-400" /> Custody & calm swaps
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <CalendarDays className="w-3.5 h-3.5 text-rose-400" /> Custody & dose log
+          <Pill className="w-3.5 h-3.5 text-sky-400" /> Medication dose safety
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <Camera className="w-3.5 h-3.5 text-emerald-400" /> Scans you confirm
+          <GraduationCap className="w-3.5 h-3.5 text-emerald-400" /> School flyer triage
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" /> One next chore
         </span>
       </div>
 
@@ -62,7 +68,7 @@ export function Hero() {
           </Button>
         </a>
       </div>
-      <p className="text-xs text-slate-500 relative z-10">Google sign-in. A new household starts a 7-day trial.</p>
+      <p className="text-xs text-slate-500 relative z-10">Google sign-in. 7-day trial with no card required. Zero ad tracking.</p>
     </section>
   );
 }

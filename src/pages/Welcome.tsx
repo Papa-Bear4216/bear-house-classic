@@ -11,22 +11,22 @@ const STEPS = [
   {
     step: '1',
     title: 'Sign in with Google',
-    body: 'Create a household or accept an invite. Inviting a child asks a guardian to confirm consent first.',
+    body: 'Create your household or join via invite link. Inviting a kid under 13 asks a guardian to confirm consent first so their privacy stays locked down.',
   },
   {
     step: '2',
-    title: 'Use the household list',
-    body: 'Chores, routines, custody, medications, school notes, and rewards work without a bank or a smart home.',
+    title: 'Get the basics rolling',
+    body: 'Chores, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
   },
   {
     step: '3',
     title: 'Connect only what you want',
-    body: 'An admin can add SimpleFIN, Google Calendar, Gmail, or a Home Assistant instance. Each one stays disconnected until that happens.',
+    body: 'Optional: Link read-only bank sync with SimpleFIN, your Google Calendar, or Home Assistant scenes. Everything stays off until you turn it on.',
   },
   {
     step: '4',
-    title: 'Start the 7-day trial',
-    body: 'A new household goes to checkout after setup. The trial is 7 days, and a card is not required to start it.',
+    title: 'Take 7 days on us',
+    body: 'Every new household starts with a full 7-day trial. No credit card required upfront, no sneaky auto-charges, and cancel anytime in two clicks.',
   },
 ];
 
@@ -60,7 +60,7 @@ export default function Welcome() {
       <Hero />
 
       <section id="how-it-works" className="px-4 py-8 max-w-5xl mx-auto relative z-10">
-        <h2 className="text-3xl font-black text-white text-center font-display mb-8">How a household starts</h2>
+        <h2 className="text-3xl font-black text-white text-center font-display mb-8">How your household gets started</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {STEPS.map((s) => (
             <div key={s.step} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
@@ -77,26 +77,55 @@ export default function Welcome() {
       <FamilyRoles />
 
       <section id="pricing" className="px-4 py-8 max-w-xl mx-auto relative z-10">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8">
-          <h2 className="text-2xl font-bold text-white font-display mb-2">Pricing</h2>
-          <p className="text-sm text-slate-300 mb-6">One plan. A new household starts with a 7-day trial.</p>
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 shadow-2xl backdrop-blur-xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-300 mb-4">
+            <span>✨</span> Honest Family Pricing
+          </div>
+          <h2 className="text-2xl font-bold text-white font-display mb-2">One simple plan</h2>
+          <p className="text-sm text-slate-300 mb-6">
+            Free covers the basics. Premium keeps the lights on and the kids' space growing without ad trackers or data brokers.
+          </p>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-extrabold text-white">$9.99</span>
-            <span className="text-slate-400">/month after the trial</span>
+            <span className="text-slate-400 font-medium">/month after your 7-day trial</span>
           </div>
-          <p className="text-sm text-slate-300 mt-3">Includes up to 3 household members.</p>
-          <p className="text-sm text-slate-300 mt-1">Each additional member is $2.99/month. Pets are not billed as seats.</p>
-          <ul className="mt-6 space-y-2 text-sm text-slate-300">
-            <li>Chores, routines, custody, health log, school notes, and Hermes chat</li>
-            <li>Read-only SimpleFIN, and one Home Assistant connection if you add it</li>
-            <li>Cancel from the billing portal</li>
-          </ul>
+          <p className="text-sm text-slate-300 mt-3 font-semibold">Includes up to 3 household members across both homes.</p>
+          <p className="text-sm text-slate-400 mt-1">Each additional member is $2.99/month. Pets are always 100% free.</p>
+          <div className="my-6 border-t border-white/10 pt-6">
+            <ul className="space-y-2.5 text-sm text-slate-300">
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Two-household custody calendar, calm swaps & weekly digests
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Cross-home medication dosing log & allergy alerts
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> School Stuff Adder for backpack flyers & teacher emails
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, routines, streaks & retro arcade
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Read-only SimpleFIN bank sync with compounding review queue
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Home Assistant allowlist & COPPA verifiable child privacy
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> No contracts, no card needed for trial, cancel in two clicks
+              </li>
+            </ul>
+          </div>
           <Button
             onClick={() => signInWithGoogle()}
-            className="mt-6 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-6 rounded-2xl shadow-xl shadow-amber-500/25 transition active:scale-[0.98]"
           >
-            Sign in with Google
+            Start 7-Day Free Trial
           </Button>
+          <p className="text-xs text-center text-slate-500 mt-3">No credit card required to start your trial.</p>
         </div>
       </section>
 
@@ -105,9 +134,9 @@ export default function Welcome() {
           <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4">
             <Flame className="w-6 h-6 animate-pulse" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-2">Sign in and set up the household</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-2">Ready to bring calm to the chaos?</h2>
           <p className="text-sm text-slate-300 mb-6 max-w-sm mx-auto">
-            Google sign-in, then a household name. New households start a 7-day trial.
+            Sign in with Google, name your household, and invite your crew. 7-day free trial, no card needed.
           </p>
           <Button
             size="lg"
@@ -126,7 +155,7 @@ export default function Welcome() {
           <span>HotMessExpress is a <strong className="text-amber-400">Dysfunction Junction</strong> venture.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-          FamilyOS for one household or two. You confirm scans, messages, and device actions before they happen.
+          FamilyOS for one household or two. One kid, two houses, one life. You confirm all scans, drafts, and device actions before they happen.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2">
           <Link to="/privacy" className="hover:text-amber-400 transition underline underline-offset-2">
