@@ -11,7 +11,8 @@ export type FeatureFlagKey =
   | 'shared_routines'
   | 'hermes_neutral'
   | 'weekly_roundup'
-  | 'school_adder';
+  | 'school_adder'
+  | 'transaction_review';
 
 export type FeatureCategory = 'Co-Parenting' | 'Daily Rhythm' | 'Household Engagement' | 'Smart Tools';
 
@@ -84,6 +85,13 @@ export const FEATURE_FLAG_METAS: FeatureFlagMeta[] = [
     key: 'school_adder',
     label: 'School Stuff Adder',
     description: 'Email triage for school announcements, dates, and sign-offs.',
+    category: 'Smart Tools',
+    defaultValue: true,
+  },
+  {
+    key: 'transaction_review',
+    label: 'Transaction Categorization & Review',
+    description: 'Review uncertain transactions, 1-tap confirm or recategorize, compounding accuracy over time.',
     category: 'Smart Tools',
     defaultValue: true,
   },

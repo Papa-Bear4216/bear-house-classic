@@ -58,12 +58,55 @@ export const DataWriteBodySchema = z.object({
   expectedUpdatedAt: z.string().optional(),
 });
 
+export const FINANCE_CATEGORIES = [
+  'Housing',
+  'Food',
+  'Transportation',
+  'Utilities',
+  'Insurance',
+  'Entertainment',
+  'Clothing',
+  'Healthcare',
+  'Savings',
+  'Kids',
+  'Pets',
+  'Other',
+] as const;
+
+export type FinanceCategory = (typeof FINANCE_CATEGORIES)[number];
+
 export const FinanceBodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('connect'), setupToken: z.string().min(1), person: z.string().optional(), token: z.string().optional() }),
   z.object({ action: z.literal('accounts'), token: z.string().optional() }),
   z.object({ action: z.literal('disconnect'), token: z.string().optional() }),
   z.object({ action: z.literal('sync'), days: z.number().int().positive().max(90).default(30), token: z.string().optional() }),
-]);
+  z.object({
+    action: z.literal('recategorize'),
+    merchant: z.string().trim().min(1).max(200).optional(),
+    category: z.enum(FINANCE_CATEGORIES).optional(),
+    transactionId: z.string().optional(),
+    items: z
+      .array(
+        z.object({
+          merchant: z.string().trim().min(1).max(200),
+          category: z.enum(FINANCE_CATEGORIES),
+          transactionId: z.string().optional(),
+        })
+      )
+      .max(100)
+      .optional(),
+    token: z.string().optional(),
+  }),
+]).superRefine((data, ctx) => {
+  if (data.action === 'recategorize') {
+    if (!data.items?.length && (!data.merchant || !data.category)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must provide either merchant and category, or an items array',
+      });
+    }
+  }
+});
 
 export const BillingActionBodySchema = z.object({ householdId: z.string().min(1) });
 

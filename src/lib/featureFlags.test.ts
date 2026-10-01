@@ -37,8 +37,8 @@ describe('Feature Switchboard (featureFlags)', () => {
     dispatchFn.mockClear();
   });
 
-  it('exposes metadata for all 9 planned features', () => {
-    expect(FEATURE_FLAG_METAS).toHaveLength(9);
+  it('exposes metadata for all 10 planned features', () => {
+    expect(FEATURE_FLAG_METAS).toHaveLength(10);
     const keys = FEATURE_FLAG_METAS.map((m) => m.key);
     expect(keys).toContain('custody_calendar');
     expect(keys).toContain('med_tracker');
@@ -49,6 +49,7 @@ describe('Feature Switchboard (featureFlags)', () => {
     expect(keys).toContain('receipt_scanner');
     expect(keys).toContain('connection_health');
     expect(keys).toContain('school_adder');
+    expect(keys).toContain('transaction_review');
   });
 
   it('defaults planned features according to their metadata', () => {

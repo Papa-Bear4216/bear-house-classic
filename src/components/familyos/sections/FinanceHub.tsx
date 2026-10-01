@@ -5,7 +5,17 @@ import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
 import { onSyncUpdate } from '@/lib/sync';
 import { tryOnDeviceText } from '@/lib/onDeviceVision';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import {
+  filterUncertainTransactions,
+  isUncertainTransaction,
+  recategorizeTransaction,
+  recategorizeBatchTransactions,
+  normalizeMerchantName,
+  ExpenseItem,
+} from '@/lib/transactionReview';
 import ConnectBankGuide from './ConnectBankGuide';
+import TransactionReviewInbox from './TransactionReviewInbox';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
 
@@ -16,21 +26,7 @@ interface BudgetCategory {
   month: string;
 }
 
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  paidBy: string;
-  owner?: string;
-  ownerId?: string;
-  date: string;
-  notes: string;
-  createdAt: number;
-  deletedAt?: number;
-  extId?: string;
-  source?: 'simplefin' | 'manual';
-  institutionName?: string;
-}
+export type Expense = ExpenseItem;
 
 interface LinkedAccount {
   person: string;
@@ -53,7 +49,7 @@ const privateExpenseKey = (memberId: string) => `familyos_expenses_${memberId}`;
  * already made it through that filter for local display, and never merges
  * a private row back into the shared key.
  */
-function useHouseholdExpenses(householdMembers: Array<{ id: string }>) {
+function useHouseholdExpenses(householdMembers: Array<{ id: string }>, currentMemberId?: string) {
   const memberIds = useMemo(() => (householdMembers || []).map((m) => m.id), [householdMembers]);
 
   const loadPrivate = useCallback(() => {
@@ -87,9 +83,76 @@ function useHouseholdExpenses(householdMembers: Array<{ id: string }>) {
     });
   }, []);
 
+  const updateExpenseCategories = useCallback((items: Array<{ merchant: string; category: string; transactionId?: string }>) => {
+    if (items.length === 0) return;
+
+    const keyed = items.map((i) => ({ ...i, key: normalizeMerchantName(i.merchant) }));
+    const byId = new Map(keyed.filter((i) => i.transactionId).map((i) => [i.transactionId!, i]));
+
+    const findMatch = (e: Expense) => {
+      return byId.get(e.id) ?? keyed.find((i) =>
+        Boolean(
+          i.key &&
+          !e.reviewed &&
+          !e.deletedAt &&
+          e.source === 'simplefin' &&
+          normalizeMerchantName(e.notes) === i.key
+        )
+      );
+    };
+
+    const now = Date.now();
+
+    // 1. Shared expenses update
+    let sharedChanged = false;
+    const nextShared = sharedExpenses.map((e) => {
+      const hit = findMatch(e);
+      if (hit) {
+        sharedChanged = true;
+        return {
+          ...e,
+          category: hit.category,
+          reviewed: true,
+          needsReview: false,
+          updatedAt: now,
+        };
+      }
+      return e;
+    });
+
+    if (sharedChanged) {
+      persistShared(nextShared);
+    }
+
+    // 2. Caller's own private member expenses (respects RLS boundary)
+    if (currentMemberId) {
+      const key = privateExpenseKey(currentMemberId);
+      const list = loadJSON<Expense[]>(key, []);
+      let listChanged = false;
+      const nextList = list.map((e) => {
+        const hit = findMatch(e);
+        if (hit) {
+          listChanged = true;
+          return {
+            ...e,
+            category: hit.category,
+            reviewed: true,
+            needsReview: false,
+            updatedAt: now,
+          };
+        }
+        return e;
+      });
+      if (listChanged) {
+        saveJSON(key, nextList);
+        setPrivateExpenses(loadPrivate());
+      }
+    }
+  }, [sharedExpenses, persistShared, currentMemberId, loadPrivate]);
+
   const expenses = useMemo(() => [...sharedExpenses, ...privateExpenses], [sharedExpenses, privateExpenses]);
 
-  return { expenses, sharedExpenses, persistShared, addPrivateFromSync };
+  return { expenses, sharedExpenses, persistShared, addPrivateFromSync, updateExpenseCategories };
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -99,7 +162,7 @@ const FinanceHub: React.FC = () => {
   const [tab, setTab] = useState<'budget' | 'expenses'>('expenses');
   const [viewMode, setViewMode] = useState<'mine' | 'combined'>('combined');
   const isAdm = currentRole && isAdmin(currentRole);
-  const finance = useHouseholdExpenses(householdMembers || []);
+  const finance = useHouseholdExpenses(householdMembers || [], currentUser?.id);
 
   if (!isAdm) {
     return (
@@ -255,7 +318,8 @@ interface ExpensesTabProps extends TabProps {
 const ExpensesTab: React.FC<ExpensesTabProps> = ({ viewMode, currentUser, finance }) => {
   const { householdMembers } = useAppContext();
   const expensePayers = householdPersons(householdMembers);
-  const { expenses, sharedExpenses, persistShared, addPrivateFromSync } = finance;
+  const { expenses, sharedExpenses, persistShared, addPrivateFromSync, updateExpenseCategories } = finance;
+  const isReviewEnabled = useFeatureFlag('transaction_review');
   const [showForm, setShowForm]   = useState(false);
   const [amount, setAmount]       = useState('');
   const [category, setCategory]   = useState(BUDGET_CATEGORIES[0]);
@@ -302,9 +366,47 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ viewMode, currentUser, financ
     total: allActive.filter(e => e.paidBy === p).reduce((s, e) => s + e.amount, 0),
   })).filter(p => p.total > 0) : [];
 
+  const uncertainExpenses = useMemo(() => {
+    if (!isReviewEnabled) return [];
+    const pool = viewMode === 'mine'
+      ? expenses.filter((e) => !e.deletedAt && (e.owner === currentUser?.id || e.ownerId === currentUser?.id || e.paidBy === myName))
+      : expenses.filter((e) => !e.deletedAt);
+    return filterUncertainTransactions(pool);
+  }, [isReviewEnabled, viewMode, expenses, currentUser?.id, myName]);
+
+  const handleReviewConfirm = useCallback(async (expense: Expense, categoryName: string) => {
+    updateExpenseCategories([{ merchant: expense.notes, category: categoryName, transactionId: expense.id }]);
+    const res = await recategorizeTransaction({
+      merchant: expense.notes,
+      category: categoryName,
+      transactionId: expense.id,
+    });
+    if (!res.ok) console.warn('recategorize failed:', res.error);
+  }, [updateExpenseCategories]);
+
+  const handleReviewConfirmBatch = useCallback(async (items: Expense[]) => {
+    const batchItems = items.map((e) => ({
+      merchant: e.notes,
+      category: e.category,
+      transactionId: e.id,
+    }));
+    updateExpenseCategories(batchItems);
+    const res = await recategorizeBatchTransactions(batchItems);
+    if (!res.ok) console.warn('batch recategorize failed:', res.error);
+  }, [updateExpenseCategories]);
+
   return (
     <div className="space-y-3">
       <SimpleFinPanel currentUser={currentUser} onSync={handleBankSync} />
+
+      {isReviewEnabled && (
+        <TransactionReviewInbox
+          uncertainExpenses={uncertainExpenses}
+          hasAnyExpenses={expenses.filter((e) => !e.deletedAt).length > 0}
+          onConfirm={handleReviewConfirm}
+          onConfirmBatch={handleReviewConfirmBatch}
+        />
+      )}
 
       {/* Month + total + add */}
       <div className="flex items-center justify-between">
@@ -395,6 +497,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ viewMode, currentUser, financ
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-white text-sm">{e.category}</span>
+                {isReviewEnabled && isUncertainTransaction(e) && (
+                  <span className="flex items-center gap-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                    Needs Review
+                  </span>
+                )}
                 {viewMode === 'combined' && <span className="text-cream-400/60 text-xs">{e.paidBy}</span>}
                 {e.source === 'simplefin' && (
                   <span className="flex items-center gap-0.5 bg-honey-700/40 border border-honey-500/30 text-honey-200 text-[10px] px-1.5 py-0.5 rounded-full">

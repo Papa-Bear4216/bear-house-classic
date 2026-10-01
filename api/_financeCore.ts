@@ -73,6 +73,8 @@ export async function syncMemberFinance(
     extId: t.extId,
     source: 'simplefin',
     institutionName: t.institutionName,
+    needsReview: Boolean(t.needsReview),
+    reviewed: false,
   }));
   transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

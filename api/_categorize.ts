@@ -12,8 +12,9 @@ import { normalizeMerchant } from './_subscriptions.js';
 import { fetchAi } from './_streamBody.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { CLAUDE_MODELS } from './_aiModels.js';
+import { FINANCE_CATEGORIES } from './_schemas.js';
 
-const CATEGORIES = ['Housing','Food','Transportation','Utilities','Insurance','Entertainment','Clothing','Healthcare','Savings','Kids','Pets','Other'];
+export const CATEGORIES = FINANCE_CATEGORIES;
 
 async function classifyBatch(householdId: string, merchants: string[]): Promise<Record<string, string> | null> {
   if (merchants.length === 0) return {};
@@ -32,7 +33,7 @@ ${merchants.map((m) => `- ${m}`).join('\n')}`;
     const out: Record<string, string> = {};
     for (const m of merchants) {
       const c = parsed[m];
-      out[m] = CATEGORIES.includes(c) ? c : 'Other';
+      out[m] = (CATEGORIES as readonly string[]).includes(c) ? c : 'Other';
     }
     return out;
   } catch {
@@ -44,7 +45,7 @@ export async function categorize<T extends { notes: string }>(
   householdId: string,
   txns: T[],
   cache: Record<string, string>,
-): Promise<Array<T & { category: string }>> {
+): Promise<Array<T & { category: string; needsReview: boolean }>> {
   const keyed = txns.map((t) => ({ t, key: normalizeMerchant(t.notes) }));
   const uncached = [...new Set(keyed.map((k) => k.key).filter((k) => k && !(k in cache)))];
   if (uncached.length) {
@@ -56,5 +57,10 @@ export async function categorize<T extends { notes: string }>(
       for (const [m, c] of Object.entries(results)) cache[m] = c;
     }
   }
-  return keyed.map(({ t, key }) => ({ ...t, category: cache[key] || 'Other' }));
+  const uncachedSet = new Set(uncached);
+  return keyed.map(({ t, key }) => {
+    const category = cache[key] || 'Other';
+    const needsReview = category === 'Other' || uncachedSet.has(key);
+    return { ...t, category, needsReview };
+  });
 }

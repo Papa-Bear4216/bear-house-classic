@@ -7,10 +7,11 @@ import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, FinanceBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 import { syncMemberFinance } from './_financeCore.js';
+import { normalizeMerchant } from './_subscriptions.js';
 
 import { handleCorsPreflight } from './_cors.js';
 
-// SECURITY NOTE: every action below (connect/accounts/disconnect/sync) other
+// SECURITY NOTE: every action below (connect/accounts/disconnect/sync/recategorize) other
 // than the webhook branch operates on the CALLER'S OWN bank connection —
 // each household member links and views only their own SimpleFIN account.
 // The row is written with owner_member_id = that member's id, and
@@ -140,5 +141,83 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return j({ error: 'Unknown action. Use: connect, accounts, sync, disconnect' }, 400);
+  if (action === 'recategorize') {
+    if (!memberId) return j({ error: 'Unauthorized' }, 401);
+    try {
+      const itemsToProcess = params.items && params.items.length > 0
+        ? params.items
+        : params.merchant && params.category
+        ? [{ merchant: params.merchant, category: params.category, transactionId: params.transactionId }]
+        : [];
+
+      if (itemsToProcess.length === 0) {
+        return j({ error: 'No items provided to recategorize' }, 400);
+      }
+
+      const keyed = itemsToProcess.map((i) => ({ ...i, key: normalizeMerchant(i.merchant) }));
+      const byId = new Map(keyed.filter((i) => i.transactionId).map((i) => [i.transactionId!, i]));
+
+      const expKey = `familyos_expenses_${memberId}`;
+      const existing: any[] = (await dbGet(expKey, householdId)) ?? [];
+      const updatedIds: string[] = [];
+
+      const updated = existing.map((e: any) => {
+        // Match by exact transactionId first, then fall back to merchant
+        const matchingItem = byId.get(e.id) ?? keyed.find((i) =>
+          Boolean(
+            i.key &&
+            !e.reviewed &&
+            !e.deletedAt &&
+            e.source === 'simplefin' &&
+            normalizeMerchant(e.notes || '') === i.key
+          )
+        );
+
+        if (matchingItem) {
+          updatedIds.push(e.id);
+          return {
+            ...e,
+            category: matchingItem.category,
+            reviewed: true,
+            needsReview: false,
+            updatedAt: Date.now(),
+          };
+        }
+        return e;
+      });
+
+      // 1. Write expenses first
+      if (updatedIds.length > 0) {
+        await dbSet(expKey, householdId, updated, memberId);
+      }
+
+      // 2. Write cache second; skip generic processors, short keys (< 3 chars), and 'Other'
+      const GENERIC_PROCESSORS = new Set(['PAYPAL', 'SQ', 'SQUARE', 'VENMO', 'ZELLE', 'CHECKCARD', 'DEBIT CARD', 'PURCHASE', 'CASH APP']);
+      const cacheKey = `merchant_category_cache_${memberId}`;
+      const cache: Record<string, string> = (await dbGet(cacheKey, householdId)) ?? {};
+      let cacheUpdated = false;
+
+      for (const item of keyed) {
+        if (item.key && item.key.length >= 3 && !GENERIC_PROCESSORS.has(item.key) && item.category !== 'Other') {
+          cache[item.key] = item.category;
+          cacheUpdated = true;
+        }
+      }
+
+      if (cacheUpdated) {
+        await dbSet(cacheKey, householdId, cache, memberId);
+      }
+
+      return j({
+        ok: true,
+        updatedCount: updatedIds.length,
+        updatedIds,
+        cacheWritten: cacheUpdated,
+      });
+    } catch (e: any) {
+      return serverError(e?.message || 'recategorize failed', 'finance:recategorize', e);
+    }
+  }
+
+  return j({ error: 'Unknown action. Use: connect, accounts, sync, disconnect, recategorize' }, 400);
 }

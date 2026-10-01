@@ -84,3 +84,170 @@ describe('POST /api/finance — accounts (institution probe)', () => {
     expect(dbSet).not.toHaveBeenCalled();
   });
 });
+
+describe('POST /api/finance — recategorize', () => {
+  it('rejects an invalid category with 400', async () => {
+    const res = await handler(req({
+      action: 'recategorize',
+      merchant: 'Starbucks',
+      category: 'FakeCategory',
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  it('updates merchant category cache and matching unreviewed simplefin expenses', async () => {
+    vi.mocked(dbGet).mockImplementation(async (key: string) => {
+      if (key === 'merchant_category_cache_m1') {
+        return { TARGET: 'Food' };
+      }
+      if (key === 'familyos_expenses_m1') {
+        return [
+          { id: 'tx-1', notes: 'STARBUCKS #1234', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+          { id: 'tx-2', notes: 'STARBUCKS #5678', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+          // Manual entry for Starbucks - must NOT be overwritten
+          { id: 'tx-manual', notes: 'STARBUCKS #9999', category: 'Entertainment', needsReview: false, reviewed: false, source: 'manual' },
+          // Already reviewed entry with specific category - must NOT be overwritten
+          { id: 'tx-reviewed', notes: 'STARBUCKS #0000', category: 'Entertainment', needsReview: false, reviewed: true, source: 'simplefin' },
+          { id: 'tx-3', notes: 'TARGET STORE', category: 'Food', needsReview: false, reviewed: true, source: 'simplefin' },
+        ];
+      }
+      return null;
+    });
+
+    const res = await handler(req({
+      action: 'recategorize',
+      merchant: 'STARBUCKS #1234',
+      category: 'Food',
+      transactionId: 'tx-1',
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.updatedCount).toBe(2);
+    expect(body.updatedIds).toEqual(['tx-1', 'tx-2']);
+
+    // Verifies cache was updated
+    expect(dbSet).toHaveBeenCalledWith(
+      'merchant_category_cache_m1',
+      'h1',
+      { TARGET: 'Food', STARBUCKS: 'Food' },
+      'm1'
+    );
+
+    // Verifies matching expenses were updated and marked reviewed without stomping manual or already-reviewed rows
+    expect(dbSet).toHaveBeenCalledWith(
+      'familyos_expenses_m1',
+      'h1',
+      [
+        expect.objectContaining({ id: 'tx-1', category: 'Food', reviewed: true, needsReview: false }),
+        expect.objectContaining({ id: 'tx-2', category: 'Food', reviewed: true, needsReview: false }),
+        expect.objectContaining({ id: 'tx-manual', category: 'Entertainment', source: 'manual' }),
+        expect.objectContaining({ id: 'tx-reviewed', category: 'Entertainment', reviewed: true }),
+        expect.objectContaining({ id: 'tx-3', category: 'Food' }),
+      ],
+      'm1'
+    );
+  });
+
+  it('does NOT poison cache when recategorizing to Other', async () => {
+    vi.mocked(dbGet).mockImplementation(async (key: string) => {
+      if (key === 'merchant_category_cache_m1') return { SAFE_MERCHANT: 'Food' };
+      if (key === 'familyos_expenses_m1') {
+        return [{ id: 'tx-1', notes: 'MYSTERY VENDOR', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' }];
+      }
+      return null;
+    });
+
+    const res = await handler(req({
+      action: 'recategorize',
+      merchant: 'MYSTERY VENDOR',
+      category: 'Other',
+      transactionId: 'tx-1',
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.updatedCount).toBe(1);
+
+    // Cache write should NOT be called for 'Other'
+    expect(dbSet).not.toHaveBeenCalledWith(
+      'merchant_category_cache_m1',
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('supports batch recategorization in a single operation', async () => {
+    vi.mocked(dbGet).mockImplementation(async (key: string) => {
+      if (key === 'merchant_category_cache_m1') return {};
+      if (key === 'familyos_expenses_m1') {
+        return [
+          { id: 'tx-1', notes: 'SHELL OIL #10', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+          { id: 'tx-2', notes: 'KROGER #20', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+        ];
+      }
+      return null;
+    });
+
+    const res = await handler(req({
+      action: 'recategorize',
+      items: [
+        { merchant: 'SHELL OIL', category: 'Transportation', transactionId: 'tx-1' },
+        { merchant: 'KROGER', category: 'Food', transactionId: 'tx-2' },
+      ],
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.updatedCount).toBe(2);
+    expect(body.updatedIds).toEqual(['tx-1', 'tx-2']);
+
+    expect(dbSet).toHaveBeenCalledWith(
+      'merchant_category_cache_m1',
+      'h1',
+      { 'SHELL OIL': 'Transportation', KROGER: 'Food' },
+      'm1'
+    );
+  });
+
+  it('prioritizes exact transactionId match over same-merchant match in batch updates', async () => {
+    vi.mocked(dbGet).mockImplementation(async (key: string) => {
+      if (key === 'merchant_category_cache_m1') return {};
+      if (key === 'familyos_expenses_m1') {
+        return [
+          { id: 'tx-A', notes: 'STARBUCKS #1', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+          { id: 'tx-B', notes: 'STARBUCKS #2', category: 'Other', needsReview: true, reviewed: false, source: 'simplefin' },
+        ];
+      }
+      return null;
+    });
+
+    const res = await handler(req({
+      action: 'recategorize',
+      items: [
+        { merchant: 'STARBUCKS', category: 'Food', transactionId: 'tx-A' },
+        { merchant: 'STARBUCKS', category: 'Entertainment', transactionId: 'tx-B' },
+      ],
+    }));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.updatedCount).toBe(2);
+
+    expect(dbSet).toHaveBeenCalledWith(
+      'familyos_expenses_m1',
+      'h1',
+      [
+        expect.objectContaining({ id: 'tx-A', category: 'Food', reviewed: true }),
+        expect.objectContaining({ id: 'tx-B', category: 'Entertainment', reviewed: true }),
+      ],
+      'm1'
+    );
+  });
+});
+
