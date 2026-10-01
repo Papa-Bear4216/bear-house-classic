@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2, Sun, GraduationCap } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2, Sun, GraduationCap, DoorOpen } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
 import RoutinesHub from './RoutinesHub';
 import SchoolStuffModal from './SchoolStuffModal';
+import KidRoom from './KidRoom';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
@@ -62,10 +63,11 @@ const KidsHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
   const routinesEnabled = useFeatureFlag('shared_routines');
   const kids = householdMembers.filter((m) => m.role === 'child').map((m) => m.name);
-  const [tab, setTab] = useState<'homework' | 'grades' | 'activities' | 'allowance' | 'arcade' | 'routines'>('homework');
-  const activeTab = tab === 'routines' && !routinesEnabled ? 'homework' : tab;
+  const [tab, setTab] = useState<'room' | 'homework' | 'grades' | 'activities' | 'allowance' | 'arcade' | 'routines'>('room');
+  const activeTab = tab === 'routines' && !routinesEnabled ? 'room' : tab;
   const isAdm = currentRole && canDelete(currentRole);
   const TABS = [
+    { id: 'room' as const, label: 'Rooms', icon: DoorOpen },
     ...(routinesEnabled ? [{ id: 'routines' as const, label: 'Routines', icon: Sun }] : []),
     { id: 'homework' as const, label: 'Homework', icon: BookOpen },
     { id: 'grades' as const, label: 'Grades', icon: Star },
@@ -89,6 +91,7 @@ const KidsHub: React.FC = () => {
         })}
       </div>
 
+      {activeTab === 'room' && <KidRoom />}
       {activeTab === 'routines' && routinesEnabled && <RoutinesHub />}
       {activeTab === 'homework' && <HomeworkTab isAdm={!!isAdm} kids={kids} />}
       {activeTab === 'grades' && <GradesTab isAdm={!!isAdm} kids={kids} />}
