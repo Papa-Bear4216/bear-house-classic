@@ -471,13 +471,17 @@ export function findPantryItem(items: PantryItem[], name: string, unit: string):
 
 export function mergeIntoPantry(
   items: PantryItem[],
-  incoming: { name: string; quantity: number; unit: string; category: PantryCategory }[]
+  incoming: { name: string; quantity: number; unit: string; category: PantryCategory }[],
+  mode: 'receipt' | 'shelf' = 'receipt'
 ): PantryItem[] {
   let next = [...items];
   for (const inc of incoming) {
     const existing = findPantryItem(next, inc.name, inc.unit);
     if (existing) {
-      next = next.map((i) => i.id === existing.id ? { ...i, quantity: i.quantity + inc.quantity, updatedAt: Date.now() } : i);
+      const nextQuantity = mode === 'shelf'
+        ? Math.max(existing.quantity, inc.quantity)
+        : existing.quantity + inc.quantity;
+      next = next.map((i) => i.id === existing.id ? { ...i, quantity: nextQuantity, updatedAt: Date.now() } : i);
     } else {
       next = [...next, { id: uid(), name: inc.name, quantity: inc.quantity, unit: inc.unit, category: inc.category, updatedAt: Date.now() }];
     }

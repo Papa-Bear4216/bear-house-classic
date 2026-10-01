@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
-import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog, Plus, Zap, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog, Plus, Zap, CheckCircle2, GraduationCap } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars, awardPoints, POINT_VALUES, nextRecurrence } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
@@ -21,6 +21,7 @@ import ActivityFeed from './ActivityFeed';
 import AdhdFocusHero from './AdhdFocusHero';
 import FocusMode from './FocusMode';
 import WeeklyRoundupModal from './sections/WeeklyRoundupModal';
+import SchoolStuffModal from './sections/SchoolStuffModal';
 
 // recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
 // needed when the user opens the Trends tab — split it into its own chunk.
@@ -36,11 +37,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const { householdMembers, currentUser } = useAppContext();
   const streaksEnabled = useFeatureFlag('streaks_leaderboards');
   const weeklyRoundupEnabled = useFeatureFlag('weekly_roundup');
+  const schoolAdderEnabled = useFeatureFlag('school_adder');
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [roundupModalOpen, setRoundupModalOpen] = useState(false);
+  const [schoolAdderOpen, setSchoolAdderOpen] = useState(false);
   const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
   const [userStreak, setUserStreak] = useState(() =>
     currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null
@@ -336,6 +339,13 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       {weeklyRoundupEnabled && (
         <WeeklyRoundupModal open={roundupModalOpen} onOpenChange={setRoundupModalOpen} />
       )}
+      {schoolAdderEnabled && (
+        <SchoolStuffModal
+          open={schoolAdderOpen}
+          onOpenChange={setSchoolAdderOpen}
+          onItemsSaved={() => setTasks(loadJSON(KEYS.tasks, []))}
+        />
+      )}
 
       {/* Hero Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -357,6 +367,17 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         </div>
 
         <div className="flex items-center gap-2">
+          {schoolAdderEnabled && (
+            <button
+              onClick={() => setSchoolAdderOpen(true)}
+              className="px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 transition-all shadow-md focus-ring"
+              title="Ingest school email, flyer, or announcement"
+            >
+              <GraduationCap className="w-4 h-4 text-emerald-400" />
+              <span>School Ingest</span>
+            </button>
+          )}
+
           {weeklyRoundupEnabled && (
             <button
               onClick={() => setRoundupModalOpen(true)}

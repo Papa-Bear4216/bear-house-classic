@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2, Sun } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, BookOpen, Star, Activity, DollarSign, Gamepad2, Sun, GraduationCap } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
 import RoutinesHub from './RoutinesHub';
+import SchoolStuffModal from './SchoolStuffModal';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
@@ -101,6 +102,8 @@ const KidsHub: React.FC = () => {
 const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [items, setItems] = useState<HWItem[]>(() => loadJSON('familyos_homework', []));
   const [showForm, setShowForm] = useState(false);
+  const [showSchoolModal, setShowSchoolModal] = useState(false);
+  const schoolAdderEnabled = useFeatureFlag('school_adder');
   const [kid, setKid] = useState(KIDS[0] || '');
   const [subject, setSubject] = useState(SUBJECTS[0]);
   const [task, setTask] = useState('');
@@ -127,13 +130,32 @@ const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids
 
   return (
     <div className="space-y-3">
+      {schoolAdderEnabled && (
+        <SchoolStuffModal
+          open={showSchoolModal}
+          onOpenChange={setShowSchoolModal}
+          onItemsSaved={() => setItems(loadJSON('familyos_homework', []))}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div className="flex gap-1">
           {['All', ...KIDS].map(k => (
             <button key={k} onClick={() => setFilterKid(k)} className={`px-2.5 py-1 rounded-lg text-xs transition focus-ring ${filterKid === k ? 'bg-berry-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>{k}</button>
           ))}
         </div>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-berry-600 hover:bg-berry-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Add</button>
+        <div className="flex items-center gap-2">
+          {schoolAdderEnabled && (
+            <button
+              onClick={() => setShowSchoolModal(true)}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition shadow-md shadow-emerald-500/20 focus-ring"
+              title="Scan flyer or paste school announcements"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>School Ingest</span>
+            </button>
+          )}
+          <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-berry-600 hover:bg-berry-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition focus-ring"><Plus className="w-3.5 h-3.5" /> Add</button>
+        </div>
       </div>
 
       {showForm && (

@@ -6,6 +6,7 @@ import { useWriteQueued } from '@/lib/useWriteQueued';
 import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
 import ReceiptScanner from '@/components/familyos/ReceiptScanner';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 const STORAGE_KEY = 'familyos_pantry';
 
@@ -16,6 +17,7 @@ const CATEGORY_ORDER: PantryCategory[] = [
 const Pantry: React.FC = () => {
   const { currentRole } = useAppContext();
   const canEdit = !!currentRole && isAdmin(currentRole);
+  const receiptScannerEnabled = useFeatureFlag('receipt_scanner');
   const [items, setItems] = useState<PantryItem[]>(() => loadPantry());
   const [showForm, setShowForm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -55,8 +57,11 @@ const Pantry: React.FC = () => {
     save(items.filter((i) => i.id !== id));
   };
 
-  const handleScanSave = (scanned: { name: string; quantity: number; unit: string; category: PantryCategory }[]) => {
-    save(mergeIntoPantry(items, scanned));
+  const handleScanSave = (
+    scanned: { name: string; quantity: number; unit: string; category: PantryCategory }[],
+    mode: 'receipt' | 'shelf' = 'receipt'
+  ) => {
+    save(mergeIntoPantry(items, scanned, mode));
     triggerConfetti(undefined, undefined, 40);
   };
 
@@ -86,12 +91,14 @@ const Pantry: React.FC = () => {
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowScanner(true)} 
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-lg shadow-purple-500/20 focus-ring"
-            >
-              <ScanLine className="w-4 h-4" /> Scan Receipt
-            </button>
+            {receiptScannerEnabled && (
+              <button 
+                onClick={() => setShowScanner(true)} 
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-lg shadow-purple-500/20 focus-ring"
+              >
+                <ScanLine className="w-4 h-4" /> Scan Receipt / Shelf
+              </button>
+            )}
             <button 
               onClick={() => setShowForm((f) => !f)} 
               className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 focus-ring"

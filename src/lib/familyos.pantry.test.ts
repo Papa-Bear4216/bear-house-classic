@@ -47,6 +47,13 @@ describe('mergeIntoPantry', () => {
     ]);
     expect(result).toHaveLength(2);
   });
+
+  it('reconciles with max quantity in shelf mode without inflating stock', () => {
+    const items = [item({ name: 'Flour', unit: 'cups', quantity: 2 })];
+    const result = mergeIntoPantry(items, [{ name: 'Flour', quantity: 3, unit: 'cups', category: 'pantry' }], 'shelf');
+    expect(result).toHaveLength(1);
+    expect(result[0].quantity).toBe(3);
+  });
 });
 
 describe('decrementPantry', () => {
