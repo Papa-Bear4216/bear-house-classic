@@ -76,13 +76,13 @@ export function AppMockupShowcase() {
       {/* Section Header */}
       <div className="text-center max-w-2xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-300 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Sample only
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Interactive Preview
         </div>
         <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight font-display">
-          A sample of focus mode
+          Take FamilyOS for a test drive
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          This phone is an illustration with made-up chores. It is not your household, and the buttons do not save anything. In the app, you confirm a scan before it becomes a task, and points apply when a chore is marked done.
+          Tap through the live tabs below: test the <strong className="text-white">AI Room Chore Scanner</strong> detecting real-world clutter, try the <strong className="text-white">ADHD Focus Hero</strong> with 5-minute timers, polish an angry draft with the <strong className="text-white">Hermes BIFF Tone Check</strong>, or tour the Bento Dashboard.
         </p>
       </div>
 

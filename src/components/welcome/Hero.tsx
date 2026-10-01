@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { signInWithGoogle } from '@/lib/householdAuth';
-import { Zap, HeartHandshake, CalendarDays, Pill, GraduationCap } from 'lucide-react';
+import { Zap, HeartHandshake, CalendarDays, Pill, GraduationCap, Camera } from 'lucide-react';
 
 export function Hero() {
   return (
@@ -32,11 +32,17 @@ export function Hero() {
       </h1>
 
       <p className="text-base sm:text-lg text-slate-300 max-w-xl relative z-10 leading-relaxed">
-        One kid, two houses, one life. HotMessExpress keeps custody schedules, calm swap requests, safe medication handoffs, school flyers, and read-only bank sync in one quiet place. With a built-in BIFF tone check so nobody sends a text they'll regret.
+        One kid, two houses, one life. HotMessExpress brings calm to everyday chaos: an AI room chore scanner that turns disaster zones into quick wins, ADHD-friendly single-task focus, custody schedules, safe medication handoffs, school flyer triage, and read-only bank sync. All guarded by a built-in BIFF tone check so nobody sends a text they'll regret.
       </p>
 
       {/* Micro-feature highlights */}
       <div className="flex flex-wrap items-center justify-center gap-2.5 relative z-10 text-xs text-slate-300">
+        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+          <Camera className="w-3.5 h-3.5 text-cyan-400" /> AI room chore scanner
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" /> One next chore (ADHD focus)
+        </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
           <HeartHandshake className="w-3.5 h-3.5 text-rose-400" /> BIFF tone check
         </span>
@@ -48,9 +54,6 @@ export function Hero() {
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
           <GraduationCap className="w-3.5 h-3.5 text-emerald-400" /> School flyer triage
-        </span>
-        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" /> One next chore
         </span>
       </div>
 

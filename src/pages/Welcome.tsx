@@ -16,7 +16,7 @@ const STEPS = [
   {
     step: '2',
     title: 'Get the basics rolling',
-    body: 'Chores, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
+    body: 'Chores, the AI room scanner, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
   },
   {
     step: '3',
@@ -94,19 +94,25 @@ export default function Welcome() {
           <div className="my-6 border-t border-white/10 pt-6">
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer, routines & 120Hz arcade
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
+              </li>
+              <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> Two-household custody calendar, calm swaps & weekly digests
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> Cross-home medication dosing log & allergy alerts
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
+                <span className="text-amber-400 font-bold">✓</span> Backpack & School Stuff Adder for flyers & teacher emails
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> School Stuff Adder for backpack flyers & teacher emails
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, routines, streaks & retro arcade
+                <span className="text-amber-400 font-bold">✓</span> Receipts & pantry shelf vision scanner to stop duplicate buys
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> Read-only SimpleFIN bank sync with compounding review queue
