@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Pill, Calendar, Heart } from 'lucide-react';
-import { loadJSON, saveJSON, uid, canDelete } from '@/lib/familyos';
+import { Plus, Trash2, Pill, Calendar, Heart, CheckCircle2, Clock, Check, X } from 'lucide-react';
+import { loadJSON, saveJSON, uid, canDelete, KEYS } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -81,9 +81,26 @@ const HealthHub: React.FC = () => {
   );
 };
 
+export interface DoseLogEntry {
+  id: string;
+  medicationId: string;
+  medicationName: string;
+  person: string;
+  dosage: string;
+  givenBy: string;
+  notes?: string;
+  timestamp: number;
+  deletedAt?: number;
+}
+
 const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people: FAMILY_MEMBERS }) => {
+  const { currentUser } = useAppContext();
   const [meds, setMeds] = useState<Medication[]>(() => loadJSON('familyos_medications', []));
+  const [doses, setDoses] = useState<DoseLogEntry[]>(() => loadJSON(KEYS.medDoses, []));
   const [showForm, setShowForm] = useState(false);
+  const [loggingMed, setLoggingMed] = useState<Medication | null>(null);
+
+  // New med form state
   const [person, setPerson] = useState(FAMILY_MEMBERS[0] || '');
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -92,31 +109,113 @@ const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
   const [notes, setNotes] = useState('');
   const [filterPerson, setFilterPerson] = useState('All');
 
-  const save = (next: Medication[]) => { setMeds(next); saveJSON('familyos_medications', next); };
+  // Dose logging form state
+  const [doseGivenBy, setDoseGivenBy] = useState(currentUser?.name || FAMILY_MEMBERS[0] || 'Parent');
+  const [doseAmount, setDoseAmount] = useState('');
+  const [doseNote, setDoseNote] = useState('');
+  const [submittingDose, setSubmittingDose] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const saveMeds = (next: Medication[]) => { setMeds(next); saveJSON('familyos_medications', next); };
+  const saveDoses = (next: DoseLogEntry[]) => { setDoses(next); saveJSON(KEYS.medDoses, next); };
+
   useEffect(() => onSyncUpdate((key) => {
-    if (key !== 'familyos_medications' && key !== '*') return;
-    setMeds(loadJSON('familyos_medications', []));
+    if (key === 'familyos_medications' || key === '*') {
+      setMeds(loadJSON('familyos_medications', []));
+    }
+    if (key === KEYS.medDoses || key === '*') {
+      setDoses(loadJSON(KEYS.medDoses, []));
+    }
   }), []);
+
   const add = () => {
     if (!name.trim()) return;
-    save([...meds, { id: uid(), person, name: name.trim(), dosage, frequency, nextRefill, notes, createdAt: Date.now() }]);
+    const current = loadJSON<Medication[]>('familyos_medications', []);
+    saveMeds([...current, { id: uid(), person, name: name.trim(), dosage, frequency, nextRefill, notes, createdAt: Date.now() }]);
     setName(''); setDosage(''); setNextRefill(''); setNotes(''); setShowForm(false);
   };
+
   const del = (id: string) => {
-    if (isAdm) save(meds.map(m => m.id === id ? { ...m, deletedAt: Date.now() } : m));
+    if (!isAdm) return;
+    const current = loadJSON<Medication[]>('familyos_medications', []);
+    saveMeds(current.map(m => m.id === id ? { ...m, deletedAt: Date.now() } : m));
+  };
+
+  const startLoggingDose = (med: Medication) => {
+    setLoggingMed(med);
+    setDoseGivenBy(currentUser?.name || FAMILY_MEMBERS[0] || 'Parent');
+    setDoseAmount(med.dosage || '');
+    setDoseNote('');
+  };
+
+  const recordDose = () => {
+    if (!loggingMed || submittingDose) return;
+
+    // Double-dosing check: warn if dose was logged within past 60 minutes
+    const current = loadJSON<DoseLogEntry[]>(KEYS.medDoses, []);
+    const recentDose = current.find(
+      d => !d.deletedAt && d.medicationId === loggingMed.id && Date.now() - d.timestamp < 60 * 60 * 1000
+    );
+    if (recentDose) {
+      const minutesAgo = Math.max(1, Math.round((Date.now() - recentDose.timestamp) / 60000));
+      const confirmed = window.confirm(
+        `Safety Check: ${recentDose.givenBy} already recorded a dose of ${loggingMed.name} for ${loggingMed.person} ${minutesAgo} minute(s) ago. Are you sure you want to log another dose?`
+      );
+      if (!confirmed) return;
+    }
+
+    setSubmittingDose(true);
+    try {
+      const newEntry: DoseLogEntry = {
+        id: uid(),
+        medicationId: loggingMed.id,
+        medicationName: loggingMed.name,
+        person: loggingMed.person,
+        dosage: doseAmount.trim() || loggingMed.dosage,
+        givenBy: doseGivenBy.trim() || 'Parent',
+        notes: doseNote.trim() || undefined,
+        timestamp: Date.now(),
+      };
+      saveDoses([newEntry, ...current]);
+      setLoggingMed(null);
+    } finally {
+      setSubmittingDose(false);
+    }
+  };
+
+  const delDose = (id: string) => {
+    if (!isAdm) return;
+    const current = loadJSON<DoseLogEntry[]>(KEYS.medDoses, []);
+    saveDoses(current.map(d => d.id === id ? { ...d, deletedAt: Date.now() } : d));
   };
 
   const active = meds.filter(m => !m.deletedAt && (filterPerson === 'All' || m.person === filterPerson));
+  const activeDoses = doses.filter(d => !d.deletedAt);
+  const recentDoses = activeDoses
+    .filter(d => nowTick - d.timestamp < 36 * 3600 * 1000 && (filterPerson === 'All' || d.person === filterPerson))
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  const formatDoseTime = (ts: number) => {
+    const d = new Date(ts);
+    const isToday = new Date().toDateString() === d.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return isToday ? `Today at ${timeStr}` : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+  };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-1 overflow-x-auto">
           {['All', ...FAMILY_MEMBERS].map(p => (
-            <button key={p} onClick={() => setFilterPerson(p)} className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition focus-ring ${filterPerson === p ? 'bg-rose-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>{p}</button>
+            <button key={p} onClick={() => setFilterPerson(p)} className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition focus-ring ${filterPerson === p ? 'bg-rose-600 text-white font-bold' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>{p}</button>
           ))}
         </div>
-        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition ml-2 focus-ring"><Plus className="w-3.5 h-3.5" /> Add</button>
+        <button onClick={() => setShowForm(f => !f)} className="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white text-xs px-2.5 py-1.5 rounded-lg transition ml-2 focus-ring"><Plus className="w-3.5 h-3.5" /> Add Med</button>
       </div>
 
       {showForm && (
@@ -158,31 +257,171 @@ const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people
         </div>
       )}
 
+      {/* Log Dose Modal / Action Sheet */}
+      {loggingMed && (
+        <div className="bg-rose-950/30 border border-rose-500/30 rounded-xl p-3.5 space-y-3 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              Log Dose Given: <span className="text-rose-300 font-extrabold">{loggingMed.name}</span> for {loggingMed.person}
+            </div>
+            <button onClick={() => setLoggingMed(null)} className="text-cream-400/60 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="text-[11px] text-cream-400/70 block mb-0.5">Administered By</label>
+              <input
+                value={doseGivenBy}
+                onChange={e => setDoseGivenBy(e.target.value)}
+                placeholder="Parent name"
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2.5 py-1.5 text-white text-xs outline-none focus-ring"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-cream-400/70 block mb-0.5">Dose Amount</label>
+              <input
+                value={doseAmount}
+                onChange={e => setDoseAmount(e.target.value)}
+                placeholder={loggingMed.dosage}
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2.5 py-1.5 text-white text-xs outline-none focus-ring"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-cream-400/70 block mb-0.5">Handoff Note (Optional)</label>
+              <input
+                value={doseNote}
+                onChange={e => setDoseNote(e.target.value)}
+                placeholder="e.g. Given with breakfast"
+                className="w-full bg-bark-800 border border-cream-400/10 rounded px-2.5 py-1.5 text-white text-xs outline-none focus-ring"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setLoggingMed(null)}
+              className="text-cream-400/60 hover:text-white text-xs px-3 py-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={recordDose}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow-md transition active:scale-95 flex items-center gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" /> Confirm Dose Given
+            </button>
+          </div>
+        </div>
+      )}
+
       {active.length === 0 && <div className="text-center text-cream-400/60 py-6 text-sm">No medications tracked. Add one to get refill and dosage reminders.</div>}
 
+      {/* Medication Cards */}
       <div className="space-y-2">
         {active.map(med => {
           const refillSoon = med.nextRefill && new Date(med.nextRefill).getTime() - Date.now() < 7 * 86400000;
+          const medDoses = activeDoses.filter(d => d.medicationId === med.id).sort((a, b) => b.timestamp - a.timestamp);
+          const lastDose = medDoses[0];
+
           return (
-            <div key={med.id} className="flex items-start gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl px-3 py-2.5">
-              <div className="w-8 h-8 rounded-lg bg-rose-900/40 border border-rose-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Pill className="w-4 h-4 text-rose-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-sm font-medium">{med.name}</div>
-                <div className="text-cream-400/60 text-xs">{med.person} · {med.dosage} · {med.frequency}</div>
-                {med.nextRefill && (
-                  <div className={`text-xs mt-0.5 ${refillSoon ? 'text-honey-400' : 'text-cream-400/50'}`}>
-                    Refill: {med.nextRefill}{refillSoon ? ' (soon!)' : ''}
+            <div key={med.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-bark-700/40 border border-cream-400/10 rounded-xl p-3">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-rose-900/40 border border-rose-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Pill className="w-4 h-4 text-rose-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-white text-sm font-bold">{med.name}</span>
+                    <span className="text-[11px] bg-bark-800 text-cream-400/80 px-2 py-0.5 rounded-md border border-cream-400/10">
+                      {med.person}
+                    </span>
+                    <span className="text-[11px] text-cream-400/60">
+                      {med.dosage} · {med.frequency}
+                    </span>
                   </div>
-                )}
-                {med.notes && <div className="text-cream-400/50 text-xs">{med.notes}</div>}
+
+                  {/* Last dose indicator */}
+                  <div className="mt-1 flex items-center gap-1 text-xs">
+                    {lastDose ? (
+                      <span className="text-emerald-400 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Last dose: {formatDoseTime(lastDose.timestamp)} by {lastDose.givenBy} ({lastDose.dosage})
+                      </span>
+                    ) : (
+                      <span className="text-cream-400/40 italic">No doses recorded yet</span>
+                    )}
+                  </div>
+
+                  {med.nextRefill && (
+                    <div className={`text-xs mt-0.5 ${refillSoon ? 'text-honey-400 font-medium' : 'text-cream-400/50'}`}>
+                      Refill due: {med.nextRefill}{refillSoon ? ' (soon!)' : ''}
+                    </div>
+                  )}
+                  {med.notes && <div className="text-cream-400/50 text-xs mt-0.5">{med.notes}</div>}
+                </div>
               </div>
-              {isAdm && <button onClick={() => del(med.id)} className="text-cream-400/60 hover:text-rose-400 transition focus-ring"><Trash2 className="w-3.5 h-3.5" /></button>}
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  onClick={() => startLoggingDose(med)}
+                  className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg transition active:scale-95 flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Log Dose
+                </button>
+                {isAdm && (
+                  <button onClick={() => del(med.id)} className="text-cream-400/60 hover:text-rose-400 transition p-1.5">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Dosing History Timeline */}
+      {recentDoses.length > 0 && (
+        <div className="bg-bark-800/40 border border-cream-400/10 rounded-xl p-3.5 space-y-2 mt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase font-bold text-cream-400/70 tracking-wider flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-rose-400" />
+              Recent Dosing History (Both Co-Parents)
+            </span>
+            <span className="text-[11px] text-cream-400/50">Past 36 hours</span>
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            {recentDoses.map(d => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between bg-bark-900/60 border border-cream-400/5 rounded-lg px-3 py-2 text-xs"
+              >
+                <div>
+                  <span className="font-bold text-white">{d.person}:</span>{' '}
+                  <span className="text-rose-300 font-semibold">{d.medicationName}</span> ({d.dosage}) given by{' '}
+                  <span className="text-emerald-400 font-semibold">{d.givenBy}</span>
+                  {d.notes && <span className="text-cream-400/60 italic ml-1">"{d.notes}"</span>}
+                </div>
+                <div className="flex items-center gap-2 text-cream-400/50">
+                  <span>{formatDoseTime(d.timestamp)}</span>
+                  {isAdm && (
+                    <button
+                      onClick={() => delDose(d.id)}
+                      className="text-cream-400/40 hover:text-rose-400 transition ml-1"
+                      title="Delete log entry"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

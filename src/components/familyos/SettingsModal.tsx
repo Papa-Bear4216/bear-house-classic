@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Key, Bell, Clock, Users, Trash2, Plus, Download, Eye, EyeOff,
   Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home,
-  ShoppingCart, ExternalLink, Grid2x2 as Grid2x2Icon,
+  ShoppingCart, ExternalLink, Grid2x2 as Grid2x2Icon, Shield,
 } from 'lucide-react';
 import { KEYS, DEFAULT_SETTINGS, DEFAULT_PRESENCE_ZONES, loadJSON, saveJSON, uid, loadMemberPreferences, preferencesKey } from '@/lib/familyos';
 import { getVisibleModulesFor, type TopModule } from '@/lib/navVisibility';
@@ -71,17 +71,46 @@ function EnvRow({ name, value, placeholder }: { name: string; value?: string; pl
   );
 }
 
+export const COPPA_NOTICE_VERSION = '2026-10-v1';
+
+export interface CoppaConsentRecord {
+  id: string;
+  childName: string;
+  guardianId: string;
+  guardianName: string;
+  consentedAt: number;
+  noticeVersion: string;
+}
+
 function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
+  const { currentUser } = useAppContext();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'child'>('child');
+  const [coppaConfirmed, setCoppaConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
+  // Reset confirmation if any field changes to prevent stale consent binding
+  useEffect(() => {
+    setCoppaConfirmed(false);
+  }, [role, name, email]);
+
   const invite = async () => {
     setError(''); setNotice('');
     if (!name.trim() || !email.trim()) { setError('Name and email are required.'); return; }
+    if (role === 'child') {
+      if (!currentUser?.id) {
+        setError('You must be signed in as an authenticated parent or admin to grant parental consent.');
+        return;
+      }
+      if (!coppaConfirmed) {
+        setError('You must confirm parental consent under COPPA before inviting a child account.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const res = await authedFetch('/api/setup', {
@@ -90,8 +119,23 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to invite.'); return; }
+
+      // Persist verifiable parental consent audit trail (without storing raw child email for PII safety)
+      if (role === 'child' && currentUser?.id) {
+        const existingConsents = loadJSON<CoppaConsentRecord[]>(KEYS.coppaConsents, []);
+        const consentRecord: CoppaConsentRecord = {
+          id: uid(),
+          childName: name.trim(),
+          guardianId: currentUser.id,
+          guardianName: currentUser.name || 'Parent',
+          consentedAt: Date.now(),
+          noticeVersion: COPPA_NOTICE_VERSION,
+        };
+        saveJSON(KEYS.coppaConsents, [consentRecord, ...existingConsents]);
+      }
+
       setNotice(data.note || 'Invite sent.');
-      setName(''); setEmail(''); setRole('child');
+      setName(''); setEmail(''); setRole('child'); setCoppaConfirmed(false);
       onInvited();
     } catch {
       setError('Network error. Please try again.');
@@ -129,11 +173,33 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
         className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white placeholder-slate-500 outline-none"
         disabled={submitting}
       />
+      {role === 'child' && (
+        <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-3 text-[11px] text-slate-400 space-y-2">
+          <div className="font-semibold text-slate-300 flex items-center gap-1.5">
+            <Shield className="w-3.5 h-3.5 text-amber-400" />
+            COPPA Verifiable Parental Consent & Privacy Notice
+          </div>
+          <p>
+            Hot Mess Express complies with the Children's Online Privacy Protection Act (COPPA). We collect minimal child data, never sell personal information, and restrict account permissions by default.
+          </p>
+          <label className="flex items-start gap-2 cursor-pointer select-none text-slate-300 font-medium pt-1">
+            <input
+              type="checkbox"
+              checked={coppaConfirmed}
+              onChange={(e) => setCoppaConfirmed(e.target.checked)}
+              className="mt-0.5 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
+            />
+            <span>
+              I affirm that I am the parent or legal guardian of this child ({name.trim() || 'child'}) and consent to their account creation under the COPPA Child Privacy Policy.
+            </span>
+          </label>
+        </div>
+      )}
       {error && <p className="text-rose-400 text-xs">{error}</p>}
       {notice && <p className="text-emerald-400 text-xs">{notice}</p>}
       <button
         onClick={invite}
-        disabled={submitting}
+        disabled={submitting || (role === 'child' && !coppaConfirmed)}
         className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition"
       >
         {submitting ? 'Sending…' : 'Send invite'}

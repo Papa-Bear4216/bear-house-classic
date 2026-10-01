@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X, Sparkles, Heart, Trophy } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Circle, MessageSquare, HelpCircle, Camera, List, Tv, Gamepad2, Check, X, Sparkles, Heart, Trophy, CalendarDays } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, User } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import CustodyCalendar from './CustodyCalendar';
 
 const FamilyHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
-  const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight'>('messages');
+  const custodyEnabled = useFeatureFlag('custody_calendar');
+  const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight' | 'custody'>('messages');
   const isAdm = currentRole && canDelete(currentRole);
+
+  useEffect(() => {
+    if (!custodyEnabled && tab === 'custody') {
+      setTab('messages');
+    }
+  }, [custodyEnabled, tab]);
 
   const TABS = [
     { id: 'messages' as const, label: 'Messages', icon: MessageSquare },
+    ...(custodyEnabled ? [{ id: 'custody' as const, label: 'Custody & Swaps', icon: CalendarDays }] : []),
     { id: 'ask' as const, label: 'Ask Parents', icon: HelpCircle },
     { id: 'moments' as const, label: 'Moments', icon: Camera },
     { id: 'bucket' as const, label: 'Bucket List', icon: List },
@@ -54,6 +64,7 @@ const FamilyHub: React.FC = () => {
       </div>
 
       {tab === 'messages' && <MessagesTab isAdm={!!isAdm} />}
+      {tab === 'custody' && custodyEnabled && <CustodyCalendar />}
       {tab === 'ask' && <AskParentsTab isAdm={!!isAdm} />}
       {tab === 'moments' && <MomentsTab isAdm={!!isAdm} />}
       {tab === 'bucket' && <BucketListTab isAdm={!!isAdm} />}

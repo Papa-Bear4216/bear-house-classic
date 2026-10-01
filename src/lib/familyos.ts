@@ -44,6 +44,10 @@ export const KEYS = {
   redemptions: 'reward_redemptions',
   roomMap: 'household_room_map',
   featureFlags: 'familyos_feature_flags',
+  custodySchedule: 'familyos_custody_schedule',
+  custodySwaps: 'familyos_custody_swaps',
+  medDoses: 'familyos_med_doses',
+  coppaConsents: 'familyos_coppa_consents',
 };
 
 export const DEFAULT_SETTINGS = {
