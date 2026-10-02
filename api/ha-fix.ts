@@ -1,8 +1,8 @@
 // api/ha-fix.ts
 export const config = { runtime: 'edge' };
 
-import { resolveFix } from './_integrationFixMap.js';
-import { resolveHouseholdId } from './_db.js';
+import { resolveFix, FIX_MAP } from './_integrationFixMap.js';
+import { resolveCallerMember } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaFixBodySchema } from './_schemas.js';
@@ -109,9 +109,15 @@ export default async function handler(req: Request): Promise<Response> {
   if (preflight) return preflight;
 
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
-  const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const authHeader = req.headers.get('authorization') || '';
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '');
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
+
+  const isAdmin = caller.role === 'admin' || caller.role === 'superadmin';
+  if (!isAdmin) return j({ error: 'Only an admin can run integration fixes' }, 403);
+
+  const { householdId } = caller;
 
   const rl = await checkRateLimit(householdId, 'ha-fix', 20);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
@@ -121,6 +127,11 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { integration, key } = parsed.data;
 
+  const allowed = Object.keys(FIX_MAP);
+  if (!allowed.includes(integration)) {
+    return j({ error: `Unsupported integration for fix: ${integration}` }, 400);
+  }
+
   const result = await runFix(householdId, integration, key);
-  return j(result, result.ok ? 200 : 200); // always 200; ok flag carries success
+  return j(result, 200); // always 200; ok flag carries success
 }
