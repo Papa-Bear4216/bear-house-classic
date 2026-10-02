@@ -951,3 +951,8 @@ export function describeRecurrence(rec?: Recurrence | null): string {
   }
   return '';
 }
+
+export function resolveMemberIdByName(members: { id: string; name: string }[], name: string): string | null {
+  return members.find((m) => m.name === name)?.id ?? null;
+}
+

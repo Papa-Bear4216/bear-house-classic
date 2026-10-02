@@ -32,6 +32,22 @@ export const HERMES_SYSTEM_PROMPT = [
   "if you are unsure, say what you know and what you don't.",
 ].join(' ');
 
+export const NON_ADMIN_ALLOWED_TOOLS = new Set([
+  'addTask',
+  'completeTask',
+  'uncompleteTask',
+  'deleteTask',
+  'addShopping',
+  'completeShoppingItem',
+  'addAppointment',
+  'addPromise',
+  'completePromise',
+  'logEmotion',
+  'genericAction',
+  'setMealPlan',
+  'markMealCooked',
+]);
+
 type ChatMessage = { role: string; content: string };
 
 class ProviderError extends Error {
@@ -350,10 +366,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const isTriad = isTriadHousehold(householdId);
+  const isChild = callerRole === 'child';
+
   const scopedTools = tools?.filter((t) => {
-    if (t.name === 'queryTriad') return isTriad;
-    if (t.name === 'manageMember' || t.name === 'notifyPerson' || t.name === 'addBill' || t.name === 'markBillPaid' || t.name === 'clearWeekMeals') return isAdmin;
+    if (t.name === 'queryTriad') return isTriad && isAdmin;
     if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return canControlDevices;
+    if (!isAdmin) return NON_ADMIN_ALLOWED_TOOLS.has(t.name);
     return true;
   });
   const allowedTools = new Set(scopedTools?.map((t) => t.name) || []);
@@ -366,7 +384,7 @@ export default async function handler(req: Request): Promise<Response> {
   const jsonHint = outputSchema
     ? `\n\nYou must return valid JSON matching this shape:\n${outputSchema}\nNo other keys.`
     : '';
-  const neutralHint = neutralMode
+  const neutralHint = (neutralMode && !isChild)
     ? `\n\n[Hermes Neutral Co-Parent Mode Active]:
 You are acting as an objective, conflict-deescalating co-parenting communication assistant.
 Adhere strictly to the BIFF communication standard (Brief, Informative, Friendly, Firm):
@@ -375,7 +393,15 @@ Adhere strictly to the BIFF communication standard (Brief, Informative, Friendly
 - Keep tone neutral, respectful, constructive, and firm.
 - Never take sides or validate hostile language. Convert hostile questions into clear, polite yes/no or logistical proposals.`
     : '';
-  const effectiveSystem = (system || HERMES_SYSTEM_PROMPT) + jsonHint + neutralHint;
+  const childSafetyHint = isChild
+    ? `\n\n[Child Safety Persona Active]:
+The current user is a child member of the family. Keep answers age-appropriate, encouraging, and supportive. If the user mentions feeling in danger, self-harm, or abuse, immediately encourage reaching out to a trusted adult or crisis support (988). Do not discuss household finances, billing, or parental legal disagreements.`
+    : '';
+  let baseSystem = system || HERMES_SYSTEM_PROMPT;
+  if (isChild && system) {
+    baseSystem = baseSystem.replace(/(\b(?:finance|budget|billing|bills|bank|account|transaction)s?\b[^\n]*)/gi, '[REDACTED]');
+  }
+  const effectiveSystem = baseSystem + jsonHint + neutralHint + childSafetyHint;
 
   // The household's self-serve tier toggle (api/hermes-model.ts) picks the
   // Claude model. An explicit `model` in the request still overrides it.

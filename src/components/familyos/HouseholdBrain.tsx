@@ -28,6 +28,7 @@ import {
   getHaEntitiesForRoom,
   matchHaEntityForChore,
   triggerHaDevice,
+  resolveMemberIdByName,
 } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { onSyncUpdate } from '@/lib/sync';
@@ -59,9 +60,7 @@ interface Task {
   snoozedUntil?: number | null;
 }
 
-export function resolveMemberIdByName(members: { id: string; name: string }[], name: string): string | null {
-  return members.find((m) => m.name === name)?.id ?? null;
-}
+export { resolveMemberIdByName };
 
 const PRIORITY_COLORS: Record<string, string> = {
   High: 'border-rose-500',

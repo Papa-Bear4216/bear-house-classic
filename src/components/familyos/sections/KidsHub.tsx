@@ -102,7 +102,7 @@ const KidsHub: React.FC = () => {
   );
 };
 
-const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
+export const HomeworkTab: React.FC<{ isAdm: boolean; kids: string[] }> = ({ isAdm, kids: KIDS }) => {
   const [items, setItems] = useState<HWItem[]>(() => loadJSON('familyos_homework', []));
   const [showForm, setShowForm] = useState(false);
   const [showSchoolModal, setShowSchoolModal] = useState(false);

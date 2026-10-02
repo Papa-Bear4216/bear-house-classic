@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
 import { Sparkles, ListChecks, Calendar, Handshake, Heart, AlertTriangle, TrendingUp, BarChart3, LayoutDashboard, UserCog, Plus, Zap, CheckCircle2, GraduationCap } from 'lucide-react';
-import { KEYS, loadJSON, saveJSON, uid, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars, awardPoints, POINT_VALUES, nextRecurrence } from '@/lib/familyos';
+import { KEYS, loadJSON, saveJSON, uid, callClaude, isOverdue, relativeDate, daysUntilDue, householdPillars, awardPoints, POINT_VALUES, nextRecurrence, resolveMemberIdByName } from '@/lib/familyos';
 import { getGoogleToken } from '@/lib/auth';
 import { useAppContext } from '@/contexts/AppContext';
 import { getColorCardStyle } from '@/lib/colorStyles';
@@ -9,7 +9,6 @@ import { loadHermesWeather } from '@/lib/hermesWeather';
 import { onSyncUpdate } from '@/lib/sync';
 import { logActivity } from '@/lib/householdActivity';
 import { triggerConfetti } from '@/lib/confetti';
-import { resolveMemberIdByName } from './HouseholdBrain';
 import { getMemberStreak, recordMemberActivityForToday } from '@/lib/streaks';
 import { useFeatureFlag } from '@/lib/featureFlags';
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, DollarSign, TrendingUp, Users, User, Landmark, RotateCcw, RefreshCw, Building2, Sparkles, Receipt } from 'lucide-react';
 import { loadJSON, saveJSON, uid, canDelete, isAdmin, householdPersons } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch } from '@/lib/householdAuth';
@@ -16,6 +16,7 @@ import {
 } from '@/lib/transactionReview';
 import ConnectBankGuide from './ConnectBankGuide';
 import TransactionReviewInbox from './TransactionReviewInbox';
+import BillTracker from './BillTracker';
 
 const BUDGET_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Utilities', 'Insurance', 'Entertainment', 'Clothing', 'Healthcare', 'Savings', 'Kids', 'Pets', 'Other'];
 
@@ -159,7 +160,7 @@ function useHouseholdExpenses(householdMembers: Array<{ id: string }>, currentMe
 
 const FinanceHub: React.FC = () => {
   const { currentUser, currentRole, householdMembers } = useAppContext();
-  const [tab, setTab] = useState<'budget' | 'expenses'>('expenses');
+  const [tab, setTab] = useState<'budget' | 'expenses' | 'bills'>('expenses');
   const [viewMode, setViewMode] = useState<'mine' | 'combined'>('combined');
   const isAdm = currentRole && isAdmin(currentRole);
   const finance = useHouseholdExpenses(householdMembers || [], currentUser?.id);
@@ -178,26 +179,29 @@ const FinanceHub: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Finance Hub</h2>
-        <div className="flex items-center gap-1 bg-bark-700/60 border border-cream-400/10 rounded-lg p-0.5">
-          <button
-            onClick={() => setViewMode('mine')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'mine' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
-          >
-            <User className="w-3 h-3" /> Mine
-          </button>
-          <button
-            onClick={() => setViewMode('combined')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'combined' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
-          >
-            <Users className="w-3 h-3" /> Combined
-          </button>
-        </div>
+        {tab !== 'bills' && (
+          <div className="flex items-center gap-1 bg-bark-700/60 border border-cream-400/10 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('mine')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'mine' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
+            >
+              <User className="w-3 h-3" /> Mine
+            </button>
+            <button
+              onClick={() => setViewMode('combined')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition focus-ring ${viewMode === 'combined' ? 'bg-honey-500 text-white' : 'text-cream-400/60 hover:text-white'}`}
+            >
+              <Users className="w-3 h-3" /> Combined
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-1">
         {([
           { id: 'expenses' as const, label: 'Expenses', icon: DollarSign },
           { id: 'budget'   as const, label: 'Budget',   icon: TrendingUp  },
+          { id: 'bills'    as const, label: 'Bills',    icon: Receipt     },
         ]).map(t => {
           const Icon = t.icon;
           return (
@@ -211,6 +215,7 @@ const FinanceHub: React.FC = () => {
 
       {tab === 'budget'   && <BudgetTab   viewMode={viewMode} currentUser={currentUser} expenses={finance.expenses} />}
       {tab === 'expenses' && <ExpensesTab viewMode={viewMode} currentUser={currentUser} finance={finance} />}
+      {tab === 'bills'    && <BillTracker />}
     </div>
   );
 };

@@ -93,7 +93,7 @@ export interface DoseLogEntry {
   deletedAt?: number;
 }
 
-const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people: FAMILY_MEMBERS }) => {
+export const MedsTab: React.FC<{ isAdm: boolean; people: string[] }> = ({ isAdm, people: FAMILY_MEMBERS }) => {
   const { currentUser } = useAppContext();
   const [meds, setMeds] = useState<Medication[]>(() => loadJSON('familyos_medications', []));
   const [doses, setDoses] = useState<DoseLogEntry[]>(() => loadJSON(KEYS.medDoses, []));

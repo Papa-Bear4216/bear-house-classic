@@ -5,7 +5,7 @@ import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
 import { useFeatureFlag } from '@/lib/featureFlags';
-import CustodyCalendar from './CustodyCalendar';
+import CoParentDeck from './CoParentDeck';
 import WeeklyRoundupModal from './WeeklyRoundupModal';
 import BiffToneCheckModal from './BiffToneCheckModal';
 
@@ -17,17 +17,18 @@ const FamilyHub: React.FC = () => {
   const [tab, setTab] = useState<'messages' | 'ask' | 'moments' | 'bucket' | 'watchlist' | 'gamenight' | 'custody'>('messages');
   const [showRoundup, setShowRoundup] = useState(false);
   const [showToneCheck, setShowToneCheck] = useState(false);
+  const isChild = currentRole === 'child';
   const isAdm = currentRole && canDelete(currentRole);
 
   useEffect(() => {
-    if (!custodyEnabled && tab === 'custody') {
+    if ((!custodyEnabled || isChild) && tab === 'custody') {
       setTab('messages');
     }
-  }, [custodyEnabled, tab]);
+  }, [custodyEnabled, isChild, tab]);
 
   const TABS = [
     { id: 'messages' as const, label: 'Messages', icon: MessageSquare },
-    ...(custodyEnabled ? [{ id: 'custody' as const, label: 'Custody & Swaps', icon: CalendarDays }] : []),
+    ...(!isChild && custodyEnabled ? [{ id: 'custody' as const, label: 'Co-Parent Deck', icon: CalendarDays }] : []),
     { id: 'ask' as const, label: 'Ask Parents', icon: HelpCircle },
     { id: 'moments' as const, label: 'Moments', icon: Camera },
     { id: 'bucket' as const, label: 'Bucket List', icon: List },
@@ -92,7 +93,7 @@ const FamilyHub: React.FC = () => {
       </div>
 
       {tab === 'messages' && <MessagesTab isAdm={!!isAdm} />}
-      {tab === 'custody' && custodyEnabled && <CustodyCalendar />}
+      {tab === 'custody' && custodyEnabled && <CoParentDeck />}
       {tab === 'ask' && <AskParentsTab isAdm={!!isAdm} />}
       {tab === 'moments' && <MomentsTab isAdm={!!isAdm} />}
       {tab === 'bucket' && <BucketListTab isAdm={!!isAdm} />}

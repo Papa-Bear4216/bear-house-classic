@@ -740,7 +740,38 @@ describe('POST /api/chat', () => {
     expect(sentBody.tools.some((t: any) => t.name === 'manageMember')).toBe(false);
     expect(sentBody.tools.some((t: any) => t.name === 'controlDevice')).toBe(false);
     expect(sentBody.tools.some((t: any) => t.name === 'notifyPerson')).toBe(false);
+    expect(sentBody.tools.some((t: any) => t.name === 'updateMemory')).toBe(false);
   });
+
+  it('applies child safety persona and strips sensitive household mutators when caller role is child', async () => {
+    authed();
+    vi.mocked(resolveCallerMember).mockResolvedValueOnce({
+      householdId: 'household-1',
+      memberId: 'm-child',
+      role: 'child',
+      canControlDevices: false,
+    });
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Hi buddy!'));
+
+    const res = await handler(req({ prompt: 'hello', enableTools: true }));
+    expect(res.status).toBe(200);
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    // System prompt includes child safety persona
+    expect(sentBody.system[0].text).toContain('[Child Safety Persona Active]');
+    expect(sentBody.system[0].text).toContain('crisis support (988)');
+    // Tools stripped
+    const toolNames = sentBody.tools.map((t: any) => t.name);
+    expect(toolNames).not.toContain('updateMemory');
+    expect(toolNames).not.toContain('addCarMaintenanceEntry');
+    expect(toolNames).not.toContain('addBill');
+    expect(toolNames).not.toContain('markBillPaid');
+    expect(toolNames).not.toContain('manageMember');
+    // Child can still use basic task & shopping tools
+    expect(toolNames).toContain('addTask');
+    expect(toolNames).toContain('addShopping');
+  });
+
 
   it('preserves 429 status code when Gemini returns rate limit error', async () => {
     authed();

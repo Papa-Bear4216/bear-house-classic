@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone, ClipboardList, CalendarDays
+  UtensilsCrossed, Wrench, Home, Grid2x2, CalendarDays
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
@@ -32,14 +32,8 @@ const Promises = lazy(() => import('@/components/familyos/Promises'));
 const Emotions = lazy(() => import('@/components/familyos/Emotions'));
 const SettingsModal = lazy(() => import('@/components/familyos/SettingsModal'));
 const HistoryModal = lazy(() => import('@/components/familyos/HistoryModal'));
-const Shopping = lazy(() => import('@/components/familyos/sections/Shopping'));
-const MealPlanner = lazy(() => import('@/components/familyos/sections/MealPlanner'));
-const Pantry = lazy(() => import('@/components/familyos/sections/Pantry'));
-const BillTracker = lazy(() => import('@/components/familyos/sections/BillTracker'));
-const CarMaintenance = lazy(() => import('@/components/familyos/sections/CarMaintenance'));
-const HomeMaintenance = lazy(() => import('@/components/familyos/sections/HomeMaintenance'));
-const DeviceWarranty = lazy(() => import('@/components/familyos/sections/DeviceWarranty'));
-const HouseholdMemory = lazy(() => import('@/components/familyos/sections/HouseholdMemory'));
+const KitchenHub = lazy(() => import('@/components/familyos/sections/KitchenHub'));
+const UpkeepHub = lazy(() => import('@/components/familyos/sections/UpkeepHub'));
 const KidsHub = lazy(() => import('@/components/familyos/sections/KidsHub'));
 const HealthHub = lazy(() => import('@/components/familyos/sections/HealthHub'));
 const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'));
@@ -47,20 +41,36 @@ const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'
 const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
 const RunOfShow = lazy(() => import('@/components/familyos/sections/RunOfShow'));
 
-type HouseholdTab = 'tasks' | 'logistics' | 'shopping' | 'meals' | 'pantry' | 'bills' | 'home' | 'cars' | 'warranty' | 'brain';
+import type { KitchenTab } from '@/components/familyos/sections/KitchenHub';
+import type { UpkeepTab } from '@/components/familyos/sections/UpkeepHub';
+
+type HouseholdTab = 'tasks' | 'logistics' | 'kitchen' | 'upkeep';
+
+interface NormalizedHouseholdTab {
+  tab: HouseholdTab;
+  sub?: KitchenTab | UpkeepTab;
+}
 
 const HOUSEHOLD_TABS: { id: HouseholdTab; label: string; icon: React.ComponentType<{ className?: string }>; adminOnly?: boolean; }[] = [
   { id: 'tasks', label: 'Tasks', icon: Home },
   { id: 'logistics', label: 'Run of Show', icon: CalendarDays },
-  { id: 'shopping', label: 'Shopping', icon: ShoppingCart },
-  { id: 'meals', label: 'Meals', icon: Utensils },
-  { id: 'pantry', label: 'Pantry', icon: Package },
-  { id: 'bills', label: 'Bills', icon: Receipt },
-  { id: 'home', label: 'Home', icon: Wrench },
-  { id: 'cars', label: 'Cars', icon: Car },
-  { id: 'warranty', label: 'Warranty', icon: Smartphone },
-  { id: 'brain', label: 'Brain', icon: Brain },
+  { id: 'kitchen', label: 'Kitchen', icon: UtensilsCrossed },
+  { id: 'upkeep', label: 'Upkeep', icon: Wrench, adminOnly: true },
 ];
+
+const normalizeHouseholdTab = (t: string): NormalizedHouseholdTab => {
+  if (t === 'meals' || t === 'pantry' || t === 'shopping') {
+    return { tab: 'kitchen', sub: t as KitchenTab };
+  }
+  if (t === 'home' || t === 'cars' || t === 'warranty' || t === 'brain' || t === 'vault') {
+    const sub = t === 'brain' ? 'vault' : (t as UpkeepTab);
+    return { tab: 'upkeep', sub };
+  }
+  if (HOUSEHOLD_TABS.some((tab) => tab.id === t)) {
+    return { tab: t as HouseholdTab };
+  }
+  return { tab: 'tasks' };
+};
 
 const COLOR_DOT: Record<string, string> = {
   indigo: 'bg-indigo-400',
@@ -228,7 +238,8 @@ const AppLayout: React.FC = () => {
 
   // Child-visible household tabs
   const visibleHouseholdTabs = HOUSEHOLD_TABS.filter(t => {
-    if (isChild && !['tasks', 'shopping'].includes(t.id)) return false;
+    if (isChild && !['tasks', 'kitchen'].includes(t.id)) return false;
+    if (t.adminOnly && !isAdm) return false;
     return true;
   });
 
@@ -253,7 +264,10 @@ const AppLayout: React.FC = () => {
       case 'dashboard':
         return <Dashboard onNav={(m) => setActive(m as TopModule)} onQuickAdd={(m) => setActive(m as TopModule)} />;
 
-      case 'household':
+      case 'household': {
+        const normalized = normalizeHouseholdTab(householdTab);
+        const currentTab = visibleHouseholdTabs.some((t) => t.id === normalized.tab) ? normalized.tab : 'tasks';
+        const initialSub = normalized.sub;
         return (
           <div className="space-y-4">
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -264,7 +278,7 @@ const AppLayout: React.FC = () => {
                     key={t.id}
                     onClick={() => setHouseholdTab(t.id)}
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 shadow-sm ${
-                      householdTab === t.id
+                      currentTab === t.id
                         ? 'bg-amber-500 text-slate-950 font-bold shadow-amber-500/25 scale-[1.02]'
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
                     }`}
@@ -275,18 +289,13 @@ const AppLayout: React.FC = () => {
                 );
               })}
             </div>
-            {householdTab === 'tasks' && <HouseholdBrain />}
-            {householdTab === 'logistics' && <RunOfShow />}
-            {householdTab === 'shopping' && <Shopping />}
-            {householdTab === 'meals' && <MealPlanner />}
-            {householdTab === 'pantry' && <Pantry />}
-            {householdTab === 'bills' && <BillTracker />}
-            {householdTab === 'home' && <HomeMaintenance />}
-            {householdTab === 'cars' && <CarMaintenance />}
-            {householdTab === 'warranty' && <DeviceWarranty />}
-            {householdTab === 'brain' && <HouseholdMemory />}
+            {currentTab === 'tasks' && <HouseholdBrain />}
+            {currentTab === 'logistics' && <RunOfShow />}
+            {currentTab === 'kitchen' && <KitchenHub initialTab={initialSub as KitchenTab} />}
+            {currentTab === 'upkeep' && <UpkeepHub initialTab={initialSub as UpkeepTab} />}
           </div>
         );
+      }
 
       case 'rewards':
         return <RewardStore />;
