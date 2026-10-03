@@ -40,6 +40,7 @@ const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'))
 const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'));
 const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
 const RunOfShow = lazy(() => import('@/components/familyos/sections/RunOfShow'));
+const KidsWorldShell = lazy(() => import('@/components/familyos/kids-world/KidsWorldShell').then(m => ({ default: m.KidsWorldShell })));
 
 import type { KitchenTab } from '@/components/familyos/sections/KitchenHub';
 import type { UpkeepTab } from '@/components/familyos/sections/UpkeepHub';
@@ -318,6 +319,14 @@ const AppLayout: React.FC = () => {
   };
 
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
+
+  if (isChild) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-stone-950 flex items-center justify-center text-amber-400 font-black">ENTERING MONSTER DEN...</div>}>
+        <KidsWorldShell onExitKidMode={logout} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 relative selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden font-sans">

@@ -8,6 +8,7 @@ import RoutinesHub from './RoutinesHub';
 import SchoolStuffModal from './SchoolStuffModal';
 import KidRoom from './KidRoom';
 import { useFeatureFlag } from '@/lib/featureFlags';
+import { KidsWorldShell } from '@/components/familyos/kids-world/KidsWorldShell';
 
 const SUBJECTS = ['Math', 'English', 'Science', 'History', 'Reading', 'PE', 'Art', 'Other'];
 const HW_STATUSES = ['Not Started', 'In Progress', 'Done'];
@@ -76,9 +77,24 @@ const KidsHub: React.FC = () => {
     { id: 'arcade' as const, label: 'Arcade', icon: Gamepad2 },
   ];
 
+  const [inMonsterDen, setInMonsterDen] = useState(false);
+
+  if (inMonsterDen) {
+    return <KidsWorldShell onExitKidMode={() => setInMonsterDen(false)} />;
+  }
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Kids Hub</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Kids Hub</h2>
+        <button
+          onClick={() => setInMonsterDen(true)}
+          className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
+        >
+          <span className="text-base">👹</span> ENTER MONSTER DEN 🚀
+        </button>
+      </div>
+
       <div className="flex gap-1 overflow-x-auto pb-1">
         {TABS.map(t => {
           const Icon = t.icon;

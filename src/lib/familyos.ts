@@ -562,6 +562,10 @@ export function loadPointsBalance(): PointsBalance {
   return loadJSON<PointsBalance>(KEYS.points, {});
 }
 
+export function savePointsBalance(balance: PointsBalance): void {
+  saveJSON(KEYS.points, balance);
+}
+
 export function awardPoints(memberId: string, amount: number): void {
   const balance = loadPointsBalance();
   balance[memberId] = (balance[memberId] ?? 0) + amount;
