@@ -23,8 +23,9 @@ class MonsterAudioEngine {
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
-    if (muted && this.musicPlaying) {
-      this.stopMusic();
+    if (muted) {
+      if (this.musicPlaying) this.stopMusic();
+      if (this.lullabyPlaying) this.stopLullaby();
     }
   }
 
@@ -36,7 +37,11 @@ class MonsterAudioEngine {
     return this.musicPlaying;
   }
 
-  public playSound(key: 'fart' | 'airhorn' | 'cheer' | 'burp' | 'laser' | 'coin' | 'squeak' | 'fanfare' | 'tick') {
+  public getIsLullabyPlaying(): boolean {
+    return this.lullabyPlaying;
+  }
+
+  public playSound(key: 'fart' | 'airhorn' | 'cheer' | 'burp' | 'laser' | 'coin' | 'squeak' | 'fanfare' | 'tick' | 'lullaby_chime') {
     if (this.isMuted) return;
     const ctx = this.getContext();
     if (!ctx) return;
@@ -228,6 +233,24 @@ class MonsterAudioEngine {
           });
           break;
         }
+
+        case 'lullaby_chime': {
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, i) => {
+            const start = now + i * 0.12;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.08, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.65);
+          });
+          break;
+        }
       }
     } catch {
       // Audio playback fails gracefully if browser policy blocks autoplay
@@ -248,6 +271,9 @@ class MonsterAudioEngine {
 
   public startMusic() {
     if (this.isMuted || this.musicPlaying) return;
+    if (this.lullabyPlaying) {
+      this.stopLullaby();
+    }
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -301,6 +327,76 @@ class MonsterAudioEngine {
     if (this.musicInterval !== null) {
       clearInterval(this.musicInterval);
       this.musicInterval = null;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Soothing Nighttime Lullaby Mode (Gentle Sine Melodies)
+  // ------------------------------------------------------------------
+  private lullabyInterval: number | null = null;
+  private lullabyTimeout: number | null = null;
+  private lullabyPlaying: boolean = false;
+
+  public toggleLullaby(): boolean {
+    if (this.lullabyPlaying) {
+      this.stopLullaby();
+      return false;
+    }
+    this.startLullaby();
+    return this.lullabyPlaying;
+  }
+
+  public startLullaby() {
+    if (this.isMuted || this.lullabyPlaying) return;
+    if (this.musicPlaying) {
+      this.stopMusic();
+    }
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    this.lullabyPlaying = true;
+    const lullabyNotes = [392.00, 392.00, 440.00, 392.00, 523.25, 493.88, 392.00, 392.00, 440.00, 392.00, 587.33, 523.25];
+    let step = 0;
+
+    const playStep = () => {
+      if (!this.lullabyPlaying || this.isMuted || !this.ctx) return;
+      const now = this.ctx.currentTime;
+      const note = lullabyNotes[step % lullabyNotes.length];
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note, now);
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.7);
+
+      step++;
+    };
+
+    playStep();
+    this.lullabyInterval = window.setInterval(playStep, 750);
+
+    // Auto-sleep timer: gently stop lullaby after 15 minutes
+    if (typeof window !== 'undefined') {
+      this.lullabyTimeout = window.setTimeout(() => {
+        this.stopLullaby();
+      }, 15 * 60 * 1000);
+    }
+  }
+
+  public stopLullaby() {
+    this.lullabyPlaying = false;
+    if (this.lullabyInterval !== null) {
+      clearInterval(this.lullabyInterval);
+      this.lullabyInterval = null;
+    }
+    if (this.lullabyTimeout !== null) {
+      clearTimeout(this.lullabyTimeout);
+      this.lullabyTimeout = null;
     }
   }
 }

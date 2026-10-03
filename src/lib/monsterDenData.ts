@@ -129,6 +129,10 @@ export interface KidMonsterProfile {
   expeditionHistory: PastExpeditionLog[];
   spinsAvailable: number;
   lastDailySpinDate?: string;
+  tuckedIn?: boolean;
+  tuckedInAt?: number;
+  bedtimeStreak?: number;
+  lastBedtimeDate?: string;
   updatedAt: number;
 }
 
@@ -426,6 +430,10 @@ export function createDefaultProfile(memberId: string): KidMonsterProfile {
     expeditionHistory: [],
     spinsAvailable: 1, // 1 free starter spin!
     lastDailySpinDate: undefined,
+    tuckedIn: false,
+    tuckedInAt: undefined,
+    bedtimeStreak: 0,
+    lastBedtimeDate: undefined,
     updatedAt: Date.now(),
   };
 }
@@ -438,6 +446,31 @@ export function saveAllMonsterProfiles(data: Record<string, KidMonsterProfile>):
   saveJSON(MONSTER_DEN_KEY, data);
 }
 
+export function getLocalDateStr(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getYesterdayLocalDateStr(d: Date = new Date()): string {
+  const prev = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+  return getLocalDateStr(prev);
+}
+
+/**
+ * Sleep day cutoff rolls over at 4:00 AM, so tucking in at 00:30 belongs to the night that started yesterday.
+ */
+export function getSleepDayStr(d: Date = new Date()): string {
+  const shifted = new Date(d.getTime() - 4 * 60 * 60 * 1000);
+  return getLocalDateStr(shifted);
+}
+
+export function getYesterdaySleepDayStr(d: Date = new Date()): string {
+  const shifted = new Date(d.getTime() - 4 * 60 * 60 * 1000);
+  return getYesterdayLocalDateStr(shifted);
+}
+
 export function getProfileForMember(memberId: string): KidMonsterProfile {
   const all = loadAllMonsterProfiles();
   const defaults = createDefaultProfile(memberId);
@@ -446,7 +479,7 @@ export function getProfileForMember(memberId: string): KidMonsterProfile {
     saveAllMonsterProfiles(all);
     return defaults;
   }
-  return {
+  const merged: KidMonsterProfile = {
     ...defaults,
     ...all[memberId],
     equippedWardrobe: { ...defaults.equippedWardrobe, ...(all[memberId].equippedWardrobe || {}) },
@@ -454,6 +487,16 @@ export function getProfileForMember(memberId: string): KidMonsterProfile {
     unlockedWardrobeIds: Array.from(new Set([...defaults.unlockedWardrobeIds, ...(all[memberId].unlockedWardrobeIds || [])])),
     unlockedRoomItemIds: Array.from(new Set([...defaults.unlockedRoomItemIds, ...(all[memberId].unlockedRoomItemIds || [])])),
   };
+
+  // Auto-clear tucked-in status if tucked in for over 10 hours, or past 7 AM on a subsequent day
+  const todayStr = getLocalDateStr();
+  const isOver10Hours = merged.tuckedInAt ? (Date.now() - merged.tuckedInAt > 10 * 60 * 60 * 1000) : false;
+  const isPastMorning = !!(merged.lastBedtimeDate && merged.lastBedtimeDate < todayStr && new Date().getHours() >= 7);
+  if (merged.tuckedIn && (isOver10Hours || isPastMorning)) {
+    merged.tuckedIn = false;
+  }
+
+  return merged;
 }
 
 export function updateMemberProfile(memberId: string, patch: Partial<KidMonsterProfile>): KidMonsterProfile {
@@ -492,22 +535,282 @@ export function computeFinalRotation(
 // -------------------------------------------------------------
 export function addAdventureFuel(memberId: string, amount: number): number {
   const profile = getProfileForMember(memberId);
-  const next = Math.min(100, (profile.adventureFuel || 0) + amount);
-  updateMemberProfile(memberId, { adventureFuel: next, happiness: Math.min(100, (profile.happiness || 0) + 15) });
+  const next = Math.min(100, (profile.adventureFuel ?? 0) + amount);
+  updateMemberProfile(memberId, { adventureFuel: next, happiness: Math.min(100, (profile.happiness ?? 90) + 15) });
   return next;
 }
 
-export function feedMonster(memberId: string, snackName: string): { hunger: number; happiness: number } {
+export function feedMonster(
+  memberId: string,
+  snackInput: string | MonsterSnack | { hungerBoost: number; happinessBoost: number; name?: string }
+): { hunger: number; happiness: number } {
   const profile = getProfileForMember(memberId);
-  const hunger = Math.min(100, (profile.hunger || 0) + 30);
-  const happiness = Math.min(100, (profile.happiness || 0) + 20);
+  let hungerBoost = 30;
+  let happinessBoost = 20;
+
+  if (typeof snackInput === 'string') {
+    const found = MONSTER_SNACKS.find((s) => s.id === snackInput || s.name === snackInput);
+    if (found) {
+      hungerBoost = found.hungerBoost;
+      happinessBoost = found.happinessBoost;
+    }
+  } else if (snackInput && typeof snackInput === 'object') {
+    hungerBoost = snackInput.hungerBoost ?? 30;
+    happinessBoost = snackInput.happinessBoost ?? 20;
+  }
+
+  const hunger = Math.min(100, (profile.hunger ?? 80) + hungerBoost);
+  const happiness = Math.min(100, (profile.happiness ?? 90) + happinessBoost);
   updateMemberProfile(memberId, { hunger, happiness });
   return { hunger, happiness };
 }
 
 export function petMonster(memberId: string): number {
   const profile = getProfileForMember(memberId);
-  const happiness = Math.min(100, (profile.happiness || 0) + 10);
+  const happiness = Math.min(100, (profile.happiness ?? 90) + 10);
   updateMemberProfile(memberId, { happiness });
   return happiness;
+}
+
+// -------------------------------------------------------------
+// VIRTUAL MONSTER SNACKS & FEEDING
+// -------------------------------------------------------------
+export interface MonsterSnack {
+  id: string;
+  name: string;
+  icon: string;
+  hungerBoost: number;
+  happinessBoost: number;
+  blurb: string;
+}
+
+export const MONSTER_SNACKS: MonsterSnack[] = [
+  { id: 'graham-cracker', name: 'Graham Cracker', icon: '🍪', hungerBoost: 25, happinessBoost: 15, blurb: 'Crispy honey crunch with zero crumbs on the carpet.' },
+  { id: 'pizza-crust', name: 'Cheesy Pizza Crust', icon: '🍕', hungerBoost: 35, happinessBoost: 20, blurb: 'Stolen from the forbidden pizza box.' },
+  { id: 'boba-pearls', name: 'Chewy Boba Pearls', icon: '🧋', hungerBoost: 20, happinessBoost: 25, blurb: 'Extra bouncy chew power for sharp chompers.' },
+  { id: 'blue-marshmallow', name: 'Blue Moon Marshmallow', icon: '🌙', hungerBoost: 30, happinessBoost: 30, blurb: 'Infused with sweet dreams and night sky sparkles.' },
+  { id: 'crunchy-kibble', name: 'Monster Crunch Kibble', icon: '🥣', hungerBoost: 40, happinessBoost: 10, blurb: 'Fortified with iron and bedtime bravery.' },
+];
+
+// -------------------------------------------------------------
+// REAL FAMILY PET FEEDING TRACKER ("Who Fed the Dog?")
+// -------------------------------------------------------------
+export const FAMILY_PETS_KEY = 'familyos_family_pets';
+export const PET_FEEDINGS_KEY = 'familyos_pet_feedings';
+
+export interface FamilyPet {
+  id: string;
+  name: string;
+  species: 'dog' | 'cat' | 'fish' | 'bird' | 'hamster' | 'reptile';
+  avatar: string;
+  feedTimes: ('breakfast' | 'dinner')[];
+}
+
+export interface PetFeedingLog {
+  id: string;
+  petId: string;
+  petName: string;
+  mealType: 'breakfast' | 'dinner' | 'snack';
+  fedByMemberId: string;
+  fedByName: string;
+  timestamp: number;
+  dateStr: string;
+}
+
+export const DEFAULT_FAMILY_PETS: FamilyPet[] = [
+  { id: 'pet-dog-1', name: 'Barnaby', species: 'dog', avatar: '🐶', feedTimes: ['breakfast', 'dinner'] },
+  { id: 'pet-cat-1', name: 'Mittens', species: 'cat', avatar: '🐱', feedTimes: ['breakfast', 'dinner'] },
+  { id: 'pet-fish-1', name: 'Bubbles', species: 'fish', avatar: '🐠', feedTimes: ['breakfast'] },
+];
+
+export function defaultMealForPet(pet: FamilyPet): 'breakfast' | 'dinner' {
+  const preferred = new Date().getHours() < 14 ? 'breakfast' : 'dinner';
+  return pet.feedTimes.includes(preferred as any) ? preferred : pet.feedTimes[0];
+}
+
+export function loadFamilyPets(): FamilyPet[] {
+  const pets = loadJSON<FamilyPet[]>(FAMILY_PETS_KEY, []);
+  if (!pets || pets.length === 0) {
+    saveJSON(FAMILY_PETS_KEY, DEFAULT_FAMILY_PETS);
+    return DEFAULT_FAMILY_PETS;
+  }
+  return pets;
+}
+
+export function saveFamilyPets(pets: FamilyPet[]): void {
+  saveJSON(FAMILY_PETS_KEY, pets);
+}
+
+export function loadPetFeedings(): PetFeedingLog[] {
+  return loadJSON<PetFeedingLog[]>(PET_FEEDINGS_KEY, []);
+}
+
+export function savePetFeedings(logs: PetFeedingLog[]): void {
+  saveJSON(PET_FEEDINGS_KEY, logs.slice(-100));
+}
+
+export interface RecordPetFeedingResult {
+  success: boolean;
+  alreadyFedBy?: string;
+  feeding?: PetFeedingLog;
+  fuelAwarded: number;
+  pointsAwarded: number;
+  reason?: string;
+}
+
+export function recordPetFeeding(
+  petId: string,
+  memberId: string,
+  memberName: string,
+  mealType: 'breakfast' | 'dinner' | 'snack' = 'breakfast'
+): RecordPetFeedingResult {
+  const pets = loadFamilyPets();
+  const pet = pets.find((p) => p.id === petId);
+  if (!pet) {
+    return {
+      success: false,
+      alreadyFedBy: undefined,
+      fuelAwarded: 0,
+      pointsAwarded: 0,
+      reason: 'Unknown pet.',
+    };
+  }
+
+  const allLogs = loadPetFeedings();
+  const now = Date.now();
+  const todayStr = getLocalDateStr(new Date(now));
+  const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+
+  // Dedup: Pet can only be rewarded once per mealType per local day
+  const alreadyFedMealToday = allLogs.find(
+    (l) => l.petId === petId && l.dateStr === todayStr && l.mealType === mealType
+  );
+  if (alreadyFedMealToday) {
+    return {
+      success: false,
+      alreadyFedBy: alreadyFedMealToday.fedByName,
+      fuelAwarded: 0,
+      pointsAwarded: 0,
+      reason: `${pet.name} was already fed ${mealType} today by ${alreadyFedMealToday.fedByName}! 🐾`,
+    };
+  }
+
+  // Double-feeding guard: Check if fed any meal within the last 2 hours
+  const recentFeeding = allLogs
+    .filter((l) => l.petId === petId)
+    .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+  if (recentFeeding && recentFeeding.timestamp > twoHoursAgo) {
+    const minsAgo = Math.max(1, Math.round((now - recentFeeding.timestamp) / 60000));
+    return {
+      success: false,
+      alreadyFedBy: recentFeeding.fedByName,
+      fuelAwarded: 0,
+      pointsAwarded: 0,
+      reason: `${pet.name} was already fed by ${recentFeeding.fedByName} ${minsAgo}m ago! Don't overfeed! 🐾`,
+    };
+  }
+
+  const newLog: PetFeedingLog = {
+    id: `feed-${uid()}`,
+    petId,
+    petName: pet.name,
+    mealType,
+    fedByMemberId: memberId,
+    fedByName: memberName,
+    timestamp: now,
+    dateStr: todayStr,
+  };
+
+  const nextLogs = [...allLogs, newLog];
+  savePetFeedings(nextLogs);
+
+  // Award chore adventure fuel & Bear Bucks
+  addAdventureFuel(memberId, 20);
+  const points = loadPointsBalance();
+  points[memberId] = (points[memberId] || 0) + 10;
+  savePointsBalance(points);
+
+  return {
+    success: true,
+    feeding: newLog,
+    fuelAwarded: 20,
+    pointsAwarded: 10,
+  };
+}
+
+export function getPetFeedingStatus(petId: string): {
+  lastFeeding: PetFeedingLog | null;
+  todayFeeding: PetFeedingLog | null;
+  fedTodayCount: number;
+  isFedRecently: boolean;
+} {
+  const allLogs = loadPetFeedings();
+  const todayStr = getLocalDateStr();
+  const petLogs = allLogs.filter((l) => l.petId === petId).sort((a, b) => b.timestamp - a.timestamp);
+  const lastEverFeeding = petLogs[0] || null;
+  const todayFeeding = petLogs.find((l) => l.dateStr === todayStr) || null;
+  const fedTodayCount = petLogs.filter((l) => l.dateStr === todayStr).length;
+  const isFedRecently = !!(lastEverFeeding && Date.now() - lastEverFeeding.timestamp < 2 * 60 * 60 * 1000);
+
+  return {
+    lastFeeding: todayFeeding || lastEverFeeding,
+    todayFeeding,
+    fedTodayCount,
+    isFedRecently,
+  };
+}
+
+// -------------------------------------------------------------
+// BEDTIME WIND-DOWN & SLEEP ROUTINE
+// -------------------------------------------------------------
+export function recordBedtime(memberId: string): {
+  success: boolean;
+  streak: number;
+  pointsAwarded: number;
+  tuckedIn: boolean;
+} {
+  const profile = getProfileForMember(memberId);
+  const now = Date.now();
+  const todaySleepDay = getSleepDayStr(new Date(now));
+  const yesterdaySleepDay = getYesterdaySleepDayStr(new Date(now));
+
+  let streak = profile.bedtimeStreak || 0;
+  let pointsAwarded = 0;
+
+  if (profile.lastBedtimeDate !== todaySleepDay) {
+    if (profile.lastBedtimeDate === yesterdaySleepDay) {
+      streak += 1;
+    } else {
+      streak = 1;
+    }
+    pointsAwarded = 15;
+    const points = loadPointsBalance();
+    points[memberId] = (points[memberId] || 0) + pointsAwarded;
+    savePointsBalance(points);
+  }
+
+  updateMemberProfile(memberId, {
+    tuckedIn: true,
+    tuckedInAt: now,
+    bedtimeStreak: streak,
+    lastBedtimeDate: todaySleepDay,
+    happiness: 100,
+  });
+
+  return {
+    success: true,
+    streak,
+    pointsAwarded,
+    tuckedIn: true,
+  };
+}
+
+export function wakeUpMonster(memberId: string): KidMonsterProfile {
+  const current = getProfileForMember(memberId);
+  return updateMemberProfile(memberId, {
+    tuckedIn: false,
+    tuckedInAt: undefined,
+    happiness: Math.min(100, (current.happiness ?? 90) + 10),
+  });
 }

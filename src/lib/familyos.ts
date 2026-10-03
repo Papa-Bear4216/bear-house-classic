@@ -1,6 +1,7 @@
 // Family OS shared utilities, constants, and storage helpers
 import type { TopModule } from './navVisibility';
 import { apiUrl } from './api';
+export { authedFetch } from './householdAuth';
 import { authedFetch } from './householdAuth';
 
 // ── Users & Auth ──────────────────────────────────────────────────────────────

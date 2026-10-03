@@ -22,7 +22,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   const [squish, setSquish] = useState(false);
   const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
 
-  const isSleepy = showSleeping || (profile && profile.hunger < 25);
+  const isSleepy = showSleeping || (profile && (profile.hunger ?? 80) < 25) || !!profile?.tuckedIn;
   const equipped = profile?.equippedWardrobe || {};
   const uid = React.useId().replace(/:/g, '_');
   const burlapId = `burlap_${uid}`;

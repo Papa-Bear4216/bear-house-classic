@@ -11,6 +11,9 @@ import {
   Radio,
   ExternalLink,
   Users,
+  Moon,
+  Utensils,
+  Sun,
 } from 'lucide-react';
 import {
   CREATURE_ROSTER,
@@ -18,6 +21,7 @@ import {
   SOUNDBOARD_REACTIONS,
   updateMemberProfile,
   petMonster,
+  wakeUpMonster,
   type KidMonsterProfile,
   type PlacedDecoration,
   type VisitorSticker,
@@ -35,6 +39,8 @@ interface DenRoomCanvasProps {
   onOpenGacha: () => void;
   onOpenWardrobe: () => void;
   onOpenExpeditions: () => void;
+  onOpenBedtime?: () => void;
+  onOpenPetFeeding?: () => void;
   spendablePoints: number;
 }
 
@@ -47,6 +53,8 @@ export const DenRoomCanvas: React.FC<DenRoomCanvasProps> = ({
   onOpenGacha,
   onOpenWardrobe,
   onOpenExpeditions,
+  onOpenBedtime,
+  onOpenPetFeeding,
   spendablePoints,
 }) => {
   const { householdMembers } = useAppContext();
@@ -364,7 +372,24 @@ export const DenRoomCanvas: React.FC<DenRoomCanvasProps> = ({
           <div className="mt-1 px-3 py-1 bg-stone-950/80 backdrop-blur border border-amber-500/40 rounded-full flex items-center gap-2 shadow">
             <span className="text-xs font-black text-amber-300">{currentCreature.name}</span>
             <span className="text-[10px] text-stone-400 capitalize">({currentCreature.clan})</span>
+            {profile.tuckedIn && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-indigo-500/30 text-indigo-300 rounded-full font-bold flex items-center gap-1">
+                <Moon className="w-2.5 h-2.5" /> Sleeping Zzz
+              </span>
+            )}
           </div>
+          {profile.tuckedIn && isOwner && (
+            <button
+              onClick={() => {
+                const updated = wakeUpMonster(profile.memberId);
+                onProfileUpdated(updated);
+                monsterAudio.playSound('cheer');
+              }}
+              className="mt-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black shadow flex items-center gap-1 transition active:scale-95"
+            >
+              <Sun className="w-3 h-3 text-yellow-300" /> Wake Up ☀️
+            </button>
+          )}
         </div>
 
         {/* ---------------- 4. MYSPACE TOP 4 BESTIES WIDGET (Corner) ---------------- */}
@@ -416,15 +441,15 @@ export const DenRoomCanvas: React.FC<DenRoomCanvasProps> = ({
             <>
               <button
                 onClick={onOpenGacha}
-                className="px-3.5 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
+                className="px-3 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
               >
-                <Sparkles className="w-4 h-4" /> PRIZE WHEEL
+                <Sparkles className="w-4 h-4" /> WHEEL
               </button>
               <button
                 onClick={onOpenWardrobe}
                 className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
               >
-                👕 WARDROBE
+                👕 CLOSET
               </button>
               <button
                 onClick={onOpenExpeditions}
@@ -432,6 +457,22 @@ export const DenRoomCanvas: React.FC<DenRoomCanvasProps> = ({
               >
                 🧭 EXPEDITION
               </button>
+              {onOpenPetFeeding && (
+                <button
+                  onClick={onOpenPetFeeding}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
+                >
+                  <Utensils className="w-4 h-4" /> FEED PETS
+                </button>
+              )}
+              {onOpenBedtime && (
+                <button
+                  onClick={onOpenBedtime}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
+                >
+                  <Moon className="w-4 h-4" /> BEDTIME
+                </button>
+              )}
               <button
                 onClick={() => setDecorCatalogOpen(true)}
                 className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold rounded-xl text-xs"

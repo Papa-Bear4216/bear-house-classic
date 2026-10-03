@@ -10,6 +10,17 @@ import {
   feedMonster,
   petMonster,
   computeFinalRotation,
+  recordBedtime,
+  wakeUpMonster,
+  recordPetFeeding,
+  getPetFeedingStatus,
+  getLocalDateStr,
+  getYesterdayLocalDateStr,
+  getSleepDayStr,
+  getYesterdaySleepDayStr,
+  MONSTER_SNACKS,
+  defaultMealForPet,
+  DEFAULT_FAMILY_PETS,
   MONSTER_DEN_KEY,
 } from './monsterDenData';
 
@@ -76,11 +87,13 @@ describe('monsterDenData', () => {
     expect(fuel2).toBe(100); // capped at 100
   });
 
-  it('feeds and pets monster without death or punishment', () => {
+  it('feeds and pets monster without death or punishment, applying specific snack boosts', () => {
     getProfileForMember('kid-tester');
-    const { hunger, happiness } = feedMonster('kid-tester', 'graham-cracker');
-    expect(hunger).toBeGreaterThanOrEqual(80);
-    expect(happiness).toBeGreaterThanOrEqual(90);
+    // Using crunchy kibble (hungerBoost: 40, happinessBoost: 10)
+    const kibble = MONSTER_SNACKS.find((s) => s.id === 'crunchy-kibble')!;
+    const { hunger, happiness } = feedMonster('kid-tester', kibble);
+    expect(hunger).toBe(100); // 80 + 40 = 120 -> capped at 100
+    expect(happiness).toBe(100); // 90 + 10 = 100
 
     const happy = petMonster('kid-tester');
     expect(happy).toBe(100);
@@ -109,4 +122,100 @@ describe('monsterDenData', () => {
       }
     }
   });
+
+  it('tracks bedtime wind-down, advances streaks, and wakes up monster', () => {
+    getProfileForMember('kid-tester');
+    const bedtime1 = recordBedtime('kid-tester');
+    expect(bedtime1.success).toBe(true);
+    expect(bedtime1.streak).toBe(1);
+    expect(bedtime1.pointsAwarded).toBe(15);
+    expect(bedtime1.tuckedIn).toBe(true);
+
+    const profile = getProfileForMember('kid-tester');
+    expect(profile.tuckedIn).toBe(true);
+    expect(profile.bedtimeStreak).toBe(1);
+
+    // Re-tucking in on the same date should not award duplicate points
+    const sameDay = recordBedtime('kid-tester');
+    expect(sameDay.pointsAwarded).toBe(0);
+    expect(sameDay.streak).toBe(1);
+
+    // Waking up
+    const awake = wakeUpMonster('kid-tester');
+    expect(awake.tuckedIn).toBe(false);
+  });
+
+  it('records family pet feeding with double-feeding prevention and fuel rewards', () => {
+    getProfileForMember('kid-tester');
+    const initialFuel = getProfileForMember('kid-tester').adventureFuel;
+
+    // First feeding
+    const res1 = recordPetFeeding('pet-dog-1', 'kid-tester', 'Mary', 'breakfast');
+    expect(res1.success).toBe(true);
+    expect(res1.fuelAwarded).toBe(20);
+    expect(res1.pointsAwarded).toBe(10);
+    expect(getProfileForMember('kid-tester').adventureFuel).toBe(initialFuel + 20);
+
+    // Status check
+    const status1 = getPetFeedingStatus('pet-dog-1');
+    expect(status1.lastFeeding).toBeDefined();
+    expect(status1.todayFeeding).toBeDefined();
+    expect(status1.todayFeeding?.fedByName).toBe('Mary');
+    expect(status1.todayFeeding?.mealType).toBe('breakfast');
+    expect(status1.isFedRecently).toBe(true);
+
+    // Double feeding within 2 hours blocked
+    const res2 = recordPetFeeding('pet-dog-1', 'kid-tester-2', 'Jack', 'breakfast');
+    expect(res2.success).toBe(false);
+    expect(res2.alreadyFedBy).toBe('Mary');
+    expect(res2.reason).toContain('already fed');
+    expect(res2.fuelAwarded).toBe(0);
+
+    // Unknown pet rejection
+    const resUnknown = recordPetFeeding('non-existent-pet', 'kid-tester', 'Mary', 'breakfast');
+    expect(resUnknown.success).toBe(false);
+    expect(resUnknown.reason).toBe('Unknown pet.');
+
+    // defaultMealForPet handles pets with single meal (Bubbles the fish)
+    const fish = DEFAULT_FAMILY_PETS.find((p) => p.id === 'pet-fish-1')!;
+    expect(defaultMealForPet(fish)).toBe('breakfast');
+  });
+
+  it('correctly formats local dates without UTC timezone skew', () => {
+    const testDate = new Date(2026, 9, 3, 23, 45, 0); // Oct 3, 2026 11:45 PM local
+    expect(getLocalDateStr(testDate)).toBe('2026-10-03');
+    expect(getYesterdayLocalDateStr(testDate)).toBe('2026-10-02');
+  });
+
+  it('correctly calculates sleep days with 4 AM rollover', () => {
+    // 11:30 PM Oct 3 -> sleep day 2026-10-03
+    const nightDate = new Date(2026, 9, 3, 23, 30, 0);
+    expect(getSleepDayStr(nightDate)).toBe('2026-10-03');
+    expect(getYesterdaySleepDayStr(nightDate)).toBe('2026-10-02');
+
+    // 1:30 AM Oct 4 (past midnight) -> belongs to night of 2026-10-03
+    const pastMidnight = new Date(2026, 9, 4, 1, 30, 0);
+    expect(getSleepDayStr(pastMidnight)).toBe('2026-10-03');
+    expect(getYesterdaySleepDayStr(pastMidnight)).toBe('2026-10-02');
+
+    // 4:30 AM Oct 4 -> new sleep day 2026-10-04
+    const nextMorning = new Date(2026, 9, 4, 4, 30, 0);
+    expect(getSleepDayStr(nextMorning)).toBe('2026-10-04');
+    expect(getYesterdaySleepDayStr(nextMorning)).toBe('2026-10-03');
+  });
+
+  it('auto-clears tuckedIn status when over 10 hours have passed', () => {
+    getProfileForMember('kid-sleeper');
+    // Tuck in 11 hours ago
+    const elevenHoursAgo = Date.now() - 11 * 60 * 60 * 1000;
+    updateMemberProfile('kid-sleeper', {
+      tuckedIn: true,
+      tuckedInAt: elevenHoursAgo,
+      lastBedtimeDate: getSleepDayStr(new Date(elevenHoursAgo)),
+    });
+
+    const refreshed = getProfileForMember('kid-sleeper');
+    expect(refreshed.tuckedIn).toBe(false);
+  });
 });
+

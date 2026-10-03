@@ -13,6 +13,8 @@ import {
   Lock,
   Sun,
   BookOpen,
+  Moon,
+  Utensils,
 } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
@@ -26,6 +28,8 @@ import { GachaWheelModal } from './GachaWheelModal';
 import { WardrobeModal } from './WardrobeModal';
 import { ExpeditionStation } from './ExpeditionStation';
 import { MonsterHermesDialog } from './MonsterHermesDialog';
+import { BedtimeModal } from './BedtimeModal';
+import { PetFeedingModal } from './PetFeedingModal';
 import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
 import RoutinesHub from '@/components/familyos/sections/RoutinesHub';
 import { HomeworkTab } from '@/components/familyos/sections/KidsHub';
@@ -57,20 +61,27 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
   const [arcadeOpen, setArcadeOpen] = useState(false);
   const [routinesOpen, setRoutinesOpen] = useState(false);
   const [homeworkOpen, setHomeworkOpen] = useState(false);
+  const [bedtimeOpen, setBedtimeOpen] = useState(false);
+  const [petFeedingOpen, setPetFeedingOpen] = useState(false);
   const [parentExitConfirm, setParentExitConfirm] = useState(false);
   const [mathAnswer, setMathAnswer] = useState('');
 
   // Spendable points
-  const points = loadPointsBalance();
-  const redemptions = loadRedemptions();
-  const rawBalance = points[selectedKidId] || 0;
-  const pendingCost = redemptions
-    .filter((r) => r.memberId === selectedKidId && r.status === 'pending')
-    .reduce((sum, r) => sum + r.cost, 0);
-  const spendable = Math.max(0, rawBalance - pendingCost);
+  const calculateSpendable = (kidId: string) => {
+    const points = loadPointsBalance();
+    const redemptions = loadRedemptions();
+    const rawBalance = points[kidId] || 0;
+    const pendingCost = redemptions
+      .filter((r) => r.memberId === kidId && r.status === 'pending')
+      .reduce((sum, r) => sum + r.cost, 0);
+    return Math.max(0, rawBalance - pendingCost);
+  };
+
+  const [spendable, setSpendable] = useState(() => calculateSpendable(selectedKidId));
 
   useEffect(() => {
     setProfile(getProfileForMember(selectedKidId));
+    setSpendable(calculateSpendable(selectedKidId));
   }, [selectedKidId]);
 
   const isOwner = currentUser?.id === selectedKidId || currentRole !== 'child';
@@ -81,6 +92,7 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
   const handleProfileUpdated = (updated: KidMonsterProfile) => {
     if (updated.memberId === selectedKidId) {
       setProfile(updated);
+      setSpendable(calculateSpendable(selectedKidId));
     }
   };
 
@@ -108,14 +120,14 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
               <h1 className="text-sm sm:text-base font-black tracking-wider text-amber-400 uppercase">
                 MONSTER DEN
               </h1>
-              <span className="text-[10px] px-1.5 py-0.2 bg-amber-500/20 text-amber-300 font-extrabold rounded">
+              <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 font-extrabold rounded">
                 Kids World
               </span>
             </div>
             <div className="text-[11px] text-stone-300 flex items-center gap-2">
               <span>Pet: <strong>{currentCreature.name}</strong></span>
               <span className="text-stone-500">•</span>
-              <span className="text-pink-400 font-bold">❤️ Happy: {profile.happiness || 100}%</span>
+              <span className="text-pink-400 font-bold">❤️ Happy: {profile.happiness ?? 100}%</span>
             </div>
           </div>
         </div>
@@ -177,6 +189,22 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
           </button>
 
           <button
+            onClick={() => setPetFeedingOpen(true)}
+            className="p-2 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/40 transition"
+            title="Pet Feeding Station"
+          >
+            <Utensils className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setBedtimeOpen(true)}
+            className="p-2 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 hover:bg-indigo-600/40 transition"
+            title="Bedtime Wind-Down"
+          >
+            <Moon className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => setArcadeOpen(true)}
             className="p-2 rounded-xl bg-pink-600/20 border border-pink-500/40 text-pink-400 hover:bg-pink-600/40 transition"
             title="Arcade Minigames"
@@ -209,6 +237,8 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
           onOpenGacha={() => setGachaOpen(true)}
           onOpenWardrobe={() => setWardrobeOpen(true)}
           onOpenExpeditions={() => setExpeditionOpen(true)}
+          onOpenBedtime={() => setBedtimeOpen(true)}
+          onOpenPetFeeding={() => setPetFeedingOpen(true)}
           spendablePoints={spendable}
         />
       </main>
@@ -236,6 +266,22 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
         key={selectedKidId}
         isOpen={expeditionOpen}
         onClose={() => setExpeditionOpen(false)}
+        profile={profile}
+        onProfileUpdated={handleProfileUpdated}
+      />
+
+      <BedtimeModal
+        key={`bedtime-${selectedKidId}`}
+        isOpen={bedtimeOpen}
+        onClose={() => setBedtimeOpen(false)}
+        profile={profile}
+        onProfileUpdated={handleProfileUpdated}
+      />
+
+      <PetFeedingModal
+        key={`petfeed-${selectedKidId}`}
+        isOpen={petFeedingOpen}
+        onClose={() => setPetFeedingOpen(false)}
         profile={profile}
         onProfileUpdated={handleProfileUpdated}
       />
