@@ -88,7 +88,7 @@ export function circlesOverlap(
 }
 
 /**
- * Wraps coordinate around toroidal screen bounds (Asteroids wraparound)
+ * Wraps coordinate around toroidal screen bounds (Screen wraparound)
  */
 export function wrapCoordinate(val: number, max: number, margin = 20): number {
   if (val < -margin) return max + margin;

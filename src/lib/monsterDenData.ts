@@ -3,7 +3,15 @@ import { uid, loadJSON, saveJSON, KEYS, loadPointsBalance, savePointsBalance, ty
 export const MONSTER_DEN_KEY = 'familyos_monster_den_profiles';
 export const MONSTER_DEN_INVENTORY_KEY = 'familyos_monster_den_inventories';
 
-export type CreatureClan = 'fuggler' | 'magical';
+export type CreatureClan = 'fuggler' | 'snarlkin' | 'magical';
+
+export type RoomSlotId =
+  | 'wall-center'
+  | 'floor-left'
+  | 'floor-right'
+  | 'floor-rug'
+  | 'table-lamp'
+  | 'ceiling';
 
 export interface CreatureSpec {
   id: string;
@@ -35,6 +43,7 @@ export interface RoomItem {
   id: string;
   name: string;
   category: 'furniture' | 'poster' | 'lighting' | 'audio' | 'trinket' | 'plant';
+  targetSlot?: RoomSlotId;
   cost: number;
   width: number;
   height: number;
@@ -288,16 +297,16 @@ export const WARDROBE_CATALOG: WardrobeItem[] = [
 // ROOM DECOR CATALOG (MySpace Bedroom Trinkets & Furniture)
 // -------------------------------------------------------------
 export const ROOM_DECOR_CATALOG: RoomItem[] = [
-  { id: 'lava-lamp', name: 'Psychedelic Lava Lamp', category: 'lighting', cost: 35, width: 60, height: 110, rarity: 'common', icon: '🪔' },
-  { id: 'retro-boombox', name: 'Chiptune Retro Boombox', category: 'audio', cost: 60, width: 120, height: 80, rarity: 'rare', icon: '📻' },
-  { id: 'arcade-cabinet', name: 'Mini 80s Arcade Machine', category: 'furniture', cost: 120, width: 100, height: 160, rarity: 'epic', icon: '🕹️' },
-  { id: 'beanbag-chair', name: 'Neon Slime Beanbag Chair', category: 'furniture', cost: 50, width: 130, height: 90, rarity: 'common', icon: '🛋️' },
-  { id: 'alien-poster', name: 'I Want To Believe Poster', category: 'poster', cost: 25, width: 80, height: 110, rarity: 'common', icon: '🛸' },
-  { id: 'skate-deck', name: 'Flaming Skull Skateboard Deck', category: 'poster', cost: 40, width: 50, height: 130, rarity: 'rare', icon: '🛹' },
-  { id: 'neon-sign-pizza', name: 'Glowing Neon Pizza Sign', category: 'lighting', cost: 70, width: 90, height: 90, rarity: 'rare', icon: '🍕' },
-  { id: 'plant-carnivorous', name: 'Biting Venus Monster Plant', category: 'plant', cost: 35, width: 70, height: 90, rarity: 'common', icon: '🪴' },
-  { id: 'retro-carpet', name: '90s Laser Arcade Carpet', category: 'trinket', cost: 45, width: 180, height: 80, rarity: 'common', icon: '🟣' },
-  { id: 'disco-ball', name: 'Sparkling Ceiling Disco Ball', category: 'lighting', cost: 80, width: 70, height: 90, rarity: 'epic', icon: '🪩' },
+  { id: 'lava-lamp', name: 'Psychedelic Lava Lamp', category: 'lighting', targetSlot: 'table-lamp', cost: 35, width: 60, height: 110, rarity: 'common', icon: '🪔' },
+  { id: 'retro-boombox', name: 'Chiptune Retro Boombox', category: 'audio', targetSlot: 'table-lamp', cost: 60, width: 120, height: 80, rarity: 'rare', icon: '📻' },
+  { id: 'arcade-cabinet', name: 'Mini 80s Arcade Machine', category: 'furniture', targetSlot: 'floor-right', cost: 120, width: 100, height: 160, rarity: 'epic', icon: '🕹️' },
+  { id: 'beanbag-chair', name: 'Neon Slime Beanbag Chair', category: 'furniture', targetSlot: 'floor-left', cost: 50, width: 130, height: 90, rarity: 'common', icon: '🛋️' },
+  { id: 'alien-poster', name: 'I Want To Believe Poster', category: 'poster', targetSlot: 'wall-center', cost: 25, width: 80, height: 110, rarity: 'common', icon: '🛸' },
+  { id: 'skate-deck', name: 'Flaming Skull Skateboard Deck', category: 'poster', targetSlot: 'wall-center', cost: 40, width: 50, height: 130, rarity: 'rare', icon: '🛹' },
+  { id: 'neon-sign-pizza', name: 'Glowing Neon Pizza Sign', category: 'lighting', targetSlot: 'wall-center', cost: 70, width: 90, height: 90, rarity: 'rare', icon: '🍕' },
+  { id: 'plant-carnivorous', name: 'Biting Venus Monster Plant', category: 'plant', targetSlot: 'floor-left', cost: 35, width: 70, height: 90, rarity: 'common', icon: '🪴' },
+  { id: 'retro-carpet', name: '90s Laser Arcade Carpet', category: 'trinket', targetSlot: 'floor-rug', cost: 45, width: 180, height: 80, rarity: 'common', icon: '🟣' },
+  { id: 'disco-ball', name: 'Sparkling Ceiling Disco Ball', category: 'lighting', targetSlot: 'ceiling', cost: 80, width: 70, height: 90, rarity: 'epic', icon: '🪩' },
 ];
 
 // -------------------------------------------------------------

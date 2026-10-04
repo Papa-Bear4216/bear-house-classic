@@ -69,9 +69,9 @@ export const ArcadeHub: React.FC = () => {
   const balance = loadPointsBalance()[selectedPlayerId] ?? 0;
 
   const GAMES = [
-    { id: 'snake' as const, label: 'Sock Python', tag: 'Snake', icon: Flame, color: 'text-emerald-400' },
-    { id: 'pacman' as const, label: 'Pantry Chomper', tag: 'Pac-Man', icon: Cherry, color: 'text-yellow-400' },
-    { id: 'asteroids' as const, label: 'Cosmic Clutter', tag: 'Asteroids', icon: Rocket, color: 'text-sky-400' },
+    { id: 'snake' as const, label: 'Sock Python', tag: 'Slither', icon: Flame, color: 'text-emerald-400' },
+    { id: 'pacman' as const, label: 'Pantry Chomper', tag: 'Maze Munch', icon: Cherry, color: 'text-yellow-400' },
+    { id: 'asteroids' as const, label: 'Cosmic Clutter', tag: 'Meteor Blast', icon: Rocket, color: 'text-sky-400' },
   ];
 
   return (

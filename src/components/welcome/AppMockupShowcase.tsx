@@ -877,7 +877,7 @@ function KidRoomMockupContent({
           </span>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-white/5 italic">
-          "Today was transition day to Dad's house. I was sad leaving Bruno the dog, but Dad helped me unpack my Lego space shuttle..."
+          "Today was transition day to Dad's house. I was sad leaving Bruno the dog, but Dad helped me unpack my toy brick space shuttle..."
         </p>
         <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
           <span className="text-emerald-400 flex items-center gap-1">

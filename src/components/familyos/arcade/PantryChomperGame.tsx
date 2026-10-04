@@ -472,7 +472,7 @@ export const PantryChomperGame: React.FC<Props> = ({
 
   const startGame = () => {
     gridRef.current = MAZE_MAP.map((r) => [...r]);
-    // Clear dot under Pac-Man spawn position
+    // Clear dot under Chomper spawn position
     gridRef.current[14][9] = 3;
     pacRef.current = { x: 9 * TILE_SZ, y: 14 * TILE_SZ, dir: 'left', nextDir: 'left' };
     monstersRef.current = [
