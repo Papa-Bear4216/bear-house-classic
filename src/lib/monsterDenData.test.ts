@@ -217,5 +217,33 @@ describe('monsterDenData', () => {
     const refreshed = getProfileForMember('kid-sleeper');
     expect(refreshed.tuckedIn).toBe(false);
   });
+
+  it('prevents bedtime re-tuck-in happiness exploit on the same sleep day', () => {
+    updateMemberProfile('kid-exploit', { happiness: 70, bedtimeStreak: 0 });
+
+    // First tuck-in of the day
+    const firstResult = recordBedtime('kid-exploit');
+    expect(firstResult.success).toBe(true);
+    expect(firstResult.pointsAwarded).toBe(15);
+    expect(getProfileForMember('kid-exploit').happiness).toBe(100);
+
+    // Wake up
+    const afterWake = wakeUpMonster('kid-exploit');
+    expect(afterWake.tuckedIn).toBe(false);
+    expect(afterWake.happiness).toBe(100);
+
+    // Lower happiness slightly to test exploit attempt
+    updateMemberProfile('kid-exploit', { happiness: 65 });
+
+    // Second tuck-in on same sleep day should NOT award extra points or reset happiness to 100
+    const secondResult = recordBedtime('kid-exploit');
+    expect(secondResult.success).toBe(true);
+    expect(secondResult.pointsAwarded).toBe(0);
+    expect(getProfileForMember('kid-exploit').happiness).toBe(65);
+
+    // Waking up again should not inflate happiness
+    const secondWake = wakeUpMonster('kid-exploit');
+    expect(secondWake.happiness).toBe(65);
+  });
 });
 

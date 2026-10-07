@@ -56,6 +56,11 @@ describe('ChatBodySchema', () => {
   it('rejects an oversized system prompt', () => {
     expect(ChatBodySchema.safeParse({ prompt: 'hi', system: 'x'.repeat(16_001) }).success).toBe(false);
   });
+
+  it('accepts valid role enum and memberId', () => {
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', role: 'child', memberId: 'kid-1' }).success).toBe(true);
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', role: 'invalid-role' }).success).toBe(false);
+  });
 });
 
 describe('VisionBodySchema', () => {

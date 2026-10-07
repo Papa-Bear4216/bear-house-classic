@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Utensils,
   Clock,
@@ -49,6 +49,10 @@ export const PetFeedingModal: React.FC<PetFeedingModalProps> = ({
   const [feedings, setFeedings] = useState<PetFeedingLog[]>(loadPetFeedings);
   const [selectedMeal, setSelectedMeal] = useState<Record<string, 'breakfast' | 'dinner'>>({});
   const [notice, setNotice] = useState<{ text: string; isError: boolean } | null>(null);
+  const [isFeedingPetId, setIsFeedingPetId] = useState<string | null>(null);
+
+  const feedingRef = useRef<boolean>(false);
+  const feedTimerRef = useRef<any>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -58,43 +62,61 @@ export const PetFeedingModal: React.FC<PetFeedingModalProps> = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (feedTimerRef.current) clearTimeout(feedTimerRef.current);
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   const currentMember = householdMembers.find((m) => m.id === profile.memberId);
   const memberName = currentMember?.name || (currentRole === 'child' ? currentUser?.name : 'Kid') || 'Kid';
 
   const handleFeedFamilyPet = (pet: FamilyPet) => {
-    const meal = selectedMeal[pet.id] || defaultMealForPet(pet);
+    if (feedingRef.current) return;
+    feedingRef.current = true;
+    setIsFeedingPetId(pet.id);
 
-    if (!pet.feedTimes.includes(meal as 'breakfast' | 'dinner')) {
-      monsterAudio.playSound('squeak');
+    try {
+      const meal = selectedMeal[pet.id] || defaultMealForPet(pet);
+
+      if (!pet.feedTimes.includes(meal as 'breakfast' | 'dinner')) {
+        monsterAudio.playSound('squeak');
+        setNotice({
+          text: `${pet.name} only eats ${pet.feedTimes.join(' and ')}! 🐾`,
+          isError: true,
+        });
+        return;
+      }
+
+      const result = recordPetFeeding(pet.id, profile.memberId, memberName, meal);
+
+      if (!result.success) {
+        monsterAudio.playSound('burp');
+        setNotice({
+          text: result.reason || `${pet.name} was already fed!`,
+          isError: true,
+        });
+        return;
+      }
+
+      monsterAudio.playSound('fanfare');
+      setFeedings(loadPetFeedings());
       setNotice({
-        text: `${pet.name} only eats ${pet.feedTimes.join(' and ')}! 🐾`,
-        isError: true,
+        text: `🎉 Good job! You fed ${pet.name} ${meal}! Earned +${result.fuelAwarded} Adventure Fuel & +${result.pointsAwarded} Bear Bucks!`,
+        isError: false,
       });
-      return;
+
+      const updated = getProfileForMember(profile.memberId);
+      onProfileUpdated(updated);
+    } finally {
+      if (feedTimerRef.current) clearTimeout(feedTimerRef.current);
+      feedTimerRef.current = setTimeout(() => {
+        feedingRef.current = false;
+        setIsFeedingPetId(null);
+      }, 800);
     }
-
-    const result = recordPetFeeding(pet.id, profile.memberId, memberName, meal);
-
-    if (!result.success) {
-      monsterAudio.playSound('burp');
-      setNotice({
-        text: result.reason || `${pet.name} was already fed!`,
-        isError: true,
-      });
-      return;
-    }
-
-    monsterAudio.playSound('fanfare');
-    setFeedings(loadPetFeedings());
-    setNotice({
-      text: `🎉 Good job! You fed ${pet.name} ${meal}! Earned +${result.fuelAwarded} Adventure Fuel & +${result.pointsAwarded} Bear Bucks!`,
-      isError: false,
-    });
-
-    const updated = getProfileForMember(profile.memberId);
-    onProfileUpdated(updated);
   };
 
   const handleFeedMonsterSnack = (snack: MonsterSnack) => {
@@ -258,9 +280,10 @@ export const PetFeedingModal: React.FC<PetFeedingModalProps> = ({
 
                       <button
                         onClick={() => handleFeedFamilyPet(pet)}
-                        className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-stone-950 font-black rounded-xl text-xs shadow active:scale-95 transition"
+                        disabled={isFeedingPetId === pet.id}
+                        className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-stone-950 font-black rounded-xl text-xs shadow active:scale-95 transition disabled:opacity-50"
                       >
-                        I Fed {pet.name}! 🥣
+                        {isFeedingPetId === pet.id ? 'Feeding...' : `I Fed ${pet.name}! 🥣`}
                       </button>
                     </div>
                   </div>

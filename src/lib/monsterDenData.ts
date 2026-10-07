@@ -687,7 +687,7 @@ export function recordPetFeeding(
 
   const allLogs = loadPetFeedings();
   const now = Date.now();
-  const todayStr = getLocalDateStr(new Date(now));
+  const todayStr = getSleepDayStr(new Date(now));
   const twoHoursAgo = now - 2 * 60 * 60 * 1000;
 
   // Dedup: Pet can only be rewarded once per mealType per local day
@@ -755,7 +755,7 @@ export function getPetFeedingStatus(petId: string): {
   isFedRecently: boolean;
 } {
   const allLogs = loadPetFeedings();
-  const todayStr = getLocalDateStr();
+  const todayStr = getSleepDayStr();
   const petLogs = allLogs.filter((l) => l.petId === petId).sort((a, b) => b.timestamp - a.timestamp);
   const lastEverFeeding = petLogs[0] || null;
   const todayFeeding = petLogs.find((l) => l.dateStr === todayStr) || null;
@@ -804,7 +804,7 @@ export function recordBedtime(memberId: string): {
     tuckedInAt: now,
     bedtimeStreak: streak,
     lastBedtimeDate: todaySleepDay,
-    happiness: 100,
+    happiness: pointsAwarded > 0 ? 100 : (profile.happiness ?? 90),
   });
 
   return {
@@ -820,6 +820,6 @@ export function wakeUpMonster(memberId: string): KidMonsterProfile {
   return updateMemberProfile(memberId, {
     tuckedIn: false,
     tuckedInAt: undefined,
-    happiness: Math.min(100, (current.happiness ?? 90) + 10),
+    happiness: current.happiness ?? 90,
   });
 }

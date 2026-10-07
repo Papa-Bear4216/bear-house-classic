@@ -26,6 +26,8 @@ export const ChatBodySchema = z.object({
   outputSchema: z.string().max(2000).optional(), // advisory JSON shape hint planted in the system prompt
   enableTools: z.boolean().optional(), // true enables native Hermes action tool calling
   neutralMode: z.boolean().optional(), // true enables Hermes Neutral Co-Parent tone de-escalation
+  role: z.enum(['child', 'adult', 'admin']).optional(), // client role hint (e.g. kids world)
+  memberId: z.string().max(100).optional(),
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
 
 export const VisionBodySchema = z.object({

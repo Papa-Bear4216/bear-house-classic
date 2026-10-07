@@ -66,29 +66,30 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
   const [storyLoading, setStoryLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [tuckedInDone, setTuckedInDone] = useState(profile.tuckedIn || false);
+  const [justEarnedReward, setJustEarnedReward] = useState(false);
 
   useEffect(() => {
     setTuckedInDone(profile.tuckedIn || false);
   }, [profile.tuckedIn]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setLullabyActive(monsterAudio.getIsLullabyPlaying());
+    } else {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
-      monsterAudio.stopLullaby();
-      setLullabyActive(false);
       setIsSpeaking(false);
+      setJustEarnedReward(false);
     }
   }, [isOpen]);
 
   useEffect(() => {
     return () => {
-      // Cleanup speech and lullaby when unmounting
+      // Cleanup speech when unmounting (preserves background lullaby if child wants sleep chimes)
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
-      monsterAudio.stopLullaby();
     };
   }, []);
 
@@ -102,7 +103,8 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
   const handleDimLights = async () => {
     setLightsLoading(true);
     try {
-      const result = await triggerHaDevice('light.kids_bedroom', 'turn_on');
+      const roomLightEntity = 'light.kids_bedroom';
+      const result = await triggerHaDevice(roomLightEntity, 'turn_on');
       if (result.ok) {
         setLightsStatus('💡 Bedroom lights dimmed to cozy glow!');
       } else {
@@ -127,6 +129,8 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
         body: JSON.stringify({
           prompt: `Write a short, soothing 3-paragraph bedtime story for a child named ${childName} starring their pet monster ${currentCreature.name} (${currentCreature.title}). The story should be cozy, gentle, and help them fall asleep peacefully. Return with a cute title.`,
           maxTokens: 350,
+          role: 'child',
+          memberId: profile.memberId,
         }),
         signal: controller.signal,
       });
@@ -181,7 +185,8 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
 
   const handleTuckIn = () => {
     monsterAudio.playSound('lullaby_chime');
-    recordBedtime(profile.memberId);
+    const result = recordBedtime(profile.memberId);
+    setJustEarnedReward(result.pointsAwarded > 0);
     setTuckedInDone(true);
     const updated = getProfileForMember(profile.memberId);
     onProfileUpdated(updated);
@@ -189,6 +194,9 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
 
   const handleWakeUp = () => {
     monsterAudio.playSound('cheer');
+    monsterAudio.stopLullaby();
+    setLullabyActive(false);
+    setJustEarnedReward(false);
     const updated = wakeUpMonster(profile.memberId);
     setTuckedInDone(false);
     onProfileUpdated(updated);
@@ -352,7 +360,13 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
                 <Check className="w-5 h-5 text-emerald-400" />
                 <div>
                   <div className="text-xs font-bold text-emerald-300">Tucked in for the night!</div>
-                  <div className="text-[10px] text-indigo-300/70">+15 Bear Bucks & Streak Earned</div>
+                  <div className="text-[10px] text-indigo-300/70">
+                    {justEarnedReward
+                      ? '+15 Bear Bucks & Streak Earned!'
+                      : (profile.lastBedtimeDate === todaySleepDay
+                          ? 'Resting cozy for the night (Daily bonus earned)'
+                          : '+15 Bear Bucks & Streak Earned')}
+                  </div>
                 </div>
               </div>
               <button
@@ -367,7 +381,7 @@ export const BedtimeModal: React.FC<BedtimeModalProps> = ({
               onClick={handleTuckIn}
               className="flex-1 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-400 hover:to-pink-500 text-white font-black text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition active:scale-95"
             >
-              <Moon className="w-4 h-4" /> TUCK IN & SLEEP (+15 Bear Bucks)
+              <Moon className="w-4 h-4" /> {profile.lastBedtimeDate === todaySleepDay ? 'TUCK IN & SLEEP' : 'TUCK IN & SLEEP (+15 Bear Bucks)'}
             </button>
           )}
         </div>

@@ -148,6 +148,7 @@ describe('POST /api/chat', () => {
   });
 
   it('routes Triad queries directly to ambient Triad daemon on port 8789', async () => {
+    authed();
     process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     // Notice resolveAiKeys is NOT called or required for Triad queries!
@@ -169,7 +170,20 @@ describe('POST /api/chat', () => {
     expect(parsed.text).toContain('Pieces OS: 🟢 Online (39300)');
   });
 
+  it('blocks Triad queries when child role is active even in triad household', async () => {
+    authed();
+    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Normal child response'));
+
+    const res = await handler(req({ prompt: 'triad doctor', role: 'child' }));
+    expect(res.status).toBe(200);
+    // Should NOT have called triad port 8789; should have reached Claude directly with child safety persona
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(sentBody.system[0].text).toContain('[Child Safety Persona Active]');
+  });
+
   it('gracefully falls back to LLM when Triad daemon is offline during a triad query', async () => {
+    authed();
     process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
@@ -885,5 +899,53 @@ describe('POST /api/chat', () => {
     expect(sentBody.contents[0].parts[0].text).toBe('Turn 1\n\nTurn 2');
     expect(sentBody.contents[1].parts[0].text).toBe('Reply\n\nFollow-up');
     expect(sentBody.contents[2].parts[0].text).toBe('Final turn');
+  });
+
+  it('enforces child safety persona and restricts tools when role is explicitly child in body even if caller token is admin', async () => {
+    authed(); // caller is admin with canControlDevices: true
+    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Hello there, little explorer!'));
+
+    const res = await handler(req({
+      prompt: 'Can you help me?',
+      role: 'child',
+      memberId: 'kid-123',
+      enableTools: true,
+    }));
+    expect(res.status).toBe(200);
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    // Injects child safety persona
+    expect(sentBody.system[0].text).toContain('[Child Safety Persona Active]');
+    // Strips adult tools even though caller was an admin
+    const toolNames = sentBody.tools.map((t: any) => t.name);
+    expect(toolNames).not.toContain('updateMemory');
+    expect(toolNames).not.toContain('manageMember');
+    expect(toolNames).not.toContain('controlDevice');
+    expect(toolNames).toContain('addTask');
+  });
+
+  it('restricts tools and applies child persona in Gemini fallback path when role is child', async () => {
+    authed();
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(claudeDown())
+      .mockResolvedValueOnce(geminiOk('Gemini child response'));
+
+    const res = await handler(req({
+      prompt: 'Hello Gemini',
+      role: 'child',
+      enableTools: true,
+    }));
+    expect(res.status).toBe(200);
+
+    const geminiReqBody = JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string);
+    // Check system instruction
+    const sysText = geminiReqBody.systemInstruction.parts[0].text;
+    expect(sysText).toContain('[Child Safety Persona Active]');
+    // Check tool declarations
+    const decls = geminiReqBody.tools[0].functionDeclarations.map((d: any) => d.name);
+    expect(decls).not.toContain('updateMemory');
+    expect(decls).not.toContain('manageMember');
+    expect(decls).not.toContain('controlDevice');
+    expect(decls).toContain('addTask');
   });
 });

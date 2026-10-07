@@ -343,7 +343,7 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema, enableTools, neutralMode } = parsed.data;
+  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema, enableTools, neutralMode, role: requestedRole } = parsed.data;
 
   // Tools are opt-in for Hermes Chat callers (`enableTools: true`) to prevent token overhead
   // and unexpected tool calling on general text-completion endpoints.
@@ -366,12 +366,14 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const isTriad = isTriadHousehold(householdId);
-  const isChild = callerRole === 'child';
+  const isChild = callerRole === 'child' || requestedRole === 'child';
+  const effectiveIsAdmin = isAdmin && !isChild;
+  const effectiveCanControl = canControlDevices && !isChild;
 
   const scopedTools = tools?.filter((t) => {
-    if (t.name === 'queryTriad') return isTriad && isAdmin;
-    if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return canControlDevices;
-    if (!isAdmin) return NON_ADMIN_ALLOWED_TOOLS.has(t.name);
+    if (t.name === 'queryTriad') return isTriad && effectiveIsAdmin;
+    if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return effectiveCanControl;
+    if (!effectiveIsAdmin) return NON_ADMIN_ALLOWED_TOOLS.has(t.name);
     return true;
   });
   const allowedTools = new Set(scopedTools?.map((t) => t.name) || []);
@@ -413,8 +415,8 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || prompt || '';
   const cleanQuery = lastUserMsg.trim();
   // Triad is scoped to the owner's household only; everyone else's "triad ..."
-  // is just a normal chat message.
-  const isTriadDirect = isTriadHousehold(householdId) && (/^(triad|\/triad)\b/i.test(cleanQuery) ||
+  // is just a normal chat message. Children are strictly blocked from triad execution.
+  const isTriadDirect = !isChild && isTriadHousehold(householdId) && (/^(triad|\/triad)\b/i.test(cleanQuery) ||
     /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery));
 
   if (isTriadDirect) {
@@ -477,7 +479,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   if (anthropicKey) {
     try {
       const { text, actions, stopReason, usage, truncated, droppedActions } = await callClaude(
-        messages, effectiveSystem, anthropicKey, chosenModel, tokens, wantJson, scopedTools, allowedTools, isAdmin
+        messages, effectiveSystem, anthropicKey, chosenModel, tokens, wantJson, scopedTools, allowedTools, effectiveIsAdmin
       );
       if (!text && actions.length === 0) {
         if (droppedActions > 0) {
@@ -520,7 +522,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   // Fallback to Gemini if Claude is unavailable, errored, or unconfigured
   try {
     const { text, actions, truncated, droppedActions, toolsDegraded } = await callGemini(
-      messages, effectiveSystem, geminiKey!, tokens, wantJson, scopedTools, allowedTools, isAdmin
+      messages, effectiveSystem, geminiKey!, tokens, wantJson, scopedTools, allowedTools, effectiveIsAdmin
     );
     if (!text && actions.length === 0) {
       if (droppedActions > 0) {

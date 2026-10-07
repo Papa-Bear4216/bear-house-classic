@@ -60,8 +60,16 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
+  const voiceTimerRef = useRef<any>(null);
+
+  const showVoiceNotice = (text: string) => {
+    if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
+    setVoiceNotice(text);
+    voiceTimerRef.current = setTimeout(() => setVoiceNotice(null), 5000);
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -71,6 +79,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
       try {
         recognitionRef.current?.abort?.();
       } catch {}
+      if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
       setIsListening(false);
       setSpeakingId(null);
     }
@@ -84,6 +93,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
       try {
         recognitionRef.current?.abort?.();
       } catch {}
+      if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
     };
   }, []);
 
@@ -118,7 +128,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRec) {
-      setInput("Voice recognition unavailable on this device. Type here!");
+      showVoiceNotice("Voice recognition is unavailable on this device. Type your question below! 🎙️");
       return;
     }
 
@@ -150,8 +160,13 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
         setIsListening(false);
       };
 
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
         setIsListening(false);
+        if (event?.error === 'not-allowed') {
+          showVoiceNotice("Microphone permission blocked. Enable microphone in browser settings!");
+        } else {
+          showVoiceNotice("Couldn't hear clearly. Try speaking again or type below!");
+        }
       };
 
       recognition.onend = () => {
@@ -162,6 +177,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
       recognition.start();
     } catch {
       setIsListening(false);
+      showVoiceNotice("Microphone unavailable. Type your message below!");
     }
   };
 
@@ -169,6 +185,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
     const userText = (overrideText || input).trim();
     if (!userText || loading) return;
     setInput('');
+    setVoiceNotice(null);
 
     const newMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
@@ -179,128 +196,130 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
     setLoading(true);
     monsterAudio.playSound('squeak');
 
-    // Local ground truth: Answer "Who fed the dog/pet?" directly from verified state
-    const pets = loadFamilyPets();
-    const petMatch = userText.match(/who fed (?:the )?([a-z0-9_-]+)/i);
-    const targetQuery = petMatch ? petMatch[1].toLowerCase() : '';
-    const isPetQuery = /who fed/i.test(userText) && (
-      ['dog', 'cat', 'fish', 'pet', 'pets'].includes(targetQuery) ||
-      pets.some((p) => p.name.toLowerCase() === targetQuery || p.species.toLowerCase() === targetQuery)
-    );
-
-    if (isPetQuery) {
-      let matchedPets: FamilyPet[] = [];
-      if (['pet', 'pets', ''].includes(targetQuery)) {
-        matchedPets = pets;
-      } else {
-        matchedPets = pets.filter(
-          (p) => p.species.toLowerCase() === targetQuery || p.name.toLowerCase() === targetQuery
-        );
-        if (matchedPets.length === 0) matchedPets = pets;
-      }
-
-      let reply = '';
-      if (matchedPets.length === 1) {
-        const pet = matchedPets[0];
-        const status = getPetFeedingStatus(pet.id);
-        if (status.todayFeeding) {
-          const timeStr = new Date(status.todayFeeding.timestamp).toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-          });
-          reply = `Hermes checked the house logs: ${pet.name} (${pet.avatar}) was fed ${status.todayFeeding.mealType} today by ${status.todayFeeding.fedByName} at ${timeStr}!`;
-        } else {
-          reply = `Hermes checked: Nobody has fed ${pet.name} (${pet.avatar}) yet today! You can feed ${pet.name} at the Pet Feeding Station to earn +20 adventure fuel and 10 Bear Bucks! 🥣`;
-        }
-      } else {
-        const summary = matchedPets
-          .map((p) => {
-            const s = getPetFeedingStatus(p.id);
-            if (s.todayFeeding) {
-              return `• ${p.name} ${p.avatar}: fed ${s.todayFeeding.mealType} today by ${s.todayFeeding.fedByName}`;
-            }
-            return `• ${p.name} ${p.avatar}: not fed yet today`;
-          })
-          .join('\n');
-        reply = `Hermes checked the pet logs for today:\n${summary}\n\nYou can feed any hungry pets at the Pet Feeding Station! 🐾`;
-      }
-
-      const responseId = `hermes-${Date.now()}`;
-      const responseMsg: ChatMessage = {
-        id: responseId,
-        sender: 'hermes',
-        grunt: '*Snort-sniff bark!*',
-        text: `*Translator click*: ${reply}`,
-      };
-      setMessages((prev) => [...prev, responseMsg]);
-      setLoading(false);
-      monsterAudio.playSound('fanfare');
-      if (wasVoice) {
-        speakText(reply, responseId);
-      }
-      return;
-    }
-
-    // Attempt authed /api/chat call with 15s timeout
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      const res = await authedFetch('/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          prompt: userText,
-          system: `You are Hermes acting as the "Monster Pocket Translator" in Bear House Classic for ${currentCreature.name} (${currentCreature.title}). Your job is to translate their monster's squeaks, snarls, and chirps into funny, cheerful, kid-friendly human words! Always start with a playful creature grunt in asterisks like *Snort-snarl chirp!* then give a fun, encouraging, age-appropriate answer. Keep tone loving, goofy, and safe. Never discuss money, bills, or adult topics.`,
-          maxTokens: 250,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      // Local ground truth: Answer pet feeding status queries directly from verified state
+      const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const hasWord = (t: string, w: string) =>
+        !!w.trim() && new RegExp(`(?:^|\\W)${esc(w.trim())}(?:\\W|$)`, 'i').test(t);
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.text || data.message || '';
-        if (text) {
-          const matchGrunt = text.match(/^\*([^*]+)\*/);
-          const grunt = matchGrunt ? `*${matchGrunt[1]}*` : '*Snort-giggle chirp!*';
-          const cleanText = text.replace(/^\*([^*]+)\*\s*:?\s*/, '').trim();
-          const responseId = `hermes-${Date.now()}`;
-          const responseMsg: ChatMessage = {
-            id: responseId,
-            sender: 'hermes',
-            grunt,
-            text: `*Translator click*: ${cleanText || text}`,
-          };
-          setMessages((prev) => [...prev, responseMsg]);
-          setLoading(false);
-          monsterAudio.playSound('fanfare');
-          if (wasVoice) {
-            speakText(cleanText || text, responseId);
+      const pets = loadFamilyPets();
+      const isAskingAboutFeeding = /\b(who fed|did (?:anyone|someone|anybody|somebody) feed|has .+ been fed|was .+ fed|is .+ fed)\b/i.test(userText);
+      const nameHits = pets.filter((p) => hasWord(userText, p.name));
+      const targeted = nameHits.length > 0 ? nameHits : pets.filter((p) => hasWord(userText, p.species));
+      const mentionsGeneralPet = /\b(pet|pets|dog|dogs|cat|cats|fish|puppy|kitten)\b/i.test(userText);
+      const isPetQuery = isAskingAboutFeeding && (targeted.length > 0 || mentionsGeneralPet);
+
+      if (isPetQuery) {
+        const matchedPets = targeted.length > 0 ? targeted : pets;
+        let reply = '';
+        if (matchedPets.length === 0) {
+          reply = `Hermes checked: No family pets are registered yet! You can add pets in Family Settings. 🐾`;
+        } else if (matchedPets.length === 1) {
+          const pet = matchedPets[0];
+          const status = getPetFeedingStatus(pet.id);
+          if (status.todayFeeding) {
+            const timeStr = new Date(status.todayFeeding.timestamp).toLocaleTimeString([], {
+              hour: 'numeric',
+              minute: '2-digit',
+            });
+            reply = `Hermes checked the house logs: ${pet.name} (${pet.avatar}) was fed ${status.todayFeeding.mealType} today by ${status.todayFeeding.fedByName} at ${timeStr}!`;
+          } else {
+            reply = `Hermes checked: Nobody has fed ${pet.name} (${pet.avatar}) yet today! You can feed ${pet.name} at the Pet Feeding Station to earn +20 adventure fuel and 10 Bear Bucks! 🥣`;
           }
-          return;
+        } else {
+          const summary = matchedPets
+            .map((p) => {
+              const s = getPetFeedingStatus(p.id);
+              if (s.todayFeeding) {
+                return `• ${p.name} ${p.avatar}: fed ${s.todayFeeding.mealType} today by ${s.todayFeeding.fedByName}`;
+              }
+              return `• ${p.name} ${p.avatar}: not fed yet today`;
+            })
+            .join('\n');
+          reply = `Hermes checked the pet logs for today:\n${summary}\n\nYou can feed any hungry pets at the Pet Feeding Station! 🐾`;
         }
-      }
-    } catch {
-      // Fallback below
-    }
 
-    // Canned fallback
-    setTimeout(() => {
-      const randomJoke =
-        CANNED_MONSTER_JOKES[Math.floor(Math.random() * CANNED_MONSTER_JOKES.length)];
-      const responseId = `hermes-${Date.now()}`;
-      const responseMsg: ChatMessage = {
-        id: responseId,
-        sender: 'hermes',
-        grunt: randomJoke.grunt,
-        text: `*Translator click*: ${randomJoke.text}`,
-      };
-      setMessages((prev) => [...prev, responseMsg]);
-      setLoading(false);
-      monsterAudio.playSound('fanfare');
-      if (wasVoice) {
-        speakText(randomJoke.text, responseId);
+        const responseId = `hermes-${Date.now()}`;
+        const responseMsg: ChatMessage = {
+          id: responseId,
+          sender: 'hermes',
+          grunt: '*Snort-sniff bark!*',
+          text: `*Translator click*: ${reply}`,
+        };
+        setMessages((prev) => [...prev, responseMsg]);
+        setLoading(false);
+        monsterAudio.playSound('fanfare');
+        if (wasVoice) {
+          speakText(reply, responseId);
+        }
+        return;
       }
-    }, 500);
+
+      // Attempt authed /api/chat call with 15s timeout
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const res = await authedFetch('/api/chat', {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt: userText,
+            system: `You are Hermes acting as the "Monster Pocket Translator" in Bear House Classic for ${currentCreature.name} (${currentCreature.title}). Your job is to translate their monster's squeaks, snarls, and chirps into funny, cheerful, kid-friendly human words! Always start with a playful creature grunt in asterisks like *Snort-snarl chirp!* then give a fun, encouraging, age-appropriate answer. Keep tone loving, goofy, and safe. Never discuss money, bills, or adult topics.`,
+            maxTokens: 250,
+            role: 'child',
+            memberId: profile.memberId,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.text || data.message || '';
+          if (text) {
+            const matchGrunt = text.match(/^\*([^*]+)\*/);
+            const grunt = matchGrunt ? `*${matchGrunt[1]}*` : '*Snort-giggle chirp!*';
+            const cleanText = text.replace(/^\*([^*]+)\*\s*:?\s*/, '').trim();
+            const responseId = `hermes-${Date.now()}`;
+            const responseMsg: ChatMessage = {
+              id: responseId,
+              sender: 'hermes',
+              grunt,
+              text: `*Translator click*: ${cleanText || text}`,
+            };
+            setMessages((prev) => [...prev, responseMsg]);
+            setLoading(false);
+            monsterAudio.playSound('fanfare');
+            if (wasVoice) {
+              speakText(cleanText || text, responseId);
+            }
+            return;
+          }
+        }
+      } catch {
+        // Fallback below
+      }
+
+      // Canned fallback
+      setTimeout(() => {
+        const randomJoke =
+          CANNED_MONSTER_JOKES[Math.floor(Math.random() * CANNED_MONSTER_JOKES.length)];
+        const responseId = `hermes-${Date.now()}`;
+        const responseMsg: ChatMessage = {
+          id: responseId,
+          sender: 'hermes',
+          grunt: randomJoke.grunt,
+          text: `*Translator click*: ${randomJoke.text}`,
+        };
+        setMessages((prev) => [...prev, responseMsg]);
+        setLoading(false);
+        monsterAudio.playSound('fanfare');
+        if (wasVoice) {
+          speakText(randomJoke.text, responseId);
+        }
+      }, 500);
+    } catch {
+      setLoading(false);
+    }
   };
 
   return (
@@ -372,29 +391,40 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
           )}
         </div>
 
+        {/* Voice or Status Notice */}
+        {voiceNotice && (
+          <div className="mx-1 my-1 px-3 py-1.5 bg-cyan-950/80 border border-cyan-700/60 rounded-xl text-[11px] text-cyan-200 text-center animate-in fade-in">
+            {voiceNotice}
+          </div>
+        )}
+
         {/* Quick Prompt Starters */}
         <div className="flex gap-1.5 overflow-x-auto py-2 border-t border-stone-800 text-[11px]">
           <button
             onClick={() => handleSend("Tell me a funny monster joke!")}
-            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap"
+            disabled={loading}
+            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap disabled:opacity-40"
           >
             🤣 Tell a joke
           </button>
           <button
             onClick={() => handleSend("What chores should I do next to get adventure fuel?")}
-            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap"
+            disabled={loading}
+            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap disabled:opacity-40"
           >
             ⚡ Next chore quest?
           </button>
           <button
             onClick={() => handleSend("Ask the house: who fed the dog today?")}
-            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap"
+            disabled={loading}
+            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap disabled:opacity-40"
           >
             🐶 Who fed the dog?
           </button>
           <button
             onClick={() => handleSend("Can you tell me a bedtime story?")}
-            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap"
+            disabled={loading}
+            className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-cyan-300 whitespace-nowrap disabled:opacity-40"
           >
             📖 Bedtime story
           </button>
@@ -404,7 +434,8 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
         <div className="pt-2 flex items-center gap-2">
           <button
             onClick={handleToggleVoice}
-            className={`p-2.5 rounded-xl border transition flex-shrink-0 ${
+            disabled={loading}
+            className={`p-2.5 rounded-xl border transition flex-shrink-0 disabled:opacity-40 ${
               isListening
                 ? 'bg-red-500 border-red-400 text-white animate-pulse'
                 : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-cyan-400'
@@ -417,15 +448,16 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
           <input
             type="text"
             value={input}
+            readOnly={loading}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={isListening ? "Listening to your voice..." : `Talk to ${currentCreature.name}...`}
-            className="flex-1 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-cyan-400"
+            placeholder={isListening ? "Listening to your voice..." : (loading ? "Decoding creature squeaks..." : `Talk to ${currentCreature.name}...`)}
+            className="flex-1 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           />
 
           <button
             onClick={() => handleSend()}
-            disabled={!input.trim()}
+            disabled={!input.trim() || loading}
             className="p-2.5 bg-cyan-500 hover:bg-cyan-400 text-stone-950 rounded-xl font-bold transition disabled:opacity-40"
           >
             <Send className="w-4 h-4" />
