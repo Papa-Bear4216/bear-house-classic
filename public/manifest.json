@@ -4,15 +4,21 @@
   "description": "HotMessExpress - The Family OS. ADHD-friendly household coordination engineered at Dysfunction Junction.",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "/placeholder.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "64x64"
     }
   ],
   "start_url": "/",
