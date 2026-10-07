@@ -16,7 +16,7 @@ const STEPS = [
   {
     step: '2',
     title: 'Get the basics rolling',
-    body: 'Chores, the AI room scanner, kid rooms with sealed private journals, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
+    body: 'Chores, the AI room scanner, Kids World monster companion den, pet feeding logs, kid rooms with sealed private journals, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
   },
   {
     step: '3',
@@ -97,10 +97,22 @@ export default function Welcome() {
                 <span className="text-amber-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
               </li>
               <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Kids World Monster Den & Voice Translator: COPPA-safe creature companion & homework helper
+              </li>
+              <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> Kid rooms & sealed private journal: spend chore points on room themes + device-only journal
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer, routines & 120Hz arcade
+                <span className="text-amber-400 font-bold">✓</span> Family Pet Station: real-time “Who Fed the Dog?” log & walk tracker (pets are always free)
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer & routines
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> 120Hz Retro Canvas Arcade: Sock Python, Pantry Chomper & Cosmic Clutter
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-400 font-bold">✓</span> Bedtime wind-down: calming generative soundscape chimes & creature sleep routines
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send

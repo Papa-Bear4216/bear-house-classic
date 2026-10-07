@@ -1,6 +1,16 @@
 import { Button } from '@/components/ui/button';
 import { signInWithGoogle } from '@/lib/householdAuth';
-import { Zap, HeartHandshake, CalendarDays, Pill, GraduationCap, Camera, DoorOpen } from 'lucide-react';
+import {
+  Zap,
+  HeartHandshake,
+  CalendarDays,
+  Pill,
+  GraduationCap,
+  Camera,
+  DoorOpen,
+  Sparkles,
+  PawPrint,
+} from 'lucide-react';
 
 export function Hero() {
   return (
@@ -32,13 +42,19 @@ export function Hero() {
       </h1>
 
       <p className="text-base sm:text-lg text-slate-300 max-w-xl relative z-10 leading-relaxed">
-        One kid, two houses, one life. HotMessExpress brings calm to everyday chaos: an AI room chore scanner that turns disaster zones into quick wins, ADHD-friendly single-task focus, custody schedules, safe medication handoffs, customizable kid rooms with sealed private journals, and read-only bank sync. All guarded by a built-in BIFF tone check so nobody sends a text they'll regret.
+        One kid, two houses, one life. HotMessExpress brings calm to everyday chaos: an AI room chore scanner that turns disaster zones into quick wins, ADHD-friendly single-task focus, custody schedules, safe medication handoffs, Kids World monster companions with voice translators, real-time pet feeding logs, customizable kid rooms with sealed private journals, and read-only bank sync. All guarded by a built-in BIFF tone check so nobody sends a text they'll regret.
       </p>
 
       {/* Micro-feature highlights */}
       <div className="flex flex-wrap items-center justify-center gap-2.5 relative z-10 text-xs text-slate-300">
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
           <Camera className="w-3.5 h-3.5 text-cyan-400" /> AI room chore scanner
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-fuchsia-400" /> Kids monster den & voice translator
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
+          <PawPrint className="w-3.5 h-3.5 text-emerald-400" /> “Who Fed the Dog?” pet logs
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
           <DoorOpen className="w-3.5 h-3.5 text-purple-400" /> Kid rooms & sealed journal
@@ -56,7 +72,7 @@ export function Hero() {
           <Pill className="w-3.5 h-3.5 text-sky-400" /> Medication dose safety
         </span>
         <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5">
-          <GraduationCap className="w-3.5 h-3.5 text-emerald-400" /> School flyer triage
+          <GraduationCap className="w-3.5 h-3.5 text-teal-400" /> School flyer triage
         </span>
       </div>
 

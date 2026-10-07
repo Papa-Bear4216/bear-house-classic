@@ -71,3 +71,25 @@ Following the full Agent Mesh MCP verification (295 vitest tests passing, 45 Dep
 - Commit: `4aa9d92` (`fix(kids): harden child role enforcement, pet query NLP, and bedtime automation invariants`)
 - Pushed to `origin/master`: `1d1adbc..4aa9d92  master -> master`
 - Clean working directory.
+
+---
+
+## 5. Landing Page Audit & Refresh
+
+Following the user request to audit the public landing page against recent capabilities, the landing page was updated to showcase:
+1. **Kids World Monster Den & Voice Translator:**
+   - Highlighted in `FeatureGrid.tsx`, `Hero.tsx`, `FamilyRoles.tsx`, `Welcome.tsx` steps & pricing checklist.
+   - Interactive preview added to `AppMockupShowcase.tsx` (`Kids World & Den` tab) allowing visitors to test drive Grumble the Moss Monster, feeding with chore points, and the COPPA-safe Voice Hermes Pocket Translator with audio preview.
+2. **“Who Fed the Dog?” Family Pet Station:**
+   - Dedicated card in `FeatureGrid.tsx` detailing cross-household meal logs, 2h duplicate feeding guards, and unlimited free pet profiles.
+   - Live pet feeding card in `AppMockupShowcase.tsx` phone and desktop mockups.
+3. **120Hz Retro Canvas Arcade Suite & Bedtime Wind-Down:**
+   - Explicitly highlighted Sock Python, Pantry Chomper, and Cosmic Clutter alongside bedtime generative soundscapes and calming chimes.
+4. **Autonomous Triad Critique & Hardening:**
+   - Resolved unescaped quotes in JSX (`Hero.tsx`).
+   - Hardened `AppMockupShowcase.tsx` with `useRef` timer cleanup on unmount, disabled state while feeding is active, phrasing-only content model in `<button>`, and `aria-expanded` / `aria-live="polite"` accessibility tags.
+5. **Verification & Tests:**
+   - Added unit test suite `src/pages/Welcome.test.ts` (5/5 tests passing).
+   - Full test suite: **896 / 896 tests passing across 87 test files**.
+   - 0 TypeScript errors across `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.api.json`.
+   - Production Vite build passing in 25.14s.

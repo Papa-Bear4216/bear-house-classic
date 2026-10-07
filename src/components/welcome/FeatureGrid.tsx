@@ -8,9 +8,12 @@ import {
   GraduationCap,
   Utensils,
   Landmark,
-  Trophy,
   Home,
   ShieldCheck,
+  Sparkles,
+  PawPrint,
+  Moon,
+  Gamepad2,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -31,12 +34,28 @@ const FEATURES = [
     bg: 'bg-amber-400/10 border-amber-400/20',
   },
   {
+    icon: Sparkles,
+    title: 'Kids World Monster Den & Voice Translator',
+    description:
+      'Turn chores and routines into creature care. Kids hatch and raise virtual monster companions (Grumble, Pip, Barnaby) unlocked with chore points. Includes the Voice Hermes Pocket Translator—a COPPA-safe, mic-powered companion for homework questions, big feelings, and pet mood decoding.',
+    color: 'text-fuchsia-400',
+    bg: 'bg-fuchsia-500/10 border-fuchsia-500/20',
+  },
+  {
     icon: DoorOpen,
     title: 'Kid Rooms & Sealed Private Journal',
     description:
       'Give every child their own digital space. Kids spend earned chore points to unlock themed room aesthetics (Glitter Pop, Night Market, Orbit, Moss Fort), pick avatars, and broadcast their mood. Includes a sealed personal journal stored strictly on their device—never synced to the family database, never visible to parents.',
     color: 'text-purple-400',
     bg: 'bg-purple-500/10 border-purple-500/20',
+  },
+  {
+    icon: PawPrint,
+    title: '“Who Fed the Dog?” Pet Feeding Station',
+    description:
+      'Stop morning double-feeding and forgotten dinners across Mom’s and Dad’s houses. Real-time family pet feeding and walk station with 2-hour duplicate warnings, feeding history, and multi-pet tracking. Pets never count toward your subscription seat limits.',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10 border-emerald-500/20',
   },
   {
     icon: HeartHandshake,
@@ -87,12 +106,20 @@ const FEATURES = [
     bg: 'bg-indigo-500/10 border-indigo-500/20',
   },
   {
-    icon: Trophy,
-    title: 'Routines, streaks & arcade',
+    icon: Gamepad2,
+    title: 'Routines, streaks & 120Hz retro arcade',
     description:
-      'Morning wake-up and bedtime checklists keep kids moving without nagging parents. Finished routines build team streaks and earn tokens for the built-in 120Hz retro canvas arcade with family high score leaderboards.',
+      'Morning wake-up checklists and bedtime routines keep kids moving without nagging parents. Finished routines build team streaks and earn arcade tokens for built-in 120Hz canvas games—Sock Python, Pantry Chomper, and Cosmic Clutter—with family leaderboards.',
     color: 'text-pink-400',
     bg: 'bg-pink-500/10 border-pink-500/20',
+  },
+  {
+    icon: Moon,
+    title: 'Bedtime wind-down & calming soundscapes',
+    description:
+      'Transform bedtime friction into peaceful sleep. Kids tuck in their monster companion and drift off to ambient generative soundscapes, gentle sleep chimes, and calming frequencies. Zero ads, zero algorithmic video rabbit holes.',
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10 border-blue-500/20',
   },
   {
     icon: Home,
@@ -107,8 +134,8 @@ const FEATURES = [
     title: 'COPPA verified child privacy',
     description:
       'Engineered from day one for child safety. Adding under-13 family members requires verified parental consent with strict audit logs. Private family boundaries, zero ad tracking, zero data brokering, and sealed context protect your household.',
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
+    color: 'text-teal-300',
+    bg: 'bg-teal-500/10 border-teal-500/20',
   },
 ];
 

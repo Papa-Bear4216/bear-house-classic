@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Zap, 
   Bot, 
@@ -22,7 +22,10 @@ import {
   Check,
   HeartHandshake,
   DoorOpen,
-  Lock
+  Lock,
+  Mic,
+  PawPrint,
+  Moon,
 } from 'lucide-react';
 import { triggerConfetti } from '@/lib/confetti';
 
@@ -43,12 +46,35 @@ export function AppMockupShowcase() {
   const [hermesActionDone, setHermesActionDone] = useState(false);
   const [biffCopied, setBiffCopied] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<'glitter' | 'night-market' | 'orbit'>('glitter');
+  const [monsterFed, setMonsterFed] = useState(false);
+  const [voiceTranslated, setVoiceTranslated] = useState(false);
+  const fedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (fedTimerRef.current) clearTimeout(fedTimerRef.current);
+    };
+  }, []);
 
   const currentChore = CHORE_SAMPLES[choreIndex % CHORE_SAMPLES.length];
 
   const handleThemeSelect = (theme: 'glitter' | 'night-market' | 'orbit', e: React.MouseEvent) => {
     triggerConfetti(e.clientX, e.clientY, 35);
     setSelectedTheme(theme);
+  };
+
+  const handleFeedMonster = (e: React.MouseEvent) => {
+    if (monsterFed) return;
+    triggerConfetti(e.clientX, e.clientY, 35);
+    setMonsterFed(true);
+    fedTimerRef.current = setTimeout(() => setMonsterFed(false), 3000);
+  };
+
+  const handleVoiceTranslate = (e: React.MouseEvent) => {
+    if (!voiceTranslated) {
+      triggerConfetti(e.clientX, e.clientY, 35);
+    }
+    setVoiceTranslated(prev => !prev);
   };
 
   const handleCompleteChore = (e: React.MouseEvent) => {
@@ -90,7 +116,7 @@ export function AppMockupShowcase() {
           Take FamilyOS for a test drive
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          Tap through the live tabs below: test the <strong className="text-white">AI Room Chore Scanner</strong> detecting real-world clutter, explore themed <strong className="text-white">Kid Rooms & Sealed Private Journals</strong>, try the <strong className="text-white">ADHD Focus Hero</strong> with 5-minute timers, or polish an angry draft with the <strong className="text-white">Hermes BIFF Tone Check</strong>.
+          Tap through the live tabs below: test the <strong className="text-white">AI Room Chore Scanner</strong> detecting real-world clutter, explore <strong className="text-white">Kids World & Monster Den</strong> with voice translator, sealed private journals, and pet logs, try the <strong className="text-white">ADHD Focus Hero</strong> with 5-minute timers, or polish an angry draft with the <strong className="text-white">Hermes BIFF Tone Check</strong>.
         </p>
       </div>
 
@@ -116,7 +142,7 @@ export function AppMockupShowcase() {
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <DoorOpen className="w-4 h-4" /> Kid Room & Journal
+            <Sparkles className={`w-4 h-4 ${activeTab === 'kidroom' ? 'text-slate-950' : 'text-fuchsia-400'}`} /> Kids World & Den
           </button>
           <button
             onClick={() => setActiveTab('scanner')}
@@ -242,6 +268,10 @@ export function AppMockupShowcase() {
                   <KidRoomMockupContent
                     selectedTheme={selectedTheme}
                     onSelectTheme={handleThemeSelect}
+                    monsterFed={monsterFed}
+                    voiceTranslated={voiceTranslated}
+                    onFeedMonster={handleFeedMonster}
+                    onVoiceTranslate={handleVoiceTranslate}
                   />
                 )}
                 {activeTab === 'dashboard' && (
@@ -338,6 +368,10 @@ export function AppMockupShowcase() {
                   <KidRoomMockupContent
                     selectedTheme={selectedTheme}
                     onSelectTheme={handleThemeSelect}
+                    monsterFed={monsterFed}
+                    voiceTranslated={voiceTranslated}
+                    onFeedMonster={handleFeedMonster}
+                    onVoiceTranslate={handleVoiceTranslate}
                   />
                 </div>
               )}
@@ -794,9 +828,17 @@ function BiffMockupContent({
 function KidRoomMockupContent({
   selectedTheme,
   onSelectTheme,
+  monsterFed,
+  voiceTranslated,
+  onFeedMonster,
+  onVoiceTranslate,
 }: {
   selectedTheme: 'glitter' | 'night-market' | 'orbit';
   onSelectTheme: (theme: 'glitter' | 'night-market' | 'orbit', e: React.MouseEvent) => void;
+  monsterFed: boolean;
+  voiceTranslated: boolean;
+  onFeedMonster: (e: React.MouseEvent) => void;
+  onVoiceTranslate: (e: React.MouseEvent) => void;
 }) {
   const themeStyles = {
     glitter: {
@@ -863,6 +905,135 @@ function KidRoomMockupContent({
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Kids World Monster Den Companion Card */}
+      <div className="bg-slate-900/90 border border-fuchsia-500/30 rounded-2xl p-3.5 space-y-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/30 flex items-center justify-center text-lg">
+              👾
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white block">Grumble · Moss Monster</span>
+              <span className="text-[10px] text-fuchsia-300 font-mono">Level 4 · Mood: Cozy 💖</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+            Active Companion
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 text-[11px] text-center">
+          <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5">
+            <div className="text-slate-400 text-[9px] uppercase font-bold">Affection</div>
+            <div className="text-pink-400 font-bold mt-0.5">💖 96%</div>
+          </div>
+          <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5">
+            <div className="text-slate-400 text-[9px] uppercase font-bold">Hunger</div>
+            <div className={`font-bold mt-0.5 ${monsterFed ? 'text-emerald-400' : 'text-amber-300'}`}>
+              {monsterFed ? '🍗 Full' : '🥪 Snack Ready'}
+            </div>
+          </div>
+          <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5">
+            <div className="text-slate-400 text-[9px] uppercase font-bold">Bedtime</div>
+            <div className="text-indigo-400 font-bold mt-0.5 flex items-center justify-center gap-1">
+              <Moon className="w-3 h-3" /> Ready
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onFeedMonster}
+          disabled={monsterFed}
+          className={`w-full bg-gradient-to-r from-fuchsia-500 to-purple-500 text-slate-950 font-black text-xs py-2 rounded-xl transition shadow-lg shadow-fuchsia-500/20 flex items-center justify-center gap-1.5 ${
+            monsterFed ? 'opacity-80 cursor-default' : 'hover:from-fuchsia-400 hover:to-purple-400 active:scale-95'
+          }`}
+        >
+          {monsterFed ? <Check className="w-3.5 h-3.5 text-slate-950" /> : <Sparkles className="w-3.5 h-3.5" />}
+          {monsterFed ? 'Sample preview — Grumble is happy! 🥪' : 'Feed Grumble a snack (+15 chore pts)'}
+        </button>
+      </div>
+
+      {/* Voice Hermes Pocket Translator Card */}
+      <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <Mic className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">Voice Hermes Pocket Translator</div>
+              <div className="text-[10px] text-slate-400 font-mono">Parental Controls · Private Audio Helper</div>
+            </div>
+          </div>
+          <span className="text-[10px] text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold">
+            Mic Ready
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={onVoiceTranslate}
+          aria-expanded={voiceTranslated}
+          className="w-full text-left bg-slate-950/70 hover:bg-slate-950 border border-white/10 rounded-xl p-2.5 transition active:scale-[0.99] space-y-1.5 block"
+        >
+          <span className="flex items-center justify-between text-[11px] text-slate-300">
+            <span className="flex items-center gap-1.5 font-semibold text-cyan-300">
+              <Volume2 className="w-3.5 h-3.5" /> Leo asked:
+            </span>
+            <span className="text-[10px] text-slate-400">{voiceTranslated ? 'Tap to close' : 'Tap to preview sample'}</span>
+          </span>
+          <span className="text-xs text-white italic block">
+            “How do I tell Dad I want to practice soccer today without him getting stressed?”
+          </span>
+        </button>
+
+        {voiceTranslated && (
+          <div aria-live="polite" className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-2.5 space-y-1">
+            <div className="flex items-center justify-between text-[10px] text-cyan-300 font-bold uppercase tracking-wider">
+              <span>Hermes Voice Response</span>
+              <span className="flex items-center gap-1 text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" /> Sample audio preview
+              </span>
+            </div>
+            <p className="text-xs text-slate-200">
+              “Try saying: ‘Hey Dad, can we kick the soccer ball at the park for 15 minutes before dinner?’ Giving an exact time keeps it calm and doable!”
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Real-Time Pet Feeding Station Card */}
+      <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <PawPrint className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white">“Who Fed the Dog?” Pet Station</div>
+              <div className="text-[10px] text-slate-400 font-mono">Cross-Home Meal Sync</div>
+            </div>
+          </div>
+          <span className="text-[10px] text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+            All Pets Free
+          </span>
+        </div>
+
+        <div className="bg-slate-950/60 border border-white/5 rounded-xl p-2.5 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🐕</span>
+            <div>
+              <span className="font-bold text-white block">Bruno (Golden Retriever)</span>
+              <span className="text-[11px] text-slate-400">Breakfast fed by Leo at 8:15 AM</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+            Dinner due 5:30 PM
+          </span>
         </div>
       </div>
 

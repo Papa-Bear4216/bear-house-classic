@@ -10,7 +10,7 @@ export function FamilyRoles() {
     <section className="text-center px-4 py-16 max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-white mb-2">Four clear roles</h2>
       <p className="text-slate-400 mb-8 max-w-lg mx-auto">
-        Superadmin handles setup and billing. Admins (like a co-parent or partner) manage schedules and calm swaps. Kids get chores, routines, customizable themed rooms unlocked with chore points, and a device-only sealed private journal parents can’t peek into—with guardian consent required. Pets track feeding and walks, and they never count against your subscription seats (pets don’t pay rent either).
+        Superadmin handles setup and billing. Admins (like a co-parent or partner) manage schedules and calm swaps. Kids get chores, routines, the Kids World Monster Den with a COPPA-safe Voice Hermes companion, customizable themed rooms unlocked with chore points, and a device-only sealed private journal parents can’t peek into—with guardian consent required. Pets track feeding schedules and walks in a real-time “Who Fed the Dog?” station, and they never count against your subscription seats (pets don’t pay rent either).
       </p>
       <div className="flex flex-wrap justify-center gap-4">
         {ROLES.map((r) => (
