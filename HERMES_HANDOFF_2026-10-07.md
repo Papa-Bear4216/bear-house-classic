@@ -93,3 +93,21 @@ Following the user request to audit the public landing page against recent capab
    - Full test suite: **896 / 896 tests passing across 87 test files**.
    - 0 TypeScript errors across `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.api.json`.
    - Production Vite build passing in 25.14s.
+
+---
+
+## 6. Android (Capacitor) Sync, Permissions Hardening & APK Build
+
+Following web app completion, the native Capacitor Android wrapper was synchronized and hardened:
+1. **Capacitor Sync:** Executed `npm run build` and `npx cap sync android`, copying fresh web bundles and updating Android plugin bindings.
+2. **Microphone & Voice Permissions:**
+   - Added `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and `android.hardware.microphone` (optional) to `AndroidManifest.xml`.
+3. **Hardened WebChromeClient in `MainActivity.java`:**
+   - Expanded WebView permission requests to handle both `RESOURCE_VIDEO_CAPTURE` and `RESOURCE_AUDIO_CAPTURE`.
+   - Added strict Capacitor origin validation (`isTrustedOrigin`) guarding against untrusted origins.
+   - Handled compound and isolated resource grants without orphaned pending requests (`onPermissionRequestCanceled`).
+   - Cleaned up geolocation callback state on prompt interruptions.
+4. **Build Output:**
+   - Executed `./gradlew.bat assembleDebug assembleRelease` using OpenJDK 21 (`C:\Program Files\Android\Android Studio\jbr`).
+   - Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk` (8.01 MB).
+   - Signed Release APK: `android/app/build/outputs/apk/release/app-release.apk` (6.38 MB).
