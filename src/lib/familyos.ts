@@ -62,7 +62,9 @@ export const KEYS = {
   routines: 'familyos_routines',
   routineRuns: 'familyos_routine_runs',
   memberStreaks: 'familyos_member_streaks',
+  bulletinBoard: 'familyos_bulletin_board',
 };
+
 
 export const DEFAULT_SETTINGS = {
   aiEnabled: true,

@@ -18,6 +18,8 @@ import { BentoGridShell } from '@/components/bento/BentoGridShell';
 const SettingsModal = lazy(() => import('@/components/familyos/SettingsModal'));
 const HistoryModal = lazy(() => import('@/components/familyos/HistoryModal'));
 const WelcomeBackModal = lazy(() => import('@/components/familyos/WelcomeBackModal'));
+const BulletinBoardModal = lazy(() => import('@/components/familyos/BulletinBoardModal'));
+import { loadBulletinNotes, type BulletinNote } from '@/lib/bulletinBoard';
 
 const COLOR_DOT: Record<string, string> = {
   indigo: 'bg-indigo-400',
@@ -42,7 +44,20 @@ const AppLayout: React.FC = () => {
   const [batteryModalOpen, setBatteryModalOpen] = useState(false);
   const [batteryLevel, setBatteryLevel] = useState<BatteryLevel>(() => getBrainBattery());
   const [syncStatus, setSyncStatus] = useState(() => getOfflineSyncStatus());
+  const [bulletinOpen, setBulletinOpen] = useState(false);
+  const [bulletinNotes, setBulletinNotes] = useState<BulletinNote[]>(() => loadBulletinNotes());
   const presenceChecked = useRef(false);
+
+  useEffect(() => {
+    const updateNotes = () => setBulletinNotes(loadBulletinNotes());
+    window.addEventListener('familyos:bulletin-updated', updateNotes);
+    window.addEventListener('storage', updateNotes);
+    return () => {
+      window.removeEventListener('familyos:bulletin-updated', updateNotes);
+      window.removeEventListener('storage', updateNotes);
+    };
+  }, []);
+
 
   useEffect(() => {
     const onBatteryChange = (e: any) => {
@@ -213,6 +228,27 @@ const AppLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+              {/* Family Popup Bulletin Board */}
+              <button
+                onClick={() => setBulletinOpen(true)}
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition shadow-sm active:scale-95"
+                title="Family Bulletin Board — Quick sticky notes & announcements"
+              >
+                <span>📌</span>
+                <span className="hidden sm:inline">Bulletin</span>
+                {bulletinNotes.length > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      bulletinNotes.some((n) => n.category === 'urgent' || n.pinned)
+                        ? 'bg-rose-500 text-white animate-pulse'
+                        : 'bg-amber-400 text-slate-950'
+                    }`}
+                  >
+                    {bulletinNotes.length}
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => setBatteryModalOpen(true)}
                 className="sm:hidden p-2 rounded-xl bg-white/5 border border-white/10 text-sm"
@@ -220,6 +256,7 @@ const AppLayout: React.FC = () => {
               >
                 {BATTERY_LEVELS[batteryLevel].emoji}
               </button>
+
               <button onClick={() => setHistoryOpen(true)} title="History" className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
                 <History className="w-4 h-4" />
               </button>
@@ -284,7 +321,14 @@ const AppLayout: React.FC = () => {
         </main>
 
         <Suspense fallback={null}>
+          {bulletinOpen && (
+            <BulletinBoardModal
+              open={bulletinOpen}
+              onClose={() => setBulletinOpen(false)}
+            />
+          )}
           {settingsOpen && (
+
             <SettingsModal
               key={settingsNonce}
               open={settingsOpen}
