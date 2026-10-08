@@ -9,7 +9,7 @@ export interface BentoCardProps {
   subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
   accentColor?: 'amber' | 'emerald' | 'sky' | 'violet' | 'rose' | 'indigo' | 'cyan';
-  colSpan?: 3 | 4 | 6 | 8 | 12;
+  colSpan?: 3 | 4 | 5 | 6 | 7 | 8 | 12;
   rowSpan?: 1 | 2;
   children: React.ReactNode;
   badge?: React.ReactNode;
@@ -61,10 +61,12 @@ const ACCENT_STYLES = {
   },
 };
 
-const COL_SPANS = {
+const COL_SPANS: Record<number, string> = {
   3: 'col-span-12 md:col-span-6 lg:col-span-3',
   4: 'col-span-12 md:col-span-6 lg:col-span-4',
+  5: 'col-span-12 lg:col-span-5',
   6: 'col-span-12 md:col-span-6 lg:col-span-6',
+  7: 'col-span-12 lg:col-span-7',
   8: 'col-span-12 lg:col-span-8',
   12: 'col-span-12',
 };
@@ -88,7 +90,7 @@ export const BentoCard: React.FC<BentoCardProps> = ({
   const isBlocked = !access.allowed;
 
   const style = ACCENT_STYLES[accentColor];
-  const spanClass = COL_SPANS[colSpan];
+  const spanClass = COL_SPANS[colSpan] || 'col-span-12';
   const isCurrentExpanded = expandedModule === id;
 
   const handleClick = (e: React.MouseEvent) => {
