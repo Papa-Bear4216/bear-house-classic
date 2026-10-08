@@ -38,13 +38,10 @@ import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import BiffToneCheckModal from './BiffToneCheckModal';
-import WeeklyRoundupModal from './WeeklyRoundupModal';
 
 export const CustodyCalendar: React.FC = () => {
   const neutralEnabled = useFeatureFlag('hermes_neutral');
-  const roundupEnabled = useFeatureFlag('weekly_roundup');
   const [showToneCheck, setShowToneCheck] = useState(false);
-  const [showRoundupModal, setShowRoundupModal] = useState(false);
   const { currentUser, currentRole, householdMembers } = useAppContext();
   const canCoordinate = currentRole === 'admin' || currentRole === 'superadmin';
 
@@ -275,15 +272,6 @@ export const CustodyCalendar: React.FC = () => {
 
           {canCoordinate && (
             <div className="flex items-center gap-2 flex-wrap">
-              {roundupEnabled && (
-                <button
-                  onClick={() => setShowRoundupModal(true)}
-                  className="flex items-center gap-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-semibold px-3 py-2 rounded-xl text-xs border border-indigo-500/30 active:scale-95 transition"
-                  title="Weekly Family Logistics Digest"
-                >
-                  <Calendar className="w-3.5 h-3.5" /> Weekly Digest
-                </button>
-              )}
               {(schedule.firstChoicePolicy?.enabled ?? true) && (
                 <button
                   onClick={() => {
@@ -1337,13 +1325,9 @@ export const CustodyCalendar: React.FC = () => {
         initialText={swapReason}
         onApplyText={(clean) => setSwapReason(clean)}
       />
-
-      <WeeklyRoundupModal
-        open={showRoundupModal}
-        onOpenChange={setShowRoundupModal}
-      />
     </div>
   );
 };
+
 
 export default CustodyCalendar;

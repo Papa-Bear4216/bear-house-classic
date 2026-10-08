@@ -58,8 +58,9 @@ export const FEATURE_FLAG_METAS: FeatureFlagMeta[] = [
     label: 'Weekly Family Digest',
     description: 'Automated weekly roundup of chores, expenses, and upcoming events.',
     category: 'Daily Rhythm',
-    defaultValue: true,
+    defaultValue: false,
   },
+
   {
     key: 'streaks_leaderboards',
     label: 'Streaks & Leaderboards',

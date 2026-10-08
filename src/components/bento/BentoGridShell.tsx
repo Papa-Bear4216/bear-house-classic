@@ -25,7 +25,6 @@ const Pantry = lazy(() => import('@/components/familyos/sections/Pantry'));
 const BillTracker = lazy(() => import('@/components/familyos/sections/BillTracker'));
 const FinanceHub = lazy(() => import('@/components/familyos/sections/FinanceHub'));
 const FamilyHub = lazy(() => import('@/components/familyos/sections/FamilyHub'));
-const Emotions = lazy(() => import('@/components/familyos/Emotions'));
 const KidsHub = lazy(() => import('@/components/familyos/sections/KidsHub'));
 const RewardStore = lazy(() => import('@/components/familyos/RewardStore'));
 const HomeMaintenance = lazy(() => import('@/components/familyos/sections/HomeMaintenance'));
@@ -42,7 +41,6 @@ export const BentoGridShell: React.FC = () => {
   const [promises, setPromises] = useState<any[]>(() => loadJSON(KEYS.promises, []));
   const [shoppingItems, setShoppingItems] = useState<any[]>(() => loadJSON(KEYS.shopping, []));
   const [bills, setBills] = useState<any[]>(() => loadJSON(KEYS.bills, []));
-  const [emotions, setEmotions] = useState<any[]>(() => loadJSON(KEYS.emotions, []));
   const [activities, setActivities] = useState<any[]>(() => loadJSON(KEYS.activities, []));
   const [tick, setTick] = useState(0);
 
@@ -52,10 +50,10 @@ export const BentoGridShell: React.FC = () => {
       setPromises(loadJSON(KEYS.promises, []));
       setShoppingItems(loadJSON(KEYS.shopping, []));
       setBills(loadJSON(KEYS.bills, []));
-      setEmotions(loadJSON(KEYS.emotions, []));
       setActivities(loadJSON(KEYS.activities, []));
       setTick((t) => t + 1);
     };
+
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('familyos:sync-updated', handleStorage);
@@ -107,14 +105,6 @@ export const BentoGridShell: React.FC = () => {
     };
   }, [bills, tick]);
 
-  const emotionStats = useMemo(() => {
-    const recent = emotions.slice(-5);
-    const avg = recent.length ? (recent.reduce((acc, e) => acc + (e.intensity || 3), 0) / recent.length).toFixed(1) : '4.2';
-    return {
-      average: avg,
-      recentCount: emotions.length,
-    };
-  }, [emotions, tick]);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-6">
@@ -375,16 +365,14 @@ export const BentoGridShell: React.FC = () => {
 
           {expandedModule === 'emotions' && (
             <BentoExpandedModal
-              title="Family Hub & Emotions"
-              subtitle="Household roster, check-ins & vibe logging"
+              title="Family Hub & Roster"
+              subtitle="Household roster, connections & family messages"
               icon={Heart}
             >
-              <div className="space-y-6">
-                <FamilyHub />
-                <Emotions />
-              </div>
+              <FamilyHub />
             </BentoExpandedModal>
           )}
+
 
           {expandedModule === 'finance' && (
             <BentoExpandedModal
