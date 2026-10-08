@@ -14,9 +14,20 @@ import {
   PawPrint,
   Moon,
   Gamepad2,
+  LayoutDashboard,
+  Pin,
+  Lock,
 } from 'lucide-react';
 
 const FEATURES = [
+  {
+    icon: LayoutDashboard,
+    title: 'Bento Grid ADHD Dashboard',
+    description:
+      'Executive-function-first layout. The 6-tile Bento Grid highlights only what matters right now—Brain Battery, Next Up Timeline, One Focus Chore, Hermes Copilot AI, Kitchen Dinner, and Bills—with deep modal expansions for everything else.',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
+  },
   {
     icon: Camera,
     title: 'AI Room Chore Scanner',
@@ -30,24 +41,24 @@ const FEATURES = [
     title: 'One next chore (ADHD focus)',
     description:
       'When executive dysfunction sets in and the household to-do list feels suffocating, Focus Mode wipes away the clutter to show exactly ONE micro-task. Paired with a 5-minute beat-the-clock timer, dopamine-boosting confetti, and instant points to build momentum.',
-    color: 'text-amber-300',
-    bg: 'bg-amber-400/10 border-amber-400/20',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-400/10 border-cyan-400/20',
   },
   {
     icon: Sparkles,
     title: 'Kids World Monster Den & Voice Translator',
     description:
       'Turn chores and routines into creature care. Kids hatch and raise virtual monster companions (Grumble, Pip, Barnaby) unlocked with chore points. Includes the Voice Hermes Pocket Translator—a COPPA-safe, mic-powered companion for homework questions, big feelings, and pet mood decoding.',
-    color: 'text-fuchsia-400',
-    bg: 'bg-fuchsia-500/10 border-fuchsia-500/20',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
   },
   {
     icon: DoorOpen,
     title: 'Kid Rooms & Sealed Private Journal',
     description:
       'Give every child their own digital space. Kids spend earned chore points to unlock themed room aesthetics (Glitter Pop, Night Market, Orbit, Moss Fort), pick avatars, and broadcast their mood. Includes a sealed personal journal stored strictly on their device—never synced to the family database, never visible to parents.',
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10 border-purple-500/20',
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10 border-blue-500/20',
   },
   {
     icon: PawPrint,
@@ -69,7 +80,15 @@ const FEATURES = [
     icon: CalendarDays,
     title: 'Custody & calm swaps',
     description:
-      'Visual 2-2-3, 2-2-5, or alternating schedules both parents can view and trust. Request day swaps without triggering arguments or phone tag traps, and export a clean weekly logistics digest via SMS or email with one tap.',
+      'Visual 2-2-3, 2-2-5, alternating schedules, or custom split routines (where the primary parent covers bedtime and wake-ups while the co-parent takes after-school blocks, with configurable Right of First Refusal rules). Request day swaps without triggering arguments or phone tag traps, and export a clean weekly logistics digest via SMS or email with one tap.',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
+  },
+  {
+    icon: Pin,
+    title: 'Popup Family Bulletin Board',
+    description:
+      'A non-intrusive floating corkboard modal for quick notes, sticky memos, bus route updates, and urgent family announcements. Always available from the header without cluttering your core ADHD dashboard.',
     color: 'text-amber-400',
     bg: 'bg-amber-500/10 border-amber-500/20',
   },
@@ -85,9 +104,17 @@ const FEATURES = [
     icon: GraduationCap,
     title: 'Backpack & school stuff adder',
     description:
-      'Never miss Pajama Day, an early dismissal, or a field trip slip again. Take a photo of crumpled backpack handouts or forward teacher emails. Hermes automatically extracts homework deadlines, required supplies, and sign-offs for your review.',
+      'Never miss Pajama Day, an early dismissal, or a field trip slip again. Take a photo of crumpled backpack handouts or forward teacher emails. Hermes automatically extracts homework deadlines, required supplies, and sign-offs for your review with School Adder triage.',
     color: 'text-teal-400',
     bg: 'bg-teal-500/10 border-teal-500/20',
+  },
+  {
+    icon: Lock,
+    title: 'Triad Fusion Architecture',
+    description:
+      'Zero-leak tenant isolation designed for complex family dynamics. Child accounts are isolated from financial and legal modules, offline records are encrypted on-device, and telemetry bridges enforce boundaries across households.',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
   },
   {
     icon: Utensils,
@@ -154,7 +181,7 @@ export function FeatureGrid() {
         {FEATURES.map((f) => (
           <div
             key={f.title}
-            className="bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 hover:border-white/20 rounded-3xl p-6 flex flex-col gap-3.5 backdrop-blur-xl shadow-xl transition-colors duration-300"
+            className="bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 rounded-3xl p-6 flex flex-col gap-3.5 backdrop-blur-xl shadow-xl transition-all duration-300"
           >
             <div className={`w-12 h-12 rounded-2xl ${f.bg} border flex items-center justify-center flex-shrink-0`}>
               <f.icon className={`w-6 h-6 ${f.color}`} />

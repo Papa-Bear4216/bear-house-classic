@@ -8,7 +8,7 @@ export interface BentoCardProps {
   title: string;
   subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
-  accentColor?: 'amber' | 'emerald' | 'sky' | 'violet' | 'rose' | 'indigo' | 'cyan';
+  accentColor?: 'titanium' | 'cyan' | 'amber' | 'emerald' | 'sky' | 'violet' | 'rose' | 'indigo';
   colSpan?: 3 | 4 | 5 | 6 | 7 | 8 | 12;
   rowSpan?: 1 | 2;
   children: React.ReactNode;
@@ -17,47 +17,53 @@ export interface BentoCardProps {
 }
 
 const ACCENT_STYLES = {
-  amber: {
-    border: 'border-amber-500/30 hover:border-amber-400',
-    glow: 'hover:shadow-amber-500/10',
-    iconBg: 'bg-amber-500/15 text-amber-300',
-    badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-  },
-  emerald: {
-    border: 'border-emerald-500/30 hover:border-emerald-400',
-    glow: 'hover:shadow-emerald-500/10',
-    iconBg: 'bg-emerald-500/15 text-emerald-300',
-    badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-  },
-  sky: {
-    border: 'border-sky-500/30 hover:border-sky-400',
-    glow: 'hover:shadow-sky-500/10',
-    iconBg: 'bg-sky-500/15 text-sky-300',
-    badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
-  },
-  violet: {
-    border: 'border-violet-500/30 hover:border-violet-400',
-    glow: 'hover:shadow-violet-500/10',
-    iconBg: 'bg-violet-500/15 text-violet-300',
-    badge: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
-  },
-  rose: {
-    border: 'border-rose-500/30 hover:border-rose-400',
-    glow: 'hover:shadow-rose-500/10',
-    iconBg: 'bg-rose-500/15 text-rose-300',
-    badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-  },
-  indigo: {
-    border: 'border-indigo-500/30 hover:border-indigo-400',
-    glow: 'hover:shadow-indigo-500/10',
-    iconBg: 'bg-indigo-500/15 text-indigo-300',
-    badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+  titanium: {
+    border: 'border-slate-800/90 hover:border-cyan-400/50',
+    glow: 'hover:shadow-cyan-500/10',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/25',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
   },
   cyan: {
-    border: 'border-cyan-500/30 hover:border-cyan-400',
+    border: 'border-slate-800/90 hover:border-cyan-400/50',
     glow: 'hover:shadow-cyan-500/10',
-    iconBg: 'bg-cyan-500/15 text-cyan-300',
-    badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/25',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+  amber: {
+    border: 'border-slate-800/90 hover:border-cyan-400/40',
+    glow: 'hover:shadow-cyan-500/5',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+  emerald: {
+    border: 'border-slate-800/90 hover:border-cyan-400/40',
+    glow: 'hover:shadow-cyan-500/5',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20',
+    badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  },
+  sky: {
+    border: 'border-slate-800/90 hover:border-cyan-400/40',
+    glow: 'hover:shadow-cyan-500/5',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+  violet: {
+    border: 'border-slate-800/90 hover:border-cyan-400/40',
+    glow: 'hover:shadow-cyan-500/5',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+  rose: {
+    border: 'border-slate-800/90 hover:border-rose-500/40',
+    glow: 'hover:shadow-rose-500/5',
+    iconBg: 'bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/20',
+    badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  },
+  indigo: {
+    border: 'border-slate-800/90 hover:border-cyan-400/40',
+    glow: 'hover:shadow-cyan-500/5',
+    iconBg: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20',
+    badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
   },
 };
 
@@ -76,7 +82,7 @@ export const BentoCard: React.FC<BentoCardProps> = ({
   title,
   subtitle,
   icon: Icon,
-  accentColor = 'amber',
+  accentColor = 'titanium',
   colSpan = 4,
   rowSpan = 1,
   children,
@@ -89,7 +95,7 @@ export const BentoCard: React.FC<BentoCardProps> = ({
   const access = validateTriadScopeAccess(scope, id);
   const isBlocked = !access.allowed;
 
-  const style = ACCENT_STYLES[accentColor];
+  const style = ACCENT_STYLES[accentColor] || ACCENT_STYLES.titanium;
   const spanClass = COL_SPANS[colSpan] || 'col-span-12';
   const isCurrentExpanded = expandedModule === id;
 
@@ -128,14 +134,14 @@ export const BentoCard: React.FC<BentoCardProps> = ({
       className={`
         @container bento-card relative group flex flex-col justify-between
         rounded-3xl p-5 sm:p-6
-        bg-slate-900/80 hover:bg-slate-900/95
-        border-2 ${style.border} ${style.glow}
+        bg-slate-900/85 hover:bg-slate-900/98
+        border ${style.border} ${style.glow}
         shadow-xl hover:shadow-2xl
         backdrop-blur-xl
         transition-all duration-300 bento-spring
         cursor-pointer select-none
         hover:scale-[1.015] active:scale-[0.99]
-        outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950
+        outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950
         ${rowSpan === 2 ? 'min-h-[380px]' : 'min-h-[220px]'}
         ${spanClass}
         ${className}
@@ -181,10 +187,10 @@ export const BentoCard: React.FC<BentoCardProps> = ({
       {/* Card Footer: Glanceable Action Cue */}
       <div className="pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400 relative z-10">
         <span className="flex items-center gap-1.5 font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
           Live stream
         </span>
-        <span className="group-hover:text-amber-300 font-semibold transition-colors flex items-center gap-1">
+        <span className="group-hover:text-cyan-300 font-semibold transition-colors flex items-center gap-1">
           Click to morph <span className="opacity-60 text-[10px]">(or ESC)</span> &rarr;
         </span>
       </div>

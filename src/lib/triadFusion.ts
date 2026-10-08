@@ -189,6 +189,7 @@ export function hydrateScopedChat(scope: TriadScope | null): TriadChatMessage[] 
     const parsed = JSON.parse(raw) as TriadChatSessionState;
     if (parsed.householdId !== scope.householdId || parsed.memberId !== scope.memberId) {
       // Cross-household or cross-member mismatch! Quarantine and purge immediately
+      storage.removeItem(key);
       purgeChatSession(parsed.householdId, parsed.memberId);
       return [];
     }

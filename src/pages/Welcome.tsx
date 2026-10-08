@@ -32,21 +32,21 @@ const STEPS = [
 
 export default function Welcome() {
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#090D16] text-slate-100 relative overflow-x-hidden selection:bg-cyan-500 selection:text-slate-950">
       {/* Ambient background glows */}
-      <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-amber-500/[0.08] blur-[140px] pointer-events-none" />
-      <div className="fixed top-1/2 -left-40 w-96 h-96 rounded-full bg-indigo-500/[0.08] blur-[140px] pointer-events-none" />
-      <div className="fixed -bottom-40 right-1/4 w-96 h-96 rounded-full bg-rose-500/[0.06] blur-[140px] pointer-events-none" />
+      <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/[0.05] blur-[140px] pointer-events-none" />
+      <div className="fixed top-1/2 -left-40 w-96 h-96 rounded-full bg-blue-600/[0.05] blur-[140px] pointer-events-none" />
+      <div className="fixed -bottom-40 right-1/4 w-96 h-96 rounded-full bg-slate-700/[0.05] blur-[140px] pointer-events-none" />
 
       {/* Top Banner: HotMessExpress — A Product of Dysfunction Junction */}
-      <aside aria-label="Product attribution" className="w-full bg-gradient-to-r from-amber-500/10 via-purple-500/15 to-rose-500/10 border-b border-amber-500/20 backdrop-blur-xl px-4 py-2.5 text-center relative z-20">
+      <aside aria-label="Product attribution" className="w-full bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-blue-950/40 border-b border-cyan-500/20 backdrop-blur-xl px-4 py-2.5 text-center relative z-20">
         <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 flex-wrap text-xs">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-extrabold text-[10px] tracking-wider uppercase shadow-sm">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-extrabold text-[10px] tracking-wider uppercase shadow-sm">
             🚂 Junction Dispatch
           </span>
           <span className="text-slate-200 font-medium">
             <strong className="text-white font-black">HotMessExpress</strong> — Proudly engineered at{' '}
-            <span className="bg-gradient-to-r from-amber-300 via-orange-300 to-rose-300 bg-clip-text text-transparent font-black tracking-tight">
+            <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400 bg-clip-text text-transparent font-black tracking-tight">
               Dysfunction Junction
             </span>
             .
@@ -63,8 +63,8 @@ export default function Welcome() {
         <h2 className="text-3xl font-black text-white text-center font-display mb-8">How your household gets started</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {STEPS.map((s) => (
-            <div key={s.step} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="text-amber-300 text-xs font-bold mb-2">Step {s.step}</div>
+            <div key={s.step} className="rounded-3xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-md">
+              <div className="text-cyan-400 text-xs font-bold mb-2">Step {s.step}</div>
               <h3 className="text-white font-bold mb-2">{s.title}</h3>
               <p className="text-sm text-slate-300 leading-relaxed">{s.body}</p>
             </div>
@@ -77,8 +77,8 @@ export default function Welcome() {
       <FamilyRoles />
 
       <section id="pricing" className="px-4 py-8 max-w-xl mx-auto relative z-10">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 shadow-2xl backdrop-blur-xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-300 mb-4">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur-xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-semibold text-cyan-300 mb-4">
             <span>✨</span> Honest Family Pricing
           </div>
           <h2 className="text-2xl font-bold text-white font-display mb-2">One simple plan</h2>
@@ -91,58 +91,70 @@ export default function Welcome() {
           </div>
           <p className="text-sm text-slate-300 mt-3 font-semibold">Includes up to 3 household members across both homes.</p>
           <p className="text-sm text-slate-400 mt-1">Each additional member is $2.99/month. Pets are always 100% free.</p>
-          <div className="my-6 border-t border-white/10 pt-6">
+          <div className="my-6 border-t border-slate-800 pt-6">
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
+                <span className="text-cyan-400 font-bold">✓</span> Bento Grid ADHD Dashboard: 6 zero-friction priority focus cards with deep expanded views
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Kids World Monster Den & Voice Translator: COPPA-safe creature companion & homework helper
+                <span className="text-cyan-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Kid rooms & sealed private journal: spend chore points on room themes + device-only journal
+                <span className="text-cyan-400 font-bold">✓</span> Kids World Monster Den & Voice Translator: COPPA-safe creature companion & homework helper
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Family Pet Station: real-time “Who Fed the Dog?” log & walk tracker (pets are always free)
+                <span className="text-cyan-400 font-bold">✓</span> Kid rooms & sealed private journal: spend chore points on room themes + device-only journal
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer & routines
+                <span className="text-cyan-400 font-bold">✓</span> Family Pet Station: real-time “Who Fed the Dog?” log & walk tracker (pets are always free)
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> 120Hz Retro Canvas Arcade: Sock Python, Pantry Chomper & Cosmic Clutter
+                <span className="text-cyan-400 font-bold">✓</span> ADHD-friendly One Next Chore, 5-minute timer & routines
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Bedtime wind-down: calming generative soundscape chimes & creature sleep routines
+                <span className="text-cyan-400 font-bold">✓</span> 120Hz Retro Canvas Arcade: Sock Python, Pantry Chomper & Cosmic Clutter
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
+                <span className="text-cyan-400 font-bold">✓</span> Bedtime wind-down: calming generative soundscape chimes & creature sleep routines
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Two-household custody calendar, calm swaps & weekly digests
+                <span className="text-cyan-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Cross-home medication dosing log & allergy alerts
+                <span className="text-cyan-400 font-bold">✓</span> Two-household custody calendar, calm swaps & weekly digests
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Backpack & School Stuff Adder for flyers & teacher emails
+                <span className="text-cyan-400 font-bold">✓</span> Non-traditional split custody: bedtime/wake-ups vs after-school handoffs & ROFR rules
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Receipts & pantry shelf vision scanner to stop duplicate buys
+                <span className="text-cyan-400 font-bold">✓</span> Popup Family Bulletin Board for floating notes & urgent announcements
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Read-only SimpleFIN bank sync with compounding review queue
+                <span className="text-cyan-400 font-bold">✓</span> Cross-home medication dosing log & allergy alerts
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> Home Assistant allowlist & COPPA verifiable child privacy
+                <span className="text-cyan-400 font-bold">✓</span> Backpack & School Stuff Adder for flyers & teacher emails
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-amber-400 font-bold">✓</span> No contracts, no card needed for trial, cancel in two clicks
+                <span className="text-cyan-400 font-bold">✓</span> Receipts & pantry shelf vision scanner to stop duplicate buys
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-cyan-400 font-bold">✓</span> Read-only SimpleFIN bank sync with compounding review queue
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-cyan-400 font-bold">✓</span> Home Assistant allowlist & COPPA verifiable child privacy
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-cyan-400 font-bold">✓</span> Triad Fusion architecture: local encrypted state & cross-tenant quarantine
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-cyan-400 font-bold">✓</span> No contracts, no card needed for trial, cancel in two clicks
               </li>
             </ul>
           </div>
           <Button
             onClick={() => signInWithGoogle()}
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-6 rounded-2xl shadow-xl shadow-amber-500/25 transition active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold py-6 rounded-2xl shadow-xl shadow-cyan-500/25 transition active:scale-[0.98]"
           >
             Start 7-Day Free Trial
           </Button>
@@ -151,8 +163,8 @@ export default function Welcome() {
       </section>
 
       <section className="text-center px-4 py-20 relative z-10">
-        <div className="max-w-xl mx-auto p-8 rounded-3xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/10 backdrop-blur-xl shadow-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4">
+        <div className="max-w-xl mx-auto p-8 rounded-3xl bg-gradient-to-b from-slate-900/90 to-slate-950 border border-slate-800 backdrop-blur-xl shadow-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto mb-4">
             <Flame className="w-6 h-6 animate-pulse" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-white font-display mb-2">Ready to bring calm to the chaos?</h2>
@@ -162,7 +174,7 @@ export default function Welcome() {
           <Button
             size="lg"
             onClick={() => signInWithGoogle()}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-8 py-6 rounded-2xl shadow-xl shadow-amber-500/25 transition active:scale-[0.98]"
+            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-8 py-6 rounded-2xl shadow-xl shadow-cyan-500/25 transition active:scale-[0.98]"
           >
             Sign in with Google
           </Button>
@@ -170,24 +182,24 @@ export default function Welcome() {
       </section>
 
       {/* Clever Footer */}
-      <footer className="text-center py-12 px-4 border-t border-white/5 text-xs text-slate-500 relative z-10 space-y-3">
+      <footer className="text-center py-12 px-4 border-t border-slate-800/80 text-xs text-slate-500 relative z-10 space-y-3">
         <p className="flex items-center justify-center gap-2 font-semibold text-slate-300">
           <span>🚂</span>
-          <span>HotMessExpress is a <strong className="text-amber-400">Dysfunction Junction</strong> venture.</span>
+          <span>HotMessExpress is a <strong className="text-cyan-400">Dysfunction Junction</strong> venture.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
           FamilyOS for one household or two. One kid, two houses, one life. You confirm all scans, drafts, and device actions before they happen.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2">
-          <Link to="/privacy" className="hover:text-amber-400 transition underline underline-offset-2">
+          <Link to="/privacy" className="hover:text-cyan-400 transition underline underline-offset-2">
             Privacy Policy
           </Link>
           <span>&bull;</span>
-          <Link to="/terms" className="hover:text-amber-400 transition underline underline-offset-2">
+          <Link to="/terms" className="hover:text-cyan-400 transition underline underline-offset-2">
             Terms of Service
           </Link>
           <span>&bull;</span>
-          <a href="mailto:support@dysfunctionjunction.xyz" className="hover:text-amber-400 transition">
+          <a href="mailto:support@dysfunctionjunction.xyz" className="hover:text-cyan-400 transition">
             Contact Support
           </a>
         </div>

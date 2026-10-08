@@ -118,10 +118,10 @@ export const BentoGridShell: React.FC = () => {
           title="Custody & Co-Parenting"
           subtitle="Predictable schedules, handoffs & calm swaps"
           icon={CalendarDays}
-          accentColor="amber"
+          accentColor="titanium"
           colSpan={7}
           badge={
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
               Co-Parent Logistics
             </span>
           }
@@ -135,10 +135,10 @@ export const BentoGridShell: React.FC = () => {
           title="Schedule & Run of Show"
           subtitle="Family timeline & logistics"
           icon={CalendarDays}
-          accentColor="emerald"
+          accentColor="titanium"
           colSpan={5}
           badge={
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold">
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
               {scheduleStats.count} upcoming
             </span>
           }
@@ -146,12 +146,12 @@ export const BentoGridShell: React.FC = () => {
           <div className="space-y-2.5">
             <div className="text-xs text-slate-400">Next Scheduled Milestone:</div>
             {scheduleStats.nextItem ? (
-              <div className="p-3 rounded-2xl bg-emerald-950/30 border border-emerald-500/20 space-y-1">
+              <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
                 <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{scheduleStats.nextItem.name}</span>
                 </div>
-                <div className="text-xs text-emerald-300">
+                <div className="text-xs text-cyan-300">
                   {new Date(scheduleStats.nextItem.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} &bull; {scheduleStats.nextItem.person || 'Family'}
                 </div>
               </div>
@@ -169,7 +169,7 @@ export const BentoGridShell: React.FC = () => {
           title="Chores & Household Focus"
           subtitle="Priority chores & recurring home routines"
           icon={ListChecks}
-          accentColor="amber"
+          accentColor="titanium"
           colSpan={7}
           badge={
             taskStats.overdueCount > 0 ? (
@@ -177,7 +177,7 @@ export const BentoGridShell: React.FC = () => {
                 <AlertTriangle className="w-3 h-3" /> {taskStats.overdueCount} Overdue
               </span>
             ) : (
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
                 {taskStats.uncompletedCount} Active
               </span>
             )
@@ -196,7 +196,7 @@ export const BentoGridShell: React.FC = () => {
                     className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-slate-200"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />
                       <span className="truncate font-medium">{t.text}</span>
                     </div>
                     <span className="text-[10px] text-slate-400 px-2 py-0.5 rounded-md bg-white/5 flex-shrink-0">
@@ -219,11 +219,11 @@ export const BentoGridShell: React.FC = () => {
           title="Hermes Copilot AI"
           subtitle="Triad Fusion household intelligence"
           icon={Sparkles}
-          accentColor="violet"
+          accentColor="titanium"
           colSpan={5}
           badge={
-            <span className="px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/40 text-[11px] font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping" />
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
               Triad Stream
             </span>
           }
@@ -237,22 +237,22 @@ export const BentoGridShell: React.FC = () => {
           title="Kitchen & Groceries"
           subtitle="Dinner menu, pantry & shopping list"
           icon={Utensils}
-          accentColor="sky"
+          accentColor="titanium"
           colSpan={scope.role === 'child' ? 12 : 6}
           badge={
-            <span className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
               {shoppingStats.neededCount} to buy
             </span>
           }
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-sky-950/20 border border-sky-500/20 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-sky-400">Tonight&apos;s Dinner</div>
+            <div className="p-2.5 rounded-xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-cyan-400">Tonight&apos;s Dinner</div>
               <div className="text-xs font-bold text-white truncate">Home Cooked Dinner</div>
               <div className="text-[10px] text-slate-400">Recipes synced</div>
             </div>
             <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-amber-400">Shopping List</div>
+              <div className="text-[10px] uppercase font-bold text-cyan-400">Shopping List</div>
               {shoppingStats.previewList.length > 0 ? (
                 <div className="text-slate-200 truncate">{shoppingStats.previewList.join(', ')}</div>
               ) : (
@@ -269,21 +269,21 @@ export const BentoGridShell: React.FC = () => {
             title="Finance & Bill Tracker"
             subtitle="Household bills & upcoming expenses"
             icon={DollarSign}
-            accentColor="cyan"
+            accentColor="titanium"
             colSpan={6}
             badge={
               billStats.unpaidCount > 0 ? (
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
                   {billStats.unpaidCount} due
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
                   All paid
                 </span>
               )
             }
           >
-            <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/20 flex items-center justify-between">
+            <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-cyan-400 font-semibold uppercase">Unpaid Total:</div>
                 <div className="text-xl font-extrabold text-white font-mono">${billStats.totalAmount.toFixed(2)}</div>
@@ -298,26 +298,26 @@ export const BentoGridShell: React.FC = () => {
       </div>
 
       {/* Comprehensive Site Map Directory */}
-      <section className="mt-12 pt-8 pb-4 border-t border-white/10" aria-label="Site Map Directory">
+      <section className="mt-12 pt-8 pb-4 border-t border-slate-800" aria-label="Site Map Directory">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h3 className="text-sm font-bold tracking-wide uppercase text-slate-200 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
               Family OS Directory &amp; Navigation
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               Instant access to all modules, routines, tools and household documentation
             </p>
           </div>
-          <span className="text-[11px] font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/10 self-start sm:self-auto">
+          <span className="text-[11px] font-mono text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-full border border-cyan-500/20 self-start sm:self-auto">
             12 Modules &bull; Triad Fusion
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8 p-5 sm:p-6 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-md">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8 p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md">
           {/* Column 1: Home & Tasks */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider pb-1.5 border-b border-slate-800">
               <Home className="w-3.5 h-3.5" />
               <span>Home &amp; Tasks</span>
             </div>
@@ -326,10 +326,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('household')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <ListChecks className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <ListChecks className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Household Brain</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Chores</span>
@@ -339,10 +339,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('meal-planner')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Utensils className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-400 transition" />
+                    <Utensils className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Meal Planner</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Dinners</span>
@@ -352,10 +352,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('pantry-shopping')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <ShoppingCart className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <ShoppingCart className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Pantry &amp; Groceries</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Lists</span>
@@ -366,10 +366,10 @@ export const BentoGridShell: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => expandModule('maintenance')}
-                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                   >
                     <span className="flex items-center gap-2">
-                      <Wrench className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                      <Wrench className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                       <span className="font-medium">Maintenance &amp; Auto</span>
                     </span>
                     <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Upkeep</span>
@@ -381,7 +381,7 @@ export const BentoGridShell: React.FC = () => {
 
           {/* Column 2: Family & Kids */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-rose-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider pb-1.5 border-b border-slate-800">
               <Users className="w-3.5 h-3.5" />
               <span>Family &amp; Kids</span>
             </div>
@@ -390,10 +390,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('emotions')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Heart className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400 transition" />
+                    <Heart className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Family Squad &amp; Roster</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Members</span>
@@ -403,10 +403,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('kids')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Kids Corner</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Active</span>
@@ -416,10 +416,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('rewards')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-yellow-400 transition" />
+                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Reward Store</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Redeem</span>
@@ -429,10 +429,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('promises')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400 transition" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Promises &amp; Commitments</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Trust</span>
@@ -443,7 +443,7 @@ export const BentoGridShell: React.FC = () => {
 
           {/* Column 3: Logistics & AI */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-violet-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider pb-1.5 border-b border-slate-800">
               <CalendarDays className="w-3.5 h-3.5" />
               <span>Logistics &amp; AI</span>
             </div>
@@ -453,10 +453,10 @@ export const BentoGridShell: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => expandModule('custody')}
-                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                   >
                     <span className="flex items-center gap-2">
-                      <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                      <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                       <span className="font-medium">Custody &amp; Co-Parent</span>
                     </span>
                     <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Handoffs</span>
@@ -467,10 +467,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('quality')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Run of Show &amp; Timelines</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Daily</span>
@@ -480,10 +480,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('hermes-chat')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-400 transition" />
+                    <Sparkles className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Hermes Copilot AI</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Assistant</span>
@@ -494,10 +494,10 @@ export const BentoGridShell: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => expandModule('finance')}
-                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                   >
                     <span className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition" />
+                      <DollarSign className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                       <span className="font-medium">Finance Hub &amp; Bills</span>
                     </span>
                     <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Expenses</span>
@@ -509,7 +509,7 @@ export const BentoGridShell: React.FC = () => {
 
           {/* Column 4: Legal & Policies */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider pb-1.5 border-b border-white/10">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider pb-1.5 border-b border-slate-800">
               <Scale className="w-3.5 h-3.5" />
               <span>Legal &amp; Policies</span>
             </div>
@@ -518,10 +518,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('legal-privacy')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Privacy Policy</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Data</span>
@@ -531,10 +531,10 @@ export const BentoGridShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => expandModule('legal-terms')}
-                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition flex items-center justify-between group"
                 >
                   <span className="flex items-center gap-2">
-                    <Scale className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <Scale className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition" />
                     <span className="font-medium">Terms of Service</span>
                   </span>
                   <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Legal</span>

@@ -150,23 +150,23 @@ const AppLayout: React.FC = () => {
 
   return (
     <BentoGridProvider>
-      <div className="min-h-screen bg-[#090D16] text-slate-100 relative selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden font-sans">
+      <div className="min-h-screen bg-[#090D16] text-slate-100 relative selection:bg-cyan-500 selection:text-slate-950 overflow-x-hidden font-sans">
         {/* Atmospheric ambient lighting */}
-        <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-amber-500/[0.08] blur-[140px] pointer-events-none" />
-        <div className="fixed top-1/3 -left-40 w-96 h-96 rounded-full bg-indigo-500/[0.08] blur-[140px] pointer-events-none" />
-        <div className="fixed -bottom-40 right-1/3 w-96 h-96 rounded-full bg-rose-500/[0.05] blur-[140px] pointer-events-none" />
+        <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/[0.05] blur-[140px] pointer-events-none" />
+        <div className="fixed top-1/3 -left-40 w-96 h-96 rounded-full bg-blue-600/[0.05] blur-[140px] pointer-events-none" />
+        <div className="fixed -bottom-40 right-1/3 w-96 h-96 rounded-full bg-slate-700/[0.05] blur-[140px] pointer-events-none" />
 
         {/* HEADER */}
         <header className="sticky top-0 z-30 bg-[#090D16]/80 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-black/20">
           <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-display font-extrabold text-base text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-white/10">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-display font-extrabold text-base text-slate-950 shadow-md shadow-cyan-500/20 ring-2 ring-white/10">
                 🚂
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="font-display font-black text-sm tracking-tight text-white">HotMessExpress</span>
-                  <span className="text-[11px] text-amber-400 font-bold hidden sm:inline tracking-tight">— The Family OS</span>
+                  <span className="text-[11px] text-cyan-400 font-bold hidden sm:inline tracking-tight">— The Family OS</span>
                 </div>
                 <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-white/10`} />
@@ -191,13 +191,13 @@ const AppLayout: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search chores, promises..."
-                className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
+                className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 outline-none transition"
               />
               {searchResults && (searchResults.tasks.length > 0 || searchResults.promises.length > 0) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl max-h-80 overflow-y-auto z-40 p-2">
                   {searchResults.tasks.length > 0 && (
                     <div className="p-1">
-                      <div className="text-[10px] uppercase font-bold text-amber-400 px-2 py-1">Chores</div>
+                      <div className="text-[10px] uppercase font-bold text-cyan-400 px-2 py-1">Chores</div>
                       {searchResults.tasks.map((t) => (
                         <div
                           key={t.id}
@@ -231,7 +231,7 @@ const AppLayout: React.FC = () => {
               {/* Family Popup Bulletin Board */}
               <button
                 onClick={() => setBulletinOpen(true)}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition shadow-sm active:scale-95"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition shadow-sm active:scale-95"
                 title="Family Bulletin Board — Quick sticky notes & announcements"
               >
                 <span>📌</span>
@@ -241,7 +241,7 @@ const AppLayout: React.FC = () => {
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       bulletinNotes.some((n) => n.category === 'urgent' || n.pinned)
                         ? 'bg-rose-500 text-white animate-pulse'
-                        : 'bg-amber-400 text-slate-950'
+                        : 'bg-cyan-400 text-slate-950'
                     }`}
                   >
                     {bulletinNotes.length}

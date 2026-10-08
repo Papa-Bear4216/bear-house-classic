@@ -43,7 +43,7 @@ export const BentoExpandedModal: React.FC<BentoExpandedModalProps> = ({
         ref={modalRef}
         className={`
           relative z-10 w-full max-w-6xl max-h-[92vh] flex flex-col
-          rounded-3xl bg-slate-900/98 border-2 border-amber-400/40
+          rounded-3xl bg-slate-900/98 border border-slate-700/80 ring-1 ring-cyan-500/30
           shadow-[0_25px_70px_rgba(0,0,0,0.85)]
           backdrop-blur-2xl overflow-hidden
           transition-all duration-300 bento-spring
@@ -54,7 +54,7 @@ export const BentoExpandedModal: React.FC<BentoExpandedModalProps> = ({
         <div className="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-white/10 bg-slate-950/60 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             {Icon && (
-              <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30 flex-shrink-0">
+              <div className="p-2.5 rounded-2xl bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30 flex-shrink-0">
                 <Icon className="w-5 h-5" />
               </div>
             )}
@@ -63,7 +63,7 @@ export const BentoExpandedModal: React.FC<BentoExpandedModalProps> = ({
                 <h2 className="text-white font-extrabold text-lg sm:text-xl tracking-tight truncate">
                   {title}
                 </h2>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[11px] font-bold border border-emerald-500/30">
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 text-[11px] font-bold border border-cyan-500/30">
                   Active Inline Frame
                 </span>
               </div>

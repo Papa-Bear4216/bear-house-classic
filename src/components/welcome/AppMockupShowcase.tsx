@@ -109,8 +109,8 @@ export function AppMockupShowcase() {
     <section className="relative px-4 py-16 max-w-6xl mx-auto z-10">
       {/* Section Header */}
       <div className="text-center max-w-2xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-300 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Interactive Preview
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-300 mb-3">
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Interactive Preview
         </div>
         <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight font-display">
           Take FamilyOS for a test drive
@@ -121,15 +121,15 @@ export function AppMockupShowcase() {
       </div>
 
       {/* Control Bar: Feature Tabs + Device Toggle */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-slate-900/60 backdrop-blur-xl border border-white/10 p-2.5 rounded-2xl shadow-xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-2.5 rounded-2xl shadow-xl">
         {/* Tab Buttons */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
           <button
             onClick={() => setActiveTab('focus')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'focus'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Zap className="w-4 h-4 fill-current" /> ADHD Focus Hero
@@ -138,18 +138,18 @@ export function AppMockupShowcase() {
             onClick={() => setActiveTab('kidroom')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'kidroom'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <Sparkles className={`w-4 h-4 ${activeTab === 'kidroom' ? 'text-slate-950' : 'text-fuchsia-400'}`} /> Kids World & Den
+            <Sparkles className={`w-4 h-4 ${activeTab === 'kidroom' ? 'text-slate-950' : 'text-cyan-300'}`} /> Kids World & Den
           </button>
           <button
             onClick={() => setActiveTab('scanner')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'scanner'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Camera className="w-4 h-4" /> Room Scanner
@@ -158,8 +158,8 @@ export function AppMockupShowcase() {
             onClick={() => setActiveTab('biff')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'biff'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <HeartHandshake className="w-4 h-4" /> BIFF Tone Check
@@ -168,8 +168,8 @@ export function AppMockupShowcase() {
             onClick={() => setActiveTab('dashboard')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'dashboard'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" /> Bento Dashboard
@@ -178,8 +178,8 @@ export function AppMockupShowcase() {
             onClick={() => setActiveTab('hermes')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition active:scale-95 ${
               activeTab === 'hermes'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <Bot className="w-4 h-4" /> Hermes Copilot
@@ -520,88 +520,91 @@ function DashboardMockupContent({ completedCount }: { completedCount: number }) 
         <div>
           <div className="text-xs text-slate-400">Welcome back</div>
           <div className="text-base font-bold text-white flex items-center gap-1.5">
-            Maya <span className="text-xs text-amber-400 font-normal">👑 Mama Bear</span>
+            Maya <span className="text-xs text-cyan-400 font-semibold">👑 Primary Admin</span>
           </div>
         </div>
-        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-sm font-bold text-slate-950 shadow-md">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-sm font-bold text-slate-950 shadow-md">
           M
         </div>
       </div>
 
       {/* Bento Grid Tiles */}
       <div className="grid grid-cols-2 gap-2.5">
-        {/* Points & Streak Tile */}
-        <div className="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-          <div className="flex items-center justify-between text-amber-400 text-xs font-semibold">
-            <Trophy className="w-4 h-4" />
-            <span>🔥 9d Streak</span>
+        {/* Brain Battery & Timeline Tile */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
+          <div className="flex items-center justify-between text-cyan-400 text-xs font-semibold">
+            <Clock className="w-4 h-4" />
+            <span className="text-[10px] bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded text-cyan-300">4:30 PM Next</span>
           </div>
           <div className="mt-2">
-            <div className="text-xl font-black text-white tabular-nums">1,485</div>
-            <div className="text-[10px] text-slate-400 font-medium">Family Reward Points</div>
+            <div className="text-xs font-bold text-white truncate">Swim Practice Pick-Up</div>
+            <div className="text-[10px] text-slate-400">Battery: 75% Focused</div>
           </div>
         </div>
 
         {/* Today's Dinner Tile */}
-        <div className="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-          <div className="flex items-center justify-between text-emerald-400 text-xs font-semibold">
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
+          <div className="flex items-center justify-between text-cyan-400 text-xs font-semibold">
             <Utensils className="w-4 h-4" />
-            <span className="text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-300">Tonight</span>
+            <span className="text-[10px] bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded text-cyan-300">Tonight</span>
           </div>
           <div className="mt-2">
             <div className="text-xs font-bold text-white truncate">Crispy Salmon Rice</div>
-            <div className="text-[10px] text-slate-400">25m prep · 4 servings</div>
+            <div className="text-[10px] text-slate-400">25m prep · Pantry synced</div>
           </div>
         </div>
 
-        {/* Bill Alert Tile */}
-        <div className="bg-slate-900/80 border border-rose-500/20 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-          <div className="flex items-center justify-between text-rose-400 text-xs font-semibold">
-            <CreditCard className="w-4 h-4" />
-            <span className="text-[10px] text-rose-300">Due in 2d</span>
+        {/* Split Custody & ROFR Tile */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
+          <div className="flex items-center justify-between text-cyan-400 text-xs font-semibold">
+            <CalendarDays className="w-4 h-4" />
+            <span className="text-[10px] text-cyan-300">ROFR 4h+</span>
           </div>
           <div className="mt-2">
-            <div className="text-xs font-bold text-white truncate">Electric Utility</div>
-            <div className="text-[10px] text-slate-400 font-bold">$84.20</div>
+            <div className="text-xs font-bold text-white truncate">Dad: Bedtime &amp; Wake-up</div>
+            <div className="text-[10px] text-slate-400">Mom after school till 7:30</div>
           </div>
         </div>
 
-        {/* Household Mood Tile */}
-        <div className="bg-slate-900/80 border border-indigo-500/20 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-          <div className="flex items-center justify-between text-indigo-400 text-xs font-semibold">
-            <span>🌿 Harmony</span>
-            <span className="text-xs">🧘</span>
+        {/* Popup Bulletin Board Note Tile */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
+          <div className="flex items-center justify-between text-amber-400 text-xs font-semibold">
+            <span>📌 Bulletin</span>
+            <span className="text-[10px] text-amber-300 font-bold">Pinned</span>
           </div>
           <div className="mt-2">
-            <div className="text-xs font-bold text-white">Calm & Focused</div>
-            <div className="text-[10px] text-slate-400">3 check-ins today</div>
+            <div className="text-xs font-bold text-white truncate">Permission Slip Due</div>
+            <div className="text-[10px] text-slate-400">Friday field trip signed</div>
           </div>
         </div>
       </div>
 
       {/* Household Roster Status */}
-      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-3 space-y-2">
-        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live Household Status</div>
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live Household Status</div>
+          <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded-full border border-cyan-500/20">Triad Fusion</span>
+        </div>
         <div className="flex items-center justify-between text-xs py-1">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-indigo-500/30 flex items-center justify-center text-xs">🧘</div>
+            <div className="w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center text-xs">🧘</div>
             <span className="text-white font-medium">Maya</span>
           </div>
-          <span className="text-emerald-400 text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-full">Focused (Dishwasher)</span>
+          <span className="text-cyan-300 text-[11px] bg-cyan-500/10 px-2 py-0.5 rounded-full">Focused (Dishwasher)</span>
         </div>
         <div className="flex items-center justify-between text-xs py-1">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-pink-500/30 flex items-center justify-center text-xs">🛠️</div>
+            <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs">🛠️</div>
             <span className="text-white font-medium">David</span>
           </div>
-          <span className="text-amber-400 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full">Grocery Store (4 items)</span>
+          <span className="text-slate-300 text-[11px] bg-slate-800 px-2 py-0.5 rounded-full">Grocery Run (4 items)</span>
         </div>
         <div className="flex items-center justify-between text-xs py-1">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center text-xs">🚀</div>
+            <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs">🚀</div>
             <span className="text-white font-medium">Leo</span>
           </div>
-          <span className="text-sky-400 text-[11px] bg-sky-500/10 px-2 py-0.5 rounded-full">Math Done (+40 pts)</span>
+          <span className="text-cyan-400 text-[11px] bg-cyan-500/10 px-2 py-0.5 rounded-full">Math Done (+40 pts)</span>
         </div>
       </div>
     </div>

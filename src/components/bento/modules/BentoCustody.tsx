@@ -52,8 +52,8 @@ export const BentoCustodyPreview: React.FC = () => {
   return (
     <div className="space-y-2.5">
       {/* Live Today / Tonight Status */}
-      <div className="p-3 rounded-2xl bg-amber-950/20 border border-amber-500/20 space-y-1">
-        <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-amber-400">
+      <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
+        <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-cyan-400">
           <span>{todayDetails.isSplitDay ? 'Today (Split Routine)' : 'Today & Tonight'}</span>
           {pendingSwaps.length > 0 && (
             <span className="text-emerald-400 font-bold bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">
@@ -69,7 +69,7 @@ export const BentoCustodyPreview: React.FC = () => {
         </div>
 
         <div className="text-xs text-slate-300 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+          <Clock className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
           <span className="truncate">
             {todayDetails.isSplitDay
               ? `Handoff at ${todayDetails.afterSchoolHandoff?.endTime || '19:30'} back to ${schedule.primaryParentName}`
@@ -82,8 +82,8 @@ export const BentoCustodyPreview: React.FC = () => {
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
           <div className="text-[10px] text-slate-400 uppercase font-semibold">First Choice (ROFR)</div>
-          <div className="text-emerald-300 font-medium truncate flex items-center gap-1">
-            <Shield className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+          <div className="text-cyan-300 font-medium truncate flex items-center gap-1">
+            <Shield className="w-3 h-3 text-cyan-400 flex-shrink-0" />
             <span>
               {schedule.firstChoicePolicy?.enabled !== false
                 ? `${schedule.firstChoicePolicy?.triggerHours || 4}h+ / Overnight`
@@ -94,8 +94,8 @@ export const BentoCustodyPreview: React.FC = () => {
 
         <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
           <div className="text-[10px] text-slate-400 uppercase font-semibold">Holidays</div>
-          <div className="text-indigo-300 font-medium truncate flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+          <div className="text-slate-300 font-medium truncate flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-cyan-400 flex-shrink-0" />
             <span>Working out mutually</span>
           </div>
         </div>
