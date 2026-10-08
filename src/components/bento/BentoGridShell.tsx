@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import {
   ListChecks, CalendarDays, ShoppingCart, Utensils, DollarSign,
   Heart, Trophy, Wrench, ShieldCheck, Scale, Zap, Sparkles, CheckCircle2,
-  Clock, AlertTriangle, AlertCircle, Package
+  Clock, AlertTriangle, AlertCircle, Package, Home, Users
 } from 'lucide-react';
+
 
 import { KEYS, loadJSON, saveJSON, isOverdue, daysUntilDue, relativeDate } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
@@ -232,7 +233,7 @@ export const BentoGridShell: React.FC = () => {
 
         {/* 5. Kitchen, Meals & Groceries (6 or 12 Cols) */}
         <BentoCard
-          id="household"
+          id="pantry-shopping"
           title="Kitchen & Groceries"
           subtitle="Dinner menu, pantry & shopping list"
           icon={Utensils}
@@ -296,28 +297,269 @@ export const BentoGridShell: React.FC = () => {
 
       </div>
 
-      {/* Quiet Non-Intrusive Footer */}
-      <footer className="pt-6 pb-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-400">HotMessExpress</span>
-          <span>&bull;</span>
-          <span>Zero-Friction Family OS</span>
+      {/* Comprehensive Site Map Directory */}
+      <section className="mt-12 pt-8 pb-4 border-t border-white/10" aria-label="Site Map Directory">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+          <div>
+            <h3 className="text-sm font-bold tracking-wide uppercase text-slate-200 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              Family OS Directory &amp; Navigation
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Instant access to all modules, routines, tools and household documentation
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/10 self-start sm:self-auto">
+            12 Modules &bull; Triad Fusion
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => expandModule('legal-privacy')}
-            className="hover:text-slate-300 transition underline-offset-4 hover:underline"
-          >
-            Privacy Policy
-          </button>
-          <button
-            onClick={() => expandModule('legal-terms')}
-            className="hover:text-slate-300 transition underline-offset-4 hover:underline"
-          >
-            Terms of Service
-          </button>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8 p-5 sm:p-6 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-md">
+          {/* Column 1: Home & Tasks */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+              <Home className="w-3.5 h-3.5" />
+              <span>Home &amp; Tasks</span>
+            </div>
+            <ul className="space-y-1.5 text-xs">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('household')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <ListChecks className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <span className="font-medium">Household Brain</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Chores</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('meal-planner')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Utensils className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-400 transition" />
+                    <span className="font-medium">Meal Planner</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Dinners</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('pantry-shopping')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <ShoppingCart className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <span className="font-medium">Pantry &amp; Groceries</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Lists</span>
+                </button>
+              </li>
+              {scope.role !== 'child' && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => expandModule('maintenance')}
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Wrench className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                      <span className="font-medium">Maintenance &amp; Auto</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Upkeep</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+          </div>
+
+          {/* Column 2: Family & Kids */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-rose-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+              <Users className="w-3.5 h-3.5" />
+              <span>Family &amp; Kids</span>
+            </div>
+            <ul className="space-y-1.5 text-xs">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('emotions')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Heart className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400 transition" />
+                    <span className="font-medium">Family Squad &amp; Roster</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Members</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('kids')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <span className="font-medium">Kids Corner</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Active</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('rewards')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Trophy className="w-3.5 h-3.5 text-slate-400 group-hover:text-yellow-400 transition" />
+                    <span className="font-medium">Reward Store</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Redeem</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('promises')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400 transition" />
+                    <span className="font-medium">Promises &amp; Commitments</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Trust</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 3: Logistics & AI */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-violet-300 uppercase tracking-wider pb-1.5 border-b border-white/10">
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Logistics &amp; AI</span>
+            </div>
+            <ul className="space-y-1.5 text-xs">
+              {scope.role !== 'child' && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => expandModule('custody')}
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  >
+                    <span className="flex items-center gap-2">
+                      <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                      <span className="font-medium">Custody &amp; Co-Parent</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Handoffs</span>
+                  </button>
+                </li>
+              )}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('quality')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <span className="font-medium">Run of Show &amp; Timelines</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Daily</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('hermes-chat')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-400 transition" />
+                    <span className="font-medium">Hermes Copilot AI</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Assistant</span>
+                </button>
+              </li>
+              {scope.role !== 'child' && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => expandModule('finance')}
+                    className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                  >
+                    <span className="flex items-center gap-2">
+                      <DollarSign className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition" />
+                      <span className="font-medium">Finance Hub &amp; Bills</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Expenses</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+          </div>
+
+          {/* Column 4: Legal & Policies */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider pb-1.5 border-b border-white/10">
+              <Scale className="w-3.5 h-3.5" />
+              <span>Legal &amp; Policies</span>
+            </div>
+            <ul className="space-y-1.5 text-xs">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('legal-privacy')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition" />
+                    <span className="font-medium">Privacy Policy</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Data</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => expandModule('legal-terms')}
+                  className="w-full text-left py-1.5 px-2 -mx-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition flex items-center justify-between group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Scale className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition" />
+                    <span className="font-medium">Terms of Service</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 group-hover:text-slate-300">Legal</span>
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
-      </footer>
+
+        {/* Quiet Clean Footer */}
+        <footer className="mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-300">HotMessExpress</span>
+            <span>&bull;</span>
+            <span>Zero-Friction Family OS</span>
+            <span>&bull;</span>
+            <span className="text-[11px] text-slate-500">v2.1.0</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400 text-[11px]">
+            <span>Triad Fusion Architecture</span>
+            <span>&bull;</span>
+            <span>Encrypted Local State</span>
+          </div>
+        </footer>
+      </section>
 
       {/* Inline Spatial Expansion Viewport: Zero Context Shift */}
       {expandedModule && (
@@ -350,7 +592,43 @@ export const BentoGridShell: React.FC = () => {
             </BentoExpandedModal>
           )}
 
-          {expandedModule === 'quality' && (
+          {expandedModule === 'meal-planner' && (
+            <BentoExpandedModal
+              title="Meal Planner"
+              subtitle="Weekly recipes, prep schedules & family dinners"
+              icon={Utensils}
+            >
+              <MealPlanner />
+            </BentoExpandedModal>
+          )}
+
+          {expandedModule === 'pantry-shopping' && (
+            <BentoExpandedModal
+              title="Pantry & Groceries"
+              subtitle="Smart grocery list, inventory & household staples"
+              icon={ShoppingCart}
+            >
+              <div className="space-y-6">
+                <Shopping />
+                <Pantry />
+              </div>
+            </BentoExpandedModal>
+          )}
+
+          {expandedModule === 'maintenance' && (
+            <BentoExpandedModal
+              title="Home & Vehicle Maintenance"
+              subtitle="Appliance checklists, car service logs & recurring upkeep"
+              icon={Wrench}
+            >
+              <div className="space-y-6">
+                <HomeMaintenance />
+                <CarMaintenance />
+              </div>
+            </BentoExpandedModal>
+          )}
+
+          {(expandedModule === 'quality' || expandedModule === 'run-of-show') && (
             <BentoExpandedModal
               title="Run of Show & Logistics"
               subtitle="Daily timelines, commitments & quality time"
