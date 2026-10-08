@@ -224,9 +224,30 @@ div.fo-action-wheel-sheet { border-color: #5b775d; background: #18291f; color: #
 .light .fo-focus-card .text-white { color: #fffdf6; }
 .light .fo-focus-card button.text-white { color: #fffdf6; }
 
+/* Bento Grid Container & Stiff Spring Dynamics */
+:root {
+  --bento-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --bento-spring-stiff: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+}
+
+.bento-shell {
+  container-type: inline-size;
+  container-name: bento;
+  width: 100%;
+}
+
+.bento-card {
+  container-type: inline-size;
+  transition: transform 300ms var(--bento-spring), border-color 200ms ease, box-shadow 300ms ease;
+}
+
+.bento-spring {
+  transition-timing-function: var(--bento-spring);
+}
+
 @media (min-width: 1024px) {
-  .fo-sidebar { display: flex; }
-  .fo-workspace { margin-left: 238px; }
+  .fo-sidebar { display: none; }
+  .fo-workspace { margin-left: 0; width: 100%; }
   .fo-dock { display: none; }
   .fo-header-mobile-logo { display: none; }
   .fo-header-breadcrumb { display: inline; }

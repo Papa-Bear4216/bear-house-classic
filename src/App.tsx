@@ -33,16 +33,7 @@ const AuthedApp: React.FC = () => {
     return <BillingLockedPage />;
   }
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <Index />;
 };
 
 const App = () => {
