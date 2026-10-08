@@ -61,11 +61,12 @@ describe('Triad Fusion System: Scope Boundaries', () => {
     expect(res.reason).toContain('requires Admin or Superadmin');
   });
 
-  it('strictly blocks child from finance, health, maintenance, and system-health', () => {
+  it('strictly blocks child from finance, health, maintenance, system-health, and custody', () => {
     expect(validateTriadScopeAccess(childScope, 'finance').allowed).toBe(false);
     expect(validateTriadScopeAccess(childScope, 'health').allowed).toBe(false);
     expect(validateTriadScopeAccess(childScope, 'maintenance').allowed).toBe(false);
     expect(validateTriadScopeAccess(childScope, 'system-health').allowed).toBe(false);
+    expect(validateTriadScopeAccess(childScope, 'custody').allowed).toBe(false);
   });
 
   it('allows child access to household, kids, rewards, and legal modules', () => {

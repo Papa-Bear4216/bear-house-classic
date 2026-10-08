@@ -10,6 +10,7 @@ import { isModuleVisibleTo, type TopModule } from './navVisibility';
 
 export type BentoModuleId =
   | TopModule
+  | 'custody'
   | 'hermes-chat'
   | 'run-of-show'
   | 'pantry-shopping'
@@ -74,6 +75,7 @@ export function validateTriadScopeAccess(
       'health',
       'maintenance',
       'system-health',
+      'custody',
     ];
     if (childRestricted.includes(moduleId)) {
       return {

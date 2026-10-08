@@ -24,6 +24,10 @@ import {
   getHouseForDate,
   calculateOvernights,
   formatLocalDateKey,
+  getCustodyDayDetails,
+  DEFAULT_NON_TRADITIONAL_CONFIG,
+  type CustomCustodyConfig,
+  type CustodyDayDetails,
 } from '@/lib/custody';
 import { KEYS } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
@@ -85,22 +89,24 @@ export const CustodyCalendar: React.FC = () => {
 
   const activeChild = selectedChildFilter === 'All' ? undefined : selectedChildFilter;
 
-  // Compute days to display using local dates
+  // Compute days to display using local dates and rich day details
   const calendarDays = useMemo(() => {
-    const days: { dateStr: string; dateObj: Date; house: 'primary' | 'secondary' }[] = [];
+    const days: { dateStr: string; dateObj: Date; house: 'primary' | 'secondary'; details: CustodyDayDetails }[] = [];
     const now = new Date();
     for (let i = 0; i < viewDays; i++) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
       const dateStr = formatLocalDateKey(d);
-      const house = getHouseForDate(dateStr, schedule, swaps, activeChild);
-      days.push({ dateStr, dateObj: d, house });
+      const details = getCustodyDayDetails(dateStr, schedule, swaps, activeChild);
+      days.push({ dateStr, dateObj: d, house: details.house, details });
     }
     return days;
   }, [schedule, swaps, viewDays, activeChild]);
 
-  const tonightHouse = useMemo(() => {
-    return getHouseForDate(todayStr, schedule, swaps, activeChild);
+  const tonightDetails = useMemo(() => {
+    return getCustodyDayDetails(todayStr, schedule, swaps, activeChild);
   }, [todayStr, schedule, swaps, activeChild]);
+
+  const tonightHouse = tonightDetails.house;
 
   const metrics = useMemo(() => {
     const endDate = calendarDays[calendarDays.length - 1]?.dateStr || todayStr;
@@ -199,7 +205,11 @@ export const CustodyCalendar: React.FC = () => {
   };
 
   const openConfigModal = () => {
-    setDraftSchedule(JSON.parse(JSON.stringify(schedule)));
+    const copy: CustodySchedule = JSON.parse(JSON.stringify(schedule));
+    if (!copy.customConfig) {
+      copy.customConfig = { ...DEFAULT_NON_TRADITIONAL_CONFIG };
+    }
+    setDraftSchedule(copy);
     setConfigError('');
   };
 
@@ -223,6 +233,7 @@ export const CustodyCalendar: React.FC = () => {
       primaryParentName: draftSchedule.primaryParentName.trim() || schedule.primaryParentName,
       secondaryParentName: draftSchedule.secondaryParentName.trim() || schedule.secondaryParentName,
       transitionTime: draftSchedule.transitionTime || schedule.transitionTime,
+      customConfig: draftSchedule.customConfig || schedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG,
     };
 
     setSchedule(updated);
@@ -312,25 +323,39 @@ export const CustodyCalendar: React.FC = () => {
             >
               <Home className="w-5 h-5" />
             </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Tonight</div>
-              <div className="text-sm font-bold text-white">
-                {tonightHouse === 'primary' ? schedule.primaryHouseName : schedule.secondaryHouseName}
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                {tonightDetails.isSplitDay ? 'Today & Tonight (Split Day)' : 'Tonight'}
               </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-500" />
-                Transition: {schedule.transitionTime}
+              <div className="text-sm font-bold text-white truncate">
+                {tonightDetails.isSplitDay
+                  ? `${schedule.secondaryParentName} (Bed) · ${schedule.primaryParentName} (After-School)`
+                  : tonightDetails.summaryLabel}
+              </div>
+              <div className="text-[11px] text-amber-300 flex items-center gap-1 truncate">
+                <Clock className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                {tonightDetails.isSplitDay
+                  ? `Handoff: ${tonightDetails.afterSchoolHandoff?.endTime || '19:30'} to ${schedule.secondaryParentName}`
+                  : `Transition: ${schedule.transitionTime}`}
               </div>
             </div>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-              Next {viewDays} Days Split
+            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center justify-between">
+              <span>Next {viewDays} Days Split</span>
+              {metrics.splitDaysCount ? (
+                <span className="text-amber-400 font-semibold">{metrics.splitDaysCount} split days</span>
+              ) : null}
             </div>
-            <div className="text-sm font-bold text-white mt-0.5">
+            <div className="text-sm font-bold text-white mt-0.5 truncate">
               {metrics.primary} overnights ({metrics.primaryPercent}%) · {metrics.secondary} overnights ({metrics.secondaryPercent}%)
             </div>
+            {metrics.primaryAfterSchoolVisits ? (
+              <div className="text-[10px] text-amber-300/90 mt-0.5 font-medium truncate">
+                + {metrics.primaryAfterSchoolVisits} after-school visits with {schedule.primaryParentName} (till 7:30 PM)
+              </div>
+            ) : null}
             <div className="w-full bg-slate-800 h-2 rounded-full mt-2 overflow-hidden flex">
               <div
                 style={{ width: `${metrics.primaryPercent}%` }}
@@ -456,6 +481,39 @@ export const CustodyCalendar: React.FC = () => {
         </div>
       )}
 
+      {/* Holiday Coordination Notice when non-traditional pattern is active */}
+      {(schedule.pattern === 'split_day_alternating_weekends' || schedule.pattern === 'custom' || schedule.customConfig?.holidayPolicy === 'working_out') && (
+        <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex-shrink-0 mt-0.5">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1.5">
+                <span>Holiday Arrangement: Working Out Mutually</span>
+                <span className="text-[10px] text-indigo-300 font-normal bg-indigo-500/20 px-2 py-0.2 rounded-full border border-indigo-500/30">
+                  Calm Co-Parent Protocol
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                {schedule.customConfig?.holidayNotes || 'Holidays are worked out mutually as they arise via calm swap requests. Agreed dates can be logged anytime.'}
+              </p>
+            </div>
+          </div>
+          {canCoordinate && (
+            <button
+              onClick={() => {
+                setSwapReason('Holiday agreement / coordination');
+                setShowSwapModal(true);
+              }}
+              className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 transition active:scale-95 whitespace-nowrap shadow-sm"
+            >
+              Coordinate Holiday Swap
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Calendar Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
@@ -470,7 +528,7 @@ export const CustodyCalendar: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-          {calendarDays.map(({ dateStr, dateObj, house }) => {
+          {calendarDays.map(({ dateStr, dateObj, house, details }) => {
             const isToday = dateStr === todayStr;
             const isPrimary = house === 'primary';
             const hasOverride = schedule.overrides && schedule.overrides[dateStr];
@@ -491,7 +549,9 @@ export const CustodyCalendar: React.FC = () => {
                 onClick={() => handleDayClick(dateStr)}
                 disabled={!canClick}
                 className={`relative flex flex-col p-3 rounded-xl border text-left transition-all ${
-                  isPrimary
+                  details.isSplitDay
+                    ? 'bg-slate-900/90 border-slate-700/80 hover:border-amber-500/50'
+                    : isPrimary
                     ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
                     : 'bg-indigo-500/10 border-indigo-500/30 hover:border-indigo-500/50'
                 } ${isToday ? 'ring-2 ring-white shadow-lg' : ''} ${!canClick ? 'cursor-default' : 'hover:scale-[1.02]'}`}
@@ -501,19 +561,37 @@ export const CustodyCalendar: React.FC = () => {
                   <span className={isToday ? 'text-white font-extrabold' : 'text-slate-300'}>{monthDay}</span>
                 </div>
 
-                <div className="mt-2.5">
-                  <span
-                    className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-md ${
-                      isPrimary
-                        ? 'bg-amber-500 text-slate-950'
-                        : 'bg-indigo-500 text-white'
-                    }`}
-                  >
-                    {isPrimary ? schedule.primaryHouseName : schedule.secondaryHouseName}
-                  </span>
-                </div>
+                {details.isSplitDay ? (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-[10px] bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded text-indigo-200">
+                      <span className="font-bold truncate">{schedule.secondaryParentName}</span>
+                      <span className="text-[9px] text-indigo-300 font-mono">School &amp; Bed</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 rounded text-amber-200">
+                      <span className="font-bold truncate">{schedule.primaryParentName}</span>
+                      <span className="text-[9px] text-amber-300 font-mono">After school → 7:30p</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2.5">
+                    <span
+                      className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                        isPrimary
+                          ? 'bg-amber-500 text-slate-950'
+                          : 'bg-indigo-500 text-white'
+                      }`}
+                    >
+                      {isPrimary ? schedule.primaryHouseName : schedule.secondaryHouseName}
+                    </span>
+                    {details.isWeekend && (
+                      <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">
+                        {isPrimary ? `${schedule.primaryParentName}'s Weekend` : `${schedule.secondaryParentName}'s Weekend`}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-                <div className="mt-2 flex items-center gap-1">
+                <div className="mt-2 flex items-center gap-1 flex-wrap">
                   {hasOverride && (
                     <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">
                       Override
@@ -702,7 +780,7 @@ export const CustodyCalendar: React.FC = () => {
       {/* Schedule Configuration Modal (isolated draft) */}
       {draftSchedule && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Settings className="w-5 h-5 text-amber-400" />
@@ -727,16 +805,189 @@ export const CustodyCalendar: React.FC = () => {
                 <label className="text-xs text-slate-400 font-medium block mb-1">Schedule Pattern</label>
                 <select
                   value={draftSchedule.pattern}
-                  onChange={(e) =>
-                    setDraftSchedule({ ...draftSchedule, pattern: e.target.value as CustodyPattern })
-                  }
+                  onChange={(e) => {
+                    const nextPattern = e.target.value as CustodyPattern;
+                    const nextDraft: CustodySchedule = {
+                      ...draftSchedule,
+                      pattern: nextPattern,
+                      customConfig: draftSchedule.customConfig || { ...DEFAULT_NON_TRADITIONAL_CONFIG },
+                    };
+                    setDraftSchedule(nextDraft);
+                  }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
                 >
                   <option value="2-2-3">2-2-3 Rotating (14-day cycle)</option>
                   <option value="alternating_weeks">Alternating Weeks (7 days each)</option>
                   <option value="2-2-5-5">2-2-5-5 Schedule (14-day cycle)</option>
+                  <option value="split_day_alternating_weekends">
+                    Non-Traditional Split-Day (School/Bed Dad, Mom After-School till 7:30 PM, Alt Weekends)
+                  </option>
+                  <option value="custom">Custom Non-Traditional Schedule (Fully Configurable)</option>
                 </select>
               </div>
+
+              {(draftSchedule.pattern === 'split_day_alternating_weekends' || draftSchedule.pattern === 'custom') && (
+                <div className="p-3.5 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Non-Traditional Routine Protocol
+                    </span>
+                    <span className="text-[10px] text-amber-300 font-mono bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/25">
+                      ADHD Zero-Recall
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-300 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                    <strong>Rule:</strong> Wake up, school drop-off, and bedtime sleep with {draftSchedule.secondaryParentName || 'Dad'}.
+                    {' '}{draftSchedule.primaryParentName || 'Mom'} handles after-school care until {draftSchedule.customConfig?.afterSchoolEndTime || '19:30'}.
+                    Weekends alternate every 2 weeks. Holidays are negotiated mutually.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">Morning &amp; School</label>
+                      <select
+                        value={draftSchedule.customConfig?.morningSchoolParent || 'secondary'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              morningSchoolParent: e.target.value as 'primary' | 'secondary',
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      >
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">After-School Care</label>
+                      <select
+                        value={draftSchedule.customConfig?.afterSchoolParent || 'primary'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              afterSchoolParent: e.target.value as 'primary' | 'secondary',
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      >
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">After-School Return Time</label>
+                      <input
+                        type="time"
+                        value={draftSchedule.customConfig?.afterSchoolEndTime || '19:30'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              afterSchoolEndTime: e.target.value,
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">Bedtime &amp; Overnight</label>
+                      <select
+                        value={draftSchedule.customConfig?.bedtimeOvernightParent || 'secondary'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              bedtimeOvernightParent: e.target.value as 'primary' | 'secondary',
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      >
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">Weekend Rotation</label>
+                      <select
+                        value={draftSchedule.customConfig?.weekendPattern || 'alternating'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              weekendPattern: e.target.value as any,
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      >
+                        <option value="alternating">Alternate Weekends (14-day cycle)</option>
+                        <option value="secondary">All Weekends with {draftSchedule.secondaryParentName || 'Dad'}</option>
+                        <option value="primary">All Weekends with {draftSchedule.primaryParentName || 'Mom'}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">First Weekend Parent</label>
+                      <select
+                        value={draftSchedule.customConfig?.firstWeekendParent || 'secondary'}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            customConfig: {
+                              ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                              firstWeekendParent: e.target.value as 'primary' | 'secondary',
+                            },
+                          })
+                        }
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      >
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-400 block mb-1">Holiday Agreement ("Working Out")</label>
+                    <input
+                      value={draftSchedule.customConfig?.holidayNotes || 'Holidays working out mutually as they arise.'}
+                      onChange={(e) =>
+                        setDraftSchedule({
+                          ...draftSchedule,
+                          customConfig: {
+                            ...(draftSchedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG),
+                            holidayNotes: e.target.value,
+                            holidayPolicy: 'working_out',
+                          },
+                        })
+                      }
+                      placeholder="e.g. Holidays working out mutually as they arise."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs text-slate-400 font-medium block mb-1">Cycle Anchor Date (YYYY-MM-DD)</label>
@@ -788,12 +1039,12 @@ export const CustodyCalendar: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">Handoff Transition Time</label>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Weekend Transition Time</label>
                 <input
                   type="time"
                   value={draftSchedule.transitionTime}
                   onChange={(e) => setDraftSchedule({ ...draftSchedule, transitionTime: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 outline-none font-mono"
                 />
               </div>
 

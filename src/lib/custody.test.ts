@@ -10,8 +10,11 @@ import {
   saveCustodySwaps,
   formatLocalDateKey,
   DEFAULT_CUSTODY_SCHEDULE,
+  getCustodyDayDetails,
+  DEFAULT_NON_TRADITIONAL_CONFIG,
   type CustodySchedule,
   type CustodySwapRequest,
+  type CustomCustodyConfig,
 } from './custody';
 
 class MemoryStorage implements Storage {
@@ -344,6 +347,115 @@ describe('custody library', () => {
     it('formats local Date object into strict YYYY-MM-DD string without UTC shift', () => {
       const date = new Date(2026, 9, 5); // Oct 5, 2026 local
       expect(formatLocalDateKey(date)).toBe('2026-10-05');
+    });
+  });
+
+  describe('non-traditional split-day & custom custody schedule', () => {
+    const nonTraditionalSchedule: CustodySchedule = {
+      ...DEFAULT_CUSTODY_SCHEDULE,
+      pattern: 'split_day_alternating_weekends',
+      startDate: '2026-10-05', // Monday
+      primaryParentName: 'Mom',
+      secondaryParentName: 'Dad',
+      primaryHouseName: "Mom's House",
+      secondaryHouseName: "Dad's House",
+      customConfig: {
+        ...DEFAULT_NON_TRADITIONAL_CONFIG,
+        morningSchoolParent: 'secondary', // Dad
+        afterSchoolParent: 'primary',     // Mom
+        afterSchoolEndTime: '19:30',      // 7:30 PM
+        bedtimeOvernightParent: 'secondary', // Dad
+        weekendPattern: 'alternating',
+        firstWeekendParent: 'secondary',  // Dad weekend 1, Mom weekend 2
+        holidayPolicy: 'working_out',
+        holidayNotes: 'Holidays working out mutually as they arise.',
+      },
+    };
+
+    it('correctly calculates overnights across the 14-day cycle for non-traditional schedule', () => {
+      // Week 1 (Days 0..6): Mon-Thu Dad overnight, Fri-Sun Dad weekend
+      expect(getHouseForDate('2026-10-05', nonTraditionalSchedule)).toBe('secondary'); // Mon
+      expect(getHouseForDate('2026-10-06', nonTraditionalSchedule)).toBe('secondary'); // Tue
+      expect(getHouseForDate('2026-10-07', nonTraditionalSchedule)).toBe('secondary'); // Wed
+      expect(getHouseForDate('2026-10-08', nonTraditionalSchedule)).toBe('secondary'); // Thu
+      expect(getHouseForDate('2026-10-09', nonTraditionalSchedule)).toBe('secondary'); // Fri (Dad weekend)
+      expect(getHouseForDate('2026-10-10', nonTraditionalSchedule)).toBe('secondary'); // Sat (Dad weekend)
+      expect(getHouseForDate('2026-10-11', nonTraditionalSchedule)).toBe('secondary'); // Sun (Dad weekend)
+
+      // Week 2 (Days 7..13): Mon-Thu Dad overnight, Fri-Sun Mom weekend
+      expect(getHouseForDate('2026-10-12', nonTraditionalSchedule)).toBe('secondary'); // Mon
+      expect(getHouseForDate('2026-10-13', nonTraditionalSchedule)).toBe('secondary'); // Tue
+      expect(getHouseForDate('2026-10-14', nonTraditionalSchedule)).toBe('secondary'); // Wed
+      expect(getHouseForDate('2026-10-15', nonTraditionalSchedule)).toBe('secondary'); // Thu
+      expect(getHouseForDate('2026-10-16', nonTraditionalSchedule)).toBe('primary');   // Fri (Mom weekend)
+      expect(getHouseForDate('2026-10-17', nonTraditionalSchedule)).toBe('primary');   // Sat (Mom weekend)
+      expect(getHouseForDate('2026-10-18', nonTraditionalSchedule)).toBe('primary');   // Sun (Mom weekend)
+
+      // Week 3 (Cycle repeats): Mon Dad overnight
+      expect(getHouseForDate('2026-10-19', nonTraditionalSchedule)).toBe('secondary');
+    });
+
+    it('returns rich intra-day breakdown from getCustodyDayDetails on split weekdays', () => {
+      // Monday Oct 5: Split weekday
+      const details = getCustodyDayDetails('2026-10-05', nonTraditionalSchedule);
+
+      expect(details.isSplitDay).toBe(true);
+      expect(details.isWeekend).toBe(false);
+      expect(details.house).toBe('secondary'); // Overnight with Dad
+      expect(details.parentName).toBe('Dad');
+      expect(details.afterSchoolHandoff?.parentName).toBe('Mom');
+      expect(details.afterSchoolHandoff?.endTime).toBe('19:30');
+      expect(details.summaryLabel).toContain('Dad (School & Bed)');
+      expect(details.summaryLabel).toContain('Mom (After-School till 7:30 PM)');
+
+      expect(details.segments).toBeDefined();
+      expect(details.segments).toHaveLength(3);
+      expect(details.segments![0].periodLabel).toBe('Wake up & School');
+      expect(details.segments![0].parentName).toBe('Dad');
+      expect(details.segments![1].periodLabel).toBe('After-School Care');
+      expect(details.segments![1].parentName).toBe('Mom');
+      expect(details.segments![2].periodLabel).toBe('Bedtime & Overnight');
+      expect(details.segments![2].parentName).toBe('Dad');
+    });
+
+    it('returns weekend details for Mom weekend vs Dad weekend', () => {
+      // Saturday Oct 10: Dad's weekend
+      const dadWknd = getCustodyDayDetails('2026-10-10', nonTraditionalSchedule);
+      expect(dadWknd.isSplitDay).toBe(false);
+      expect(dadWknd.isWeekend).toBe(true);
+      expect(dadWknd.house).toBe('secondary');
+      expect(dadWknd.summaryLabel).toBe("Dad's Weekend");
+
+      // Saturday Oct 17: Mom's weekend
+      const momWknd = getCustodyDayDetails('2026-10-17', nonTraditionalSchedule);
+      expect(momWknd.isSplitDay).toBe(false);
+      expect(momWknd.isWeekend).toBe(true);
+      expect(momWknd.house).toBe('primary');
+      expect(momWknd.summaryLabel).toBe("Mom's Weekend");
+    });
+
+    it('preserves holiday notes in day details', () => {
+      const details = getCustodyDayDetails('2026-10-05', nonTraditionalSchedule);
+      expect(details.holidayNote).toBe('Holidays working out mutually as they arise.');
+    });
+
+    it('calculates overnights and split daytime visits correctly over 14 days', () => {
+      const metrics = calculateOvernights('2026-10-05', '2026-10-18', nonTraditionalSchedule);
+      expect(metrics.total).toBe(14);
+      expect(metrics.secondary).toBe(11); // 11 Dad overnights
+      expect(metrics.primary).toBe(3);    // 3 Mom overnights (weekend 2)
+      expect(metrics.splitDaysCount).toBe(9); // 4 in W1 + 1 Fri W1 + 4 in W2
+      expect(metrics.primaryAfterSchoolVisits).toBe(9); // Mom after-school on all split days
+    });
+
+    it('saves and loads custom custody configuration without data loss', () => {
+      saveCustodySchedule(nonTraditionalSchedule);
+      const loaded = loadCustodySchedule();
+
+      expect(loaded.pattern).toBe('split_day_alternating_weekends');
+      expect(loaded.customConfig?.afterSchoolEndTime).toBe('19:30');
+      expect(loaded.customConfig?.holidayPolicy).toBe('working_out');
+      expect(loaded.customConfig?.morningSchoolParent).toBe('secondary');
     });
   });
 });

@@ -2,7 +2,26 @@
 // Custody Schedule & Calm Swap Coordination for Hot Mess Express / FamilyOS
 import { loadJSON, saveJSON, uid, KEYS, UserRole } from './familyos';
 
-export type CustodyPattern = 'alternating_weeks' | '2-2-3' | '2-2-5-5' | 'custom';
+export type CustodyPattern =
+  | 'alternating_weeks'
+  | '2-2-3'
+  | '2-2-5-5'
+  | 'split_day_alternating_weekends'
+  | 'custom';
+
+export interface CustomCustodyConfig {
+  splitDayEnabled: boolean;
+  morningSchoolParent: 'primary' | 'secondary';   // e.g. Dad ('secondary')
+  afterSchoolParent: 'primary' | 'secondary';     // e.g. Mom ('primary')
+  afterSchoolStartTime?: string;                  // e.g. "15:00" (after school)
+  afterSchoolEndTime: string;                     // e.g. "19:30" (7:30 PM return)
+  bedtimeOvernightParent: 'primary' | 'secondary'; // e.g. Dad ('secondary')
+  weekendPattern: 'alternating' | 'primary' | 'secondary';
+  firstWeekendParent: 'secondary' | 'primary';    // Which parent has the first weekend on/after anchor
+  holidayPolicy: 'working_out' | 'alternating' | 'custom_notes';
+  holidayNotes: string;                           // e.g. "Holidays working out mutually as they arise."
+  notes?: string;
+}
 
 export interface CustodySchedule {
   id: string;
@@ -12,9 +31,10 @@ export interface CustodySchedule {
   secondaryHouseName: string; // e.g. "Dad's House" or "House B"
   primaryParentName: string;
   secondaryParentName: string;
-  transitionTime: string; // e.g. "17:00"
+  transitionTime: string; // e.g. "17:00" or "19:30"
   overrides?: Record<string, 'primary' | 'secondary'>; // date string -> house
   children?: string[]; // child names covered by this schedule
+  customConfig?: CustomCustodyConfig;
 }
 
 export interface CustodySwapRequest {
@@ -34,6 +54,20 @@ export interface CustodySwapRequest {
   responseNote?: string;
 }
 
+export const DEFAULT_NON_TRADITIONAL_CONFIG: CustomCustodyConfig = {
+  splitDayEnabled: true,
+  morningSchoolParent: 'secondary', // Dad
+  afterSchoolParent: 'primary',     // Mom
+  afterSchoolStartTime: '15:00',
+  afterSchoolEndTime: '19:30',      // 7:30 PM
+  bedtimeOvernightParent: 'secondary', // Dad
+  weekendPattern: 'alternating',
+  firstWeekendParent: 'secondary',  // Dad weekend 1, Mom weekend 2
+  holidayPolicy: 'working_out',
+  holidayNotes: 'Holidays working out mutually as they arise.',
+  notes: 'Wake up, school, and bed with Dad. Mom after school till 7:30 PM. Alternate weekends, holidays working out.',
+};
+
 export const DEFAULT_CUSTODY_SCHEDULE: CustodySchedule = {
   id: 'default-custody',
   pattern: '2-2-3',
@@ -45,6 +79,7 @@ export const DEFAULT_CUSTODY_SCHEDULE: CustodySchedule = {
   transitionTime: '17:00',
   overrides: {},
   children: [],
+  customConfig: DEFAULT_NON_TRADITIONAL_CONFIG,
 };
 
 // Patterns defined by daily sequence of house designations starting from anchor date
@@ -64,6 +99,11 @@ export const PATTERN_SEQUENCES: Record<Exclude<CustodyPattern, 'custom'>, ('P' |
   '2-2-5-5': [
     'P', 'P', 'S', 'S', 'P', 'P', 'P', 'P', 'P',
     'S', 'S', 'S', 'S', 'S',
+  ],
+  // 14-day cycle: Week 1: 7 days Dad overnight (S). Week 2: 4 days Dad overnight (S), 3 days Mom weekend (P).
+  split_day_alternating_weekends: [
+    'S', 'S', 'S', 'S', 'S', 'S', 'S',
+    'S', 'S', 'S', 'S', 'P', 'P', 'P',
   ],
 };
 
@@ -130,8 +170,12 @@ export function getHouseForDate(
   }
 
   // 3. Repeating pattern
+  if (schedule.pattern === 'split_day_alternating_weekends') {
+    return resolveNonTraditionalOvernight(dateStr, schedule);
+  }
+
   if (schedule.pattern === 'custom') {
-    return 'primary';
+    return resolveCustomPatternHouse(dateStr, schedule);
   }
 
   const seq = PATTERN_SEQUENCES[schedule.pattern];
@@ -151,7 +195,364 @@ export function getHouseForDate(
 }
 
 /**
- * Calculates total overnight count and percentages between two dates.
+ * Resolves the overnight household for custom or non-traditional schedules.
+ * Defaults to weekday split where bedtime/overnight is with secondary parent (Dad)
+ * and alternating weekends rotate between Dad and Mom.
+ */
+export function resolveCustomPatternHouse(
+  dateStr: string,
+  schedule: CustodySchedule,
+): 'primary' | 'secondary' {
+  const config = schedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG;
+  const anchorDays = parseDateToDays(schedule.startDate);
+  const targetDays = parseDateToDays(dateStr);
+  if (isNaN(anchorDays) || isNaN(targetDays)) {
+    return config.bedtimeOvernightParent || 'secondary';
+  }
+
+  // 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
+  const dayOfWeek = ((targetDays + 4) % 7 + 7) % 7;
+  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0;
+
+  if (!isWeekend) {
+    // Weekday (Mon-Thu): overnight is with designated bedtime/overnight parent
+    return config.bedtimeOvernightParent || 'secondary';
+  }
+
+  // Weekend: rotation check
+  if (config.weekendPattern === 'primary') return 'primary';
+  if (config.weekendPattern === 'secondary') return 'secondary';
+
+  // Alternating weekends:
+  // Normalize both dates to their week's Monday (day 1) to determine week offset
+  const anchorDow = ((anchorDays + 4) % 7 + 7) % 7;
+  const daysSinceMondayAnchor = anchorDow === 0 ? 6 : anchorDow - 1;
+  const anchorMonday = anchorDays - daysSinceMondayAnchor;
+
+  const daysSinceMondayTarget = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const targetMonday = targetDays - daysSinceMondayTarget;
+
+  const weekOffset = Math.round((targetMonday - anchorMonday) / 7);
+  const isEvenWeek = ((weekOffset % 2) + 2) % 2 === 0;
+
+  const firstParent = config.firstWeekendParent || 'secondary';
+  const secondParent = firstParent === 'secondary' ? 'primary' : 'secondary';
+
+  return isEvenWeek ? firstParent : secondParent;
+}
+
+export function resolveNonTraditionalOvernight(
+  dateStr: string,
+  schedule: CustodySchedule,
+): 'primary' | 'secondary' {
+  return resolveCustomPatternHouse(dateStr, {
+    ...schedule,
+    customConfig: schedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG,
+  });
+}
+
+export interface CustodyDaySegment {
+  parent: 'primary' | 'secondary';
+  parentName: string;
+  houseName: string;
+  periodLabel: string;
+  timeWindow?: string;
+}
+
+export interface CustodyDayDetails {
+  dateStr: string;
+  house: 'primary' | 'secondary'; // Overnight house for standard tracking
+  houseName: string;
+  parentName: string;
+  isSplitDay: boolean;
+  isWeekend: boolean;
+  dayOfWeek: number; // 0=Sun, 1=Mon, ..., 6=Sat
+  dayName: string;   // "Sun", "Mon", ...
+  summaryLabel: string;
+  segments?: CustodyDaySegment[];
+  hasOverride: boolean;
+  hasSwap: boolean;
+  activeSwap?: CustodySwapRequest;
+  holidayNote?: string;
+  afterSchoolHandoff?: {
+    parentName: string;
+    endTime: string;
+  };
+}
+
+/**
+ * Provides comprehensive, ADHD-friendly intra-day breakdown for any calendar day.
+ * Distinguishes daytime care (e.g. Mom after-school till 7:30 PM) from overnight residency (Dad).
+ */
+export function getCustodyDayDetails(
+  dateStr: string,
+  schedule: CustodySchedule,
+  swaps: CustodySwapRequest[] = [],
+  childName?: string,
+): CustodyDayDetails {
+  const days = parseDateToDays(dateStr);
+  const dayOfWeek = isNaN(days) ? 0 : ((days + 4) % 7 + 7) % 7;
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayName = dayNames[dayOfWeek] || 'Day';
+  const isWeekend = dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0;
+
+  // 1. Direct manual calendar override
+  const hasOverride = Boolean(schedule.overrides && schedule.overrides[dateStr]);
+  const overrideHouse = hasOverride ? schedule.overrides![dateStr] : undefined;
+
+  // 2. Approved swap request
+  const matchingApprovedSwaps = swaps
+    .filter((s) => {
+      if (s.status !== 'approved') return false;
+      if (s.currentDate !== dateStr && s.makeupDate !== dateStr) return false;
+      if (childName) {
+        if (s.childName !== 'All Children' && s.childName !== childName) return false;
+      } else {
+        if (s.childName !== 'All Children') return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (b.resolvedAt || b.createdAt) - (a.resolvedAt || a.createdAt));
+
+  const activeSwap = matchingApprovedSwaps[0];
+  let swapHouse: 'primary' | 'secondary' | undefined;
+  if (activeSwap) {
+    if (activeSwap.currentDate === dateStr) {
+      swapHouse = activeSwap.targetHouse;
+    } else if (activeSwap.makeupDate === dateStr) {
+      swapHouse = activeSwap.targetHouse === 'primary' ? 'secondary' : 'primary';
+    }
+  }
+
+  const hasSwap = Boolean(swapHouse);
+
+  // If override or swap exists, it directly dictates the house
+  if (hasOverride || hasSwap) {
+    const effHouse = (hasOverride ? overrideHouse! : swapHouse!) as 'primary' | 'secondary';
+    const isPrimary = effHouse === 'primary';
+    const houseName = isPrimary ? schedule.primaryHouseName : schedule.secondaryHouseName;
+    const parentName = isPrimary ? schedule.primaryParentName : schedule.secondaryParentName;
+
+    return {
+      dateStr,
+      house: effHouse,
+      houseName,
+      parentName,
+      isSplitDay: false,
+      isWeekend,
+      dayOfWeek,
+      dayName,
+      summaryLabel: `${houseName} (${hasOverride ? 'Override' : 'Swap'})`,
+      hasOverride,
+      hasSwap,
+      activeSwap,
+      holidayNote: schedule.customConfig?.holidayNotes,
+    };
+  }
+
+  // 3. Check if this is a split-day pattern
+  const isNonTraditional =
+    schedule.pattern === 'split_day_alternating_weekends' ||
+    (schedule.pattern === 'custom' && (schedule.customConfig?.splitDayEnabled ?? true));
+
+  if (isNonTraditional) {
+    const config = schedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG;
+    const overnightHouse = resolveCustomPatternHouse(dateStr, schedule);
+    const morningParent = config.morningSchoolParent || 'secondary';
+    const afterSchoolParent = config.afterSchoolParent || 'primary';
+    const bedtimeParent = config.bedtimeOvernightParent || 'secondary';
+
+    const morningParentName = morningParent === 'primary' ? schedule.primaryParentName : schedule.secondaryParentName;
+    const morningHouseName = morningParent === 'primary' ? schedule.primaryHouseName : schedule.secondaryHouseName;
+
+    const afterSchoolParentName = afterSchoolParent === 'primary' ? schedule.primaryParentName : schedule.secondaryParentName;
+    const afterSchoolHouseName = afterSchoolParent === 'primary' ? schedule.primaryHouseName : schedule.secondaryHouseName;
+
+    const bedtimeParentName = bedtimeParent === 'primary' ? schedule.primaryParentName : schedule.secondaryParentName;
+    const bedtimeHouseName = bedtimeParent === 'primary' ? schedule.primaryHouseName : schedule.secondaryHouseName;
+
+    const afterSchoolEnd = config.afterSchoolEndTime || '19:30';
+
+    // Monday through Thursday: Split weekday
+    if (dayOfWeek >= 1 && dayOfWeek <= 4) {
+      return {
+        dateStr,
+        house: bedtimeParent,
+        houseName: bedtimeHouseName,
+        parentName: bedtimeParentName,
+        isSplitDay: true,
+        isWeekend: false,
+        dayOfWeek,
+        dayName,
+        summaryLabel: `${bedtimeParentName} (School & Bed) · ${afterSchoolParentName} (After-School till 7:30 PM)`,
+        afterSchoolHandoff: {
+          parentName: afterSchoolParentName,
+          endTime: afterSchoolEnd,
+        },
+        segments: [
+          {
+            parent: morningParent,
+            parentName: morningParentName,
+            houseName: morningHouseName,
+            periodLabel: 'Wake up & School',
+            timeWindow: 'Morning dropoff',
+          },
+          {
+            parent: afterSchoolParent,
+            parentName: afterSchoolParentName,
+            houseName: afterSchoolHouseName,
+            periodLabel: 'After-School Care',
+            timeWindow: `After school → ${afterSchoolEnd}`,
+          },
+          {
+            parent: bedtimeParent,
+            parentName: bedtimeParentName,
+            houseName: bedtimeHouseName,
+            periodLabel: 'Bedtime & Overnight',
+            timeWindow: `${afterSchoolEnd} → Morning`,
+          },
+        ],
+        hasOverride: false,
+        hasSwap: false,
+        holidayNote: config.holidayNotes,
+      };
+    }
+
+    // Friday:
+    if (dayOfWeek === 5) {
+      if (overnightHouse === afterSchoolParent) {
+        // Weekend belongs to afterSchool parent (Mom's weekend begins Friday!)
+        const momName = afterSchoolParentName;
+        const momHouse = afterSchoolHouseName;
+        return {
+          dateStr,
+          house: afterSchoolParent,
+          houseName: momHouse,
+          parentName: momName,
+          isSplitDay: false,
+          isWeekend: true,
+          dayOfWeek,
+          dayName,
+          summaryLabel: `${momName}'s Weekend (Starts Friday)`,
+          segments: [
+            {
+              parent: morningParent,
+              parentName: morningParentName,
+              houseName: morningHouseName,
+              periodLabel: 'Wake up & School',
+              timeWindow: 'Morning',
+            },
+            {
+              parent: afterSchoolParent,
+              parentName: momName,
+              houseName: momHouse,
+              periodLabel: 'Weekend Pickup & Overnight',
+              timeWindow: 'After school onwards',
+            },
+          ],
+          hasOverride: false,
+          hasSwap: false,
+          holidayNote: config.holidayNotes,
+        };
+      } else {
+        // Weekend belongs to overnight/morning parent (Dad's weekend): Mom still has after-school till 7:30 PM
+        return {
+          dateStr,
+          house: bedtimeParent,
+          houseName: bedtimeHouseName,
+          parentName: bedtimeParentName,
+          isSplitDay: true,
+          isWeekend: true,
+          dayOfWeek,
+          dayName,
+          summaryLabel: `${bedtimeParentName} Weekend (${afterSchoolParentName} After-School till 7:30 PM)`,
+          afterSchoolHandoff: {
+            parentName: afterSchoolParentName,
+            endTime: afterSchoolEnd,
+          },
+          segments: [
+            {
+              parent: morningParent,
+              parentName: morningParentName,
+              houseName: morningHouseName,
+              periodLabel: 'Wake up & School',
+              timeWindow: 'Morning dropoff',
+            },
+            {
+              parent: afterSchoolParent,
+              parentName: afterSchoolParentName,
+              houseName: afterSchoolHouseName,
+              periodLabel: 'After-School Care',
+              timeWindow: `After school → ${afterSchoolEnd}`,
+            },
+            {
+              parent: bedtimeParent,
+              parentName: bedtimeParentName,
+              houseName: bedtimeHouseName,
+              periodLabel: 'Weekend Begins',
+              timeWindow: `${afterSchoolEnd} onwards`,
+            },
+          ],
+          hasOverride: false,
+          hasSwap: false,
+          holidayNote: config.holidayNotes,
+        };
+      }
+    }
+
+    // Saturday & Sunday: Full weekend
+    const wkndParentName = overnightHouse === 'primary' ? schedule.primaryParentName : schedule.secondaryParentName;
+    const wkndHouseName = overnightHouse === 'primary' ? schedule.primaryHouseName : schedule.secondaryHouseName;
+
+    return {
+      dateStr,
+      house: overnightHouse,
+      houseName: wkndHouseName,
+      parentName: wkndParentName,
+      isSplitDay: false,
+      isWeekend: true,
+      dayOfWeek,
+      dayName,
+      summaryLabel: `${wkndParentName}'s Weekend`,
+      hasOverride: false,
+      hasSwap: false,
+      holidayNote: config.holidayNotes,
+    };
+  }
+
+  // 4. Traditional standard schedule
+  const traditionalHouse = getHouseForDate(dateStr, schedule, swaps, childName);
+  const isPrimary = traditionalHouse === 'primary';
+  const houseName = isPrimary ? schedule.primaryHouseName : schedule.secondaryHouseName;
+  const parentName = isPrimary ? schedule.primaryParentName : schedule.secondaryParentName;
+
+  return {
+    dateStr,
+    house: traditionalHouse,
+    houseName,
+    parentName,
+    isSplitDay: false,
+    isWeekend,
+    dayOfWeek,
+    dayName,
+    summaryLabel: houseName,
+    hasOverride: false,
+    hasSwap: false,
+  };
+}
+
+export interface CustodyOvernightBreakdown {
+  primary: number;
+  secondary: number;
+  total: number;
+  primaryPercent: number;
+  secondaryPercent: number;
+  splitDaysCount?: number;
+  primaryAfterSchoolVisits?: number;
+}
+
+/**
+ * Calculates total overnight count, percentages, and intra-day metrics between two dates.
  */
 export function calculateOvernights(
   startDateStr: string,
@@ -159,29 +560,54 @@ export function calculateOvernights(
   schedule: CustodySchedule,
   swaps: CustodySwapRequest[] = [],
   childName?: string,
-): { primary: number; secondary: number; total: number; primaryPercent: number; secondaryPercent: number } {
+): CustodyOvernightBreakdown {
   let primaryCount = 0;
   let secondaryCount = 0;
+  let splitDaysCount = 0;
+  let primaryAfterSchoolVisits = 0;
 
   const startDays = parseDateToDays(startDateStr);
   const endDays = parseDateToDays(endDateStr);
 
   if (isNaN(startDays) || isNaN(endDays) || startDays > endDays) {
-    return { primary: 0, secondary: 0, total: 0, primaryPercent: 50, secondaryPercent: 50 };
+    return {
+      primary: 0,
+      secondary: 0,
+      total: 0,
+      primaryPercent: 50,
+      secondaryPercent: 50,
+      splitDaysCount: 0,
+      primaryAfterSchoolVisits: 0,
+    };
   }
 
   for (let d = startDays; d <= endDays; d++) {
     const cur = new Date(d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const house = getHouseForDate(cur, schedule, swaps, childName);
-    if (house === 'primary') primaryCount++;
+    const details = getCustodyDayDetails(cur, schedule, swaps, childName);
+    if (details.house === 'primary') primaryCount++;
     else secondaryCount++;
+
+    if (details.isSplitDay) {
+      splitDaysCount++;
+      if (details.afterSchoolHandoff?.parentName === schedule.primaryParentName) {
+        primaryAfterSchoolVisits++;
+      }
+    }
   }
 
   const total = primaryCount + secondaryCount;
   const primaryPercent = total > 0 ? Math.round((primaryCount / total) * 100) : 50;
   const secondaryPercent = total > 0 ? 100 - primaryPercent : 50;
 
-  return { primary: primaryCount, secondary: secondaryCount, total, primaryPercent, secondaryPercent };
+  return {
+    primary: primaryCount,
+    secondary: secondaryCount,
+    total,
+    primaryPercent,
+    secondaryPercent,
+    splitDaysCount,
+    primaryAfterSchoolVisits,
+  };
 }
 
 // ── Storage Helpers ─────────────────────────────────────────────────────────
@@ -370,6 +796,7 @@ export interface CustodyScheduleSettings {
   transitionDay?: string;
   transitionTime?: string;
   transitionLocation?: string;
+  customConfig?: CustomCustodyConfig;
 }
 
 /**
@@ -381,7 +808,7 @@ export function calculateCustodyOvernights(
   endDateStr: string,
   swaps: CustodySwapRequest[] = [],
   childName?: string,
-): { primary: number; secondary: number; total: number; primaryPercent: number; secondaryPercent: number } {
+): CustodyOvernightBreakdown {
   const pattern = (('template' in scheduleOrSettings ? (scheduleOrSettings as any).template : undefined) ||
     scheduleOrSettings.pattern ||
     '2-2-3') as CustodyPattern;
@@ -405,6 +832,7 @@ export function calculateCustodyOvernights(
     transitionTime: scheduleOrSettings.transitionTime || '17:00',
     overrides: 'overrides' in scheduleOrSettings ? (scheduleOrSettings as any).overrides : undefined,
     children: 'children' in scheduleOrSettings ? (scheduleOrSettings as any).children : undefined,
+    customConfig: 'customConfig' in scheduleOrSettings ? (scheduleOrSettings as any).customConfig : undefined,
   };
 
   return calculateOvernights(startDateStr, endDateStr, schedule, swaps, childName);

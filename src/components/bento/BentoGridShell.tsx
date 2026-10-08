@@ -14,6 +14,7 @@ import { BentoExpandedModal } from './BentoExpandedModal';
 import { BentoHermesChatPreview, BentoHermesChatExpanded } from './modules/BentoHermesChat';
 import { BentoLegalPrivacyPreview, BentoLegalPrivacyExpanded } from './modules/BentoLegalPrivacy';
 import { BentoLegalTermsPreview, BentoLegalTermsExpanded } from './modules/BentoLegalTerms';
+import { BentoCustodyPreview, BentoCustodyExpanded } from './modules/BentoCustody';
 
 // Lazy load full heavy interactive submodules for inline expansion
 const HouseholdBrain = lazy(() => import('@/components/familyos/HouseholdBrain'));
@@ -337,13 +338,31 @@ export const BentoGridShell: React.FC = () => {
         </BentoCard>
 
         {/* 8. Kids & Rewards Stream (4 Cols) */}
+        {/* 8. Custody & Co-Parenting Bento Card (6 Cols) */}
+        <BentoCard
+          id="custody"
+          title="Custody & Co-Parenting"
+          subtitle="Predictable schedules, handoffs & calm swaps"
+          icon={CalendarDays}
+          accentColor="amber"
+          colSpan={6}
+          badge={
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-bold">
+              Co-Parent Logistics
+            </span>
+          }
+        >
+          <BentoCustodyPreview />
+        </BentoCard>
+
+        {/* 9. Kids & Rewards Stream (6 Cols) */}
         <BentoCard
           id="rewards"
           title="Kids Corner & Rewards"
           subtitle="Gamified points & allowances"
           icon={Trophy}
           accentColor="amber"
-          colSpan={4}
+          colSpan={6}
           badge={
             <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-bold">
               Rewards Active
@@ -356,26 +375,26 @@ export const BentoGridShell: React.FC = () => {
           </div>
         </BentoCard>
 
-        {/* 9. Privacy Policy Bento Card (4 Cols) */}
+        {/* 10. Privacy Policy Bento Card (6 Cols) */}
         <BentoCard
           id="legal-privacy"
           title="Privacy Policy"
           subtitle="HotMessExpress family data pledge"
           icon={ShieldCheck}
           accentColor="indigo"
-          colSpan={4}
+          colSpan={6}
         >
           <BentoLegalPrivacyPreview />
         </BentoCard>
 
-        {/* 10. Terms of Service Bento Card (4 Cols) */}
+        {/* 11. Terms of Service Bento Card (6 Cols) */}
         <BentoCard
           id="legal-terms"
           title="Terms of Service"
           subtitle="Neurodivergent-friendly agreement"
           icon={Scale}
           accentColor="sky"
-          colSpan={4}
+          colSpan={6}
         >
           <BentoLegalTermsPreview />
         </BentoCard>
@@ -482,6 +501,16 @@ export const BentoGridShell: React.FC = () => {
               icon={Heart}
             >
               <Promises />
+            </BentoExpandedModal>
+          )}
+
+          {expandedModule === 'custody' && (
+            <BentoExpandedModal
+              title="Custody Calendar & Co-Parent Deck"
+              subtitle="Predictable schedules, handoffs & calm swap agreements"
+              icon={CalendarDays}
+            >
+              <BentoCustodyExpanded />
             </BentoExpandedModal>
           )}
 
