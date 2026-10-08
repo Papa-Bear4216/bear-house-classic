@@ -78,14 +78,17 @@ export const BentoCustodyPreview: React.FC = () => {
         </div>
       </div>
 
-      {/* Routine Flags / Holiday Agreement */}
+      {/* Routine Flags / First Choice / Holiday Agreement */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
-          <div className="text-[10px] text-slate-400 uppercase font-semibold">Weekend Setup</div>
-          <div className="text-slate-200 font-medium truncate">
-            {schedule.customConfig?.weekendPattern === 'alternating' || isNonTraditional
-              ? 'Alternate Weekends'
-              : 'Standard Rotation'}
+          <div className="text-[10px] text-slate-400 uppercase font-semibold">First Choice (ROFR)</div>
+          <div className="text-emerald-300 font-medium truncate flex items-center gap-1">
+            <Shield className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+            <span>
+              {schedule.firstChoicePolicy?.enabled !== false
+                ? `${schedule.firstChoicePolicy?.triggerHours || 4}h+ / Overnight`
+                : 'Disabled'}
+            </span>
           </div>
         </div>
 

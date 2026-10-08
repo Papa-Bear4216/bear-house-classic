@@ -26,8 +26,12 @@ import {
   formatLocalDateKey,
   getCustodyDayDetails,
   DEFAULT_NON_TRADITIONAL_CONFIG,
+  DEFAULT_FIRST_CHOICE_CONFIG,
+  getFirstChoiceConfig,
   type CustomCustodyConfig,
   type CustodyDayDetails,
+  type RightOfFirstChoiceConfig,
+  type FirstChoiceTransportation,
 } from '@/lib/custody';
 import { KEYS } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
@@ -61,6 +65,8 @@ export const CustodyCalendar: React.FC = () => {
   const [swapDate, setSwapDate] = useState('');
   const [swapMakeupDate, setSwapMakeupDate] = useState('');
   const [swapReason, setSwapReason] = useState('');
+  const [swapIsFirstChoice, setSwapIsFirstChoice] = useState(false);
+  const [swapFirstChoiceHours, setSwapFirstChoiceHours] = useState(4);
 
   // Local date clock (refreshes on timer and focus)
   const [todayStr, setTodayStr] = useState<string>(() => formatLocalDateKey(new Date()));
@@ -170,6 +176,8 @@ export const CustodyCalendar: React.FC = () => {
       currentDate: swapDate,
       makeupDate: swapMakeupDate || undefined,
       reason: swapReason || undefined,
+      isFirstChoice: swapIsFirstChoice,
+      firstChoiceHours: swapIsFirstChoice ? swapFirstChoiceHours : undefined,
     });
 
     if (!result.ok) {
@@ -182,6 +190,8 @@ export const CustodyCalendar: React.FC = () => {
     setSwapDate('');
     setSwapMakeupDate('');
     setSwapReason('');
+    setSwapIsFirstChoice(false);
+    setSwapFirstChoiceHours(schedule.firstChoicePolicy?.triggerHours || 4);
   };
 
   const handleRespondSwap = (swapId: string, decision: 'approved' | 'declined' | 'cancelled') => {
@@ -209,6 +219,9 @@ export const CustodyCalendar: React.FC = () => {
     if (!copy.customConfig) {
       copy.customConfig = { ...DEFAULT_NON_TRADITIONAL_CONFIG };
     }
+    if (!copy.firstChoicePolicy) {
+      copy.firstChoicePolicy = copy.customConfig?.firstChoicePolicy || { ...DEFAULT_FIRST_CHOICE_CONFIG };
+    }
     setDraftSchedule(copy);
     setConfigError('');
   };
@@ -234,6 +247,7 @@ export const CustodyCalendar: React.FC = () => {
       secondaryParentName: draftSchedule.secondaryParentName.trim() || schedule.secondaryParentName,
       transitionTime: draftSchedule.transitionTime || schedule.transitionTime,
       customConfig: draftSchedule.customConfig || schedule.customConfig || DEFAULT_NON_TRADITIONAL_CONFIG,
+      firstChoicePolicy: draftSchedule.firstChoicePolicy || schedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG,
     };
 
     setSchedule(updated);
@@ -270,8 +284,24 @@ export const CustodyCalendar: React.FC = () => {
                   <Calendar className="w-3.5 h-3.5" /> Weekly Digest
                 </button>
               )}
+              {(schedule.firstChoicePolicy?.enabled ?? true) && (
+                <button
+                  onClick={() => {
+                    setSwapIsFirstChoice(true);
+                    setSwapFirstChoiceHours(schedule.firstChoicePolicy?.triggerHours || 4);
+                    setSwapReason('Rule of First Choice: Offering childcare coverage before booking outside sitter.');
+                    setShowSwapModal(true);
+                    setSwapError('');
+                  }}
+                  className="flex items-center gap-1.5 bg-emerald-600/25 hover:bg-emerald-600/35 text-emerald-300 font-semibold px-3 py-2 rounded-xl text-xs border border-emerald-500/40 active:scale-95 transition"
+                  title="Offer childcare coverage under Rule of First Choice"
+                >
+                  <Shield className="w-3.5 h-3.5" /> First Choice
+                </button>
+              )}
               <button
                 onClick={() => {
+                  setSwapIsFirstChoice(false);
                   setShowSwapModal(true);
                   setSwapError('');
                 }}
@@ -433,10 +463,15 @@ export const CustodyCalendar: React.FC = () => {
                   className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div>
-                    <div className="text-xs font-semibold text-white">
+                    <div className="text-xs font-semibold text-white flex items-center flex-wrap gap-1.5">
                       <span className="text-amber-400">{s.requesterName}</span> requested{' '}
                       <span className="text-white font-bold">{s.childName}</span> stay at{' '}
                       <span className="text-emerald-400 font-bold">{destHouseName}</span>
+                      {s.isFirstChoice && (
+                        <span className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold inline-flex items-center gap-1">
+                          <Shield className="w-3 h-3" /> First Choice ({s.firstChoiceHours ? `${s.firstChoiceHours}h` : 'Childcare'})
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-300 mt-1">
                       Swap date: <span className="font-semibold text-white">{s.currentDate}</span>
@@ -482,6 +517,45 @@ export const CustodyCalendar: React.FC = () => {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Rule of First Choice (Right of First Refusal) Banner */}
+      {(schedule.firstChoicePolicy?.enabled ?? true) && (
+        <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex-shrink-0 mt-0.5">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs uppercase font-extrabold text-emerald-400 tracking-wider flex items-center gap-1.5">
+                <span>Rule of First Choice (Right of First Refusal) Active</span>
+                <span className="text-[10px] text-emerald-300 font-normal bg-emerald-500/20 px-2 py-0.2 rounded-full border border-emerald-500/30">
+                  {schedule.firstChoicePolicy?.triggerHours || 4}h+ Threshold
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Before hiring a babysitter or outside childcare for {schedule.firstChoicePolicy?.triggerHours || 4}+ hours
+                {schedule.firstChoicePolicy?.appliesToOvernight !== false ? ' or overnight' : ''}, the other parent gets first option to provide care.
+                Co-parent response window: {schedule.firstChoicePolicy?.responseWindowHours || 4} hours.
+                {schedule.firstChoicePolicy?.allowGrandparentsOrFamily ? ' (Family/grandparents exempt).' : ''}
+              </p>
+            </div>
+          </div>
+          {canCoordinate && (
+            <button
+              onClick={() => {
+                setSwapIsFirstChoice(true);
+                setSwapFirstChoiceHours(schedule.firstChoicePolicy?.triggerHours || 4);
+                setSwapReason('Rule of First Choice: Offering childcare coverage before booking outside sitter.');
+                setShowSwapModal(true);
+                setSwapError('');
+              }}
+              className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40 transition active:scale-95 whitespace-nowrap shadow-sm flex items-center gap-1.5"
+            >
+              <Shield className="w-3.5 h-3.5" /> Offer First Choice
+            </button>
+          )}
         </div>
       )}
 
@@ -738,6 +812,50 @@ export const CustodyCalendar: React.FC = () => {
                   onChange={(e) => setSwapMakeupDate(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
                 />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={swapIsFirstChoice}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSwapIsFirstChoice(checked);
+                      if (checked && !swapReason) {
+                        setSwapReason('Rule of First Choice: Offering childcare coverage before booking outside sitter.');
+                      }
+                    }}
+                    className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400"
+                  />
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                    Rule of First Choice Childcare Offer
+                  </span>
+                </label>
+                {swapIsFirstChoice && (
+                  <div className="pl-6 space-y-2 text-xs">
+                    <p className="text-[11px] text-slate-400">
+                      Offering co-parent first right to care for {swapChild} before booking outside childcare.
+                      Co-parent has {schedule.firstChoicePolicy?.responseWindowHours || 4} hours to accept.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-400">Absence duration:</span>
+                      <select
+                        value={swapFirstChoiceHours}
+                        onChange={(e) => setSwapFirstChoiceHours(Number(e.target.value))}
+                        className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
+                      >
+                        <option value={2}>2 Hours</option>
+                        <option value={4}>4 Hours (Standard)</option>
+                        <option value={6}>6 Hours</option>
+                        <option value={8}>8 Hours</option>
+                        <option value={12}>12 Hours / Overnight</option>
+                        <option value={24}>24 Hours / Full Day</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1050,6 +1168,171 @@ export const CustodyCalendar: React.FC = () => {
                   onChange={(e) => setDraftSchedule({ ...draftSchedule, transitionTime: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 outline-none font-mono"
                 />
+              </div>
+
+              {/* Rule of First Choice (Right of First Refusal) Configuration */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" /> Rule of First Choice (Right of First Refusal)
+                  </span>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={draftSchedule.firstChoicePolicy?.enabled ?? true}
+                      onChange={(e) =>
+                        setDraftSchedule({
+                          ...draftSchedule,
+                          firstChoicePolicy: {
+                            ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                            enabled: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400"
+                    />
+                    <span>Enabled</span>
+                  </label>
+                </div>
+
+                <p className="text-[11px] text-slate-300 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                  <strong>Core Rule:</strong> Before hiring a babysitter or outside childcare for extended blocks, the other parent is offered first choice to care for the child.
+                </p>
+
+                {(draftSchedule.firstChoicePolicy?.enabled ?? true) && (
+                  <div className="space-y-3 pt-1">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Absence Trigger Threshold</label>
+                        <select
+                          value={draftSchedule.firstChoicePolicy?.triggerHours ?? 4}
+                          onChange={(e) =>
+                            setDraftSchedule({
+                              ...draftSchedule,
+                              firstChoicePolicy: {
+                                ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                                triggerHours: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value={2}>2+ Consecutive Hours</option>
+                          <option value={3}>3+ Consecutive Hours</option>
+                          <option value={4}>4+ Consecutive Hours (Standard)</option>
+                          <option value={6}>6+ Consecutive Hours</option>
+                          <option value={8}>8+ Consecutive Hours</option>
+                          <option value={12}>12+ Consecutive Hours</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Response Window</label>
+                        <select
+                          value={draftSchedule.firstChoicePolicy?.responseWindowHours ?? 4}
+                          onChange={(e) =>
+                            setDraftSchedule({
+                              ...draftSchedule,
+                              firstChoicePolicy: {
+                                ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                                responseWindowHours: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value={2}>2 Hours (Urgent coverage)</option>
+                          <option value={4}>4 Hours (Standard)</option>
+                          <option value={8}>8 Hours</option>
+                          <option value={12}>12 Hours</option>
+                          <option value={24}>24 Hours</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-slate-400 block mb-1">Transportation</label>
+                        <select
+                          value={draftSchedule.firstChoicePolicy?.transportation ?? 'flexible'}
+                          onChange={(e) =>
+                            setDraftSchedule({
+                              ...draftSchedule,
+                              firstChoicePolicy: {
+                                ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                                transportation: e.target.value as any,
+                              },
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="flexible">Flexible / Arranged Mutually</option>
+                          <option value="offering_parent_drops_off">Offering Parent Drops Off</option>
+                          <option value="caring_parent_picks_up">Caring Parent Picks Up</option>
+                          <option value="meet_halfway">Meet Halfway</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col justify-end">
+                        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pb-1.5">
+                          <input
+                            type="checkbox"
+                            checked={draftSchedule.firstChoicePolicy?.appliesToOvernight ?? true}
+                            onChange={(e) =>
+                              setDraftSchedule({
+                                ...draftSchedule,
+                                firstChoicePolicy: {
+                                  ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                                  appliesToOvernight: e.target.checked,
+                                },
+                              })
+                            }
+                            className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400"
+                          />
+                          <span className="text-[11px]">Always applies to overnights</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={draftSchedule.firstChoicePolicy?.allowGrandparentsOrFamily ?? true}
+                          onChange={(e) =>
+                            setDraftSchedule({
+                              ...draftSchedule,
+                              firstChoicePolicy: {
+                                ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                                allowGrandparentsOrFamily: e.target.checked,
+                              },
+                            })
+                          }
+                          className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400"
+                        />
+                        <span className="text-[11px]">Family Exemption: Grandparents &amp; family can babysit without triggering rule</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-400 block mb-1">Custom Terms / Agreed Exceptions</label>
+                      <input
+                        value={draftSchedule.firstChoicePolicy?.notes || ''}
+                        onChange={(e) =>
+                          setDraftSchedule({
+                            ...draftSchedule,
+                            firstChoicePolicy: {
+                              ...(draftSchedule.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG),
+                              notes: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="e.g. 24h notice requested when possible; emergency medical exceptions apply"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 justify-end pt-3">

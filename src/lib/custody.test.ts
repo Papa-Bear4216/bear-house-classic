@@ -12,9 +12,12 @@ import {
   DEFAULT_CUSTODY_SCHEDULE,
   getCustodyDayDetails,
   DEFAULT_NON_TRADITIONAL_CONFIG,
+  DEFAULT_FIRST_CHOICE_CONFIG,
+  getFirstChoiceConfig,
   type CustodySchedule,
   type CustodySwapRequest,
   type CustomCustodyConfig,
+  type RightOfFirstChoiceConfig,
 } from './custody';
 
 class MemoryStorage implements Storage {
@@ -456,6 +459,93 @@ describe('custody library', () => {
       expect(loaded.customConfig?.afterSchoolEndTime).toBe('19:30');
       expect(loaded.customConfig?.holidayPolicy).toBe('working_out');
       expect(loaded.customConfig?.morningSchoolParent).toBe('primary');
+    });
+  });
+
+  describe('rule of first choice / right of first refusal', () => {
+    it('provides sensible default parameters for first choice policy', () => {
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.enabled).toBe(true);
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.triggerHours).toBe(4);
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.appliesToOvernight).toBe(true);
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.responseWindowHours).toBe(4);
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.transportation).toBe('flexible');
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.allowGrandparentsOrFamily).toBe(true);
+      expect(DEFAULT_FIRST_CHOICE_CONFIG.notes).toContain('Before hiring a third-party babysitter');
+    });
+
+    it('retrieves first choice configuration via getFirstChoiceConfig', () => {
+      const schedule: CustodySchedule = {
+        ...DEFAULT_CUSTODY_SCHEDULE,
+      };
+      const config = getFirstChoiceConfig(schedule);
+      expect(config.enabled).toBe(true);
+      expect(config.triggerHours).toBe(4);
+
+      // Custom override
+      const customSchedule: CustodySchedule = {
+        ...DEFAULT_CUSTODY_SCHEDULE,
+        firstChoicePolicy: {
+          enabled: true,
+          triggerHours: 6,
+          appliesToOvernight: false,
+          responseWindowHours: 12,
+          transportation: 'caring_parent_picks_up',
+          allowGrandparentsOrFamily: false,
+          notes: 'Emergency exception only.',
+        },
+      };
+      const customConfig = getFirstChoiceConfig(customSchedule);
+      expect(customConfig.triggerHours).toBe(6);
+      expect(customConfig.responseWindowHours).toBe(12);
+      expect(customConfig.transportation).toBe('caring_parent_picks_up');
+      expect(customConfig.allowGrandparentsOrFamily).toBe(false);
+    });
+
+    it('persists and restores custom first choice parameters across schedule save/load', () => {
+      const scheduleWithROFR: CustodySchedule = {
+        ...DEFAULT_CUSTODY_SCHEDULE,
+        firstChoicePolicy: {
+          enabled: true,
+          triggerHours: 2,
+          appliesToOvernight: true,
+          responseWindowHours: 2,
+          transportation: 'offering_parent_drops_off',
+          allowGrandparentsOrFamily: true,
+          notes: 'Call cell phone first.',
+        },
+      };
+
+      saveCustodySchedule(scheduleWithROFR);
+      const loaded = loadCustodySchedule();
+
+      expect(loaded.firstChoicePolicy?.triggerHours).toBe(2);
+      expect(loaded.firstChoicePolicy?.responseWindowHours).toBe(2);
+      expect(loaded.firstChoicePolicy?.transportation).toBe('offering_parent_drops_off');
+      expect(loaded.firstChoicePolicy?.notes).toBe('Call cell phone first.');
+    });
+
+    it('creates swap request flagged as a Rule of First Choice childcare offer', () => {
+      const res = createCustodySwap({
+        childName: 'Emma',
+        requesterId: 'user-dad',
+        requesterName: 'Dad',
+        targetHouse: 'secondary',
+        currentDate: '2026-10-25',
+        reason: 'Work meeting 1pm to 6pm — offering care before sitter',
+        isFirstChoice: true,
+        firstChoiceHours: 5,
+      });
+
+      expect(res.ok).toBe(true);
+      expect(res.swap?.isFirstChoice).toBe(true);
+      expect(res.swap?.firstChoiceHours).toBe(5);
+      expect(res.swap?.reason).toContain('offering care before sitter');
+
+      // Verify loaded swaps preserve isFirstChoice
+      const loadedSwaps = loadCustodySwaps();
+      const match = loadedSwaps.find((s) => s.id === res.swap?.id);
+      expect(match?.isFirstChoice).toBe(true);
+      expect(match?.firstChoiceHours).toBe(5);
     });
   });
 });

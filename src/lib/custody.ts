@@ -9,6 +9,32 @@ export type CustodyPattern =
   | 'split_day_alternating_weekends'
   | 'custom';
 
+export type FirstChoiceTransportation =
+  | 'offering_parent_drops_off'
+  | 'caring_parent_picks_up'
+  | 'meet_halfway'
+  | 'flexible';
+
+export interface RightOfFirstChoiceConfig {
+  enabled: boolean;
+  triggerHours: number; // Minimum absence duration that triggers first choice (e.g. 4)
+  appliesToOvernight: boolean; // Whether overnight absences always trigger first choice
+  responseWindowHours: number; // Hours co-parent has to accept before booking outside sitter (e.g. 4)
+  transportation: FirstChoiceTransportation;
+  allowGrandparentsOrFamily: boolean; // Immediate family/grandparents can care without triggering ROFR
+  notes?: string;
+}
+
+export const DEFAULT_FIRST_CHOICE_CONFIG: RightOfFirstChoiceConfig = {
+  enabled: true,
+  triggerHours: 4,
+  appliesToOvernight: true,
+  responseWindowHours: 4,
+  transportation: 'flexible',
+  allowGrandparentsOrFamily: true,
+  notes: 'Before hiring a third-party babysitter for 4+ hours or overnight, the other parent receives the first choice to provide childcare.',
+};
+
 export interface CustomCustodyConfig {
   splitDayEnabled: boolean;
   morningSchoolParent: 'primary' | 'secondary';   // Residential parent handles wake up & school (Dad)
@@ -21,6 +47,7 @@ export interface CustomCustodyConfig {
   holidayPolicy: 'working_out' | 'alternating' | 'custom_notes';
   holidayNotes: string;                           // e.g. "Holidays working out mutually as they arise."
   notes?: string;
+  firstChoicePolicy?: RightOfFirstChoiceConfig;
 }
 
 export interface CustodySchedule {
@@ -35,6 +62,7 @@ export interface CustodySchedule {
   overrides?: Record<string, 'primary' | 'secondary'>; // date string -> house
   children?: string[]; // child names covered by this schedule
   customConfig?: CustomCustodyConfig;
+  firstChoicePolicy?: RightOfFirstChoiceConfig;
 }
 
 export interface CustodySwapRequest {
@@ -52,6 +80,8 @@ export interface CustodySwapRequest {
   responderId?: string;
   responderName?: string;
   responseNote?: string;
+  isFirstChoice?: boolean;
+  firstChoiceHours?: number;
 }
 
 export const DEFAULT_NON_TRADITIONAL_CONFIG: CustomCustodyConfig = {
@@ -66,6 +96,7 @@ export const DEFAULT_NON_TRADITIONAL_CONFIG: CustomCustodyConfig = {
   holidayPolicy: 'working_out',
   holidayNotes: 'Holidays working out mutually as they arise.',
   notes: 'Wake up, school, and bed with Dad (Primary). Mom (Secondary) after school till 7:30 PM. Alternate weekends, holidays working out.',
+  firstChoicePolicy: DEFAULT_FIRST_CHOICE_CONFIG,
 };
 
 export const DEFAULT_CUSTODY_SCHEDULE: CustodySchedule = {
@@ -80,6 +111,7 @@ export const DEFAULT_CUSTODY_SCHEDULE: CustodySchedule = {
   overrides: {},
   children: [],
   customConfig: DEFAULT_NON_TRADITIONAL_CONFIG,
+  firstChoicePolicy: DEFAULT_FIRST_CHOICE_CONFIG,
 };
 
 // Patterns defined by daily sequence of house designations starting from anchor date
@@ -640,10 +672,18 @@ export function loadCustodySchedule(): CustodySchedule {
       stored.customConfig.firstWeekendParent = 'primary';
       saveJSON(KEYS.custodySchedule, stored);
     }
+    // Ensure firstChoicePolicy exists on stored schedule
+    if (!stored.firstChoicePolicy) {
+      stored.firstChoicePolicy = stored.customConfig?.firstChoicePolicy || { ...DEFAULT_FIRST_CHOICE_CONFIG };
+    }
     return stored;
   }
   saveJSON(KEYS.custodySchedule, DEFAULT_CUSTODY_SCHEDULE);
   return DEFAULT_CUSTODY_SCHEDULE;
+}
+
+export function getFirstChoiceConfig(schedule: CustodySchedule): RightOfFirstChoiceConfig {
+  return schedule.firstChoicePolicy || schedule.customConfig?.firstChoicePolicy || DEFAULT_FIRST_CHOICE_CONFIG;
 }
 
 export function saveCustodySchedule(schedule: CustodySchedule): void {
@@ -671,6 +711,8 @@ export function createCustodySwap(params: {
   currentDate: string;
   makeupDate?: string;
   reason?: string;
+  isFirstChoice?: boolean;
+  firstChoiceHours?: number;
 }): { ok: boolean; error?: string; swap?: CustodySwapRequest } {
   // Role gate: only admins/parents can coordinate swaps
   if (params.requesterRole && params.requesterRole !== 'admin' && params.requesterRole !== 'superadmin') {
@@ -705,6 +747,8 @@ export function createCustodySwap(params: {
     reason: params.reason?.trim() || undefined,
     status: 'pending',
     createdAt: Date.now(),
+    isFirstChoice: params.isFirstChoice || false,
+    firstChoiceHours: params.firstChoiceHours,
   };
 
   saveCustodySwaps([newSwap, ...currentSwaps]);
