@@ -10,7 +10,7 @@ const BRIEFED_AT_KEY  = 'hermes_last_autobrief';
 const ONE_WEEK_MS     = 7 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS      = 24 * 60 * 60 * 1000;
 
-export interface LocationEntry { lat: number; lon: number; ts: number; }
+export interface LocationEntry { awayMiles: number; ts: number; }
 
 // ── Recording ──────────────────────────────────────────────────────────────
 
@@ -25,7 +25,12 @@ export function recordLocation(lat: number, lon: number) {
   // Only add entry if it's been > 30 min since last one (avoid spam)
   const last = log[log.length - 1];
   if (last && Date.now() - last.ts < 30 * 60 * 1000) return;
-  log.push({ lat, lon, ts: Date.now() });
+
+  const homeLat = parseFloat(localStorage.getItem('home_lat') || '30.45');
+  const homeLon = parseFloat(localStorage.getItem('home_lon') || '-91.15');
+  const awayMiles = distanceMiles(lat, lon, homeLat, homeLon);
+
+  log.push({ awayMiles, ts: Date.now() });
   localStorage.setItem(LOCATION_KEY, JSON.stringify(log.slice(-200)));
 }
 
@@ -73,10 +78,10 @@ export function checkAutobrief(homeLat = 30.45, homeLon = -91.15): AutoBriefResu
   // Location away from home for 7+ days
   const log: LocationEntry[] = JSON.parse(localStorage.getItem(LOCATION_KEY) || '[]');
   if (log.length >= 2) {
-    const awayEntries = log.filter(e => distanceMiles(e.lat, e.lon, homeLat, homeLon) > 200);
+    const awayEntries = log.filter(e => e.awayMiles > 200);
     if (awayEntries.length >= 2) {
       const oldest = Math.min(...awayEntries.map(e => e.ts));
-      const maxMiles = Math.max(...awayEntries.map(e => distanceMiles(e.lat, e.lon, homeLat, homeLon)));
+      const maxMiles = Math.max(...awayEntries.map(e => e.awayMiles));
       if (Date.now() - oldest > ONE_WEEK_MS) {
         const approxDays = Math.floor((Date.now() - oldest) / ONE_DAY_MS);
         return { should: true, days: approxDays, reason: 'location', miles: Math.round(maxMiles) };
