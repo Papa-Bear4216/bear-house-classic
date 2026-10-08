@@ -520,77 +520,52 @@ export const CustodyCalendar: React.FC = () => {
         </div>
       )}
 
-      {/* Rule of First Choice (Right of First Refusal) Banner */}
-      {(schedule.firstChoicePolicy?.enabled ?? true) && (
-        <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex-shrink-0 mt-0.5">
-              <Shield className="w-4 h-4" />
+      {/* Compact Co-Parenting Protocol Strip (Zero Clutter) */}
+      {((schedule.firstChoicePolicy?.enabled ?? true) || (schedule.pattern === 'split_day_alternating_weekends' || schedule.pattern === 'custom' || schedule.customConfig?.holidayPolicy === 'working_out')) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(schedule.firstChoicePolicy?.enabled ?? true) && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+              <Shield className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>
+                First Choice Active ({schedule.firstChoicePolicy?.triggerHours || 4}h+ / Overnight · {schedule.firstChoicePolicy?.responseWindowHours || 4}h window)
+              </span>
+              {canCoordinate && (
+                <button
+                  onClick={() => {
+                    setSwapIsFirstChoice(true);
+                    setSwapFirstChoiceHours(schedule.firstChoicePolicy?.triggerHours || 4);
+                    setSwapReason('Rule of First Choice: Offering childcare coverage before booking outside sitter.');
+                    setShowSwapModal(true);
+                    setSwapError('');
+                  }}
+                  className="ml-1 text-[11px] font-bold text-emerald-200 hover:text-white underline underline-offset-2"
+                >
+                  Offer Care
+                </button>
+              )}
             </div>
-            <div>
-              <div className="text-xs uppercase font-extrabold text-emerald-400 tracking-wider flex items-center gap-1.5">
-                <span>Rule of First Choice (Right of First Refusal) Active</span>
-                <span className="text-[10px] text-emerald-300 font-normal bg-emerald-500/20 px-2 py-0.2 rounded-full border border-emerald-500/30">
-                  {schedule.firstChoicePolicy?.triggerHours || 4}h+ Threshold
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                Before hiring a babysitter or outside childcare for {schedule.firstChoicePolicy?.triggerHours || 4}+ hours
-                {schedule.firstChoicePolicy?.appliesToOvernight !== false ? ' or overnight' : ''}, the other parent gets first option to provide care.
-                Co-parent response window: {schedule.firstChoicePolicy?.responseWindowHours || 4} hours.
-                {schedule.firstChoicePolicy?.allowGrandparentsOrFamily ? ' (Family/grandparents exempt).' : ''}
-              </p>
+          )}
+
+          {(schedule.pattern === 'split_day_alternating_weekends' || schedule.pattern === 'custom' || schedule.customConfig?.holidayPolicy === 'working_out') && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+              <span>Holidays: Working Out Mutually</span>
+              {canCoordinate && (
+                <button
+                  onClick={() => {
+                    setSwapReason('Holiday agreement / coordination');
+                    setShowSwapModal(true);
+                  }}
+                  className="ml-1 text-[11px] font-bold text-indigo-200 hover:text-white underline underline-offset-2"
+                >
+                  Coordinate
+                </button>
+              )}
             </div>
-          </div>
-          {canCoordinate && (
-            <button
-              onClick={() => {
-                setSwapIsFirstChoice(true);
-                setSwapFirstChoiceHours(schedule.firstChoicePolicy?.triggerHours || 4);
-                setSwapReason('Rule of First Choice: Offering childcare coverage before booking outside sitter.');
-                setShowSwapModal(true);
-                setSwapError('');
-              }}
-              className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40 transition active:scale-95 whitespace-nowrap shadow-sm flex items-center gap-1.5"
-            >
-              <Shield className="w-3.5 h-3.5" /> Offer First Choice
-            </button>
           )}
         </div>
       )}
 
-      {/* Holiday Coordination Notice when non-traditional pattern is active */}
-      {(schedule.pattern === 'split_day_alternating_weekends' || schedule.pattern === 'custom' || schedule.customConfig?.holidayPolicy === 'working_out') && (
-        <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex-shrink-0 mt-0.5">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1.5">
-                <span>Holiday Arrangement: Working Out Mutually</span>
-                <span className="text-[10px] text-indigo-300 font-normal bg-indigo-500/20 px-2 py-0.2 rounded-full border border-indigo-500/30">
-                  Calm Co-Parent Protocol
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                {schedule.customConfig?.holidayNotes || 'Holidays are worked out mutually as they arise via calm swap requests. Agreed dates can be logged anytime.'}
-              </p>
-            </div>
-          </div>
-          {canCoordinate && (
-            <button
-              onClick={() => {
-                setSwapReason('Holiday agreement / coordination');
-                setShowSwapModal(true);
-              }}
-              className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/40 transition active:scale-95 whitespace-nowrap shadow-sm"
-            >
-              Coordinate Holiday Swap
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Calendar Grid */}
       <div className="space-y-3">

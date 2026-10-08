@@ -3,14 +3,14 @@ import {
   Settings as SettingsIcon, Search, History, LogOut
 } from 'lucide-react';
 
-import { KEYS, loadJSON, isOverdue, formatTime } from '@/lib/familyos';
+import { KEYS, loadJSON, isOverdue } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
 import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
 import { getOfflineSyncStatus, onSyncUpdate } from '@/lib/sync';
 import { OPEN_SETTINGS_EVENT, resolveSettingsOpenRequest, type SettingsIntent } from '@/lib/connectionHealth';
-import MagicTrail from '@/components/familyos/MagicTrail';
+
 
 import { BentoGridProvider } from '@/components/bento/BentoGridContext';
 import { BentoGridShell } from '@/components/bento/BentoGridShell';
@@ -149,15 +149,9 @@ const AppLayout: React.FC = () => {
                 🚂
               </div>
               <div>
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5">
                   <span className="font-display font-black text-sm tracking-tight text-white">HotMessExpress</span>
                   <span className="text-[11px] text-amber-400 font-bold hidden sm:inline tracking-tight">— The Family OS</span>
-                  <span
-                    className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden md:inline cursor-help"
-                    title="HotMessExpress — A proud product of Dysfunction Junction 🚂"
-                  >
-                    BENTO GRID 🚂
-                  </span>
                 </div>
                 <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-white/10`} />
@@ -226,14 +220,10 @@ const AppLayout: React.FC = () => {
               >
                 {BATTERY_LEVELS[batteryLevel].emoji}
               </button>
-              <div className="hidden sm:flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-slate-300">
-                <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                <span className="text-[11px]">{inZone ? 'Home Zone' : 'Away'}</span>
-              </div>
-              <div className="text-xs font-mono font-semibold text-slate-300 tabular-nums px-1">{formatTime(now)}</div>
               <button onClick={() => setHistoryOpen(true)} title="History" className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
                 <History className="w-4 h-4" />
               </button>
+
               {isAdm && (
                 <button
                   onClick={() => {
@@ -316,7 +306,6 @@ const AppLayout: React.FC = () => {
             />
           )}
         </Suspense>
-        <MagicTrail />
       </div>
     </BentoGridProvider>
   );
