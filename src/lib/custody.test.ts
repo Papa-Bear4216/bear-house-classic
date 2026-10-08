@@ -355,44 +355,44 @@ describe('custody library', () => {
       ...DEFAULT_CUSTODY_SCHEDULE,
       pattern: 'split_day_alternating_weekends',
       startDate: '2026-10-05', // Monday
-      primaryParentName: 'Mom',
-      secondaryParentName: 'Dad',
-      primaryHouseName: "Mom's House",
-      secondaryHouseName: "Dad's House",
+      primaryParentName: 'Dad',
+      secondaryParentName: 'Mom',
+      primaryHouseName: "Dad's House",
+      secondaryHouseName: "Mom's House",
       customConfig: {
         ...DEFAULT_NON_TRADITIONAL_CONFIG,
-        morningSchoolParent: 'secondary', // Dad
-        afterSchoolParent: 'primary',     // Mom
+        morningSchoolParent: 'primary',   // Dad
+        afterSchoolParent: 'secondary',   // Mom
         afterSchoolEndTime: '19:30',      // 7:30 PM
-        bedtimeOvernightParent: 'secondary', // Dad
+        bedtimeOvernightParent: 'primary', // Dad
         weekendPattern: 'alternating',
-        firstWeekendParent: 'secondary',  // Dad weekend 1, Mom weekend 2
+        firstWeekendParent: 'primary',    // Dad weekend 1, Mom weekend 2
         holidayPolicy: 'working_out',
         holidayNotes: 'Holidays working out mutually as they arise.',
       },
     };
 
     it('correctly calculates overnights across the 14-day cycle for non-traditional schedule', () => {
-      // Week 1 (Days 0..6): Mon-Thu Dad overnight, Fri-Sun Dad weekend
-      expect(getHouseForDate('2026-10-05', nonTraditionalSchedule)).toBe('secondary'); // Mon
-      expect(getHouseForDate('2026-10-06', nonTraditionalSchedule)).toBe('secondary'); // Tue
-      expect(getHouseForDate('2026-10-07', nonTraditionalSchedule)).toBe('secondary'); // Wed
-      expect(getHouseForDate('2026-10-08', nonTraditionalSchedule)).toBe('secondary'); // Thu
-      expect(getHouseForDate('2026-10-09', nonTraditionalSchedule)).toBe('secondary'); // Fri (Dad weekend)
-      expect(getHouseForDate('2026-10-10', nonTraditionalSchedule)).toBe('secondary'); // Sat (Dad weekend)
-      expect(getHouseForDate('2026-10-11', nonTraditionalSchedule)).toBe('secondary'); // Sun (Dad weekend)
+      // Week 1 (Days 0..6): Mon-Thu Dad overnight (Primary), Fri-Sun Dad weekend (Primary)
+      expect(getHouseForDate('2026-10-05', nonTraditionalSchedule)).toBe('primary');   // Mon
+      expect(getHouseForDate('2026-10-06', nonTraditionalSchedule)).toBe('primary');   // Tue
+      expect(getHouseForDate('2026-10-07', nonTraditionalSchedule)).toBe('primary');   // Wed
+      expect(getHouseForDate('2026-10-08', nonTraditionalSchedule)).toBe('primary');   // Thu
+      expect(getHouseForDate('2026-10-09', nonTraditionalSchedule)).toBe('primary');   // Fri (Dad weekend)
+      expect(getHouseForDate('2026-10-10', nonTraditionalSchedule)).toBe('primary');   // Sat (Dad weekend)
+      expect(getHouseForDate('2026-10-11', nonTraditionalSchedule)).toBe('primary');   // Sun (Dad weekend)
 
-      // Week 2 (Days 7..13): Mon-Thu Dad overnight, Fri-Sun Mom weekend
-      expect(getHouseForDate('2026-10-12', nonTraditionalSchedule)).toBe('secondary'); // Mon
-      expect(getHouseForDate('2026-10-13', nonTraditionalSchedule)).toBe('secondary'); // Tue
-      expect(getHouseForDate('2026-10-14', nonTraditionalSchedule)).toBe('secondary'); // Wed
-      expect(getHouseForDate('2026-10-15', nonTraditionalSchedule)).toBe('secondary'); // Thu
-      expect(getHouseForDate('2026-10-16', nonTraditionalSchedule)).toBe('primary');   // Fri (Mom weekend)
-      expect(getHouseForDate('2026-10-17', nonTraditionalSchedule)).toBe('primary');   // Sat (Mom weekend)
-      expect(getHouseForDate('2026-10-18', nonTraditionalSchedule)).toBe('primary');   // Sun (Mom weekend)
+      // Week 2 (Days 7..13): Mon-Thu Dad overnight (Primary), Fri-Sun Mom weekend (Secondary)
+      expect(getHouseForDate('2026-10-12', nonTraditionalSchedule)).toBe('primary');   // Mon
+      expect(getHouseForDate('2026-10-13', nonTraditionalSchedule)).toBe('primary');   // Tue
+      expect(getHouseForDate('2026-10-14', nonTraditionalSchedule)).toBe('primary');   // Wed
+      expect(getHouseForDate('2026-10-15', nonTraditionalSchedule)).toBe('primary');   // Thu
+      expect(getHouseForDate('2026-10-16', nonTraditionalSchedule)).toBe('secondary'); // Fri (Mom weekend)
+      expect(getHouseForDate('2026-10-17', nonTraditionalSchedule)).toBe('secondary'); // Sat (Mom weekend)
+      expect(getHouseForDate('2026-10-18', nonTraditionalSchedule)).toBe('secondary'); // Sun (Mom weekend)
 
-      // Week 3 (Cycle repeats): Mon Dad overnight
-      expect(getHouseForDate('2026-10-19', nonTraditionalSchedule)).toBe('secondary');
+      // Week 3 (Cycle repeats): Mon Dad overnight (Primary)
+      expect(getHouseForDate('2026-10-19', nonTraditionalSchedule)).toBe('primary');
     });
 
     it('returns rich intra-day breakdown from getCustodyDayDetails on split weekdays', () => {
@@ -401,7 +401,7 @@ describe('custody library', () => {
 
       expect(details.isSplitDay).toBe(true);
       expect(details.isWeekend).toBe(false);
-      expect(details.house).toBe('secondary'); // Overnight with Dad
+      expect(details.house).toBe('primary'); // Overnight with Dad (Primary residential parent)
       expect(details.parentName).toBe('Dad');
       expect(details.afterSchoolHandoff?.parentName).toBe('Mom');
       expect(details.afterSchoolHandoff?.endTime).toBe('19:30');
@@ -418,19 +418,19 @@ describe('custody library', () => {
       expect(details.segments![2].parentName).toBe('Dad');
     });
 
-    it('returns weekend details for Mom weekend vs Dad weekend', () => {
+    it('returns weekend details for Dad weekend vs Mom weekend', () => {
       // Saturday Oct 10: Dad's weekend
       const dadWknd = getCustodyDayDetails('2026-10-10', nonTraditionalSchedule);
       expect(dadWknd.isSplitDay).toBe(false);
       expect(dadWknd.isWeekend).toBe(true);
-      expect(dadWknd.house).toBe('secondary');
+      expect(dadWknd.house).toBe('primary');
       expect(dadWknd.summaryLabel).toBe("Dad's Weekend");
 
       // Saturday Oct 17: Mom's weekend
       const momWknd = getCustodyDayDetails('2026-10-17', nonTraditionalSchedule);
       expect(momWknd.isSplitDay).toBe(false);
       expect(momWknd.isWeekend).toBe(true);
-      expect(momWknd.house).toBe('primary');
+      expect(momWknd.house).toBe('secondary');
       expect(momWknd.summaryLabel).toBe("Mom's Weekend");
     });
 
@@ -442,10 +442,10 @@ describe('custody library', () => {
     it('calculates overnights and split daytime visits correctly over 14 days', () => {
       const metrics = calculateOvernights('2026-10-05', '2026-10-18', nonTraditionalSchedule);
       expect(metrics.total).toBe(14);
-      expect(metrics.secondary).toBe(11); // 11 Dad overnights
-      expect(metrics.primary).toBe(3);    // 3 Mom overnights (weekend 2)
+      expect(metrics.primary).toBe(11);   // 11 Dad overnights (Primary)
+      expect(metrics.secondary).toBe(3);  // 3 Mom overnights (Secondary - weekend 2)
       expect(metrics.splitDaysCount).toBe(9); // 4 in W1 + 1 Fri W1 + 4 in W2
-      expect(metrics.primaryAfterSchoolVisits).toBe(9); // Mom after-school on all split days
+      expect(metrics.secondaryAfterSchoolVisits).toBe(9); // Mom after-school on all split days
     });
 
     it('saves and loads custom custody configuration without data loss', () => {
@@ -455,7 +455,7 @@ describe('custody library', () => {
       expect(loaded.pattern).toBe('split_day_alternating_weekends');
       expect(loaded.customConfig?.afterSchoolEndTime).toBe('19:30');
       expect(loaded.customConfig?.holidayPolicy).toBe('working_out');
-      expect(loaded.customConfig?.morningSchoolParent).toBe('secondary');
+      expect(loaded.customConfig?.morningSchoolParent).toBe('primary');
     });
   });
 });

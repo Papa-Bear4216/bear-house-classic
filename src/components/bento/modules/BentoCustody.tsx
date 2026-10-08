@@ -64,7 +64,7 @@ export const BentoCustodyPreview: React.FC = () => {
 
         <div className="text-sm font-bold text-white truncate">
           {todayDetails.isSplitDay
-            ? `${schedule.secondaryParentName} (School & Bed) · ${schedule.primaryParentName} (After-School)`
+            ? `${schedule.primaryParentName} (School & Bed) · ${schedule.secondaryParentName} (After-School)`
             : todayDetails.summaryLabel}
         </div>
 
@@ -72,7 +72,7 @@ export const BentoCustodyPreview: React.FC = () => {
           <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
           <span className="truncate">
             {todayDetails.isSplitDay
-              ? `Handoff at ${todayDetails.afterSchoolHandoff?.endTime || '19:30'} back to ${schedule.secondaryParentName}`
+              ? `Handoff at ${todayDetails.afterSchoolHandoff?.endTime || '19:30'} back to ${schedule.primaryParentName}`
               : `Transition time: ${schedule.transitionTime}`}
           </span>
         </div>

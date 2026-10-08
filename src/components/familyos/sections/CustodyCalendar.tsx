@@ -329,13 +329,13 @@ export const CustodyCalendar: React.FC = () => {
               </div>
               <div className="text-sm font-bold text-white truncate">
                 {tonightDetails.isSplitDay
-                  ? `${schedule.secondaryParentName} (Bed) · ${schedule.primaryParentName} (After-School)`
+                  ? `${schedule.primaryParentName} (School & Bed) · ${schedule.secondaryParentName} (After-School)`
                   : tonightDetails.summaryLabel}
               </div>
               <div className="text-[11px] text-amber-300 flex items-center gap-1 truncate">
                 <Clock className="w-3 h-3 text-amber-400 flex-shrink-0" />
                 {tonightDetails.isSplitDay
-                  ? `Handoff: ${tonightDetails.afterSchoolHandoff?.endTime || '19:30'} to ${schedule.secondaryParentName}`
+                  ? `Handoff: ${tonightDetails.afterSchoolHandoff?.endTime || '19:30'} to ${schedule.primaryParentName}`
                   : `Transition: ${schedule.transitionTime}`}
               </div>
             </div>
@@ -351,7 +351,11 @@ export const CustodyCalendar: React.FC = () => {
             <div className="text-sm font-bold text-white mt-0.5 truncate">
               {metrics.primary} overnights ({metrics.primaryPercent}%) · {metrics.secondary} overnights ({metrics.secondaryPercent}%)
             </div>
-            {metrics.primaryAfterSchoolVisits ? (
+            {metrics.secondaryAfterSchoolVisits ? (
+              <div className="text-[10px] text-indigo-300/90 mt-0.5 font-medium truncate">
+                + {metrics.secondaryAfterSchoolVisits} after-school visits with {schedule.secondaryParentName} (till 7:30 PM)
+              </div>
+            ) : metrics.primaryAfterSchoolVisits ? (
               <div className="text-[10px] text-amber-300/90 mt-0.5 font-medium truncate">
                 + {metrics.primaryAfterSchoolVisits} after-school visits with {schedule.primaryParentName} (till 7:30 PM)
               </div>
@@ -563,13 +567,13 @@ export const CustodyCalendar: React.FC = () => {
 
                 {details.isSplitDay ? (
                   <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-[10px] bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded text-indigo-200">
-                      <span className="font-bold truncate">{schedule.secondaryParentName}</span>
-                      <span className="text-[9px] text-indigo-300 font-mono">School &amp; Bed</span>
-                    </div>
                     <div className="flex items-center justify-between text-[10px] bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 rounded text-amber-200">
                       <span className="font-bold truncate">{schedule.primaryParentName}</span>
-                      <span className="text-[9px] text-amber-300 font-mono">After school → 7:30p</span>
+                      <span className="text-[9px] text-amber-300 font-mono">School &amp; Bed</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.5 rounded text-indigo-200">
+                      <span className="font-bold truncate">{schedule.secondaryParentName}</span>
+                      <span className="text-[9px] text-indigo-300 font-mono">After school → 7:30p</span>
                     </div>
                   </div>
                 ) : (
@@ -838,8 +842,8 @@ export const CustodyCalendar: React.FC = () => {
                   </div>
 
                   <p className="text-[11px] text-slate-300 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-                    <strong>Rule:</strong> Wake up, school drop-off, and bedtime sleep with {draftSchedule.secondaryParentName || 'Dad'}.
-                    {' '}{draftSchedule.primaryParentName || 'Mom'} handles after-school care until {draftSchedule.customConfig?.afterSchoolEndTime || '19:30'}.
+                    <strong>Rule:</strong> Wake up, school drop-off, and bedtime sleep with {draftSchedule.primaryParentName || 'Dad'} (Primary).
+                    {' '}{draftSchedule.secondaryParentName || 'Mom'} (Secondary) handles after-school care until {draftSchedule.customConfig?.afterSchoolEndTime || '19:30'}.
                     Weekends alternate every 2 weeks. Holidays are negotiated mutually.
                   </p>
 
@@ -847,7 +851,7 @@ export const CustodyCalendar: React.FC = () => {
                     <div>
                       <label className="text-[11px] text-slate-400 block mb-1">Morning &amp; School</label>
                       <select
-                        value={draftSchedule.customConfig?.morningSchoolParent || 'secondary'}
+                        value={draftSchedule.customConfig?.morningSchoolParent || 'primary'}
                         onChange={(e) =>
                           setDraftSchedule({
                             ...draftSchedule,
@@ -859,15 +863,15 @@ export const CustodyCalendar: React.FC = () => {
                         }
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
                       >
-                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
-                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Dad)</option>
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Mom)</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="text-[11px] text-slate-400 block mb-1">After-School Care</label>
                       <select
-                        value={draftSchedule.customConfig?.afterSchoolParent || 'primary'}
+                        value={draftSchedule.customConfig?.afterSchoolParent || 'secondary'}
                         onChange={(e) =>
                           setDraftSchedule({
                             ...draftSchedule,
@@ -879,8 +883,8 @@ export const CustodyCalendar: React.FC = () => {
                         }
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
                       >
-                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
-                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Mom)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Dad)</option>
                       </select>
                     </div>
                   </div>
@@ -907,7 +911,7 @@ export const CustodyCalendar: React.FC = () => {
                     <div>
                       <label className="text-[11px] text-slate-400 block mb-1">Bedtime &amp; Overnight</label>
                       <select
-                        value={draftSchedule.customConfig?.bedtimeOvernightParent || 'secondary'}
+                        value={draftSchedule.customConfig?.bedtimeOvernightParent || 'primary'}
                         onChange={(e) =>
                           setDraftSchedule({
                             ...draftSchedule,
@@ -919,8 +923,8 @@ export const CustodyCalendar: React.FC = () => {
                         }
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
                       >
-                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
-                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Dad)</option>
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Mom)</option>
                       </select>
                     </div>
                   </div>
@@ -942,15 +946,15 @@ export const CustodyCalendar: React.FC = () => {
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
                       >
                         <option value="alternating">Alternate Weekends (14-day cycle)</option>
-                        <option value="secondary">All Weekends with {draftSchedule.secondaryParentName || 'Dad'}</option>
-                        <option value="primary">All Weekends with {draftSchedule.primaryParentName || 'Mom'}</option>
+                        <option value="primary">All Weekends with {draftSchedule.primaryParentName || 'Dad'}</option>
+                        <option value="secondary">All Weekends with {draftSchedule.secondaryParentName || 'Mom'}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="text-[11px] text-slate-400 block mb-1">First Weekend Parent</label>
                       <select
-                        value={draftSchedule.customConfig?.firstWeekendParent || 'secondary'}
+                        value={draftSchedule.customConfig?.firstWeekendParent || 'primary'}
                         onChange={(e) =>
                           setDraftSchedule({
                             ...draftSchedule,
@@ -962,8 +966,8 @@ export const CustodyCalendar: React.FC = () => {
                         }
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white"
                       >
-                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Dad)</option>
-                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Mom)</option>
+                        <option value="primary">{draftSchedule.primaryParentName || 'Primary'} (Dad)</option>
+                        <option value="secondary">{draftSchedule.secondaryParentName || 'Secondary'} (Mom)</option>
                       </select>
                     </div>
                   </div>
