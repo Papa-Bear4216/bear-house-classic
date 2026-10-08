@@ -14,7 +14,7 @@ const knownVersions = new Map<string, string>();
 
 export function onSyncUpdate(cb: (key: string) => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  return () => { listeners.delete(cb); };
 }
 
 function notifyListeners(key: string) {
@@ -152,7 +152,7 @@ export function pushToCloud(key: string, value: unknown): Promise<boolean> {
       clearQueuedWrite(key);
       return true;
     }
-    if (result.retryable) {
+    if ('retryable' in result && result.retryable) {
       // Network/upstream failure — hold the latest value in the offline
       // queue so it's not lost. (409 conflicts are permanent: we already
       // adopted the cloud value and must NOT replay our losing edit.)

@@ -1,7 +1,7 @@
 {
-  "short_name": "HotMessExpress - The Family OS",
-  "name": "HotMessExpress - The Family OS",
-  "description": "HotMessExpress - The Family OS. ADHD-friendly household coordination engineered at Dysfunction Junction.",
+  "short_name": "FamilyOS",
+  "name": "FamilyOS — A calmer home, together",
+  "description": "A friendly home base for chores, schedules, spending, and the little things that keep a household together.",
   "icons": [
     {
       "src": "/favicon.svg",
@@ -16,8 +16,8 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#090D16",
-  "theme_color": "#090D16",
+  "background_color": "#121d18",
+  "theme_color": "#121d18",
   "display": "standalone",
   "orientation": "portrait"
 }

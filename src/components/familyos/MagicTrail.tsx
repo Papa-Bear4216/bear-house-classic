@@ -52,7 +52,7 @@ export const MagicTrail: React.FC = () => {
   });
 
   useEffect(() => {
-    if (!cfg) return;
+    if (!cfg || window.matchMedia('(hover: none)').matches || window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const canvas  = canvasRef.current!;
     const charEl  = charRef.current!;
@@ -157,6 +157,7 @@ export const MagicTrail: React.FC = () => {
     <>
       {/* Canvas for the particle trail */}
       <canvas
+        className="fo-magic-trail"
         ref={canvasRef}
         style={{
           position: 'fixed', inset: 0,
@@ -166,6 +167,7 @@ export const MagicTrail: React.FC = () => {
       />
       {/* Character emoji — positioned directly, never re-rendered */}
       <div
+        className="fo-magic-trail"
         ref={charRef}
         style={{
           position: 'fixed',

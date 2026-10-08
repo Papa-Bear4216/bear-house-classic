@@ -153,7 +153,7 @@ const QuickCapture: React.FC = () => {
       {/* Floating button */}
       <button
         onClick={() => { reset(); setOpen(true); }}
-        className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-xl shadow-amber-500/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ring-2 ring-white/20 focus-ring"
+        className="fo-floating-capture fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-xl shadow-amber-500/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 ring-2 ring-white/20 focus-ring"
         title="Quick Brain Dump (+)"
       >
         <Plus className="w-6 h-6 text-slate-950 stroke-[3]" />

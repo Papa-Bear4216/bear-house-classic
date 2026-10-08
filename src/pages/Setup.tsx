@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAccessToken, signOut } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { ArrowRight, Check, Sparkles } from 'lucide-react';
+import logo from '@/assets/familyos-logo.svg';
+import '@/styles/app-shell.css';
 
 interface SetupProps {
   onHouseholdCreated: () => void;
@@ -14,7 +16,7 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
   const [memberName, setMemberName] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [cancelledNotice, setCancelledNotice] = useState(
+  const [cancelledNotice] = useState(
     () => new URLSearchParams(window.location.search).get('billing') === 'cancelled'
   );
 
@@ -70,52 +72,40 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-6 px-4">
-      <div className="text-3xl font-bold text-white">🐻 Welcome to Bear House</div>
-      <p className="text-slate-400 text-sm text-center max-w-sm">
-        Let's set up your household. You'll be the superadmin — you can add the rest of your family afterward.
-      </p>
-
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="space-y-2">
-          <Label htmlFor="householdName">Household name</Label>
-          <Input
-            id="householdName"
-            placeholder="The Hebert House"
-            value={householdName}
-            onChange={(e) => setHouseholdName(e.target.value)}
-            disabled={submitting}
-          />
+    <div className="fo-setup">
+      <div className="fo-setup-panel">
+        <div className="fo-setup-story">
+          <img src={logo} alt="FamilyOS" />
+          <div>
+            <span className="fo-setup-eyebrow"><Sparkles className="w-4 h-4" aria-hidden="true" /> A home for the whole household</span>
+            <h1>Let's make room for <span>more living.</span></h1>
+            <p>Give your household a name, then we’ll build your shared space. You can invite everyone else afterward.</p>
+          </div>
+          <div className="fo-setup-story-foot"><span><Check className="w-4 h-4" /> One place for the little things</span><span><Check className="w-4 h-4" /> Built for beautifully imperfect days</span></div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="memberName">Your name</Label>
-          <Input
-            id="memberName"
-            placeholder="Daddy"
-            value={memberName}
-            onChange={(e) => setMemberName(e.target.value)}
-            disabled={submitting}
-          />
+        <div className="fo-setup-form-wrap">
+          <div className="fo-setup-step">YOUR SPACE <span>·</span> STEP 1 OF 2</div>
+          <h2>Start with your home.</h2>
+          <p className="fo-setup-description">Just two details. You can fine-tune everything once you're in.</p>
+          <form onSubmit={handleSubmit} className="fo-setup-form">
+            <div>
+              <Label htmlFor="householdName">What do you call your household?</Label>
+              <Input id="householdName" autoComplete="organization" placeholder="e.g. The Hebert House" value={householdName} onChange={(e) => setHouseholdName(e.target.value)} disabled={submitting} />
+            </div>
+            <div>
+              <Label htmlFor="memberName">And what should we call you?</Label>
+              <Input id="memberName" autoComplete="name" placeholder="Your first name" value={memberName} onChange={(e) => setMemberName(e.target.value)} disabled={submitting} />
+            </div>
+            {cancelledNotice && <p className="fo-setup-notice" role="status">Checkout was cancelled. You can try again below.</p>}
+            {error && <p className="fo-setup-error" role="alert">{error}</p>}
+            <button type="submit" className="fo-setup-submit" disabled={submitting}>
+              {submitting ? 'Creating your space…' : 'Create my household'} <ArrowRight className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </form>
+          <button type="button" onClick={() => signOut()} className="fo-setup-signout">Not ready yet? Sign out</button>
         </div>
-
-        {cancelledNotice && (
-          <p className="text-amber-400 text-sm">Checkout was cancelled — you can try again below.</p>
-        )}
-        {error && <p className="text-rose-400 text-sm">{error}</p>}
-
-        <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? 'Creating…' : 'Create household'}
-        </Button>
-
-        <button
-          type="button"
-          onClick={() => signOut()}
-          className="w-full text-slate-500 hover:text-slate-300 text-xs text-center"
-        >
-          Sign out
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

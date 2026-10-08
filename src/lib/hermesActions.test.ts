@@ -45,6 +45,17 @@ describe('runGenericAction', () => {
     expect(stored[0].createdAt).toBeTypeOf('number');
   });
 
+  it('stores quality activities with numeric dates and rejects invalid dates', () => {
+    const date = '2026-09-26T19:00:00.000Z';
+    expect(runGenericAction('qualityActivities', 'add', { name: 'Movie night', scheduledAt: date }).ok).toBe(true);
+    expect(JSON.parse(localStorage.getItem('quality_activities')!)[0].scheduledAt).toBe(Date.parse(date));
+    expect(runGenericAction('qualityActivities', 'update', { match: 'Movie', scheduledAt: '2026-09-27T19:00:00.000Z' }).ok).toBe(true);
+    expect(JSON.parse(localStorage.getItem('quality_activities')!)[0].scheduledAt).toBe(Date.parse('2026-09-27T19:00:00.000Z'));
+    expect(runGenericAction('qualityActivities', 'add', { name: 'Bad date', scheduledAt: 'someday' }).ok).toBe(false);
+    expect(runGenericAction('qualityActivities', 'add', { name: 'No date' }).ok).toBe(false);
+    expect(JSON.parse(localStorage.getItem('quality_activities')!)).toHaveLength(1);
+  });
+
   it('only writes fields declared in the domain spec', () => {
     runGenericAction('bucketList', 'add', { text: 'Visit Japan', notAField: 'ignored' });
     const stored = JSON.parse(localStorage.getItem('familyos_bucket_list')!);

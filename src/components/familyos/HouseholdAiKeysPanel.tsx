@@ -22,7 +22,12 @@ export function HouseholdAiKeysPanel() {
     setLoading(true);
     try {
       const res = await authedFetch('/api/settings-keys', { method: 'GET' });
-      if (res.ok) setStatus(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(typeof data?.anthropic?.set === 'boolean' && typeof data?.gemini?.set === 'boolean' ? data : null);
+      } else {
+        setStatus(null);
+      }
     } catch {
       // leave status null — panel shows "unable to load" state below
     } finally {

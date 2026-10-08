@@ -5,7 +5,7 @@ import logo from '@/assets/familyos-logo.svg';
 import '@/styles/landing.css';
 import {
   Sparkles, MessageCircleHeart, PiggyBank, Camera, ListChecks,
-  HeartHandshake, CloudSun,
+  HeartHandshake, CloudSun, ArrowUpRight, ArrowRight, Check,
 } from 'lucide-react';
 
 const HOW_IT_WORKS = [
@@ -13,7 +13,7 @@ const HOW_IT_WORKS = [
     icon: Sparkles,
     tile: 'var(--sage-100)',
     tint: 'var(--sage-600)',
-    step: 'STEP 1',
+    step: '01',
     title: 'Connect your household',
     body: 'Link your bank, your smart home, and your family’s calendar — takes a few minutes, once.',
   },
@@ -21,7 +21,7 @@ const HOW_IT_WORKS = [
     icon: MessageCircleHeart,
     tile: 'rgba(0,112,192,0.12)',
     tint: 'var(--sky-500)',
-    step: 'STEP 2',
+    step: '02',
     title: 'Hermes organizes it',
     body: 'Your AI assistant turns raw data — transactions, chores, camera events — into things you can act on.',
   },
@@ -29,7 +29,7 @@ const HOW_IT_WORKS = [
     icon: ListChecks,
     tile: 'var(--honey-100)',
     tint: 'var(--honey-600)',
-    step: 'STEP 3',
+    step: '03',
     title: 'One focused view',
     body: 'A single daily briefing instead of six apps. See what matters today, not everything at once.',
   },
@@ -37,7 +37,7 @@ const HOW_IT_WORKS = [
     icon: HeartHandshake,
     tile: 'rgba(192,32,160,0.12)',
     tint: 'var(--berry-600)',
-    step: 'STEP 4',
+    step: '04',
     title: 'The whole house stays in sync',
     body: 'Chores, promises, and plans update in real time for everyone — no group texts required.',
   },
@@ -53,22 +53,14 @@ const FEATURES = [
 ];
 
 function GetStartedButton({
-  variant = 'primary',
   className = '',
   children,
 }: {
-  variant?: 'primary' | 'ghost';
   className?: string;
   children: React.ReactNode;
 }) {
-  const base =
-    'inline-flex items-center gap-2 rounded-[var(--radius-full)] font-bold text-[15px] px-7 py-3.5 transition-transform hover:-translate-y-0.5';
-  const style =
-    variant === 'primary'
-      ? { background: 'var(--brand-primary)', color: '#fff', boxShadow: 'var(--shadow-brand)' }
-      : { background: 'transparent', color: '#fff', border: '1.5px solid rgba(255,255,255,0.3)' };
   return (
-    <button onClick={() => signInWithGoogle()} className={`${base} ${className}`} style={style}>
+    <button type="button" onClick={() => signInWithGoogle()} className={`bh-button bh-button-primary ${className}`}>
       {children}
     </button>
   );
@@ -78,281 +70,166 @@ export default function LoginPage() {
   return (
     <div className="bh-landing min-h-screen overflow-x-hidden">
       {/* NAV */}
-      <div
-        className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 backdrop-blur"
-        style={{ background: 'rgba(255,253,249,0.9)', borderBottom: '1px solid var(--border-light)' }}
-      >
-        <img src={logo} alt="FamilyOS" className="h-[30px]" />
-        <div className="flex items-center gap-7">
-          <a href="#how-it-works" className="hidden sm:inline text-sm font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+      <header className="bh-nav sticky top-0 z-50">
+        <a href="#top" aria-label="FamilyOS, back to top" className="bh-nav-logo"><img src={logo} alt="FamilyOS" /></a>
+        <nav aria-label="Main navigation" className="bh-nav-links">
+          <a href="#how-it-works" className="hidden sm:inline text-sm font-semibold">
             How it works
           </a>
-          <a href="#features" className="hidden sm:inline text-sm font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+          <a href="#features" className="hidden sm:inline text-sm font-semibold">
             Features
           </a>
-          <a href="#pricing" className="hidden sm:inline text-sm font-semibold" style={{ color: 'var(--fg-secondary)' }}>
+          <a href="#pricing" className="hidden sm:inline text-sm font-semibold">
             Pricing
           </a>
           <button
+            type="button"
             onClick={() => signInWithGoogle()}
-            className="inline-flex items-center rounded-[var(--radius-full)] font-bold text-sm px-5 py-2.5"
-            style={{ background: 'var(--brand-primary)', color: '#fff', boxShadow: 'var(--shadow-brand)' }}
+            className="bh-nav-cta"
           >
-            Get started
+            Get started <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* HERO */}
-      <div className="relative px-8 pt-[88px] pb-24" style={{ background: 'var(--bark-700)' }}>
-        <div
-          className="bh-glow absolute -top-[140px] left-1/2 -translate-x-[42%] w-[720px] h-[720px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(224,140,0,0.35), transparent 70%)' }}
-        />
-        <div className="relative max-w-[1180px] mx-auto flex items-center gap-16 flex-wrap">
-          <div className="bh-fade-up flex-1 min-w-[320px] basis-[460px]">
-            <div
-              className="inline-flex items-center gap-2 rounded-[var(--radius-full)] text-[13px] font-semibold px-3.5 py-1.5 mb-6"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--honey-200)' }}
-            >
-              <Sparkles className="w-[15px] h-[15px]" />
-              Built ADHD-first
+      <section id="top" className="bh-hero">
+        <div className="bh-hero-inner">
+          <div className="bh-hero-copy bh-fade-up">
+            <div className="bh-eyebrow bh-eyebrow-light"><Sparkles className="w-4 h-4" aria-hidden="true" /> The calmer way to run a household</div>
+            <h1 className="bh-font-display">Less chaos.<br /><span>More living.</span></h1>
+            <p>Chores, schedules, spending, and all the little things in one friendly home base. FamilyOS helps your whole household stay on the same page, without keeping it all in your head.</p>
+            <div className="bh-hero-actions">
+              <GetStartedButton>Get started <ArrowUpRight className="w-5 h-5" aria-hidden="true" /></GetStartedButton>
+              <a href="#demo" className="bh-button bh-button-ghost">See it in action <ArrowRight className="w-4 h-4" aria-hidden="true" /></a>
             </div>
-            <h1
-              className="bh-font-display font-extrabold text-white mb-5"
-              style={{ fontSize: 'clamp(36px, 4.6vw, 56px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}
-            >
-              Your household,<br />actually running itself.
-            </h1>
-            <p className="text-lg leading-relaxed max-w-[460px] mb-8" style={{ color: 'rgba(255,248,238,0.72)' }}>
-              FamilyOS brings your finances, your smart home, and your family's day-to-day
-              into one place — with an AI assistant that keeps up so you don't have to.
-            </p>
-            <div className="flex gap-3.5 flex-wrap">
-              <GetStartedButton variant="primary">Get started free</GetStartedButton>
-              <a href="#demo">
-                <GetStartedButton variant="ghost">See how it works</GetStartedButton>
-              </a>
-            </div>
+            <div className="bh-hero-footnote"><span className="bh-footnote-line" /> Built for real homes and beautifully imperfect days.</div>
           </div>
-          <div className="bh-fade-up-delay flex-none flex justify-center scale-[0.82] origin-top">
-            <LandingPhoneMockup />
+          <div className="bh-hero-art bh-fade-up-delay">
+            <div className="bh-hero-orbit" aria-hidden="true" />
+            <div className="bh-hero-spark bh-hero-spark-one" aria-hidden="true">✳</div>
+            <div className="bh-hero-spark bh-hero-spark-two" aria-hidden="true">✦</div>
+            <div className="bh-phone-wrap"><LandingPhoneMockup /></div>
+            <div className="bh-hero-note" aria-hidden="true"><span className="bh-note-icon"><Check className="w-4 h-4" /></span><span>One thing at a time.<small>You've got this.</small></span></div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* STATS STRIP */}
-      <div className="px-8 py-14" style={{ background: 'var(--cream-50)', borderBottom: '1px solid var(--border-light)' }}>
-        <div className="max-w-[1000px] mx-auto flex justify-between gap-8 flex-wrap text-center">
-          <div className="flex-1 basis-[200px]">
-            <div className="bh-font-display text-[40px] font-extrabold" style={{ color: 'var(--brand-primary)' }}>
-              6-in-1
-            </div>
-            <div className="text-sm font-semibold mt-1.5" style={{ color: 'var(--fg-muted)' }}>
-              finance, home, chores, and more — one app instead of six
-            </div>
-          </div>
-          <div className="flex-1 basis-[200px]">
-            <div className="bh-font-display text-[40px] font-extrabold" style={{ color: 'var(--brand-secondary)' }}>
-              1 briefing
-            </div>
-            <div className="text-sm font-semibold mt-1.5" style={{ color: 'var(--fg-muted)' }}>
-              a day — what matters, not everything that happened
-            </div>
-          </div>
-          <div className="flex-1 basis-[200px]">
-            <div className="bh-font-display text-[40px] font-extrabold" style={{ color: 'var(--brand-accent)' }}>
-              instant
-            </div>
-            <div className="text-sm font-semibold mt-1.5" style={{ color: 'var(--fg-muted)' }}>
-              answers from Hermes, and points the moment a chore's done
-            </div>
+      <section className="bh-promise" aria-label="What FamilyOS helps you do">
+        <div className="bh-promise-inner">
+          <p className="bh-promise-heading">Room to breathe, <em>every day.</em></p>
+          <div className="bh-promise-items">
+            <span><Check className="w-4 h-4" aria-hidden="true" /> Know what matters today</span>
+            <span><Check className="w-4 h-4" aria-hidden="true" /> Share the mental load</span>
+            <span><Check className="w-4 h-4" aria-hidden="true" /> Celebrate small wins</span>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* HOW IT WORKS */}
-      <div id="how-it-works" className="px-8 py-24" style={{ background: 'var(--cream-200)' }}>
-        <div className="max-w-[1180px] mx-auto">
-          <div className="text-center mb-14">
-            <div className="text-[13px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-primary)' }}>
-              How it works
-            </div>
-            <h2
-              className="bh-font-display font-extrabold max-w-[640px] mx-auto"
-              style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}
-            >
-              From six scattered apps to one calm view.
-            </h2>
+      <section id="how-it-works" className="bh-section bh-how">
+        <div className="bh-container">
+          <div className="bh-section-heading">
+            <div className="bh-eyebrow">01 / A simpler way</div>
+            <h2 className="bh-font-display">The house stuff, <span>handled together.</span></h2>
+            <p>From the little daily wins to the big-picture plans, everything has a place.</p>
           </div>
-          <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          <div className="bh-steps">
             {HOW_IT_WORKS.map((s) => (
-              <div
-                key={s.step}
-                className="bg-white rounded-[var(--radius-lg)] p-7"
-                style={{ border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)' }}
-              >
-                <div
-                  className="w-11 h-11 rounded-[var(--radius-md)] flex items-center justify-center mb-4"
-                  style={{ background: s.tile, color: s.tint }}
-                >
+              <article key={s.step} className="bh-step">
+                <div className="bh-step-top"><span>{s.step}</span><span className="bh-step-line" /></div>
+                <div className="bh-step-icon" style={{ background: s.tile, color: s.tint }}>
                   <s.icon className="w-[22px] h-[22px]" />
                 </div>
-                <div className="text-[13px] font-bold mb-1.5" style={{ color: 'var(--fg-muted)' }}>
-                  {s.step}
-                </div>
-                <div className="bh-font-display font-bold text-lg mb-2" style={{ color: 'var(--bark-700)' }}>
-                  {s.title}
-                </div>
-                <div className="text-sm leading-relaxed" style={{ color: 'var(--fg-secondary)' }}>
-                  {s.body}
-                </div>
-              </div>
+                <h3 className="bh-font-display">{s.title}</h3>
+                <p>{s.body}</p>
+              </article>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* FEATURES */}
-      <div id="features" className="px-8 py-24" style={{ background: 'var(--cream-50)' }}>
-        <div className="max-w-[1180px] mx-auto">
-          <div className="text-center mb-14">
-            <div className="text-[13px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-primary)' }}>
-              Features
-            </div>
-            <h2
-              className="bh-font-display font-extrabold max-w-[640px] mx-auto"
-              style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}
-            >
-              Every part of home life, in one place.
-            </h2>
+      <section id="features" className="bh-section bh-features">
+        <div className="bh-container">
+          <div className="bh-section-heading">
+            <div className="bh-eyebrow">02 / Made for your real life</div>
+            <h2 className="bh-font-display">Less switching tabs. <span>More showing up.</span></h2>
+            <p>All the moving parts of home, finally moving in the same direction.</p>
           </div>
-          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="rounded-[var(--radius-lg)] p-6"
-                style={{ border: '1px solid var(--border-light)', background: 'var(--cream-100)' }}
-              >
-                <f.icon className="w-[22px] h-[22px] mb-3.5" style={{ color: 'var(--honey-600)' }} />
-                <div className="bh-font-display font-bold text-base mb-1.5" style={{ color: 'var(--bark-700)' }}>
-                  {f.title}
-                </div>
-                <div className="text-sm leading-relaxed" style={{ color: 'var(--fg-secondary)' }}>
-                  {f.body}
-                </div>
-              </div>
+          <div className="bh-feature-grid">
+            {FEATURES.map((feature, index) => (
+              <article key={feature.title} className="bh-feature">
+                <div className="bh-feature-top"><span className="bh-feature-icon"><feature.icon className="w-6 h-6" aria-hidden="true" /></span><span className="bh-feature-index">0{index + 1}</span></div>
+                <div><h3 className="bh-font-display">{feature.title}</h3><p>{feature.body}</p></div>
+              </article>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ANIMATED DEMO */}
-      <div id="demo" className="px-8 py-24" style={{ background: 'var(--cream-200)' }}>
-        <div className="max-w-[920px] mx-auto">
-          <div className="text-center mb-12">
-            <div className="text-[13px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-primary)' }}>
-              See it in action
-            </div>
-            <h2
-              className="bh-font-display font-extrabold"
-              style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}
-            >
-              Watch a chore go from steps to streak.
-            </h2>
+      <section id="demo" className="bh-section bh-demo">
+        <div className="bh-container bh-demo-inner">
+          <div className="bh-section-heading">
+            <div className="bh-eyebrow">03 / Small wins add up</div>
+            <h2 className="bh-font-display">A little momentum <span>looks good on you.</span></h2>
+            <p>See how a daunting chore becomes a few doable steps and a well-earned win.</p>
           </div>
-          <LandingDemoCard />
+          <div className="bh-demo-card"><LandingDemoCard /></div>
         </div>
-      </div>
+      </section>
 
       {/* PRICING */}
-      <div id="pricing" className="px-8 py-24" style={{ background: 'var(--cream-50)' }}>
-        <div className="max-w-[560px] mx-auto text-center">
-          <div className="text-[13px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-primary)' }}>
-            Pricing
+      <section id="pricing" className="bh-section bh-pricing">
+        <div className="bh-container bh-pricing-inner">
+          <div className="bh-pricing-copy">
+            <div className="bh-eyebrow">04 / Simple from the start</div>
+            <h2 className="bh-font-display">Good things are <span>better shared.</span></h2>
+            <p>One plan for the whole household. Everything you need to bring a little more ease to every day.</p>
+            <div className="bh-pricing-aside"><span>✳</span> Less juggling. More living.</div>
           </div>
-          <h2 className="bh-font-display font-extrabold mb-2" style={{ fontSize: 'clamp(28px, 3vw, 38px)', color: 'var(--bark-700)' }}>
-            Simple pricing
-          </h2>
-          <p style={{ color: 'var(--fg-muted)' }}>One plan. No tiers to compare.</p>
-
-          <div
-            className="mt-8 rounded-[var(--radius-xl)] p-8 text-left bg-white"
-            style={{ border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-lg)' }}
-          >
-            <div className="flex items-baseline gap-2">
-              <span className="bh-font-display text-4xl font-extrabold" style={{ color: 'var(--bark-700)' }}>
-                $9.99
-              </span>
-              <span style={{ color: 'var(--fg-muted)' }}>/month</span>
-            </div>
-            <p className="mt-2 text-sm" style={{ color: 'var(--fg-muted)' }}>
-              Covers up to 3 household members.
-            </p>
-            <div className="mt-4 pt-4 text-sm" style={{ borderTop: '1px solid var(--border-light)', color: 'var(--fg-muted)' }}>
-              + $2.99/month for each additional member
-            </div>
-            <ul className="mt-6 space-y-2 text-sm" style={{ color: 'var(--fg-secondary)' }}>
-              <li>&#10003; Everything in FamilyOS — finance, home, family tracking, AI assistant</li>
-              <li>&#10003; Unlimited bank & smart home connections</li>
-              <li>&#10003; Cancel anytime</li>
+          <div className="bh-price-card">
+            <div className="bh-price-label">The household plan <span>All in, together</span></div>
+            <div className="bh-price-amount"><strong className="bh-font-display">$9.99</strong><span>/ month</span></div>
+            <p>Covers up to 3 household members.</p>
+            <div className="bh-price-additional">+ $2.99/month for each additional member</div>
+            <ul>
+              <li><Check className="w-4 h-4" aria-hidden="true" /> Everything in FamilyOS — finance, home, family tracking, AI assistant</li>
+              <li><Check className="w-4 h-4" aria-hidden="true" /> Unlimited bank & smart home connections</li>
+              <li><Check className="w-4 h-4" aria-hidden="true" /> Cancel anytime</li>
             </ul>
-            <button
-              onClick={() => signInWithGoogle()}
-              className="w-full mt-8 rounded-[var(--radius-full)] font-bold text-[15px] py-3.5"
-              style={{ background: 'var(--brand-primary)', color: '#fff', boxShadow: 'var(--shadow-brand)' }}
-            >
-              Get started
-            </button>
+            <GetStartedButton className="w-full justify-center">Get started <ArrowUpRight className="w-5 h-5" aria-hidden="true" /></GetStartedButton>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* FINAL CTA */}
-      <div id="get-started" className="relative px-8 py-24 text-center overflow-hidden" style={{ background: 'var(--bark-700)' }}>
-        <div
-          className="absolute -bottom-40 left-1/2 -translate-x-1/2 w-[640px] h-[640px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(224,140,0,0.3), transparent 70%)' }}
-        />
-        <div className="relative max-w-[560px] mx-auto">
-          <h2 className="bh-font-display font-extrabold text-white mb-4" style={{ fontSize: 'clamp(28px, 3.4vw, 42px)' }}>
-            Ready for a calmer house?
-          </h2>
-          <p className="text-base mb-8" style={{ color: 'rgba(255,248,238,0.7)' }}>
-            Connect your first account in under a minute. Free to try for your household.
-          </p>
-          <div className="flex gap-3.5 justify-center flex-wrap">
-            <GetStartedButton variant="primary">Get started free</GetStartedButton>
-          </div>
-          <div className="text-[13px] mt-4" style={{ color: 'rgba(255,248,238,0.5)' }}>
-            No credit card required.
-          </div>
+      <section id="get-started" className="bh-final">
+        <div className="bh-final-inner">
+          <span className="bh-final-mark" aria-hidden="true">✳</span>
+          <div className="bh-eyebrow bh-eyebrow-light">It's nice to be home</div>
+          <h2 className="bh-font-display">Ready for a <span>lighter load?</span></h2>
+          <p>A little help for the household goes a long way. Let's start with today.</p>
+          <GetStartedButton>Get started <ArrowUpRight className="w-5 h-5" aria-hidden="true" /></GetStartedButton>
         </div>
-      </div>
+      </section>
 
       {/* FOOTER */}
-      <div className="px-8 py-10 flex items-center justify-between flex-wrap gap-4" style={{ background: 'var(--bark-800)' }}>
-        <div className="flex items-center gap-2.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-          <span className="bh-font-display font-bold" style={{ color: 'rgba(255,255,255,0.85)' }}>
-            FamilyOS
-          </span>
-          <span>&copy; 2026. A calmer home for every household.</span>
+      <footer className="bh-footer">
+        <div className="bh-footer-brand">
+          <span className="bh-font-display">FamilyOS</span>
+          <span>A calmer home for every household.</span>
+          <small>&copy; 2026 HotMessExpress</small>
         </div>
-        <div className="flex gap-5 flex-wrap">
-          <a href="#how-it-works" className="text-[13px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            How it works
-          </a>
-          <a href="#features" className="text-[13px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            Features
-          </a>
-          <a href="/privacy" className="text-[13px] hover:underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Privacy Policy
-          </a>
-          <a href="/terms" className="text-[13px] hover:underline" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Terms of Service
-          </a>
-        </div>
-      </div>
+        <nav aria-label="Footer navigation" className="bh-footer-links">
+          <a href="#how-it-works">How it works</a>
+          <a href="#features">Features</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+        </nav>
+      </footer>
     </div>
   );
 }

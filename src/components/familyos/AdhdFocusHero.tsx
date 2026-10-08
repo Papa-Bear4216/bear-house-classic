@@ -61,7 +61,9 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
 
   const handleQuickComplete = () => {
     if (!currentTask) return;
-    triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 75);
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 75);
+    }
     onComplete(currentTask.id);
     toast.success('BOOM! 💥 Task crushed. Dopamine unlocked!', {
       description: `"${currentTask.text}" is done. Executive dysfunction: 0, You: 1.`,
@@ -72,7 +74,7 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
   const completionPct = todayTotalCount > 0 ? Math.round((todayCompletedCount / todayTotalCount) * 100) : 100;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 p-5 sm:p-6 backdrop-blur-xl shadow-2xl">
+    <div className="fo-focus-card relative overflow-hidden rounded-3xl border p-5 sm:p-6 shadow-2xl">
       {/* Decorative ambient background glows */}
       <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
@@ -85,11 +87,11 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
           </div>
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <span>Hot Mess Express</span>
+              <span>Today's momentum</span>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
             </div>
             <div className="text-sm font-semibold text-white">
-              {completionPct >= 100 ? '🎉 Household Chaos 100% Tamed!' : `${completionPct}% Chaos Tamed Today`}
+              {completionPct >= 100 ? 'You did it — all caught up!' : `${completionPct}% of today's focus complete`}
             </div>
           </div>
         </div>
@@ -99,7 +101,7 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
           <div className="flex-1 sm:w-44 h-3 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
             <div
               className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 transition-all duration-700 ease-out"
-              style={{ width: `${Math.min(100, Math.max(8, completionPct))}%` }}
+              style={{ width: `${Math.min(100, Math.max(0, completionPct))}%` }}
             />
           </div>
           <span className="text-xs font-mono font-bold text-amber-300 min-w-[3rem] text-right">
@@ -176,7 +178,7 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
               className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition active:scale-[0.98]"
             >
               <Check className="w-5 h-5 stroke-[3]" />
-              <span>Mark Done (Dopamine!)</span>
+              <span>Mark it done</span>
             </button>
 
             <button
@@ -184,7 +186,7 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
               className="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition active:scale-[0.98] hover:border-amber-400/40"
             >
               <Play className="w-4 h-4 text-amber-400 fill-amber-400" />
-              <span>Start Focus Mode Timer</span>
+              <span>Start focus timer</span>
             </button>
           </div>
         </div>
@@ -194,9 +196,9 @@ export const AdhdFocusHero: React.FC<AdhdFocusHeroProps> = ({
           <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-emerald-400">
             <Trophy className="w-7 h-7" />
           </div>
-          <h3 className="text-xl font-bold text-white font-display">Zero Overwhelm. You Crushed It!</h3>
+          <h3 className="text-xl font-bold text-white font-display">You're all caught up.</h3>
           <p className="text-sm text-slate-300 max-w-md mx-auto">
-            All priority tasks for today are clear. Your executive function did its job. Time to recharge guilt-free.
+            No open tasks to focus on right now. Take a breath and enjoy the breathing room.
           </p>
         </div>
       )}

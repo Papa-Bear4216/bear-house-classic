@@ -53,7 +53,19 @@ const WeatherWidget: React.FC = () => {
       setLoading(true);
       authedFetch(`/api/weather${query}`)
         .then(r => r.json())
-        .then(d => { if (!d.error) setWeather(d); })
+        .then(d => {
+          if (
+            typeof d?.current?.temp === 'number' &&
+            typeof d.current.unit === 'string' &&
+            typeof d.current.shortForecast === 'string' &&
+            typeof d.current.windSpeed === 'string' &&
+            typeof d.today?.high === 'number' &&
+            typeof d.today.low === 'number' &&
+            typeof d.today.shortForecast === 'string' &&
+            typeof d.today.precipChance === 'number' &&
+            Array.isArray(d.alerts)
+          ) setWeather(d);
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     };

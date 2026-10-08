@@ -5,9 +5,10 @@ import { triggerConfetti } from '@/lib/confetti';
 const STEPS = ['Move small stuff out of the way', 'Take out the recycling', 'Wipe down the counters'];
 
 export default function LandingDemoCard() {
-  const [demoStep, setDemoStep] = useState(0);
+  const [demoStep, setDemoStep] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? STEPS.length : 0);
 
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const id = setInterval(() => {
       setDemoStep((s) => {
         const next = (s + 1) % 5;
@@ -27,7 +28,7 @@ export default function LandingDemoCard() {
   return (
     <div className="bg-slate-900/90 backdrop-blur-xl border border-white/15 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-2xl text-slate-100">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 bg-gradient-to-tr from-purple-500 to-pink-500 shadow-md">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-950 shrink-0 bg-gradient-to-tr from-amber-400 to-orange-400 shadow-md">
           <Paintbrush className="w-5 h-5" />
         </div>
         <div className="flex-1">
@@ -36,12 +37,12 @@ export default function LandingDemoCard() {
           </div>
           <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mt-1.5 w-full">
             <div
-              className="h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-purple-500 to-pink-500"
+              className="h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-amber-400 to-emerald-400"
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
-        <div className="text-xs font-bold px-3 py-1 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
+        <div className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
           +45 pts
         </div>
       </div>
@@ -55,7 +56,7 @@ export default function LandingDemoCard() {
               key={label}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-300 ${
                 active 
-                  ? 'bg-slate-800/90 border-pink-500/50 shadow-lg shadow-pink-500/10' 
+                  ? 'bg-slate-800/90 border-amber-500/50 shadow-lg shadow-amber-500/10'
                   : done 
                   ? 'bg-slate-900/50 border-emerald-500/20 opacity-70' 
                   : 'bg-slate-900/30 border-white/5 opacity-40'

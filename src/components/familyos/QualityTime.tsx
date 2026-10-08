@@ -3,6 +3,7 @@ import { Plus, Calendar, CheckCircle2, Sparkles, Trash2, Timer, X, Pencil, Check
 import { KEYS, householdPillars, householdActivityTemplates, loadJSON, saveJSON, uid, callClaude, relativeDate, formatDate, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
 import { useAppContext } from '@/contexts/AppContext';
 import { onSyncUpdate } from '@/lib/sync';
+import { activityTimestamp } from '@/lib/activityDate';
 import { triggerConfetti } from '@/lib/confetti';
 import AlertModal from './AlertModal';
 
@@ -13,6 +14,13 @@ interface Activity {
   duration: number;
   scheduledAt: number;
   completed: boolean;
+}
+
+function readActivities(): Activity[] {
+  return loadJSON<Activity[]>(KEYS.activities, []).map((activity) => {
+    const scheduledAt = activityTimestamp(activity.scheduledAt);
+    return scheduledAt === null ? activity : { ...activity, scheduledAt };
+  });
 }
 
 interface Pillar {
@@ -58,7 +66,7 @@ const QualityTime: React.FC = () => {
   const { householdMembers, currentUser } = useAppContext();
   const activityTemplates = householdActivityTemplates(householdMembers);
   const [pillars, setPillars] = useState<Pillar[]>(() => loadJSON(KEYS.pillars, householdPillars(householdMembers)));
-  const [activities, setActivities] = useState<Activity[]>(() => loadJSON(KEYS.activities, []));
+  const [activities, setActivities] = useState<Activity[]>(readActivities);
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [transition, setTransition] = useState<{ open: boolean; secondsLeft: number; activityName: string }>({ open: false, secondsLeft: 0, activityName: '' });
   // per-pillar edit state
@@ -88,7 +96,7 @@ const QualityTime: React.FC = () => {
       setPillars(next);
     }
     if (key === KEYS.activities || key === '*') {
-      const next = loadJSON<Activity[]>(KEYS.activities, []);
+      const next = readActivities();
       lastAppliedActivitiesJSON.current = JSON.stringify(next);
       setActivities(next);
     }
@@ -444,4 +452,3 @@ const QualityTime: React.FC = () => {
 };
 
 export default QualityTime;
-

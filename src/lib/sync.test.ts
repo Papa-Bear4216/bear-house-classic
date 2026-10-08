@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pullFromCloud, pushToCloud, queueOfflineWrite, isWriteQueued } from './sync';
+import { pullFromCloud, pushToCloud, isWriteQueued, onSyncUpdate } from './sync';
 
 // pullFromCloud goes through the Supabase JS client, not fetch — stub the
 // client's query chain so pushToCloud has a currentHouseholdId to work with
@@ -29,6 +29,13 @@ vi.stubGlobal('localStorage', {
   getItem: (k: string) => store.get(k) ?? null,
   setItem: (k: string, v: string) => { store.set(k, v); },
   removeItem: (k: string) => { store.delete(k); },
+});
+
+describe('sync subscriptions', () => {
+  it('returns a React-compatible cleanup function', () => {
+    const unsubscribe = onSyncUpdate(() => {});
+    expect(unsubscribe()).toBeUndefined();
+  });
 });
 
 describe('pushToCloud write serialization', () => {

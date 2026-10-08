@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment } from '@/lib/familyos';
+import { KEYS, loadJSON, saveJSON, uid, loadMemberPreferences, buildHobbyPromptFragment, type PantryItem } from '@/lib/familyos';
 import { memoryFactBlock } from '@/lib/householdMemory';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
@@ -772,7 +772,7 @@ const HermesChat: React.FC = () => {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-24 right-20 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 shadow-xl shadow-amber-500/30 flex items-center justify-center transition-all active:scale-95 border border-amber-400/40 group focus-ring"
+        className="fo-floating-hermes fixed bottom-24 right-20 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 shadow-xl shadow-amber-500/30 flex items-center justify-center transition-all active:scale-95 border border-amber-400/40 group focus-ring"
         title="Ask Hermes"
       >
         <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />

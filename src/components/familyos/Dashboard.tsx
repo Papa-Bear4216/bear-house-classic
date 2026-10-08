@@ -17,6 +17,10 @@ import SystemHealth from './SystemHealth';
 import MemberProfileModal from './MemberProfileModal';
 import ActivityFeed from './ActivityFeed';
 import AdhdFocusHero from './AdhdFocusHero';
+import MobileDailyDeck from './MobileDailyDeck';
+import MobileActionWheel from './MobileActionWheel';
+import { getDailySuggestion } from '@/lib/dailySuggestion';
+import { activityTimestamp } from '@/lib/activityDate';
 import FocusMode from './FocusMode';
 
 // recharts (pulled in by Trends) is ~100KB+ of the main bundle but only
@@ -30,7 +34,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
-  const { householdMembers, currentUser } = useAppContext();
+  const { householdMembers, currentUser, currentRole } = useAppContext();
 
   const [modal, setModal] = useState({ open: false, title: '', body: '', loading: false });
   const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
@@ -50,7 +54,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const morningBrief = buildMorningBrief();
 
   const promises = loadJSON<any[]>(KEYS.promises, []);
-  const activities = loadJSON<any[]>(KEYS.activities, []);
+  const activities = loadJSON<any[]>(KEYS.activities, []).map((activity) => ({
+    ...activity, scheduledAt: activityTimestamp(activity.scheduledAt),
+  }));
   const emotions = loadJSON<any[]>(KEYS.emotions, []);
   const pillars = loadJSON<any[]>(KEYS.pillars, householdPillars(householdMembers));
   const presence = loadJSON<any[]>(KEYS.presenceLog, []);
@@ -110,13 +116,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     const openPromises = promises.filter((p) => !p.completed);
     const overduePromises = openPromises.filter((p) => isOverdue(p)).length;
     const upcoming = activities
-      .filter((a) => !a.completed)
+      .filter((a) => !a.completed && typeof a.scheduledAt === 'number' && Number.isFinite(a.scheduledAt) && a.scheduledAt > Date.now())
       .sort((a, b) => a.scheduledAt - b.scheduledAt)[0];
     const weekAgo = Date.now() - 7 * 86400000;
     const recentPresence = presence.filter((p) => p.ts > weekAgo);
     const presencePct = recentPresence.length ? Math.round((recentPresence.filter((p) => p.present).length / recentPresence.length) * 100) : 0;
     return { todayTasks, todayCompletedCount, todayTotalCount, openPromises: openPromises.length, overduePromises, upcoming, presencePct };
   }, [tasks, promises, activities, presence]);
+
+  const suggestion = getDailySuggestion({ tasks, promises, activities, memberName: currentUser?.name, isChild: currentRole === 'child', now: Date.now() });
 
 
   const personCard = (id: string, name: string, color: string) => {
@@ -310,52 +318,39 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
   };
 
   return (
-    <div className="space-y-6">
+    <div className="fo-dashboard space-y-6">
       <AlertModal {...modal} accent="indigo" onClose={() => setModal({ ...modal, open: false })} />
       {profileMemberId && (
         <MemberProfileModal memberId={profileMemberId} onClose={() => setProfileMemberId(null)} />
       )}
 
       {/* Hero Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="fo-dashboard-intro">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-display">
-              HotMessExpress
-            </h2>
-            <span className="text-sm sm:text-base font-bold text-amber-400 font-display">
-              — The Family OS
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Junction Command 🚂
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Dopamine-driven household coordination. One bite-sized win at a time.
-          </p>
+          <div className="fo-dashboard-eyebrow">Your household / Today</div>
+          <h2>{new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}, <span>{currentUser?.name?.split(' ')[0] || 'friend'}.</span></h2>
+          <p>One thing at a time. Here’s what matters around your home.</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="fo-dashboard-actions">
           <button
             onClick={() => setFocusModeOpen((f) => !f)}
-            className={`px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md focus-ring ${
-              focusModeOpen
-                ? 'bg-amber-500 text-slate-950 shadow-amber-500/30'
-                : 'bg-white/10 hover:bg-white/15 border border-white/10 text-white hover:border-amber-400/40'
-            }`}
+            className={`fo-dashboard-action focus-ring ${focusModeOpen ? 'fo-dashboard-action-primary' : ''}`}
           >
-            <Zap className="w-4 h-4 text-amber-400 fill-current" />
-            <span>{focusModeOpen ? 'Close Focus Mode' : 'Sprint Timer'}</span>
+            <Zap className="w-4 h-4" />
+            <span>{focusModeOpen ? 'Close focus' : 'Focus mode'}</span>
           </button>
 
           <button
             onClick={dailySummary}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-[0.98] focus-ring"
+            className="fo-dashboard-action fo-dashboard-action-primary focus-ring"
           >
-            <Sparkles className="w-4 h-4" /> AI Summary
+            <Sparkles className="w-4 h-4" /> Get your brief
           </button>
         </div>
       </div>
+
+      <MobileActionWheel suggestion={suggestion} isChild={currentRole === 'child'} onNav={onNav} />
 
       {/* Focus Mode Overlay/Card if active */}
       {focusModeOpen && (
@@ -370,24 +365,16 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
       )}
 
       {/* Tabs */}
-      <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1 gap-1">
+      <div className="fo-dashboard-tabs">
         <button
           onClick={() => setTab('overview')}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition focus-ring ${
-            tab === 'overview'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
+          className={`fo-dashboard-tab focus-ring ${tab === 'overview' ? 'fo-dashboard-tab-active' : ''}`}
         >
           <LayoutDashboard className="w-4 h-4" /> Overview
         </button>
         <button
           onClick={() => setTab('trends')}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition focus-ring ${
-            tab === 'trends'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
+          className={`fo-dashboard-tab focus-ring ${tab === 'trends' ? 'fo-dashboard-tab-active' : ''}`}
         >
           <BarChart3 className="w-4 h-4" /> Trends
         </button>
@@ -409,71 +396,79 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         </Suspense>
       ) : (
         <>
-          {/* ADHD Focus Hero: One Thing Right Now & Chaos Meter */}
-          <AdhdFocusHero
-            tasks={tasks}
-            onComplete={handleCompleteTask}
-            onLaunchFocusMode={() => setFocusModeOpen(true)}
-            todayCompletedCount={stats.todayCompletedCount}
-            todayTotalCount={stats.todayTotalCount}
+          <MobileDailyDeck
+            focusCard={<AdhdFocusHero
+              tasks={tasks}
+              onComplete={handleCompleteTask}
+              onLaunchFocusMode={() => setFocusModeOpen(true)}
+              todayCompletedCount={stats.todayCompletedCount}
+              todayTotalCount={stats.todayTotalCount}
+            />}
+            upcoming={stats.upcoming}
+            openPromises={stats.openPromises}
+            isChild={currentRole === 'child'}
+            onNav={onNav}
+            onQuickAdd={onQuickAdd}
           />
+          <div className="fo-desktop-focus">
+            <AdhdFocusHero
+              tasks={tasks}
+              onComplete={handleCompleteTask}
+              onLaunchFocusMode={() => setFocusModeOpen(true)}
+              todayCompletedCount={stats.todayCompletedCount}
+              todayTotalCount={stats.todayTotalCount}
+            />
+          </div>
 
           {/* Quick Action Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="fo-quick-actions">
             <button
               onClick={() => onQuickAdd('household')}
-              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-slate-900/60 hover:from-amber-500/20 hover:to-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 text-amber-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
+              className="fo-quick-action focus-ring"
             >
               <Plus className="w-4 h-4 text-amber-400 group-hover:rotate-90 transition-transform duration-200" />
               <span>Add Chore</span>
             </button>
-            <button
-              onClick={() => onQuickAdd('promises')}
-              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-sky-500/10 to-slate-900/60 hover:from-sky-500/20 hover:to-slate-900/80 border border-sky-500/20 hover:border-sky-500/40 text-sky-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
-            >
-              <Handshake className="w-4 h-4 text-sky-400" />
-              <span>Make Promise</span>
-            </button>
-            <button
-              onClick={() => onQuickAdd('quality')}
-              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-slate-900/60 hover:from-pink-500/20 hover:to-slate-900/80 border border-pink-500/20 hover:border-pink-500/40 text-pink-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
-            >
-              <Calendar className="w-4 h-4 text-pink-400" />
-              <span>Plan Hangout</span>
-            </button>
-            <button
-              onClick={() => onQuickAdd('emotions')}
-              className="group py-3 px-3.5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-slate-900/60 hover:from-rose-500/20 hover:to-slate-900/80 border border-rose-500/20 hover:border-rose-500/40 text-rose-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm hover:scale-[1.02] focus-ring"
-            >
-              <Heart className="w-4 h-4 text-rose-400" />
-              <span>Log Vibe</span>
-            </button>
+            {currentRole === 'child' ? (
+              <>
+                <button onClick={() => onNav('family')} className="fo-quick-action focus-ring"><Heart className="w-4 h-4 text-rose-400" /><span>See Family</span></button>
+                <button onClick={() => onNav('rewards')} className="fo-quick-action focus-ring"><Sparkles className="w-4 h-4 text-amber-400" /><span>My Rewards</span></button>
+                <button onClick={() => onNav('kids')} className="fo-quick-action focus-ring"><Zap className="w-4 h-4 text-sky-400" /><span>Kids Corner</span></button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => onQuickAdd('promises')} className="fo-quick-action focus-ring"><Handshake className="w-4 h-4 text-sky-400" /><span>Make Promise</span></button>
+                <button onClick={() => onQuickAdd('quality')} className="fo-quick-action focus-ring"><Calendar className="w-4 h-4 text-pink-400" /><span>Plan Hangout</span></button>
+                <button onClick={() => onQuickAdd('emotions')} className="fo-quick-action focus-ring"><Heart className="w-4 h-4 text-rose-400" /><span>Log Vibe</span></button>
+              </>
+            )}
           </div>
 
           {/* Bento KPI Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className={`fo-stat-grid${currentRole === 'child' ? ' fo-child-stats' : ''}`}>
             <button
               onClick={() => onNav('household')}
-              className="bg-gradient-to-br from-amber-500/10 via-slate-900/70 to-slate-950/90 border border-amber-500/25 hover:border-amber-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+              className="fo-stat-card focus-ring"
             >
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
+              <div>
                 <ListChecks className="w-5 h-5" />
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.todayTasks}</div>
-              <div className="text-xs text-amber-200/80 font-medium mt-0.5">Tasks needing eyes</div>
+              <div className="fo-stat-value">{stats.todayTasks}</div>
+              <div className="fo-stat-caption">Tasks needing eyes</div>
             </button>
 
+            {currentRole !== 'child' && <>
             <button
               onClick={() => onNav('quality')}
-              className="bg-gradient-to-br from-pink-500/10 via-slate-900/70 to-slate-950/90 border border-pink-500/25 hover:border-pink-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+              className="fo-stat-card focus-ring"
             >
-              <div className="w-10 h-10 rounded-2xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform">
+              <div>
                 <Calendar className="w-5 h-5" />
               </div>
-              <div className="text-sm sm:text-base font-bold text-white truncate">
+              <div className="fo-stat-value truncate !text-base">
                 {stats.upcoming ? stats.upcoming.name : 'Open Day'}
               </div>
-              <div className="text-xs text-pink-200/80 font-medium mt-0.5 truncate">
+              <div className="fo-stat-caption truncate">
                 {stats.upcoming
                   ? new Date(stats.upcoming.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' })
                   : 'Plan quality time'}
@@ -482,13 +477,13 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
 
             <button
               onClick={() => onNav('promises')}
-              className="bg-gradient-to-br from-sky-500/10 via-slate-900/70 to-slate-950/90 border border-sky-500/25 hover:border-sky-500/50 rounded-3xl p-4 sm:p-5 text-left transition-all duration-300 shadow-lg hover:scale-[1.02] backdrop-blur-xl group focus-ring"
+              className="fo-stat-card focus-ring"
             >
-              <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 mb-3 group-hover:scale-110 transition-transform">
+              <div>
                 <Handshake className="w-5 h-5" />
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.openPromises}</div>
-              <div className="text-xs text-sky-200/80 font-medium mt-0.5 flex items-center gap-1">
+              <div className="fo-stat-value">{stats.openPromises}</div>
+              <div className="fo-stat-caption flex items-center gap-1">
                 {stats.overduePromises > 0 ? (
                   <span className="text-rose-400 font-bold flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" /> {stats.overduePromises} overdue
@@ -498,13 +493,14 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
                 )}
               </div>
             </button>
+            </>}
 
-            <div className="bg-gradient-to-br from-emerald-500/10 via-slate-900/70 to-slate-950/90 border border-emerald-500/25 rounded-3xl p-4 sm:p-5 shadow-lg backdrop-blur-xl">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3">
+            <div className="fo-stat-card">
+              <div>
                 <TrendingUp className="w-5 h-5" />
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">{stats.presencePct}%</div>
-              <div className="text-xs text-emerald-200/80 font-medium mt-0.5">Presence this week</div>
+              <div className="fo-stat-value">{stats.presencePct}%</div>
+              <div className="fo-stat-caption">Presence this week</div>
             </div>
           </div>
 

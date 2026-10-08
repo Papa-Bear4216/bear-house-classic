@@ -11,7 +11,6 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/Login";
 import SetupPage from "@/pages/Setup";
 import BillingLockedPage from "@/pages/BillingLocked";
-import Welcome from "@/pages/Welcome";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import { onAuthStateChange, getHouseholdSession, getAccessToken, initNativeAuthRedirect } from "@/lib/householdAuth";
@@ -231,11 +230,11 @@ const App = () => {
       <ThemeProvider defaultTheme="dark">
         <BrowserRouter>
           <Routes>
-            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/welcome" element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
-            <Route path="*" element={<Welcome />} />
+            <Route path="*" element={<LoginPage />} />
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
@@ -251,7 +250,7 @@ const App = () => {
   }
 
   return (
-    <ThemeProvider defaultTheme="system">
+    <ThemeProvider defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />

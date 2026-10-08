@@ -4,6 +4,7 @@ import { loadJSON, saveJSON, uid, canDelete, User } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
 import { triggerConfetti } from '@/lib/confetti';
+import SchoolCalendar from '../SchoolCalendar';
 
 const FamilyHub: React.FC = () => {
   const { currentRole, householdMembers } = useAppContext();
@@ -29,9 +30,11 @@ const FamilyHub: React.FC = () => {
             </div>
             Family Hub
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Chat, permissions, shared memories, watchlists & game nights</p>
+          <p className="text-xs text-slate-400 mt-1">Your place for messages, school days and the good stuff in between.</p>
         </div>
       </div>
+
+      <SchoolCalendar />
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {TABS.map(t => {
@@ -164,7 +167,7 @@ const AskParentsTab: React.FC<{ isAdm: boolean }> = ({ isAdm }) => {
     }
     save(items.map(i => i.id === id ? { ...i, status } : i));
   };
-  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : m)); };
+  const del = (id: string) => { if (isAdm) save(items.map(i => i.id === id ? { ...i, deletedAt: Date.now() } : i)); };
 
   const active = items.filter(i => !i.deletedAt).reverse();
   const pending = active.filter(i => i.status === 'pending');

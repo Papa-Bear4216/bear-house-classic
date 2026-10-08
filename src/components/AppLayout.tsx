@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import {
   Settings as SettingsIcon, Search, History, ChevronUp, LogOut,
-  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone, ClipboardList, CalendarDays
+  ShoppingCart, Utensils, Receipt, Car, Wrench, Brain, Package, Home, Grid2x2, Smartphone, ClipboardList, CalendarDays, Zap
 } from 'lucide-react';
 
 import { KEYS, loadJSON, isOverdue, formatTime, loadMemberPreferences } from '@/lib/familyos';
@@ -17,6 +17,8 @@ import MagicTrail from '@/components/familyos/MagicTrail';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
 import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
+import logo from '@/assets/familyos-logo.svg';
+import '@/styles/app-shell.css';
 
 // Floating widgets rendered on every page, not the initial view itself —
 // lazy per the rule above so Dashboard can paint before these hydrate.
@@ -206,6 +208,7 @@ const AppLayout: React.FC = () => {
     const idx = dockModules.findIndex((m) => m.id === active);
     return idx >= 0 ? idx : dockModules.length; // "More" slot (last) when a More-menu module is active
   }, [dockModules, active]);
+  const activeLabel = visibleModules.find((module) => module.id === active)?.label ?? 'Dashboard';
 
   const renderModule = () => {
     // Redirect a role away from a module it can't see — defense in depth alongside
@@ -281,35 +284,40 @@ const AppLayout: React.FC = () => {
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 relative selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden font-sans">
-      {/* Atmospheric ambient lighting */}
-      <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-amber-500/[0.08] blur-[140px] pointer-events-none" />
-      <div className="fixed top-1/3 -left-40 w-96 h-96 rounded-full bg-indigo-500/[0.08] blur-[140px] pointer-events-none" />
-      <div className="fixed -bottom-40 right-1/3 w-96 h-96 rounded-full bg-rose-500/[0.05] blur-[140px] pointer-events-none" />
+    <div className="fo-shell min-h-screen text-slate-100 relative selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden font-sans">
+      <aside className="fo-sidebar" aria-label="Workspace sidebar">
+        <div className="fo-sidebar-brand"><img src={logo} alt="FamilyOS" /><span>HOME, TOGETHER</span></div>
+        <nav aria-label="Workspace navigation" className="fo-sidebar-nav">
+          <span className="fo-sidebar-label">Your space</span>
+          {dockModules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <button key={module.id} type="button" onClick={() => setActive(module.id)} aria-current={active === module.id ? 'page' : undefined} className={`fo-sidebar-link ${active === module.id ? 'fo-sidebar-link-active' : ''}`}>
+                <Icon className="w-5 h-5" aria-hidden="true" /><span>{module.label}</span>
+              </button>
+            );
+          })}
+          {moreModules.length > 0 && <span className="fo-sidebar-label fo-sidebar-label-more">Explore</span>}
+          {moreModules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <button key={module.id} type="button" onClick={() => setActive(module.id)} aria-current={active === module.id ? 'page' : undefined} className={`fo-sidebar-link ${active === module.id ? 'fo-sidebar-link-active' : ''}`}>
+                <Icon className="w-5 h-5" aria-hidden="true" /><span>{module.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="fo-sidebar-profile"><span className="fo-profile-avatar">{currentUser?.name?.charAt(0) || 'F'}</span><span><strong>{currentUser?.name || 'Your household'}</strong><small>Let's make today easier.</small></span></div>
+      </aside>
+      <div className="fo-workspace">
 
       {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-[#090D16]/80 backdrop-blur-xl border-b border-white/10 shadow-lg shadow-black/20">
-        <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-display font-extrabold text-base text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-white/10">
-              🚂
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-display font-black text-sm tracking-tight text-white">HotMessExpress</span>
-                <span className="text-[11px] text-amber-400 font-bold hidden sm:inline tracking-tight">— The Family OS</span>
-                <span 
-                  className="text-[9px] uppercase font-black tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md hidden md:inline cursor-help"
-                  title="HotMessExpress — A proud product of Dysfunction Junction 🚂"
-                >
-                  DYSFUNCTION JUNCTION 🚂
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-white/10`} />
-                <span>{currentUser?.name || 'Guest'}</span>
-              </div>
-            </div>
+      <header className="fo-header sticky top-0 z-30">
+        <div className="fo-header-inner max-w-6xl mx-auto px-4 flex items-center gap-3">
+          <div className="fo-header-identity">
+            <span className="fo-header-mobile-logo"><Home className="w-5 h-5 text-amber-300" aria-hidden="true" /><strong>FamilyOS</strong></span>
+            <span className="fo-header-breadcrumb">Your home <span>/</span> <strong>{activeLabel}</strong></span>
+            <span className="fo-header-user"><span className={`w-2 h-2 rounded-full ${dotColor}`} />{currentUser?.name || 'Guest'}</span>
           </div>
 
           {/* Brain Battery pill in header */}
@@ -318,7 +326,7 @@ const AppLayout: React.FC = () => {
             className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all hover:scale-105 shadow-sm active:scale-95 ${BATTERY_LEVELS[batteryLevel].badgeClass}`}
             title="ADHD Brain Battery — Click to adjust"
           >
-            <span>{BATTERY_LEVELS[batteryLevel].emoji}</span>
+            <Zap className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{BATTERY_LEVELS[batteryLevel].label}</span>
           </button>
 
@@ -328,7 +336,7 @@ const AppLayout: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search chores, promises..."
-              className="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
+              className="fo-search w-full border rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 outline-none transition"
             />
             {searchResults && (searchResults.tasks.length > 0 || searchResults.promises.length > 0) && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl max-h-80 overflow-y-auto z-40 p-2">
@@ -359,10 +367,11 @@ const AppLayout: React.FC = () => {
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
             <button
               onClick={() => setBatteryModalOpen(true)}
-              className="sm:hidden p-2 rounded-xl bg-white/5 border border-white/10 text-sm"
-              title="Brain Battery"
+              className={`sm:hidden p-2 rounded-xl border text-sm ${BATTERY_LEVELS[batteryLevel].badgeClass}`}
+              title={`Brain Battery — ${BATTERY_LEVELS[batteryLevel].label}`}
+              aria-label={`Brain Battery — ${BATTERY_LEVELS[batteryLevel].label}`}
             >
-              {BATTERY_LEVELS[batteryLevel].emoji}
+              <Zap className="w-4 h-4" aria-hidden="true" />
             </button>
             <div className="hidden sm:flex items-center gap-1.5 text-xs bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-slate-300">
               <div className={`w-2 h-2 rounded-full ${inZone ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
@@ -373,7 +382,7 @@ const AppLayout: React.FC = () => {
               <History className="w-4 h-4" />
             </button>
             {isAdm && (
-              <button onClick={() => setSettingsOpen(true)} className="relative text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
+              <button onClick={() => setSettingsOpen(true)} aria-label="Settings" className="relative text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition">
                 <SettingsIcon className="w-4 h-4" />
                 {totals.overdue > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center animate-pulse">
@@ -397,7 +406,7 @@ const AppLayout: React.FC = () => {
       )}
 
       {/* MAIN */}
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-32 transition-opacity duration-300" key={active}>
+      <main className="fo-main max-w-6xl mx-auto px-4 py-6 pb-32 transition-opacity duration-300" key={active}>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Suspense fallback={<div className="text-center py-16 text-slate-400 text-lg">Loading…</div>}>
             {renderModule()}
@@ -406,7 +415,7 @@ const AppLayout: React.FC = () => {
       </main>
 
       {/* Unified floating island dock */}
-      <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[94%] max-w-lg bg-slate-900/85 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl shadow-black/60 px-3 py-2 ring-1 ring-white/10">
+      <nav aria-label="Mobile navigation" className="fo-dock fixed bottom-3 left-1/2 -translate-x-1/2 z-30 w-[94%] max-w-lg backdrop-blur-2xl rounded-2xl px-3 py-2">
         {/* More drawer */}
         {showMore && moreModules.length > 0 && (
           <div className="flex flex-wrap gap-1.5 justify-around mb-2 pb-3 border-b border-white/10">
@@ -435,7 +444,7 @@ const AppLayout: React.FC = () => {
         >
           {/* Sliding active-state pill */}
           <div
-            className="absolute inset-y-0 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 transition-transform duration-300 ease-out motion-reduce:transition-none"
+            className="fo-dock-pill absolute inset-y-0 rounded-xl transition-transform duration-300 ease-out motion-reduce:transition-none"
             style={{
               width: `${100 / (dockModules.length + (moreModules.length > 0 ? 1 : 0))}%`,
               transform: `translateX(${dockSlotIndex * 100}%)`,
@@ -449,8 +458,9 @@ const AppLayout: React.FC = () => {
               <button
                 key={n.id}
                 onClick={() => setActive(n.id)}
+                aria-current={isActive ? 'page' : undefined}
                 className={`relative flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all focus-ring ${
-                  isActive ? 'text-amber-400 font-bold scale-105 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-400 hover:text-white'
+                  isActive ? 'text-amber-300 font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -491,6 +501,7 @@ const AppLayout: React.FC = () => {
         )}
       </Suspense>
       <MagicTrail />
+      </div>
     </div>
   );
 };

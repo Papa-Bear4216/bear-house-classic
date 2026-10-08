@@ -1,4 +1,5 @@
 import { loadJSON, saveJSON, uid } from './familyos';
+import { activityTimestamp } from './activityDate';
 import { MEALS_STORAGE_KEY } from '@/components/familyos/sections/mealPlannerShared';
 
 export interface DomainSpec {
@@ -75,9 +76,18 @@ export function runGenericAction(
   }
 
   const items = loadJSON<any[]>(spec.storageKey, []);
+  const fields = pick(params, spec.fields);
+  if (domain === 'qualityActivities') {
+    if (op === 'add' && fields.scheduledAt === undefined) return { result: 'A valid scheduledAt date is required for qualityActivities', ok: false };
+    if (fields.scheduledAt !== undefined) {
+      const timestamp = activityTimestamp(fields.scheduledAt);
+      if (timestamp === null) return { result: 'Invalid scheduledAt date for qualityActivities', ok: false };
+      fields.scheduledAt = timestamp;
+    }
+  }
 
   if (op === 'add') {
-    const item = { id: uid(), createdAt: Date.now(), source: 'hermes', ...pick(params, spec.fields) };
+    const item = { id: uid(), createdAt: Date.now(), source: 'hermes', ...fields };
     saveJSON(spec.storageKey, [item, ...items]);
     return { result: `Added to ${spec.domain}: "${item[spec.matchField] ?? item.id}"`, ok: true };
   }
@@ -95,7 +105,7 @@ export function runGenericAction(
   }
 
   // update
-  items[idx] = { ...items[idx], ...pick(params, spec.fields) };
+  items[idx] = { ...items[idx], ...fields };
   saveJSON(spec.storageKey, items);
   return { result: `Updated ${spec.domain}: "${items[idx][spec.matchField] ?? items[idx].id}"`, ok: true };
 }
