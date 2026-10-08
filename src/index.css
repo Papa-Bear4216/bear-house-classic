@@ -427,4 +427,19 @@
     outline: 2px solid #E08C00;
     box-shadow: 0 0 0 3px rgba(224, 155, 45, 0.2);
   }
+
+  .bento-shell {
+    container-type: inline-size;
+    container-name: bento;
+    width: 100%;
+  }
+
+  .bento-card {
+    container-type: inline-size;
+    transition: transform 300ms var(--bento-spring, cubic-bezier(0.16, 1, 0.3, 1)), border-color 200ms ease, box-shadow 300ms ease;
+  }
+
+  .bento-spring {
+    transition-timing-function: var(--bento-spring, cubic-bezier(0.16, 1, 0.3, 1));
+  }
 }
