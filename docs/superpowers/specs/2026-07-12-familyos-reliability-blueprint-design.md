@@ -27,7 +27,7 @@ It is a **multi-user family portal**: adults and kids log in with roles; kids se
 The #1 pain is reliability ("it breaks"). The breakage is **two different problems**, and only one lives in this repo. Conflating them is why it feels unfixable.
 
 ### Problem A — HA-instance rot (NOT fixable in this app)
-Wyze cameras/tokens (~30-day expiry), Alexa integration auth (~60–90 days), Google AI key. These live on a **separate box** (Nabu Casa remote URL + `192.168.55.135`) and require re-entering Amazon/Wyze/Google credentials through Home Assistant's UI. **No code in this repo prevents them.** They recur on a schedule.
+Wyze cameras/tokens (~30-day expiry), Alexa integration auth (~60–90 days), Google AI key. These live on a **separate box** (Nabu Casa remote URL or LAN host) and require re-entering Amazon/Wyze/Google credentials through Home Assistant's UI. **No code in this repo prevents them.** They recur on a schedule.
 
 → Handled as an **operational runbook**, already captured in `ha_audit_plan.md`. Referenced, not re-planned as build work.
 
