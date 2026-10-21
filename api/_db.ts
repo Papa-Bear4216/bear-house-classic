@@ -284,29 +284,145 @@ export async function dbSetHouseholdHA(
   }
 }
 
-/** Get a household's recent Hermes memory notes, newest first (service role) */
-export async function dbGetHouseholdMemory(householdId: string, limit = 100): Promise<Array<{id: string; text: string; source: string; created_at: string}>> {
+export type HouseholdMemoryRow = {
+  id: string;
+  text: string;
+  source: string;
+  created_at: string;
+  member_id: string | null;
+  subject_member_id: string | null;
+  kind: 'fact'|'preference'|'routine'|'pattern'|'correction';
+  importance: number;
+  status: 'active'|'pending_review'|'superseded'|'archived';
+  dedupe_hash: string | null;
+  last_seen_at: string;
+  expires_at: string | null;
+};
+
+/** Get ranked active facts for one household; importance >= 8 is pinned first. */
+export async function dbGetHouseholdMemory(householdId: string, limit = 100): Promise<HouseholdMemoryRow[]> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&select=id,text,source,created_at&order=created_at.desc&limit=${limit}`,
+    `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&status=eq.active&select=id,text,source,created_at,member_id,subject_member_id,kind,importance,status,dedupe_hash,last_seen_at,expires_at&order=importance.desc,last_seen_at.desc,id.asc&limit=500`,
     { headers: headers(serviceKey) }
   );
   if (!res.ok) return [];
-  return await res.json() as any[];
+  const rows = await res.json() as HouseholdMemoryRow[];
+  const now = Date.now();
+  const recency = (row: HouseholdMemoryRow) => 1 / (1 + Math.max(0, now - Date.parse(row.last_seen_at)) / (30 * 24 * 60 * 60 * 1000));
+  return rows
+    .filter((row) => !row.expires_at || Date.parse(row.expires_at) >= now)
+    .sort((a, b) => {
+      const aPinned = a.importance >= 8;
+      const bPinned = b.importance >= 8;
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+      if (aPinned && a.importance !== b.importance) return b.importance - a.importance;
+      const score = (b.importance * recency(b)) - (a.importance * recency(a));
+      return score || a.id.localeCompare(b.id);
+    })
+    .slice(0, limit);
 }
 
-/** Append one memory note for a household (service role) */
-export async function dbAddHouseholdMemory(householdId: string, text: string, source: 'auto' | 'manual' = 'auto'): Promise<void> {
+export function memoryDedupeHash(text: string): string {
+  return text.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+export type HouseholdMemoryWrite = {
+  source?: 'auto'|'manual';
+  memberId?: string | null;
+  subjectMemberId?: string | null;
+  kind?: 'fact'|'preference'|'routine'|'pattern'|'correction';
+  importance?: number;
+  status?: 'active'|'pending_review';
+};
+
+/** Dedupe-aware household memory write; existing active facts are bumped. */
+export async function dbAddHouseholdMemory(householdId: string, text: string, opts: HouseholdMemoryWrite = {}): Promise<'inserted'|'bumped'> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/household_memory`, {
+  const dedupeHash = memoryDedupeHash(text);
+  const query = `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&status=eq.active&select=id,importance&limit=1&dedupe_hash=eq.${encodeURIComponent(dedupeHash)}`;
+  const bump = async (id: string, importance: number) => fetch(
+    `${SUPABASE_URL}/rest/v1/household_memory?id=eq.${encodeURIComponent(id)}&household_id=eq.${encodeURIComponent(householdId)}`,
+    { method: 'PATCH', headers: headers(serviceKey), body: JSON.stringify({ last_seen_at: new Date().toISOString(), importance: Math.min(10, importance + 1) }) }
+  );
+  let existingRes = await fetch(query, { headers: headers(serviceKey) });
+  if (existingRes.ok) {
+    const rows = await existingRes.json() as Array<{id:string;importance:number}>;
+    if (rows[0]) {
+      const bumped = await bump(rows[0].id, rows[0].importance || 1);
+      if (!bumped.ok) throw new Error(`dbAddHouseholdMemory bump failed: ${bumped.status}`);
+      return 'bumped';
+    }
+  }
+
+  const countRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&status=eq.active&select=id&limit=1`,
+    { headers: { ...headers(serviceKey), Prefer: 'count=exact', Range: '0-0' } }
+  );
+  const countHeader = countRes.headers.get('content-range') || '';
+  const activeCount = Number(countHeader.split('/')[1] || 0);
+  if (activeCount >= 500) {
+    const lowRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&status=eq.active&select=id&order=importance.asc,last_seen_at.asc,id.asc&limit=1`,
+      { headers: headers(serviceKey) }
+    );
+    if (lowRes.ok) {
+      const lowRows = await lowRes.json() as Array<{id:string}>;
+      if (lowRows[0]) await fetch(
+        `${SUPABASE_URL}/rest/v1/household_memory?id=eq.${encodeURIComponent(lowRows[0].id)}&household_id=eq.${encodeURIComponent(householdId)}`,
+        { method: 'PATCH', headers: headers(serviceKey), body: JSON.stringify({ status: 'archived' }) }
+      );
+    }
+  }
+
+  const insert = async () => fetch(`${SUPABASE_URL}/rest/v1/household_memory`, {
     method: 'POST',
     headers: headers(serviceKey),
-    body: JSON.stringify({ household_id: householdId, text, source }),
+    body: JSON.stringify({
+      household_id: householdId,
+      text,
+      source: opts.source || 'auto',
+      member_id: opts.memberId ?? null,
+      subject_member_id: opts.subjectMemberId ?? null,
+      kind: opts.kind || 'fact',
+      importance: opts.importance ?? 5,
+      status: opts.status || 'active',
+      dedupe_hash: dedupeHash,
+      last_seen_at: new Date().toISOString(),
+    }),
   });
+  let res = await insert();
+  if (res.status === 409) {
+    existingRes = await fetch(query, { headers: headers(serviceKey) });
+    if (existingRes.ok) {
+      const rows = await existingRes.json() as Array<{id:string;importance:number}>;
+      if (rows[0]) {
+        const bumped = await bump(rows[0].id, rows[0].importance || 1);
+        if (bumped.ok) return 'bumped';
+      }
+    }
+    res = await insert();
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`dbAddHouseholdMemory failed: ${res.status} ${detail}`);
   }
+  return 'inserted';
+}
+
+export async function dbSetMemoryStatus(id: string, householdId: string, status: 'active'|'archived'|'superseded'|'pending_review'): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/household_memory?id=eq.${encodeURIComponent(id)}&household_id=eq.${encodeURIComponent(householdId)}`, {
+    method: 'PATCH', headers: headers(process.env.SUPABASE_SERVICE_KEY!), body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(`dbSetMemoryStatus failed: ${res.status}`);
+}
+
+export async function dbGetPendingMemories(householdId: string): Promise<HouseholdMemoryRow[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/household_memory?household_id=eq.${encodeURIComponent(householdId)}&status=eq.pending_review&select=id,text,source,created_at,member_id,subject_member_id,kind,importance,status,dedupe_hash,last_seen_at,expires_at&order=created_at.desc&limit=100`, {
+    headers: headers(process.env.SUPABASE_SERVICE_KEY!),
+  });
+  if (!res.ok) throw new Error(`dbGetPendingMemories failed: ${res.status}`);
+  return await res.json() as HouseholdMemoryRow[];
 }
 
 /** Clear all memory notes for a household (service role) */

@@ -138,8 +138,18 @@ export const TtsBodySchema = z.object({
 });
 
 export const MemoryBodySchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('add'), text: z.string().trim().min(1).max(500) }),
+  z.object({
+    action: z.literal('add'),
+    text: z.string().trim().min(1).max(500),
+    memberId: z.string().uuid().optional(),
+    subjectMemberId: z.string().uuid().optional(),
+    kind: z.enum(['fact','preference','routine','pattern','correction']).optional(),
+    importance: z.number().int().min(1).max(10).optional(),
+    inferred: z.boolean().optional(),
+  }),
   z.object({ action: z.literal('clear') }),
+  z.object({ action: z.literal('setStatus'), id: z.string().uuid(), status: z.enum(['active','archived','superseded']) }),
+  z.object({ action: z.literal('listPending') }),
 ]);
 
 export const ActivityBodySchema = z.object({

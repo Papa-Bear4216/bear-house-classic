@@ -4,7 +4,7 @@ import { CARS_STORAGE_KEY } from '@/components/familyos/sections/carMaintenanceK
 import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
-import { addHermesMemory } from '@/lib/hermesMemory';
+import { addHermesMemory, supersedeClosestMemory } from '@/lib/hermesMemory';
 
 export type ActionType = 'addTask'|'completeTask'|'uncompleteTask'|'deleteTask'|'addShopping'|'completeShoppingItem'|'addBill'|'markBillPaid'|'addAppointment'|'addPromise'|'completePromise'|'logEmotion'|'updateMemory'|'clearWeekMeals'|'setMealPlan'|'genericAction'|'markMealCooked'|'addCarMaintenanceEntry'|'controlDevice'|'discoverSmartHome'|'notifyPerson'|'manageMember'|'queryTriad';
 export interface ActionParams extends Record<string, any> {}
@@ -12,7 +12,8 @@ export interface Action { type: ActionType; params: ActionParams }
 export async function executeAction(
   action: Action,
   defaultPerson: string,
-  householdMembers: { id: string; name: string; role: string }[]
+  householdMembers: { id: string; name: string; role: string }[],
+  currentMemberId?: string,
 ): Promise<{ result: string; ok: boolean }> {
   try {
     const p = action.params;
@@ -334,9 +335,21 @@ export async function executeAction(
 
     // ── Memory ─────────────────────────────────────────────────────────────
     if (action.type === 'updateMemory') {
-      const note = `[${new Date().toLocaleDateString()}] ${p.memory}`;
-      addHermesMemory(note); // household-wide, fire-and-forget
-      return { result: `Memory updated`, ok: true };
+      const note = String(p.memory || '').trim();
+      if (!note) return { result: 'Memory text is required', ok: false };
+      const subject = householdMembers.find((member) => member.name.toLowerCase() === String(p.subject || '').trim().toLowerCase());
+      const kind = p.kind || 'fact';
+      const ok = await addHermesMemory(note, {
+        memberId: currentMemberId || null,
+        subjectMemberId: subject?.id || null,
+        kind,
+        importance: typeof p.importance === 'number' ? p.importance : 5,
+        inferred: kind === 'pattern',
+      });
+      if (ok && kind === 'correction' && subject) {
+        await supersedeClosestMemory(subject.id, note);
+      }
+      return { result: ok ? 'Memory saved' : 'Memory write queued on this device for retry', ok };
     }
 
     return { result: `Unknown action: ${action.type}`, ok: false };

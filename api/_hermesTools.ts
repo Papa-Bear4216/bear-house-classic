@@ -195,7 +195,10 @@ export const HERMES_TOOLS: ToolDefinition[] = [
     input_schema: {
       type: 'object',
       properties: {
-        memory: { type: 'string', maxLength: 1000, description: 'Fact, preference, or detail to remember' },
+        memory: { type: 'string', maxLength: 280, description: 'One distilled fact, one line. Never a paragraph.' },
+        subject: { type: 'string', description: 'First name of the household member this is about, if applicable.' },
+        kind: { type: 'string', enum: ['fact','preference','routine','pattern','correction'], description: 'Use pattern for an inference (review required); correction replaces an earlier fact.' },
+        importance: { type: 'number', minimum: 1, maximum: 10, description: 'Use 8 or higher only for safety, allergy, or schedule-critical facts.' },
       },
       required: ['memory'],
     },

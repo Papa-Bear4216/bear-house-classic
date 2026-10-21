@@ -295,7 +295,7 @@ const HermesChat: React.FC = () => {
           continue;
         }
       }
-      const { result, ok } = await executeAction(action, defaultPerson, householdMembers);
+      const { result, ok } = await executeAction(action, defaultPerson, householdMembers, currentUser?.id);
       executed.push({ ...action, result, ok });
       // Update memory counter if memory was updated
       if (action.type === 'updateMemory') {

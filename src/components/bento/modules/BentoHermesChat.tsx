@@ -184,7 +184,7 @@ export const BentoHermesChatExpanded: React.FC = () => {
             continue;
           }
         }
-        const { result: actionResult, ok } = await executeAction(action, defaultPerson, householdMembers);
+        const { result: actionResult, ok } = await executeAction(action, defaultPerson, householdMembers, scope.memberId || undefined);
         actionResults.push(`${ok ? 'Done' : 'Not completed'}: ${actionResult}`);
       }
 
