@@ -135,6 +135,16 @@ async function callClaude(
   let droppedActions = 0;
   if (dropLast) droppedActions += 1;
   const candidateBlocks = usable.filter((b: any) => b?.type === 'tool_use' && typeof b.name === 'string');
+  if (tools && tools.length > 0 && candidateBlocks.length === 0) {
+    // Diagnostic: tools were offered but the model returned none. Helps tell a provider/gateway
+    // that drops `tools` apart from a model that simply answered in text.
+    console.warn('[chat] tools offered, none returned', {
+      host: new URL(target.url).host,
+      stopReason,
+      blockTypes: content.map((b: any) => b?.type),
+      toolCount: tools.length,
+    });
+  }
 
   const actions: HermesActionPayload[] = [];
   for (const b of candidateBlocks) {
