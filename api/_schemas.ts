@@ -28,12 +28,16 @@ export const ChatBodySchema = z.object({
   neutralMode: z.boolean().optional(), // true enables Hermes Neutral Co-Parent tone de-escalation
   role: z.enum(['child', 'adult', 'admin']).optional(), // client role hint (e.g. kids world)
   memberId: z.string().max(100).optional(),
+  surface: z.enum(['floating-chat', 'bento-copilot', 'kids-monster', 'api']).optional(),
+  currentModule: z.string().max(60).optional(),
+  clientSnapshot: z.string().max(MAX_SYSTEM_CHARS).optional(),
 }).refine(d => !!(d.prompt || d.messages), { message: 'Missing prompt or messages' });
 
 export const VisionBodySchema = z.object({
   imageBase64: z.string().min(1),
   mediaType: z.string().optional().default('image/jpeg'), // free-form: Anthropic validates media type itself
   prompt: z.string().min(1),
+  provider: z.enum(['claude', 'gemini']).optional(),
 });
 
 export const ClientMetricBodySchema = z.object({
@@ -135,8 +139,18 @@ export const TtsBodySchema = z.object({
 });
 
 export const MemoryBodySchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('add'), text: z.string().trim().min(1).max(500) }),
+  z.object({
+    action: z.literal('add'),
+    text: z.string().trim().min(1).max(500),
+    memberId: z.string().uuid().optional(),
+    subjectMemberId: z.string().uuid().optional(),
+    kind: z.enum(['fact','preference','routine','pattern','correction']).optional(),
+    importance: z.number().int().min(1).max(10).optional(),
+    inferred: z.boolean().optional(),
+  }),
   z.object({ action: z.literal('clear') }),
+  z.object({ action: z.literal('setStatus'), id: z.string().uuid(), status: z.enum(['active','archived','superseded']) }),
+  z.object({ action: z.literal('listPending') }),
 ]);
 
 export const ActivityBodySchema = z.object({
@@ -252,7 +266,9 @@ export const SetupBodySchema = z.discriminatedUnion('action', [
     action: z.literal('inviteMember'), memberName: z.string().trim().min(1),
     email: z.string().trim().toLowerCase().min(1), role: z.enum(['admin', 'child']).default('child'),
     color: z.string().trim().default('slate'),
+    consentSessionId: z.string().trim().min(1).max(200).optional(),
   }),
+  z.object({ action: z.literal('startChildConsent'), memberName: z.string().trim().min(1).max(100) }),
   z.object({ action: z.literal('claimInvite') }),
   z.object({ action: z.literal('removeMember'), memberId: z.string().uuid() }),
   z.object({

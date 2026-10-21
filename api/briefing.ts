@@ -9,6 +9,8 @@ export const config = { runtime: 'edge' };
  * POST /api/briefing  { token, person }
  */
 
+import { tryBridge } from './_subscriptionBridge.js';
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { parseBody, BriefingParamsSchema, BriefingJsonInputSchema } from './_schemas.js';
@@ -43,10 +45,11 @@ function isTomorrow(ts: number | null | undefined): boolean {
 }
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const res = await fetch(t.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+    headers: t.headers,
+    body: JSON.stringify({ model: t.model, max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `Claude API ${res.status}`);
@@ -73,7 +76,9 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function generateBriefing(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+async function generateBriefing(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
+  const viaSubscription = await tryBridge(householdId, prompt);
+  if (viaSubscription) return viaSubscription;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);
@@ -216,9 +221,9 @@ export default async function handler(req: Request): Promise<Response> {
         tomorrowAppts: myAppts.filter((a: any) => isTomorrow(a.date)).slice(0, 2).map((a: any) => ({ type: a.type, notes: a.notes })),
         moodFlags: moodFlags.slice(0, 2).map((e: any) => ({ person: e.person, category: e.category })),
       };
-      briefing = await generateBriefing(EVENING_PROMPT(person, eveningData, tomorrowName), anthropicKey, geminiKey);
+      briefing = await generateBriefing(EVENING_PROMPT(person, eveningData, tomorrowName), anthropicKey, geminiKey, householdId);
     } else {
-      briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName), anthropicKey, geminiKey);
+      briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName), anthropicKey, geminiKey, householdId);
     }
 
     return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });

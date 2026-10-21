@@ -3,6 +3,8 @@
  */
 export const config = { runtime: 'edge' };
 
+import { tryBridge } from './_subscriptionBridge.js';
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -14,10 +16,11 @@ import { handleCorsPreflight } from './_cors.js';
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const res = await fetch(t.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
+    headers: t.headers,
+    body: JSON.stringify({ model: t.model, max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json() as any;
   if (!res.ok) throw new Error(data?.error?.message || `Claude API ${res.status}`);
@@ -44,7 +47,9 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
+  const viaSubscription = await tryBridge(householdId, prompt);
+  if (viaSubscription) return viaSubscription;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);
@@ -129,7 +134,7 @@ export default async function handler(req: Request): Promise<Response> {
     const text = String(item.text || item.name || '');
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
-    const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey);
+    const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey, householdId);
     const clean = raw.replace(/```json?\\s*/gi, '').replace(/```/g, '').trim();
     // JSON mode input gating: validate the LLM's parsed JSON output against a
     // schema before trusting its shape. The regex strip (above) removes

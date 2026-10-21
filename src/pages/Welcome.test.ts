@@ -25,7 +25,7 @@ describe('Landing Page (Welcome & Welcome Components)', () => {
     expect(html).toContain('Receipts &amp; pantry vision');
     expect(html).toContain('Read-only bank sync');
     expect(html).toContain('Smart home &amp; allowlist controls');
-    expect(html).toContain('COPPA verified child privacy');
+    expect(html).toContain('Built with child privacy in mind');
   });
 
   it('renders FamilyRoles with the 4 household roles and pet station mention', () => {

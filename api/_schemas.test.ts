@@ -61,6 +61,12 @@ describe('ChatBodySchema', () => {
     expect(ChatBodySchema.safeParse({ prompt: 'hi', role: 'child', memberId: 'kid-1' }).success).toBe(true);
     expect(ChatBodySchema.safeParse({ prompt: 'hi', role: 'invalid-role' }).success).toBe(false);
   });
+
+  it('accepts known Hermes surfaces and bounds currentModule', () => {
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', surface: 'kids-monster', currentModule: 'kids' }).success).toBe(true);
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', surface: 'unknown' }).success).toBe(false);
+    expect(ChatBodySchema.safeParse({ prompt: 'hi', currentModule: 'x'.repeat(61) }).success).toBe(false);
+  });
 });
 
 describe('VisionBodySchema', () => {

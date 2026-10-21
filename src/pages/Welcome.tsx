@@ -100,7 +100,7 @@ export default function Welcome() {
                 <span className="text-cyan-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Kids World Monster Den & Voice Translator: COPPA-safe creature companion & homework helper
+                <span className="text-cyan-400 font-bold">✓</span> Kids World Monster Den & Voice Translator: kid-friendly creature companion & homework helper
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> Kid rooms & sealed private journal: spend chore points on room themes + device-only journal
@@ -142,10 +142,10 @@ export default function Welcome() {
                 <span className="text-cyan-400 font-bold">✓</span> Read-only SimpleFIN bank sync with compounding review queue
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Home Assistant allowlist & COPPA verifiable child privacy
+                <span className="text-cyan-400 font-bold">✓</span> Home Assistant allowlist & parent-controlled child accounts
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Triad Fusion architecture: local encrypted state & cross-tenant quarantine
+                <span className="text-cyan-400 font-bold">✓</span> Household data isolation enforced by database access rules
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> No contracts, no card needed for trial, cancel in two clicks
@@ -185,7 +185,7 @@ export default function Welcome() {
       <footer className="text-center py-12 px-4 border-t border-slate-800/80 text-xs text-slate-500 relative z-10 space-y-3">
         <p className="flex items-center justify-center gap-2 font-semibold text-slate-300">
           <span>🚂</span>
-          <span>HotMessExpress is a <strong className="text-cyan-400">Dysfunction Junction</strong> venture.</span>
+          <span>HotMessExpress is operated by <strong className="text-cyan-400">Dysfunction Junction</strong>.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
           FamilyOS for one household or two. One kid, two houses, one life. You confirm all scans, drafts, and device actions before they happen.
@@ -199,7 +199,7 @@ export default function Welcome() {
             Terms of Service
           </Link>
           <span>&bull;</span>
-          <a href="mailto:support@dysfunctionjunction.xyz" className="hover:text-cyan-400 transition">
+          <a href="mailto:michael@hotmessexpress.lol" className="hover:text-cyan-400 transition">
             Contact Support
           </a>
         </div>

@@ -48,7 +48,7 @@ const FEATURES = [
     icon: Sparkles,
     title: 'Kids World Monster Den & Voice Translator',
     description:
-      'Turn chores and routines into creature care. Kids hatch and raise virtual monster companions (Grumble, Pip, Barnaby) unlocked with chore points. Includes the Voice Hermes Pocket Translator—a COPPA-safe, mic-powered companion for homework questions, big feelings, and pet mood decoding.',
+      'Turn chores and routines into creature care. Kids hatch and raise virtual monster companions (Grumble, Pip, Barnaby) unlocked with chore points. Includes the Voice Hermes Pocket Translator—a mic-powered companion for homework questions, big feelings, and pet mood decoding.',
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10 border-cyan-500/20',
   },
@@ -72,7 +72,7 @@ const FEATURES = [
     icon: HeartHandshake,
     title: 'Hermes BIFF tone check',
     description:
-      'Communication with a co-parent or ex is fraught with landmines. Type what you feel; Hermes analyzes it for snark, sarcasm, passive-aggressive jabs, or blame before you send, transforming it into Brief, Informative, Friendly, and Firm communication. Protects your peace and your legal record.',
+      'Communication with a co-parent or ex is fraught with landmines. Type what you feel; Hermes analyzes it for snark, sarcasm, passive-aggressive jabs, or blame before you send, transforming it into Brief, Informative, Friendly, and Firm communication. Helps you keep your cool in writing.',
     color: 'text-rose-400',
     bg: 'bg-rose-500/10 border-rose-500/20',
   },
@@ -112,7 +112,7 @@ const FEATURES = [
     icon: Lock,
     title: 'Triad Fusion Architecture',
     description:
-      'Zero-leak tenant isolation designed for complex family dynamics. Child accounts are isolated from financial and legal modules, offline records are encrypted on-device, and telemetry bridges enforce boundaries across households.',
+      'Household data isolation designed for complex family dynamics. Child accounts cannot see financial or legal modules, database access rules keep each household data separate, and private journal entries stay on the child device.',
     color: 'text-cyan-300',
     bg: 'bg-cyan-500/10 border-cyan-500/20',
   },
@@ -158,9 +158,9 @@ const FEATURES = [
   },
   {
     icon: ShieldCheck,
-    title: 'COPPA verified child privacy',
+    title: 'Built with child privacy in mind',
     description:
-      'Engineered from day one for child safety. Adding under-13 family members requires verified parental consent with strict audit logs. Private family boundaries, zero ad tracking, zero data brokering, and sealed context protect your household.',
+      'Designed for child safety. A parent must confirm consent before an under-13 account is created, and we record that confirmation. No ads, no data brokering.',
     color: 'text-teal-300',
     bg: 'bg-teal-500/10 border-teal-500/20',
   },

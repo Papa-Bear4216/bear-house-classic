@@ -6,6 +6,8 @@
  */
 export const config = { runtime: 'edge' };
 
+import { tryBridge } from './_subscriptionBridge.js';
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { resolveHouseholdId } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -72,10 +74,11 @@ Rules:
 `.trim();
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const res = await fetch(t.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
+    headers: t.headers,
+    body: JSON.stringify({ model: t.model, max_tokens: 1024, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `Claude API ${res.status}`);
@@ -102,7 +105,9 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
 }
 
-async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
+  const viaSubscription = await tryBridge(householdId, prompt);
+  if (viaSubscription) return viaSubscription;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);
@@ -151,7 +156,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
     const unique = Array.from(new Map(allEmails.map((e: any) => [e.id, e])).values());
-    const raw = await callAI(PARSE_PROMPT(unique, person || 'General'), anthropicKey, geminiKey);
+    const raw = await callAI(PARSE_PROMPT(unique, person || 'General'), anthropicKey, geminiKey, householdId);
     const clean = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const arrMatch = clean.match(/\[[\s\S]*\]/);
     const suggestions = arrMatch ? JSON.parse(arrMatch[0]) : [];

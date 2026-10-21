@@ -4,6 +4,7 @@ import { resolveHouseholdId, dbGetHouseholdMembersByHouseholdId, dbGetHouseholdG
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { gmailConnectAllowed } from './_gmailAccess.js';
 
 // Returns per-member connection status (masked email only — never the
 // token) so the Settings UI can show whose Gmail is connected household-wide.
@@ -32,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
       connected: !!emailByMember.get(m.id),
       email: emailByMember.get(m.id) || null,
     }));
-    return j({ members: statuses });
+    return j({ members: statuses, available: await gmailConnectAllowed(householdId) });
   } catch (e: any) {
     return serverError(e?.message || 'Failed to load status', 'gmail-status', e);
   }

@@ -4,6 +4,7 @@ import { useAppContext } from '@/contexts/AppContext';
 
 interface BentoGridContextType {
   expandedModule: BentoModuleId | null;
+  lastExpandedModule: BentoModuleId | null;
   originRect: DOMRect | null;
   expandModule: (id: BentoModuleId, element?: HTMLElement | null) => boolean;
   collapseModule: () => void;
@@ -21,6 +22,8 @@ export const useBentoGrid = () => {
   return ctx;
 };
 
+export const useOptionalBentoGrid = () => useContext(BentoGridContext);
+
 export const BentoGridProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
     currentUser,
@@ -31,6 +34,7 @@ export const BentoGridProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   } = useAppContext();
 
   const [expandedModule, setExpandedModule] = useState<BentoModuleId | null>(null);
+  const [lastExpandedModule, setLastExpandedModule] = useState<BentoModuleId | null>(null);
   const [originRect, setOriginRect] = useState<DOMRect | null>(null);
   const [isExpanding, setIsExpanding] = useState(false);
 
@@ -69,6 +73,7 @@ export const BentoGridProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setIsExpanding(true);
     setExpandedModule(id);
+    setLastExpandedModule(id);
     return true;
   }, [scope]);
 
@@ -90,6 +95,7 @@ export const BentoGridProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <BentoGridContext.Provider
       value={{
         expandedModule,
+        lastExpandedModule,
         originRect,
         expandModule,
         collapseModule,

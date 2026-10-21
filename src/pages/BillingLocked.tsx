@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { Capacitor } from '@capacitor/core';
 
 export default function BillingLockedPage() {
   const { currentRole, householdId } = useAppContext();
+  const isNative = Capacitor.isNativePlatform();
   const isPayer = currentRole === 'superadmin' || currentRole === 'admin';
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,11 @@ export default function BillingLockedPage() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 px-4 text-center">
       <div className="text-2xl font-bold text-white">Subscription needed</div>
-      {isPayer ? (
+      {isNative ? (
+        <p className="text-slate-400 text-sm max-w-sm">
+          This household's subscription is inactive. Subscriptions can't be managed in this app; sign in on the web with the same account to manage your plan.
+        </p>
+      ) : isPayer ? (
         <>
           <p className="text-slate-400 text-sm max-w-sm">
             Your household's subscription is inactive. Update billing to keep using FamilyOS.

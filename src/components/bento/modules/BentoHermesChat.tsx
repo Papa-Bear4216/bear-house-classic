@@ -3,6 +3,8 @@ import { Bot, Send, Trash2, Zap, Loader2, Sparkles, AlertCircle } from 'lucide-r
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { executeAction, type Action } from '@/lib/hermesActionExecutor';
+import { buildSystemPrompt, extractClientSnapshot } from '@/lib/hermesPrompt';
 import {
   type TriadChatMessage,
   hydrateScopedChat,
@@ -63,8 +65,8 @@ export const BentoHermesChatPreview: React.FC = () => {
 };
 
 export const BentoHermesChatExpanded: React.FC = () => {
-  const { scope } = useBentoGrid();
-  const { householdMembers, currentUser, hermesModelTier } = useAppContext();
+  const { scope, expandedModule } = useBentoGrid();
+  const { householdMembers, currentUser, currentRole, hermesModelTier } = useAppContext();
   const [messages, setMessages] = useState<TriadChatMessage[]>(() => hydrateScopedChat(scope));
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -131,14 +133,19 @@ export const BentoHermesChatExpanded: React.FC = () => {
 
     try {
       const token = await getAccessToken();
+      const systemPrompt = buildSystemPrompt(householdMembers, currentUser?.name, currentRole);
       const payload = {
         messages: nextList.map((m) => ({ role: m.role, content: m.text })),
-        system: `You are Hermes, a proactive copilot for the ${currentUser?.name || 'family'} household. Current members: ${householdMembers.map((m) => m.name).join(', ')}. Keep replies short, structured, and ADHD-friendly.`,
-        maxTokens: 500,
+        system: systemPrompt, // Backward-compatible until the server context builder consumes clientSnapshot.
+        surface: 'bento-copilot',
+        currentModule: expandedModule || 'hermes-chat',
+        clientSnapshot: extractClientSnapshot(systemPrompt),
+        enableTools: true,
+        maxTokens: 1200,
         model: hermesModelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
       };
 
-      const result = await executeTriadJsonPipeline<{ text?: string }>(
+      const result = await executeTriadJsonPipeline<{ text?: string; actions?: Action[] }>(
         apiUrl('/api/chat'),
         payload,
         {
@@ -151,8 +158,40 @@ export const BentoHermesChatExpanded: React.FC = () => {
         throw new Error(result.error || 'Failed to communicate with Hermes');
       }
 
-      const replyText =
-        result.data?.text || result.rawText || "Got it! I've updated the household stream.";
+      const actionResults: string[] = [];
+      const isAdult = currentRole === 'admin' || currentRole === 'superadmin';
+      const canControlDevices = currentUser?.canControlDevices ?? isAdult;
+      const defaultPerson = currentUser?.name || householdMembers[0]?.name || 'General';
+      for (const action of result.data?.actions || []) {
+        if (!isAdult && ['manageMember', 'notifyPerson', 'addBill', 'markBillPaid', 'clearWeekMeals'].includes(action.type)) {
+          actionResults.push(`Permission denied (admin required): ${action.type}`);
+          continue;
+        }
+        if (!canControlDevices && ['controlDevice', 'discoverSmartHome'].includes(action.type)) {
+          actionResults.push(`Permission denied (smart home access required): ${action.type}`);
+          continue;
+        }
+        if (action.type === 'controlDevice' && ['unlock', 'open_cover'].includes(String(action.params?.service || ''))) {
+          if (!window.confirm(`Hermes wants to ${String(action.params.service).replace('_', ' ')} ${action.params.entityId}. Confirm?`)) {
+            actionResults.push('Cancelled by user (security confirmation declined)');
+            continue;
+          }
+        }
+        if (action.type === 'clearWeekMeals' || (action.type === 'genericAction' && action.params?.op === 'clear')) {
+          const target = action.type === 'clearWeekMeals' ? 'the entire weekly meal plan' : `all items in ${action.params?.domain}`;
+          if (!window.confirm(`Hermes wants to clear ${target}. Confirm?`)) {
+            actionResults.push('Cancelled by user (clear confirmation declined)');
+            continue;
+          }
+        }
+        const { result: actionResult, ok } = await executeAction(action, defaultPerson, householdMembers, scope.memberId || undefined);
+        actionResults.push(`${ok ? 'Done' : 'Not completed'}: ${actionResult}`);
+      }
+
+      const replyText = [
+        result.data?.text || result.rawText || "Got it! I've updated the household stream.",
+        ...actionResults,
+      ].join('\n\n');
       const assistantMsg: TriadChatMessage = {
         role: 'assistant',
         text: replyText,

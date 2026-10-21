@@ -15,6 +15,7 @@
  * uses the Messages API `stream: true`.
  */
 
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { GEMINI_MODEL } from './_aiModels.js';
 
 const PROVIDER_TIMEOUT_MS = 30_000;
@@ -27,15 +28,12 @@ async function fetchClaude(
   maxTokens: number,
   apiKey: string,
 ): Promise<{ text: string; stopReason: string | null; usage: { cacheRead: number; cacheCreated: number } }> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const target = anthropicTarget(apiKey, model);
+  const res = await fetch(target.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: target.headers,
     body: JSON.stringify({
-      model,
+      model: target.model,
       max_tokens: maxTokens,
       system: [
         { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
@@ -77,15 +75,12 @@ async function* streamClaude(
   maxTokens: number,
   apiKey: string,
 ): AsyncIterableIterator<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const target = anthropicTarget(apiKey, model);
+  const res = await fetch(target.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: target.headers,
     body: JSON.stringify({
-      model,
+      model: target.model,
       max_tokens: maxTokens,
       system: [
         { type: 'text', text: system, cache_control: { type: 'ephemeral' } },

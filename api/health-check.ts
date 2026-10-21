@@ -1,7 +1,14 @@
 // api/health-check.ts
 export const config = { runtime: 'edge' };
 
-import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
+import {
+  dbCountFlaggedHermesHouseholds,
+  dbCountHermesRepairsBySuccess,
+  dbCountPendingMemoryReview,
+  dbGet,
+  dbSet,
+  resolveHouseholdIdByWebhookToken,
+} from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
 import { notifyIFTTT, notifyPush } from './_notify.js';
 import { runFix } from './ha-fix.js';
@@ -39,6 +46,20 @@ export default async function handler(req: Request): Promise<Response> {
     : HA_HOUSEHOLD_ID;
   if (!householdId) return serverError('HOME_ASSISTANT_HOUSEHOLD_ID not configured', 'health-check');
 
+  const hermesHealth = async () => {
+    try {
+      const [repairs24h, flaggedHouseholds, pendingReviewMemories] = await Promise.all([
+        dbCountHermesRepairsBySuccess(24),
+        dbCountFlaggedHermesHouseholds(),
+        dbCountPendingMemoryReview(),
+      ]);
+      return { repairs24h, flaggedHouseholds, pendingReviewMemories };
+    } catch (error) {
+      console.error('[Health-check] Hermes health summary unavailable:', error);
+      return { available: false, error: 'Hermes health summary unavailable' };
+    }
+  };
+
   const { haUrl: HA_URL, haToken: HA_TOKEN } = await resolveHaConfig(householdId);
   if (!HA_URL || !HA_TOKEN) return serverError('HA not configured', 'health-check');
 
@@ -52,7 +73,7 @@ export default async function handler(req: Request): Promise<Response> {
     states = (await res.json()) as any[];
   } catch (e: any) {
     // HA itself unreachable — record a red snapshot, alert once.
-    const snapshot = { updatedAt: Date.now(), integrations: [], overall: 'red' as const, haUnreachable: true };
+    const snapshot = { updatedAt: Date.now(), integrations: [], overall: 'red' as const, haUnreachable: true, hermes: await hermesHealth() };
     await dbSet('system_health', householdId, snapshot);
     return j(snapshot);
   }
@@ -104,7 +125,7 @@ export default async function handler(req: Request): Promise<Response> {
   const anyDegraded = integrations.some((i) => i.status !== 'up');
   const overall: 'green' | 'yellow' | 'red' = anyDown ? 'red' : anyDegraded ? 'yellow' : 'green';
 
-  const snapshot = { updatedAt: now, integrations, overall };
+  const snapshot = { updatedAt: now, integrations, overall, hermes: await hermesHealth() };
   await dbSet('system_health', householdId, snapshot);
   await dbSet('health_alert_state', householdId, alertState);
   return j(snapshot);

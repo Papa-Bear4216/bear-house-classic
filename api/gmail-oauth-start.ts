@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' };
 import { resolveCallerMember, dbGetHouseholdMembersByHouseholdId } from './_db.js';
 import { json as j } from './_responseHelpers.js';
 import { signGmailState } from './_crypto.js';
+import { gmailConnectAllowed } from './_gmailAccess.js';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -43,6 +44,9 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const { householdId } = caller;
   const memberId = targetMemberId;
+  if (!(await gmailConnectAllowed(householdId))) {
+    return j({ error: 'Gmail connection is limited to approved testers while Google verification is pending.' }, 403);
+  }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   if (!clientId) return j({ error: 'Gmail integration is not configured' }, 500);

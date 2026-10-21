@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('./_db.js', () => ({
   resolveHouseholdId: vi.fn(),
+  resolveCallerMember: vi.fn(),
   dbGetHermesModelTier: vi.fn(),
 }));
 
@@ -26,7 +27,7 @@ vi.mock('./_aiModels.js', () => ({
 }));
 
 import { resolveChatInput } from './_postChat.js';
-import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
+import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 
@@ -43,6 +44,7 @@ function req(body: unknown, auth = 'Bearer t') {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(resolveCallerMember).mockResolvedValue(null);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 });
@@ -129,6 +131,15 @@ describe('server/postChat.resolveChatInput', () => {
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 
     const res = await resolveChatInput(req({ prompt: 'hi', model: 'claude-sonnet-4-6' }));
+    expect((res as any).input.chosenModel).toBe('claude-sonnet-4-6');
+  });
+
+  it('promotes an explicit Haiku identity question to Sonnet', async () => {
+    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
+    vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
+    vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
+
+    const res = await resolveChatInput(req({ prompt: 'Who is Lucy?', model: 'claude-haiku-4-5-20251001' }));
     expect((res as any).input.chosenModel).toBe('claude-sonnet-4-6');
   });
 

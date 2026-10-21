@@ -3,6 +3,7 @@ import { CreditCard } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { Capacitor } from '@capacitor/core';
 
 export function BillingPanel() {
   const { currentRole, householdId, bypassBilling } = useAppContext();
@@ -30,6 +31,7 @@ export function BillingPanel() {
 
   if (currentRole !== 'superadmin' && currentRole !== 'admin') return null;
   if (bypassBilling) return null;
+  if (Capacitor.isNativePlatform()) return null; // no in-app subscription management on Play builds
 
   const openBillingPortal = async () => {
     setLoading(true);

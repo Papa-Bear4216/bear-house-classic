@@ -66,7 +66,7 @@ export function validateTriadScopeAccess(
     return { allowed: false, reason: 'No active Triad scope established' };
   }
 
-  const role = scope.role || 'adult';
+  const role = scope.role || 'child';
 
   // Role boundaries
   if (role === 'child') {

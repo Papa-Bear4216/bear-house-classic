@@ -1,4 +1,5 @@
-// Household Memory — the "Household Brain" knowledge the AI is given about the home.
+// Household Brain: manually taught rules, inventory, and procedures for this home.
+// Learned Hermes facts live separately in hermesMemory.ts / the household_memory table.
 //
 // TIER 1 (current): a flat list of short, typed text entries stuffed into the
 // system prompt of every /api/chat call. Correct for a single household — the
@@ -13,7 +14,8 @@
 
 import { loadJSON, saveJSON } from './familyos';
 
-export const MEMORY_KEY = 'household_memory';
+export const MEMORY_KEY = 'household_brain';
+const LEGACY_MEMORY_KEY = 'household_memory';
 
 export type MemoryCategory = 'rule' | 'inventory' | 'procedure';
 
@@ -41,7 +43,11 @@ export const CATEGORY_HINTS: Record<MemoryCategory, string> = {
 
 export function loadMemory(): MemoryEntry[] {
   const raw = loadJSON<MemoryEntry[]>(MEMORY_KEY, []);
-  return Array.isArray(raw) ? raw : [];
+  if (Array.isArray(raw) && raw.length) return raw;
+  const legacy = loadJSON<MemoryEntry[]>(LEGACY_MEMORY_KEY, []);
+  if (!Array.isArray(legacy) || !legacy.length) return [];
+  saveJSON(MEMORY_KEY, legacy);
+  return legacy;
 }
 
 export function saveMemory(entries: MemoryEntry[]): void {

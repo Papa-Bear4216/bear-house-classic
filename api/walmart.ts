@@ -8,6 +8,7 @@
  */
 export const config = { runtime: 'edge' };
 
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, dbSet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -60,10 +61,11 @@ Return ONLY a JSON array of items to consider restocking (things commonly reorde
 Max 6 items. Skip electronics, one-time purchases, clothing. Focus on consumables.
 Return [] if nothing relevant.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const res = await fetch(t.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
+    headers: t.headers,
+    body: JSON.stringify({ model: t.model, max_tokens: 512, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
   const raw = (data?.content?.[0]?.text || '[]').replace(/```json?\s*/gi, '').replace(/```/g, '').trim();

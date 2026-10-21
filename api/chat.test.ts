@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn(), resolveCallerMember: vi.fn(), dbGetHermesModelTier: vi.fn() }));
+vi.mock('./_db.js', () => ({ resolveHouseholdId: vi.fn(), resolveCallerMember: vi.fn(), dbGetHermesModelTier: vi.fn(), dbLogHermesRepair: vi.fn() }));
 vi.mock('./_aiKeys.js', () => ({ resolveAiKeys: vi.fn() }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
@@ -109,6 +109,7 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.text).toBe('hello from claude');
+    expect(body.hermesMeta).toMatchObject({ surface: 'api', model: expect.any(String), memoryFacts: 0, toolsCount: 0 });
   });
 
   it('falls back to Gemini when Claude errors and a Gemini key is also configured', async () => {
@@ -123,6 +124,7 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.text).toBe('hello from gemini');
+    expect(body.hermesMeta).toMatchObject({ surface: 'api', model: expect.stringContaining('gemini'), memoryFacts: 0, toolsCount: 0 });
   });
 
   it('propagates the Claude error status when Claude fails and there is no Gemini fallback key', async () => {

@@ -17,7 +17,10 @@ export async function resolveAiKeys(householdId: string): Promise<{
 
   const stored = await dbGetHouseholdKeys(householdId);
 
-  let anthropicKey = sharedAnthropic;
+  // Platform-paid Claude calls go through the Vercel AI Gateway (AI_GATEWAY_API_KEY) or OpenRouter when set
+  // (api/_anthropicEndpoint.ts routes on the sk-or- prefix); a household's own
+  // BYO Anthropic key below still overrides it and goes direct.
+  let anthropicKey = process.env.AI_GATEWAY_API_KEY || process.env.OPENROUTER_API_KEY || sharedAnthropic;
   if (stored.byo_anthropic_key_encrypted) {
     try {
       anthropicKey = await decryptSecret(stored.byo_anthropic_key_encrypted);

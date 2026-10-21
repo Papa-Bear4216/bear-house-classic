@@ -1,16 +1,21 @@
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
+import { anthropicTarget } from './_anthropicEndpoint.js';
+import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier, dbLogHermesRepair } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
-import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL } from './_aiModels.js';
+import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 import { handleStreamingChat } from './_streamChat.js';
 import { isTriadHousehold } from './_triadAccess.js';
 import { HERMES_TOOLS, isValidCall, sanitizeToolParams, type ToolDefinition } from './_hermesTools.js';
+import { buildHermesContext } from './_hermesContext.js';
+import { resolveHermesModel } from './_hermesRouting.js';
+
+export { HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 
 // --- Model catalog (verified 2026-09-25). Next model deprecation = edit here. ---
 // NOTE: these are now also exported from _aiModels.js as the single source of
@@ -22,15 +27,6 @@ import { HERMES_TOOLS, isValidCall, sanitizeToolParams, type ToolDefinition } fr
 const GEMINI_MODEL = DEFAULT_GEMINI_MODEL;
 const PROVIDER_TIMEOUT_MS = 30_000;
 export const MAX_ACTIONS_PER_TURN = 8;
-
-export const HERMES_SYSTEM_PROMPT = [
-  'You are Hermes, the Bear House family assistant.',
-  'You help with household life: routines, chores, schedules, homework, meals, budgeting, and finding things.',
-  'Be concise, warm, and practical. Prefer short answers with concrete next steps.',
-  'Hard rules: never give medical, dosing, legal, or court-related advice; never diagnose anyone;',
-  "never speculate about another person's motives or intent;",
-  "if you are unsure, say what you know and what you don't.",
-].join(' ');
 
 export const NON_ADMIN_ALLOWED_TOOLS = new Set([
   'addTask',
@@ -118,14 +114,11 @@ async function callClaude(
   truncated: boolean;
   droppedActions: number;
 }> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const target = anthropicTarget(apiKey, model);
+  const res = await fetch(target.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify(buildClaudeRequestBody(model, system, messages, maxTokens, jsonMode, tools)),
+    headers: target.headers,
+    body: JSON.stringify(buildClaudeRequestBody(target.model, system, messages, maxTokens, jsonMode, tools)),
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (!res.ok) {
@@ -142,6 +135,16 @@ async function callClaude(
   let droppedActions = 0;
   if (dropLast) droppedActions += 1;
   const candidateBlocks = usable.filter((b: any) => b?.type === 'tool_use' && typeof b.name === 'string');
+  if (tools && tools.length > 0 && candidateBlocks.length === 0) {
+    // Diagnostic: tools were offered but the model returned none. Helps tell a provider/gateway
+    // that drops `tools` apart from a model that simply answered in text.
+    console.warn('[chat] tools offered, none returned', {
+      host: new URL(target.url).host,
+      stopReason,
+      blockTypes: content.map((b: any) => b?.type),
+      toolCount: tools.length,
+    });
+  }
 
   const actions: HermesActionPayload[] = [];
   for (const b of candidateBlocks) {
@@ -343,11 +346,17 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { prompt, messages: msgArray, system, maxTokens, model, format, outputSchema, enableTools, neutralMode, role: requestedRole } = parsed.data;
+  const { prompt, messages: msgArray, system, clientSnapshot, surface, currentModule, maxTokens, model, format, outputSchema, enableTools, neutralMode, role: requestedRole, memberId } = parsed.data;
+
+  if (surface === 'kids-monster' && (
+    callerRole !== 'child' || !caller || !memberId || memberId !== caller.memberId || requestedRole !== 'child'
+  )) {
+    return j({ error: 'Forbidden: invalid sealed Monster Hermes identity.' }, 403);
+  }
 
   // Tools are opt-in for Hermes Chat callers (`enableTools: true`) to prevent token overhead
   // and unexpected tool calling on general text-completion endpoints.
-  const useTools = enableTools === true && format !== 'json' && !outputSchema;
+  const useTools = surface !== 'kids-monster' && enableTools === true && format !== 'json' && !outputSchema;
   const tools = useTools ? HERMES_TOOLS : undefined;
   const tokens = maxTokens || (useTools ? 1024 : 512);
   const messages: ChatMessage[] = (msgArray || [{ role: 'user', content: prompt || '' }])
@@ -370,13 +379,13 @@ export default async function handler(req: Request): Promise<Response> {
   const effectiveIsAdmin = isAdmin && !isChild;
   const effectiveCanControl = canControlDevices && !isChild;
 
-  const scopedTools = tools?.filter((t) => {
+  let scopedTools = tools?.filter((t) => {
     if (t.name === 'queryTriad') return isTriad && effectiveIsAdmin;
     if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return effectiveCanControl;
     if (!effectiveIsAdmin) return NON_ADMIN_ALLOWED_TOOLS.has(t.name);
     return true;
   });
-  const allowedTools = new Set(scopedTools?.map((t) => t.name) || []);
+  let allowedTools = new Set(scopedTools?.map((t) => t.name) || []);
 
   // JSON output mode: when `format: 'json'` or a non-empty `outputSchema` is
   // requested, constrain the LLM to emit machine-parseable JSON. Claude gets
@@ -403,16 +412,42 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   if (isChild && system) {
     baseSystem = baseSystem.replace(/(\b(?:finance|budget|billing|bills|bank|account|transaction)s?\b[^\n]*)/gi, '[REDACTED]');
   }
-  const effectiveSystem = baseSystem + jsonHint + neutralHint + childSafetyHint;
+  let effectiveSystem = baseSystem + jsonHint + neutralHint + childSafetyHint;
 
   // The household's self-serve tier toggle (api/hermes-model.ts) picks the
   // Claude model. An explicit `model` in the request still overrides it.
   // The getter itself defaults to 'haiku'; the extra guards are belt-and-braces.
   const tier = await dbGetHermesModelTier(householdId).catch(() => 'haiku' as const);
-  const chosenModel = model || CLAUDE_MODELS[tier as keyof typeof CLAUDE_MODELS] || CLAUDE_MODELS.haiku;
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || prompt || '';
+  const chosenModel = resolveHermesModel(lastUserMsg, model, tier as keyof typeof CLAUDE_MODELS);
+  let memoryFactsCount = 0;
+  if (surface) {
+    const context = await buildHermesContext({
+      householdId,
+      callerRole,
+      canControlDevices: effectiveCanControl,
+      surface,
+      currentModule,
+      clientSnapshot: surface === 'kids-monster' ? undefined : clientSnapshot,
+      sealedPersona: surface === 'kids-monster' ? system : undefined,
+      enableTools: useTools,
+      neutralMode: neutralMode === true,
+      requestedRole,
+      modelId: chosenModel,
+    });
+    effectiveSystem = context.system + jsonHint;
+    scopedTools = context.tools;
+    allowedTools = new Set(context.tools.map((tool) => tool.name));
+    memoryFactsCount = context.memoryCount;
+  }
+  const hermesMeta = {
+    surface: surface || 'api',
+    model: chosenModel,
+    memoryFacts: memoryFactsCount,
+    toolsCount: scopedTools?.length || 0,
+  };
 
   // Intercept Triad queries and route to ambient Triad daemon on port 8789 ($0 token cost)
-  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || prompt || '';
   const cleanQuery = lastUserMsg.trim();
   // Triad is scoped to the owner's household only; everyone else's "triad ..."
   // is just a normal chat message. Children are strictly blocked from triad execution.
@@ -466,7 +501,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
           text: `[Triad Engine: ${triadData.intent || 'AUTO'}]\n${formatted}`,
           actions: []
         });
-        return j({ text: reply });
+        return j({ text: reply, hermesMeta });
       }
     } catch (e: any) {
       console.warn('[Chat] Triad ambient bridge unavailable, falling back to LLM:', e?.message);
@@ -476,6 +511,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
   if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
 
+  let usedGeminiFallback = false;
   if (anthropicKey) {
     try {
       const { text, actions, stopReason, usage, truncated, droppedActions } = await callClaude(
@@ -483,9 +519,16 @@ The current user is a child member of the family. Keep answers age-appropriate, 
       );
       if (!text && actions.length === 0) {
         if (droppedActions > 0) {
+          await dbLogHermesRepair(householdId, {
+            surface: surface || 'api', issueType: 'tool_degraded',
+            detail: `${droppedActions} tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+            actionTaken: 'Returned a text explanation instead of reporting rejected actions as successful',
+            success: false,
+          });
           return j({
             text: 'I attempted to perform an action, but it could not be validated or was cut off.',
             actions: [],
+            hermesMeta: { ...hermesMeta, droppedActions },
             truncated: true,
             droppedActions,
           });
@@ -496,8 +539,17 @@ The current user is a child member of the family. Keep answers age-appropriate, 
           502,
         );
       }
+      if (droppedActions > 0) {
+        await dbLogHermesRepair(householdId, {
+          surface: surface || 'api', issueType: 'tool_degraded',
+          detail: `${droppedActions} tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+          actionTaken: 'Returned only validated actions',
+          success: false,
+        });
+      }
       return j({
         text,
+        hermesMeta: { ...hermesMeta, ...(droppedActions > 0 ? { droppedActions } : {}) },
         ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
         model: chosenModel,
         ...(wantJson ? { format: 'json' } : {}),
@@ -516,6 +568,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
         return serverError(e?.message || 'Network error', 'chat:claude', e);
       }
       // Otherwise fall through to Gemini below.
+      usedGeminiFallback = true;
     }
   }
 
@@ -526,17 +579,36 @@ The current user is a child member of the family. Keep answers age-appropriate, 
     );
     if (!text && actions.length === 0) {
       if (droppedActions > 0) {
+        await dbLogHermesRepair(householdId, {
+          surface: surface || 'api', issueType: 'tool_degraded',
+          detail: `${droppedActions} Gemini tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+          actionTaken: 'Returned a text explanation instead of reporting rejected actions as successful',
+          success: false,
+        });
         return j({
           text: 'I attempted to perform an action, but it could not be validated or was cut off.',
           actions: [],
+          hermesMeta: { ...hermesMeta, model: GEMINI_MODEL, droppedActions, ...(toolsDegraded ? { toolsDegraded: true } : {}) },
           truncated: true,
           droppedActions,
         });
       }
       return j({ error: 'Model returned no text.' }, 502);
     }
+    if (usedGeminiFallback || toolsDegraded || droppedActions > 0) {
+      await dbLogHermesRepair(householdId, {
+        surface: surface || 'api',
+        issueType: 'tool_degraded',
+        detail: `providerFallback=${usedGeminiFallback}; toolsDegraded=${!!toolsDegraded}; droppedActions=${droppedActions}; model=${GEMINI_MODEL}`,
+        actionTaken: usedGeminiFallback && !toolsDegraded && droppedActions === 0
+          ? 'Recovered the turn with the configured Gemini fallback'
+          : 'Returned a response with available provider and validated actions',
+        success: usedGeminiFallback && !toolsDegraded && droppedActions === 0,
+      });
+    }
     return j({
       text,
+      hermesMeta: { ...hermesMeta, model: GEMINI_MODEL, ...(toolsDegraded ? { toolsDegraded: true } : {}), ...(droppedActions > 0 ? { droppedActions } : {}) },
       ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
       model: GEMINI_MODEL,
       ...(wantJson ? { format: 'json' } : {}),

@@ -267,6 +267,7 @@ export const MonsterHermesDialog: React.FC<MonsterHermesDialogProps> = ({
             maxTokens: 250,
             role: 'child',
             memberId: profile.memberId,
+            surface: 'kids-monster',
           }),
           signal: controller.signal,
         });
