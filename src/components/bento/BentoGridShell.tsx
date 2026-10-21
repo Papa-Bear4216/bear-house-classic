@@ -382,7 +382,7 @@ export const BentoGridShell: React.FC = () => {
           <div className="flex items-center gap-4 text-slate-400 text-[11px]">
             <span>Triad Fusion Architecture</span>
             <span>&bull;</span>
-            <span>Encrypted Local State</span>
+            <span>Local State</span>
           </div>
         </footer>
       </section>

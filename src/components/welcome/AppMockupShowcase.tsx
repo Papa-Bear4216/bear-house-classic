@@ -1056,7 +1056,7 @@ function KidRoomMockupContent({
         </p>
         <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
           <span className="text-emerald-400 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Encrypted on Leo's phone only
+            <CheckCircle2 className="w-3 h-3" /> Stored on Leo's phone only
           </span>
           <span className="text-rose-400/90">Parents cannot see entries</span>
         </div>

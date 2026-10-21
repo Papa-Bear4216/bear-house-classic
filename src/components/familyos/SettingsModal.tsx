@@ -184,10 +184,10 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
         <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-3 text-[11px] text-slate-400 space-y-2">
           <div className="font-semibold text-slate-300 flex items-center gap-1.5">
             <Shield className="w-3.5 h-3.5 text-amber-400" />
-            COPPA Verifiable Parental Consent & Privacy Notice
+            Parental Consent & Privacy Notice
           </div>
           <p>
-            Hot Mess Express complies with the Children's Online Privacy Protection Act (COPPA). We collect minimal child data, never sell personal information, and restrict account permissions by default.
+            Hot Mess Express is designed with the Children's Online Privacy Protection Act (COPPA) in mind. We collect minimal child data, never sell personal information, and restrict account permissions by default.
           </p>
           <label className="flex items-start gap-2 cursor-pointer select-none text-slate-300 font-medium pt-1">
             <input
@@ -802,6 +802,19 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
             </section>
           )}
 
+          <section className="pt-4 border-t border-slate-700/50">
+            <h3 className="text-sm font-semibold text-white mb-1">Delete my account</h3>
+            <p className="text-xs text-slate-400 mb-2">
+              Request deletion of your account and household data. We delete it within 30 days.{' '}
+              <a href="/delete-account" className="text-indigo-400 underline">Learn more</a>
+            </p>
+            <a
+              href="mailto:michael@hotmessexpress.lol?subject=Delete%20my%20HotMessExpress%20account&body=Please%20delete%20my%20account%20and%20household%20data.%20I%20am%20writing%20from%20the%20email%20address%20on%20the%20account."
+              className="inline-block text-xs bg-red-600/20 text-red-300 hover:bg-red-600/30 rounded-lg px-3 py-2 transition"
+            >
+              Request account deletion
+            </a>
+          </section>
         </div>
 
         <div className="p-6 border-t border-slate-700 sticky bottom-0 bg-slate-800 rounded-b-2xl">

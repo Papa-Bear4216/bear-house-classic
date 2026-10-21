@@ -258,6 +258,9 @@
         <li><strong>Co-parenting information.</strong> Whether co-parenting mode is on, which household each parent belongs to, and each household&rsquo;s address and phone number, which the other parent can see unless the household marks its address <strong>confidential</strong>.</li>
         <li><strong>School information.</strong> If a family member links a Google Classroom account, course names, assignment titles and due dates, submission status, and the student&rsquo;s own grades from that account. A parent or guardian administrator of the household can view a child&rsquo;s linked-account grades; other members cannot.</li>
         <li><strong>Smart-home information.</strong> If you connect Home Assistant or link Google Home, the connection details you provide, and device names and states so you can view and control your devices.</li>
+        <li><strong>Kids World, voice translator and room scanner.</strong> The voice translator uses your device&rsquo;s microphone and speech recognition, and spoken replies use Google text-to-speech; we do not keep audio recordings. The room scanner sends a photo you take (which may be of a child&rsquo;s room) to an AI image-reading service to suggest tidy-up tasks; we do not keep the photo after the result is returned. Arcade scores and leaderboards show a child&rsquo;s chosen display name to their own household. Pet feeding and walk logs are stored with the household.</li>
+        <li><strong>Private kid journal.</strong> Journal entries are stored only in the child&rsquo;s own browser or device storage. They are not uploaded to our servers, are not shared with the household or the AI assistant, and are lost if the device storage is cleared. They are not encrypted by us.</li>
+        <li><strong>Home Assistant camera snapshots.</strong> If you connect Home Assistant, you can view camera snapshots through the app. Snapshots are fetched on demand and passed to your screen; we do not store them.</li>
         <li><strong>AI conversations.</strong> What you type to the built-in assistant, and the household context needed to answer (see section 6).</li>
         <li><strong>Technical data.</strong> Device and browser type, app version, error and performance logs, push-notification tokens, and IP address in server logs.</li>
       </ul>
@@ -318,7 +321,8 @@
           <tr><td>SimpleFIN Bridge</td><td>Read-only bank connection, if you connect one</td></tr>
           <tr><td>Google (Gmail, Calendar, Classroom, Google Home)</td><td>Only if you connect those features</td></tr>
           <tr><td>Firebase Cloud Messaging</td><td>Push notifications on Android</td></tr>
-          <tr><td>IFTTT</td><td>Only if you enable a voice or automation trigger</td></tr>
+          <tr><td>IFTTT</td><td>Only if you enable a voice, automation or SMS-digest trigger; your message text is passed to IFTTT and onward to the destination you configure</td></tr>
+          <tr><td>Google (Gemini, text-to-speech)</td><td>Voice replies, room-scanner and receipt image reading</td></tr>
           <tr><td>U.S. National Weather Service</td><td>Weather for your approximate location</td></tr>
         </tbody>
       </table>
@@ -332,7 +336,11 @@
 
     <section>
       <h2>9. Children&rsquo;s privacy</h2>
-      <p>HotMessExpress is set up and controlled by parents. A child gets a profile that a parent creates, and can sign in with their own account only when a parent invites them. We do not knowingly collect personal information directly from a child under 13 without a parent&rsquo;s consent, which a parent gives by setting up or inviting the child. We do not show advertising to anyone. A parent can review, correct or delete a child&rsquo;s information, or stop further collection, by emailing <a href="mailto:michael@hotmessexpress.lol">michael@hotmessexpress.lol</a>.</p>
+      <p>HotMessExpress is set up and controlled by parents. A child gets a profile that a parent creates, and can sign in with their own account only when a parent invites them. Before a child under 13 gets an account, the parent must confirm in the app that they are the child&rsquo;s parent or legal guardian and consent to the collection described here; we record that confirmation with the date and notice version. We do not show advertising to anyone, and we do not sell or share children&rsquo;s information for advertising.</p>
+      <p><strong>What we collect from a child.</strong> The profile details a parent enters; chores, routines and points; arcade scores and display name; pet logs; voice input through the device&rsquo;s speech recognition (audio is not stored by us); and photos only if a parent or child uses the room scanner (not stored by us after the result is returned). The private journal stays on the child&rsquo;s device and is not sent to us.</p>
+      <p><strong>Who processes it.</strong> Supabase and Vercel (storage and hosting), and, when AI features are used, Anthropic and Google (Gemini, text-to-speech). We send these providers only what is needed to answer the request.</p>
+      <p><strong>Retention.</strong> Children&rsquo;s information is kept only while the household account is active and is deleted within 30 days of an account or child-profile deletion request, except where the law requires us to keep a record.</p>
+      <p><strong>Parent rights.</strong> A parent can review, correct or delete a child&rsquo;s information, or refuse further collection, in the app (Settings), at <a href="/delete-account">hotmessexpress.lol/delete-account</a>, or by emailing <a href="mailto:michael@hotmessexpress.lol">michael@hotmessexpress.lol</a>.</p>
     </section>
 
     <section>
@@ -341,8 +349,18 @@
     </section>
 
     <section>
+      <h2>10a. Data breach notification</h2>
+      <p>If we learn of a security breach that affects your personal information, we will notify affected account holders and, where the law requires, regulators, without unreasonable delay and within the time the law allows. For a breach involving a child&rsquo;s information, we will notify the parent or guardian account.</p>
+    </section>
+
+    <section>
       <h2>11. Retention and deletion</h2>
-      <p>We keep information while your account is active. To have your household or account deleted, email <a href="mailto:michael@hotmessexpress.lol">michael@hotmessexpress.lol</a> from the address on your account. We will delete or de-identify your information within 30 days, except where we must keep records for legal, tax or security reasons. Backups roll off on their normal schedule. You can also disconnect Gmail, Calendar and Classroom in Settings, disconnect a bank in the Finance area, and unlink Google Home in the Google Home app at any time.</p>
+      <p>We keep information while your account is active. You can request deletion in the app (Settings &rarr; Delete my account, which sends us a verified request), at <a href="/delete-account">hotmessexpress.lol/delete-account</a>, or by email to <a href="mailto:michael@hotmessexpress.lol">michael@hotmessexpress.lol</a> from the address on your account. We will delete or de-identify your information within 30 days, except where we must keep records for legal, tax or security reasons. Backups roll off on their normal schedule. You can also disconnect Gmail, Calendar and Classroom in Settings, disconnect a bank in the Finance area, and unlink Google Home in the Google Home app at any time.</p>
+    </section>
+
+    <section>
+      <h2>11a. Sensitive data and consent</h2>
+      <p>Health-related entries (such as medications and mood logs) and children&rsquo;s information are sensitive. We process them only because you choose to enter them, only to provide the features you use, and never for advertising. By entering this information you consent to that processing; you can withdraw consent at any time by deleting the entries or your account. Texas and other state residents may also appeal a denied request by replying to our response email.</p>
     </section>
 
     <section>
