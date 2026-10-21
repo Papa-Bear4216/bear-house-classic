@@ -133,6 +133,23 @@ describe('POST /api/data-write', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('treats the same instant in a different format (Z vs +00:00) as a match', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ value: { done: false }, updated_at: '2026-01-01T00:00:00.123+00:00' }],
+      } as Response)
+      .mockResolvedValueOnce({ ok: true, text: async () => '' } as Response);
+
+    const res = await handler(req({
+      key: 'chores', value: { done: true }, expectedUpdatedAt: '2026-01-01T00:00:00.123Z',
+    }));
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('returns 502 when the Supabase write fails', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500, statusText: 'error', text: async () => 'db down' } as Response);
     const res = await handler(req({ key: 'chores', value: {} }));

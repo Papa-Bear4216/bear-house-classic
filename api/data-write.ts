@@ -39,6 +39,13 @@ const SERVER_MANAGED_KEY_PREFIXES = [
   'merchant_category_cache_',
 ];
 
+function sameInstant(a: string, b: string): boolean {
+  if (a === b) return true;
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -89,7 +96,10 @@ export default async function handler(req: Request): Promise<Response> {
     if (currentRes.ok) {
       const rows = await currentRes.json().catch(() => []);
       const current = rows[0];
-      if (current && current.updated_at !== expectedUpdatedAt) {
+      // Compare instants, not strings: we return `…Z` from our own writes but
+      // PostgREST hands the same instant back as `…+00:00`, which made every
+      // second save from one session look like a conflict and drop the edit.
+      if (current && !sameInstant(current.updated_at, expectedUpdatedAt)) {
         return j({ error: 'Version conflict', current: current.value, currentUpdatedAt: current.updated_at }, 409);
       }
     }
