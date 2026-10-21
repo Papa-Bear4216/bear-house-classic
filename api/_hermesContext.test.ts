@@ -2,13 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dbGetHouseholdMembersByHouseholdId = vi.fn();
 const dbGetHouseholdMemory = vi.fn();
+const dbGet = vi.fn();
 vi.mock('./_db.js', () => ({
+  dbGet: (...args: unknown[]) => dbGet(...args),
   dbGetHouseholdMembersByHouseholdId: (...args: unknown[]) => dbGetHouseholdMembersByHouseholdId(...args),
   dbGetHouseholdMemory: (...args: unknown[]) => dbGetHouseholdMemory(...args),
 }));
 vi.mock('./_triadAccess.js', () => ({ isTriadHousehold: () => false }));
 
-import { buildHermesContext } from './_hermesContext.js';
+import { buildHermesContext, formatHermesSnapshot } from './_hermesContext.js';
 
 const base = {
   householdId: 'house-1',
@@ -22,12 +24,42 @@ const base = {
 
 describe('buildHermesContext', () => {
   beforeEach(() => {
+    dbGet.mockReset().mockResolvedValue(null);
     dbGetHouseholdMembersByHouseholdId.mockReset().mockResolvedValue([
       { id: 'member-1', name: 'Lucy', role: 'pet' },
     ]);
     dbGetHouseholdMemory.mockReset().mockResolvedValue([
       { id: 'memory-1', text: 'Lucy prefers her blue leash.', source: 'manual', created_at: '2026-01-01' },
     ]);
+  });
+
+  it('builds a server snapshot for fresh clients and excludes past appointments', async () => {
+    dbGet.mockImplementation(async (key: string) => ({
+      household_tasks: [
+        ...Array.from({ length: 23 }, (_, i) => ({ id: `t${i}`, text: `Task ${i}`, priority: i < 9 ? 'High' : 'Low' })),
+      ],
+      familyos_shopping: [{ name: 'Apples', quantity: 2 }],
+      familyos_appointments: [
+        { date: '2000-10-20', person: 'Lucy', title: 'Old visit' },
+        { date: '2099-10-22', person: 'Lucy', title: 'Upcoming visit' },
+      ],
+      family_promises: [],
+    } as Record<string, unknown>)[key] ?? null);
+    const context = await buildHermesContext({ ...base, clientSnapshot: undefined });
+    expect(context.system).toContain('OPEN TASKS (23 total');
+    expect(context.system).toContain('Apples ×2');
+    expect(context.system).toContain('Upcoming visit');
+    expect(context.system).not.toContain('Old visit');
+    expect(dbGet).toHaveBeenCalledTimes(4);
+  });
+
+  it('reports hidden low-priority tasks honestly in a server snapshot', () => {
+    const snapshot = formatHermesSnapshot({
+      tasks: [
+        ...Array.from({ length: 23 }, (_, i) => ({ id: `t${i}`, text: `Task ${i}`, priority: i < 9 ? 'High' : i < 14 ? 'Medium' : 'Low' })),
+      ],
+    }, new Date('2026-10-21T12:00:00Z'));
+    expect(snapshot).toContain('OPEN TASKS (23 total, showing 13 by priority; 9 Low not shown)');
   });
 
   it('builds household identity, roster, memory, and a manifest from executable tools', async () => {

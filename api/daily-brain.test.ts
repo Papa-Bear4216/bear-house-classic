@@ -185,7 +185,7 @@ describe('api/daily-brain.ts: runDailyBrainChecks', () => {
     expect(db.dbAddHouseholdMemory).toHaveBeenCalledWith(
       householdId,
       expect.stringContaining('Alice logged 3 negative emotions this week'),
-      'auto'
+      { source: 'auto', kind: 'pattern', status: 'pending_review' }
     );
   });
 

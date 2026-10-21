@@ -12,12 +12,17 @@ export function buildSystemPrompt(householdMembers: { id: string; name: string; 
   const open = tasks.filter(t => !t.completed);
   const high = open.filter(t => t.priority === 'High').slice(0, 8);
   const medium = open.filter(t => t.priority === 'Medium').slice(0, 5);
+  const low = open.filter(t => t.priority === 'Low');
   const shopping = loadJSON<any[]>('familyos_shopping', []).filter((i: any) => !i.completed);
   const bills = canSeeMoney ? loadJSON<any[]>('familyos_bills', []).filter((b: any) => !b.paid) : [];
   const expenses = canSeeMoney ? loadJSON<any[]>('familyos_expenses', []) : [];
-  const appts = loadJSON<any[]>('familyos_appointments', []).slice(0, 6);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const appts = loadJSON<any[]>('familyos_appointments', [])
+    .filter((appointment: any) => !appointment.date || appointment.date >= todayISO)
+    .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')))
+    .slice(0, 6);
   const emotions = loadJSON<any[]>(KEYS.emotions, []).slice(0, 6);
-  const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed).slice(0, 6);
+  const promises = loadJSON<any[]>(KEYS.promises, []).filter((p: any) => !p.completed);
   const memory = cachedHermesMemory().join('\n');
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const todayDayName = DAYS[(new Date().getDay() + 6) % 7]; // getDay() is Sun=0; DAYS starts Monday
@@ -50,20 +55,20 @@ Family: ${familyLine}.${hobbyLines ? `\n${hobbyLines}` : ''}
 
 ═══ LIVE DATA ═══
 
-OPEN TASKS (${open.length} total):
+OPEN TASKS (${open.length} total, showing ${high.length + medium.length} by priority; ${low.length} Low not shown):
 HIGH: ${high.length ? high.map(t => `[${t.id?.slice(-4)}] "${t.text}" → ${t.person}`).join(' | ') : 'none'}
 MEDIUM: ${medium.length ? medium.map(t => `[${t.id?.slice(-4)}] "${t.text}" → ${t.person}`).join(' | ') : 'none'}
 OVERDUE: ${open.filter(t => t.dueDate && t.dueDate < Date.now()).length} tasks
 
-SHOPPING (${shopping.length} items): ${shopping.slice(0, 10).map(i => `${i.name} ×${i.quantity || 1}`).join(', ') || 'empty'}
+SHOPPING (${shopping.length} items, showing first ${Math.min(shopping.length, 10)}): ${shopping.slice(0, 10).map(i => `${i.name} ×${i.quantity || 1}`).join(', ') || 'empty'}
 
-BILLS UNPAID: ${!canSeeMoney ? 'not available to this account' : `(${bills.length}) ${bills.slice(0, 6).map(b => `${b.name} $${b.amount}`).join(', ') || 'none'}`}
+BILLS UNPAID: ${!canSeeMoney ? 'not available to this account' : `(${bills.length} total, showing ${Math.min(bills.length, 6)}) ${bills.slice(0, 6).map(b => `${b.name} $${b.amount}`).join(', ') || 'none'}`}
 
 FINANCE: ${!canSeeMoney ? 'not available to this account' : expenses.length ? `${expenses.length} tracked expenses, most recent: ${expenses.slice(0, 5).map(e => `${e.notes || e.category} $${e.amount} (${e.date})`).join(', ')}` : 'no expenses synced yet — bank not connected or sync hasn\'t been run in the Finance tab'}
 
-APPOINTMENTS: ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}`).join(' | ') : 'none'}
+APPOINTMENTS (${appts.length} upcoming shown): ${appts.length ? appts.map(a => `${a.person}: ${a.title || a.type}`).join(' | ') : 'none'}
 
-OPEN PROMISES: ${promises.length ? promises.map(p => `${p.person}: "${p.text}"`).join(' | ') : 'none'}
+OPEN PROMISES (${promises.length} total, showing ${Math.min(promises.length, 6)}): ${promises.length ? promises.slice(0, 6).map(p => `${p.person}: "${p.text}"`).join(' | ') : 'none'}
 
 RECENT EMOTIONS: ${emotions.length ? emotions.map(e => `${e.person} felt ${e.emotion} (${e.intensity}/5)`).join(' | ') : 'none'}
 
@@ -73,9 +78,9 @@ TODAY'S MEALS (${todayDayName}): Breakfast: ${todayMeals?.Breakfast || 'not plan
 
 PANTRY LOW/OUT (${lowPantry.length}): ${lowPantry.length ? lowPantry.slice(0, 10).map((p: PantryItem) => `${p.name} (${p.quantity}${p.unit})`).join(', ') : 'nothing low'}
 
-MEDICATIONS (${medications.length}): ${medications.length ? medications.slice(0, 6).map((m: any) => `${m.person}: ${m.name}${m.nextRefill ? ` (refill ${m.nextRefill})` : ''}`).join(' | ') : 'none tracked'}
+MEDICATIONS (${medications.length} total, showing ${Math.min(medications.length, 6)}): ${medications.length ? medications.slice(0, 6).map((m: any) => `${m.person}: ${m.name}${m.nextRefill ? ` (refill ${m.nextRefill})` : ''}`).join(' | ') : 'none tracked'}
 
-HOMEWORK OPEN (${homework.length}): ${homework.length ? homework.slice(0, 6).map((h: any) => `${h.kid}: ${h.subject} - ${h.task}${h.dueDate ? ` (due ${h.dueDate})` : ''}`).join(' | ') : 'none'}
+HOMEWORK OPEN (${homework.length} total, showing ${Math.min(homework.length, 6)}): ${homework.length ? homework.slice(0, 6).map((h: any) => `${h.kid}: ${h.subject} - ${h.task}${h.dueDate ? ` (due ${h.dueDate})` : ''}`).join(' | ') : 'none'}
 
 ${memory ? `═══ MY MEMORY ═══\n${memory}\n` : ''}
 ${(() => { const hb = memoryFactBlock(); return hb ? `═══ HOUSEHOLD BRAIN (rules/inventory/procedures set by the family) ═══\n${hb}\n` : ''; })()}
