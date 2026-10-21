@@ -22,9 +22,11 @@ import { isTriadHousehold } from './_triadAccess.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json } from './_responseHelpers.js';
 import { checkRateLimit } from './_rateLimit.js';
-import { resolveHouseholdId, dbGetHermesModelTier } from './_db.js';
+import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { CLAUDE_MODELS, type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
+import { resolveHermesModel } from './_hermesRouting.js';
+import { buildHermesContext } from './_hermesContext.js';
 
 // Treat unknown keys as 0 length so the SSE publisher can count deltas.
 export type DeltaCount = { count: number };
@@ -80,7 +82,8 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
+  const caller = accessToken ? await resolveCallerMember(accessToken).catch(() => null) : null;
+  const householdId = caller?.householdId ?? (accessToken ? await resolveHouseholdId(accessToken) : null);
   if (!householdId) return { kind: 'error', status: 401, body: { error: 'Unauthorized' } };
 
   const rl = await checkRateLimit(householdId, 'chat', 30);
@@ -92,16 +95,36 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return { kind: 'error', status: 400, body: { error: parsed.error } };
 
-  const { prompt, messages: msgArray, system, maxTokens, model } = parsed.data;
+  const { prompt, messages: msgArray, system, clientSnapshot, maxTokens, model, surface, currentModule, enableTools, neutralMode, role: requestedRole, memberId } = parsed.data;
+  if (surface === 'kids-monster' && (
+    caller?.role !== 'child' || !caller || !memberId || memberId !== caller.memberId || requestedRole !== 'child'
+  )) {
+    return { kind: 'error', status: 403, body: { error: 'Forbidden: invalid sealed Monster Hermes identity.' } };
+  }
   const messages: Array<{ role: string; content: string }> =
     (msgArray || [{ role: 'user', content: prompt || '' }]).map(m => ({ role: m.role || 'user', content: m.content || '' }));
   const tokens = maxTokens || 512;
-  const effectiveSystem = system || HERMES_SYSTEM_PROMPT;
 
   const tier = (await dbGetHermesModelTier(householdId).catch(() => 'haiku' as const)) as ClaudeModelTier;
-  const chosenModel = model || CLAUDE_MODELS[tier] || CLAUDE_MODELS.haiku;
-
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || prompt || '';
+  const chosenModel = resolveHermesModel(lastUserMsg, model, tier);
+  let effectiveSystem = system || HERMES_SYSTEM_PROMPT;
+  if (surface) {
+    const context = await buildHermesContext({
+      householdId,
+      callerRole: caller?.role || 'child',
+      canControlDevices: caller?.canControlDevices ?? false,
+      surface,
+      currentModule,
+      clientSnapshot: surface === 'kids-monster' ? undefined : clientSnapshot,
+      sealedPersona: surface === 'kids-monster' ? system : undefined,
+      enableTools: false,
+      neutralMode: neutralMode === true,
+      requestedRole,
+      modelId: chosenModel,
+    });
+    effectiveSystem = context.system;
+  }
   const cleanQuery = lastUserMsg.trim();
   const isTriadDirect = isTriadHousehold(householdId) && (
     /^(triad|\/triad)\b/i.test(cleanQuery) ||

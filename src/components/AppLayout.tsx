@@ -15,6 +15,7 @@ import { OPEN_SETTINGS_EVENT, resolveSettingsOpenRequest, type SettingsIntent } 
 import { BentoGridProvider } from '@/components/bento/BentoGridContext';
 import { BentoGridShell } from '@/components/bento/BentoGridShell';
 
+const HermesChat = lazy(() => import('@/components/familyos/HermesChat'));
 const SettingsModal = lazy(() => import('@/components/familyos/SettingsModal'));
 const HistoryModal = lazy(() => import('@/components/familyos/HistoryModal'));
 const WelcomeBackModal = lazy(() => import('@/components/familyos/WelcomeBackModal'));
@@ -319,6 +320,10 @@ const AppLayout: React.FC = () => {
         <main className="w-full py-6 pb-20">
           <BentoGridShell />
         </main>
+
+        <Suspense fallback={null}>
+          <HermesChat />
+        </Suspense>
 
         <Suspense fallback={null}>
           {bulletinOpen && (
