@@ -3,15 +3,74 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
-    { "path": "/api/health-check", "schedule": "0 7 * * *" },
-    { "path": "/api/preempt-refresh", "schedule": "0 4 1 * *" },
-    { "path": "/api/finance-sync", "schedule": "0 6 * * *" },
-    { "path": "/api/hermes-feedback", "schedule": "0 13 * * 0" }
+    {
+      "path": "/api/health-check",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/preempt-refresh",
+      "schedule": "0 4 1 * *"
+    },
+    {
+      "path": "/api/finance-sync",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/hermes-feedback",
+      "schedule": "0 13 * * 0"
+    }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/((?!\\.)(?!.*\\.[A-Za-z0-9]+$).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/((?!api/).*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://open.spotify.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=(), interest-cohort=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.hotmessexpress.lol"
+        }
+      ]
+    }
   ]
 }
