@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
+import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier, dbLogHermesRepair } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
@@ -493,7 +493,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
           text: `[Triad Engine: ${triadData.intent || 'AUTO'}]\n${formatted}`,
           actions: []
         });
-        return j({ text: reply });
+        return j({ text: reply, hermesMeta });
       }
     } catch (e: any) {
       console.warn('[Chat] Triad ambient bridge unavailable, falling back to LLM:', e?.message);
@@ -503,6 +503,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
   const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
   if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');
 
+  let usedGeminiFallback = false;
   if (anthropicKey) {
     try {
       const { text, actions, stopReason, usage, truncated, droppedActions } = await callClaude(
@@ -510,9 +511,16 @@ The current user is a child member of the family. Keep answers age-appropriate, 
       );
       if (!text && actions.length === 0) {
         if (droppedActions > 0) {
+          await dbLogHermesRepair(householdId, {
+            surface: surface || 'api', issueType: 'tool_degraded',
+            detail: `${droppedActions} tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+            actionTaken: 'Returned a text explanation instead of reporting rejected actions as successful',
+            success: false,
+          });
           return j({
             text: 'I attempted to perform an action, but it could not be validated or was cut off.',
             actions: [],
+            hermesMeta: { ...hermesMeta, droppedActions },
             truncated: true,
             droppedActions,
           });
@@ -523,9 +531,17 @@ The current user is a child member of the family. Keep answers age-appropriate, 
           502,
         );
       }
+      if (droppedActions > 0) {
+        await dbLogHermesRepair(householdId, {
+          surface: surface || 'api', issueType: 'tool_degraded',
+          detail: `${droppedActions} tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+          actionTaken: 'Returned only validated actions',
+          success: false,
+        });
+      }
       return j({
         text,
-        hermesMeta,
+        hermesMeta: { ...hermesMeta, ...(droppedActions > 0 ? { droppedActions } : {}) },
         ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
         model: chosenModel,
         ...(wantJson ? { format: 'json' } : {}),
@@ -544,6 +560,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
         return serverError(e?.message || 'Network error', 'chat:claude', e);
       }
       // Otherwise fall through to Gemini below.
+      usedGeminiFallback = true;
     }
   }
 
@@ -554,18 +571,36 @@ The current user is a child member of the family. Keep answers age-appropriate, 
     );
     if (!text && actions.length === 0) {
       if (droppedActions > 0) {
+        await dbLogHermesRepair(householdId, {
+          surface: surface || 'api', issueType: 'tool_degraded',
+          detail: `${droppedActions} Gemini tool action${droppedActions === 1 ? '' : 's'} were rejected or truncated by validation.`,
+          actionTaken: 'Returned a text explanation instead of reporting rejected actions as successful',
+          success: false,
+        });
         return j({
           text: 'I attempted to perform an action, but it could not be validated or was cut off.',
           actions: [],
+          hermesMeta: { ...hermesMeta, model: GEMINI_MODEL, droppedActions, ...(toolsDegraded ? { toolsDegraded: true } : {}) },
           truncated: true,
           droppedActions,
         });
       }
       return j({ error: 'Model returned no text.' }, 502);
     }
+    if (usedGeminiFallback || toolsDegraded || droppedActions > 0) {
+      await dbLogHermesRepair(householdId, {
+        surface: surface || 'api',
+        issueType: 'tool_degraded',
+        detail: `providerFallback=${usedGeminiFallback}; toolsDegraded=${!!toolsDegraded}; droppedActions=${droppedActions}; model=${GEMINI_MODEL}`,
+        actionTaken: usedGeminiFallback && !toolsDegraded && droppedActions === 0
+          ? 'Recovered the turn with the configured Gemini fallback'
+          : 'Returned a response with available provider and validated actions',
+        success: usedGeminiFallback && !toolsDegraded && droppedActions === 0,
+      });
+    }
     return j({
       text,
-      hermesMeta: { ...hermesMeta, ...(toolsDegraded ? { toolsDegraded: true } : {}) },
+      hermesMeta: { ...hermesMeta, model: GEMINI_MODEL, ...(toolsDegraded ? { toolsDegraded: true } : {}), ...(droppedActions > 0 ? { droppedActions } : {}) },
       ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
       model: GEMINI_MODEL,
       ...(wantJson ? { format: 'json' } : {}),

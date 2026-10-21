@@ -1,6 +1,6 @@
 export const config = { runtime: 'edge' };
 
-import { resolveCallerMember, dbGetHouseholdMemory, dbAddHouseholdMemory, dbClearHouseholdMemory, dbGetPendingMemories, dbSetMemoryStatus } from './_db.js';
+import { resolveCallerMember, dbGetHouseholdMemory, dbAddHouseholdMemory, dbClearHouseholdMemory, dbGetPendingMemories, dbSetMemoryStatus, dbLogHermesRepair } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, MemoryBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -52,7 +52,27 @@ export default async function handler(req: Request): Promise<Response> {
       return j({ notes: await dbGetPendingMemories(householdId) });
     }
     if (parsed.data.action === 'setStatus') {
-      await dbSetMemoryStatus(parsed.data.id, householdId, parsed.data.status);
+      try {
+        await dbSetMemoryStatus(parsed.data.id, householdId, parsed.data.status);
+      } catch (error) {
+        if (parsed.data.status === 'superseded') {
+          await dbLogHermesRepair(householdId, {
+            issueType: 'memory_supersede',
+            detail: `Failed to supersede memory row (${parsed.data.id}): ${String((error as Error)?.message || error).slice(0, 300)}`,
+            actionTaken: 'Correction remains active; old memory row needs review',
+            success: false,
+          });
+        }
+        throw error;
+      }
+      if (parsed.data.status === 'superseded') {
+        await dbLogHermesRepair(householdId, {
+          issueType: 'memory_supersede',
+          detail: `Replaced an active memory row (${parsed.data.id}).`,
+          actionTaken: 'Marked the old fact superseded after writing its correction',
+          success: true,
+        });
+      }
       return j({ ok: true });
     }
     const data = parsed.data;

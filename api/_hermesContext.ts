@@ -37,6 +37,11 @@ export function buildCapabilityManifest(tools: ToolDefinition[]): string {
   ].join('\n');
 }
 
+/** Normalize only the generated surface statement for parity assertions. */
+export function normalizeSurfaceLine(system: string): string {
+  return system.replace(/^You are speaking through: [^\n]+$/m, 'You are speaking through: <surface>.');
+}
+
 export function formatHermesSnapshot(data: {
   tasks?: unknown;
   shopping?: unknown;

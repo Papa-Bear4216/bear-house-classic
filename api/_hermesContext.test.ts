@@ -10,7 +10,7 @@ vi.mock('./_db.js', () => ({
 }));
 vi.mock('./_triadAccess.js', () => ({ isTriadHousehold: () => false }));
 
-import { buildHermesContext, formatHermesSnapshot } from './_hermesContext.js';
+import { buildHermesContext, formatHermesSnapshot, normalizeSurfaceLine } from './_hermesContext.js';
 
 const base = {
   householdId: 'house-1',
@@ -71,6 +71,20 @@ describe('buildHermesContext', () => {
     expect(context.tools.map((tool) => tool.name)).toContain('updateMemory');
     expect(context.tools.map((tool) => tool.name)).not.toContain('queryTriad');
     expect(context.system).toContain('- updateMemory:');
+  });
+
+  it('answers surface and app-map questions from generated self-knowledge', async () => {
+    const context = await buildHermesContext({ ...base, clientSnapshot: 'LIVE DATA\nshopping: apples' });
+    expect(context.system).toMatch(/floating Hermes button on signed-in pages/i);
+    expect(context.system).toContain('Hermes Copilot AI [hermes-chat; Floating button + Bento card + Directory; data: household_memory (table); Hermes: read-write]');
+    expect(context.system).toContain('this household');
+  });
+
+  it('differs between household surfaces only by the generated surface line', async () => {
+    const snapshot = 'LIVE DATA\nshopping: apples';
+    const floating = await buildHermesContext({ ...base, surface: 'floating-chat', clientSnapshot: snapshot });
+    const bento = await buildHermesContext({ ...base, surface: 'bento-copilot', clientSnapshot: snapshot });
+    expect(normalizeSurfaceLine(floating.system)).toBe(normalizeSurfaceLine(bento.system));
   });
 
   it('keeps the sealed Monster persona isolated and does not query household data', async () => {

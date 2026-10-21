@@ -7,6 +7,7 @@ vi.mock('./_db.js', () => ({
   dbClearHouseholdMemory: vi.fn(),
   dbGetPendingMemories: vi.fn(),
   dbSetMemoryStatus: vi.fn(),
+  dbLogHermesRepair: vi.fn(),
 }));
 vi.mock('./_rateLimit.js', () => ({ checkRateLimit: vi.fn() }));
 
@@ -18,6 +19,7 @@ import {
   dbClearHouseholdMemory,
   dbGetPendingMemories,
   dbSetMemoryStatus,
+  dbLogHermesRepair,
 } from './_db.js';
 import { checkRateLimit } from './_rateLimit.js';
 
