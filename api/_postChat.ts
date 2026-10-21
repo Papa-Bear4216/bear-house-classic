@@ -2,6 +2,10 @@
  * Pure chat-input resolution — body parse, auth, rate-limit, key resolution,
  * model selection, and triad-query detection. No fetch, no provider call.
  *
+ * PARITY: this resolver must mirror chat.ts until both are replaced by
+ * _hermesContext.ts. Keep model selection, surface verification, and context
+ * assembly aligned in both paths. No current client requests streaming.
+ *
  * Extracted from chat.ts's handler so the handler can delegate to
  * fetchAi / fetchAiStream from streamBody.ts instead of inlining provider
  * calls. The handler still owns the provider dispatch (stream vs. non-stream,
@@ -24,7 +28,7 @@ import { json } from './_responseHelpers.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
-import { CLAUDE_MODELS, type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
+import { type ClaudeModelTier, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 import { resolveHermesModel } from './_hermesRouting.js';
 import { buildHermesContext } from './_hermesContext.js';
 
@@ -65,6 +69,7 @@ export type ChatInput = Readonly<{
   // Approximate — real deltas come from the provider. Used only when the caller
   // wants a rough size hint before streaming starts.
   estimatedTokenDelta: number;
+  hermesMeta: { surface: string; model: string; memoryFacts: number; toolsCount: number };
 }>;
 
 export type ChatResolution =
@@ -95,7 +100,7 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
   const parsed = parseBody(ChatBodySchema, rawBody);
   if (!parsed.ok) return { kind: 'error', status: 400, body: { error: parsed.error } };
 
-  const { prompt, messages: msgArray, system, clientSnapshot, maxTokens, model, surface, currentModule, enableTools, neutralMode, role: requestedRole, memberId } = parsed.data;
+  const { prompt, messages: msgArray, system, clientSnapshot, maxTokens, model, surface, currentModule, neutralMode, role: requestedRole, memberId } = parsed.data;
   if (surface === 'kids-monster' && (
     caller?.role !== 'child' || !caller || !memberId || memberId !== caller.memberId || requestedRole !== 'child'
   )) {
@@ -109,6 +114,8 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || prompt || '';
   const chosenModel = resolveHermesModel(lastUserMsg, model, tier);
   let effectiveSystem = system || HERMES_SYSTEM_PROMPT;
+  let memoryFacts = 0;
+  let toolsCount = 0;
   if (surface) {
     const context = await buildHermesContext({
       householdId,
@@ -124,6 +131,8 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
       modelId: chosenModel,
     });
     effectiveSystem = context.system;
+    memoryFacts = context.memoryCount;
+    toolsCount = context.tools.length;
   }
   const cleanQuery = lastUserMsg.trim();
   const isTriadDirect = isTriadHousehold(householdId) && (
@@ -155,6 +164,7 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
       isTriadDirect: false,
       triadPrompt: '',
       estimatedTokenDelta,
+      hermesMeta: { surface: surface || 'api', model: chosenModel, memoryFacts, toolsCount },
     },
   };
 }

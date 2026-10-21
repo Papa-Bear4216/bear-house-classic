@@ -47,7 +47,7 @@ describe('Triad Fusion End-to-End Verification: Complete Module Matrix', () => {
     ...superadminScope,
     memberId: 'usr_adult',
     memberName: 'Adult Step-Parent',
-    role: 'adult',
+    role: 'pet',
   };
 
   const childScope: TriadScope = {

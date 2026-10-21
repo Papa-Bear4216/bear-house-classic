@@ -65,7 +65,7 @@ export const BentoHermesChatPreview: React.FC = () => {
 };
 
 export const BentoHermesChatExpanded: React.FC = () => {
-  const { scope } = useBentoGrid();
+  const { scope, expandedModule } = useBentoGrid();
   const { householdMembers, currentUser, currentRole, hermesModelTier } = useAppContext();
   const [messages, setMessages] = useState<TriadChatMessage[]>(() => hydrateScopedChat(scope));
   const [input, setInput] = useState('');
@@ -138,7 +138,7 @@ export const BentoHermesChatExpanded: React.FC = () => {
         messages: nextList.map((m) => ({ role: m.role, content: m.text })),
         system: systemPrompt, // Backward-compatible until the server context builder consumes clientSnapshot.
         surface: 'bento-copilot',
-        currentModule: 'hermes-chat',
+        currentModule: expandedModule || 'hermes-chat',
         clientSnapshot: extractClientSnapshot(systemPrompt),
         enableTools: true,
         maxTokens: 1200,

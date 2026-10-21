@@ -432,6 +432,12 @@ The current user is a child member of the family. Keep answers age-appropriate, 
     allowedTools = new Set(context.tools.map((tool) => tool.name));
     memoryFactsCount = context.memoryCount;
   }
+  const hermesMeta = {
+    surface: surface || 'api',
+    model: chosenModel,
+    memoryFacts: memoryFactsCount,
+    toolsCount: scopedTools?.length || 0,
+  };
 
   // Intercept Triad queries and route to ambient Triad daemon on port 8789 ($0 token cost)
   const cleanQuery = lastUserMsg.trim();
@@ -519,6 +525,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
       }
       return j({
         text,
+        hermesMeta,
         ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
         model: chosenModel,
         ...(wantJson ? { format: 'json' } : {}),
@@ -558,6 +565,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
     }
     return j({
       text,
+      hermesMeta: { ...hermesMeta, ...(toolsDegraded ? { toolsDegraded: true } : {}) },
       ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
       model: GEMINI_MODEL,
       ...(wantJson ? { format: 'json' } : {}),

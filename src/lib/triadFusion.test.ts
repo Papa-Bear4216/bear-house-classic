@@ -39,7 +39,7 @@ describe('Triad Fusion System: Scope Boundaries', () => {
     ...superadminScope,
     memberId: 'user-adult',
     memberName: 'Mom',
-    role: 'adult',
+    role: 'pet',
   };
 
   const childScope: TriadScope = {
@@ -93,7 +93,7 @@ describe('Triad Fusion System: Clear-Chat & Data Segregation Protocols', () => {
     householdId: 'house-101',
     memberId: 'user-A',
     memberName: 'Alice',
-    role: 'adult',
+    role: 'pet',
     subscriptionStatus: 'active',
     bypassBilling: false,
     timestamp: Date.now(),
@@ -103,7 +103,7 @@ describe('Triad Fusion System: Clear-Chat & Data Segregation Protocols', () => {
     householdId: 'house-202',
     memberId: 'user-B',
     memberName: 'Bob',
-    role: 'adult',
+    role: 'pet',
     subscriptionStatus: 'active',
     bypassBilling: false,
     timestamp: Date.now(),

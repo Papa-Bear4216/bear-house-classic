@@ -40,8 +40,8 @@ export const BentoGridShell: React.FC = () => {
   // Live state tracking for glanceable card previews
   const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
   const [promises, setPromises] = useState<any[]>(() => loadJSON(KEYS.promises, []));
-  const [shoppingItems, setShoppingItems] = useState<any[]>(() => loadJSON(KEYS.shopping, []));
-  const [bills, setBills] = useState<any[]>(() => loadJSON(KEYS.bills, []));
+  const [shoppingItems, setShoppingItems] = useState<any[]>(() => loadJSON('familyos_shopping', []));
+  const [bills, setBills] = useState<any[]>(() => loadJSON('familyos_bills', []));
   const [activities, setActivities] = useState<any[]>(() => loadJSON(KEYS.activities, []));
   const [tick, setTick] = useState(0);
 
@@ -49,8 +49,8 @@ export const BentoGridShell: React.FC = () => {
     const handleStorage = () => {
       setTasks(loadJSON(KEYS.tasks, []));
       setPromises(loadJSON(KEYS.promises, []));
-      setShoppingItems(loadJSON(KEYS.shopping, []));
-      setBills(loadJSON(KEYS.bills, []));
+      setShoppingItems(loadJSON('familyos_shopping', []));
+      setBills(loadJSON('familyos_bills', []));
       setActivities(loadJSON(KEYS.activities, []));
       setTick((t) => t + 1);
     };

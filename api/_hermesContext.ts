@@ -54,11 +54,14 @@ export async function buildHermesContext(input: HermesContextInput): Promise<Her
 
   const [members, memories] = await Promise.all([
     dbGetHouseholdMembersByHouseholdId(input.householdId).catch(() => []),
-    dbGetHouseholdMemory(input.householdId).catch(() => []),
+    isAdmin ? dbGetHouseholdMemory(input.householdId).catch(() => []) : Promise.resolve([]),
   ]);
   const memberBlock = members.length
     ? `HOUSEHOLD MEMBERS (name and role): ${members.map((member) => `${member.name} (${member.role})`).join(', ')}`
     : 'HOUSEHOLD MEMBERS: none listed';
+  const safeSnapshot = isChild
+    ? (input.clientSnapshot || '').replace(/^.*(?:BILLS UNPAID|FINANCE):.*$/gim, 'FINANCE: not available to this account')
+    : input.clientSnapshot || '';
   const memoryBlock = memories.length
     ? `═══ MY MEMORY (this household only) ═══\n${memories.map((memory) => memory.text).join('\n')}`
     : '═══ MY MEMORY ═══\nNo learned household memories are stored yet.';
@@ -82,7 +85,7 @@ export async function buildHermesContext(input: HermesContextInput): Promise<Her
       HERMES_SYSTEM_PROMPT,
       selfBlock,
       memberBlock,
-      input.clientSnapshot || '',
+      safeSnapshot,
       memoryBlock,
       buildCapabilityManifest(tools),
       neutralHint,

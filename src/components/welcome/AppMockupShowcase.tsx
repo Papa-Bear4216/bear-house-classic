@@ -26,6 +26,7 @@ import {
   Mic,
   PawPrint,
   Moon,
+  CalendarDays,
 } from 'lucide-react';
 import { triggerConfetti } from '@/lib/confetti';
 

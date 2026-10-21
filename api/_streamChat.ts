@@ -34,7 +34,7 @@ export async function handleStreamingChat(req: Request): Promise<Response> {
   }
 
   const { input } = resolution;
-  const { messages, effectiveSystem, tokens, chosenModel, anthropicKey, geminiKey } = input;
+  const { messages, effectiveSystem, tokens, chosenModel, anthropicKey, geminiKey, hermesMeta } = input;
   let fullText = '';
 
   return sse(async (emit) => {
@@ -44,7 +44,7 @@ export async function handleStreamingChat(req: Request): Promise<Response> {
         emit({ text: delta, done: false });
       }
 
-      emit({ text: '', done: true, model: chosenModel, fullText });
+      emit({ text: '', done: true, model: chosenModel, fullText, hermesMeta });
     } catch (err) {
       emit({ error: (err as Error).message || String(err) }, 'error');
     }

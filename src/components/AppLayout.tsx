@@ -82,7 +82,7 @@ const AppLayout: React.FC = () => {
 
   useEffect(() => {
     const handleOpenSettings = (e: Event) => {
-      const intent = resolveSettingsOpenRequest(e);
+      const intent = resolveSettingsOpenRequest(currentRole, (e as CustomEvent).detail);
       if (intent) {
         setSettingsIntent(intent);
         setSettingsNonce((n) => n + 1);

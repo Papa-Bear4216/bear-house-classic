@@ -1,6 +1,7 @@
 import { parseHermesReply } from '@/lib/hermesReply';
 import { buildSystemPrompt, extractClientSnapshot } from '@/lib/hermesPrompt';
 import { executeAction, type Action, type ActionType } from '@/lib/hermesActionExecutor';
+import { useOptionalBentoGrid } from '@/components/bento/BentoGridContext';
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, Bot, ChevronDown, CheckCircle2, AlertCircle, Zap, Brain, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { KEYS, loadJSON, saveJSON, uid } from '@/lib/familyos';
@@ -37,7 +38,7 @@ interface HermesResponse {
 }
 
 // ─── Action executor ─────────────────────────────────────────────────────────
-async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet', currentRole?: string | null, neutralMode?: boolean): Promise<HermesResponse> {
+async function callHermes(history: { role: string; content: string }[], householdMembers: { id: string; name: string; role: string }[], currentUserName: string | undefined, modelTier: 'haiku' | 'sonnet', currentRole?: string | null, neutralMode?: boolean, currentModule?: string): Promise<HermesResponse> {
   try {
     const token = await getAccessToken();
     const systemPrompt = buildSystemPrompt(householdMembers, currentUserName, currentRole);
@@ -51,6 +52,7 @@ async function callHermes(history: { role: string; content: string }[], househol
         messages: history,
         system: systemPrompt, // Backward-compatible until the server context builder consumes clientSnapshot.
         surface: 'floating-chat',
+        currentModule,
         clientSnapshot: extractClientSnapshot(systemPrompt),
         enableTools: true,
         neutralMode: neutralMode === true,
@@ -174,6 +176,7 @@ function followUpsFor(lastMsg: Message | undefined): string[] {
 
 const HermesChat: React.FC = () => {
   const { currentUser, currentRole, householdMembers, voiceUnlocked, hermesModelTier } = useAppContext();
+  const bentoContext = useOptionalBentoGrid();
   const isAdult = currentRole === 'admin' || currentRole === 'superadmin';
   const neutralFlagEnabled = useFeatureFlag('hermes_neutral');
   const [neutralMode, setNeutralMode] = useState(false);
@@ -247,7 +250,7 @@ const HermesChat: React.FC = () => {
       content: m.text.replace(/\n\n\*\((?:Some requested actions|Response was cut off).*?\)\*$/s, ''),
     }));
 
-    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole, effectiveNeutralMode);
+    const response = await callHermes(history, householdMembers, currentUser?.name, hermesModelTier, currentRole, effectiveNeutralMode, bentoContext?.lastExpandedModule || undefined);
 
     // Execute any actions
     const executed: ExecutedAction[] = [];
