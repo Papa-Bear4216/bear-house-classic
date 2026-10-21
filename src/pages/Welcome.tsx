@@ -185,7 +185,7 @@ export default function Welcome() {
       <footer className="text-center py-12 px-4 border-t border-slate-800/80 text-xs text-slate-500 relative z-10 space-y-3">
         <p className="flex items-center justify-center gap-2 font-semibold text-slate-300">
           <span>🚂</span>
-          <span>HotMessExpress is a <strong className="text-cyan-400">Dysfunction Junction</strong> venture.</span>
+          <span>HotMessExpress is operated by <strong className="text-cyan-400">Dysfunction Junction</strong>.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
           FamilyOS for one household or two. One kid, two houses, one life. You confirm all scans, drafts, and device actions before they happen.
@@ -199,7 +199,7 @@ export default function Welcome() {
             Terms of Service
           </Link>
           <span>&bull;</span>
-          <a href="mailto:support@dysfunctionjunction.xyz" className="hover:text-cyan-400 transition">
+          <a href="mailto:michael@hotmessexpress.lol" className="hover:text-cyan-400 transition">
             Contact Support
           </a>
         </div>

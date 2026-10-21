@@ -1,4 +1,4 @@
-Contact: mailto:support@dysfunctionjunction.xyz
+Contact: mailto:michael@hotmessexpress.lol
 Expires: 2027-10-21T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://www.hotmessexpress.lol/.well-known/security.txt
