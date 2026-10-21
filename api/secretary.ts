@@ -3,6 +3,7 @@
  */
 export const config = { runtime: 'edge' };
 
+import { tryBridge } from './_subscriptionBridge.js';
 import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
@@ -46,7 +47,9 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined): Promise<string> {
+async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
+  const viaSubscription = await tryBridge(householdId, prompt);
+  if (viaSubscription) return viaSubscription;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);
@@ -131,7 +134,7 @@ export default async function handler(req: Request): Promise<Response> {
     const text = String(item.text || item.name || '');
     if (isDuplicate(text, existingTasks)) return j({ action: 'skip', reason: 'Duplicate detected locally', item });
 
-    const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey);
+    const raw = await callAI(ENRICH_PROMPT(item, existingTasks, members), anthropicKey, geminiKey, householdId);
     const clean = raw.replace(/```json?\\s*/gi, '').replace(/```/g, '').trim();
     // JSON mode input gating: validate the LLM's parsed JSON output against a
     // schema before trusting its shape. The regex strip (above) removes

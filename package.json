@@ -12,6 +12,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.api.json --noEmit",
     "check:api": "node scripts/check-api.mjs",
+    "bridge": "node scripts/subscription-bridge.mjs",
+    "bridge:status": "node scripts/subscription-bridge.mjs status",
     "preview": "vite preview",
     "test": "vitest run"
   },
