@@ -37,6 +37,7 @@ export const VisionBodySchema = z.object({
   imageBase64: z.string().min(1),
   mediaType: z.string().optional().default('image/jpeg'), // free-form: Anthropic validates media type itself
   prompt: z.string().min(1),
+  provider: z.enum(['claude', 'gemini']).optional(),
 });
 
 export const ClientMetricBodySchema = z.object({

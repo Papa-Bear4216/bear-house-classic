@@ -45,7 +45,6 @@ export const KEYS = {
   qualityAI: 'quality_time_ai_failsafe',
   promises: 'family_promises',
   emotions: 'emotion_logs',
-  geminiApiKey: 'gemini_api_key',
   promisesAI: 'promise_keeper_ai_failsafe',
   apiKey: 'anthropic_api_key',
   settings: 'familyos_settings',
@@ -803,92 +802,31 @@ function incrementGeminiCount() {
   localStorage.setItem(GEMINI_COUNT_KEY, JSON.stringify({ date: today, count: count + 1 }));
 }
 
-async function uploadGeminiFile(imageBase64: string, mediaType: string, apiKey: string): Promise<{ uri: string; name: string } | { error: string }> {
-  const binary = atob(imageBase64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-  const boundary = `gem${Date.now()}`;
-  const meta = JSON.stringify({ file: { display_name: 'chore_scan' } });
-  const enc = new TextEncoder();
-  const prefix = enc.encode(`--${boundary}\r\nContent-Type: application/json; charset=utf-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mediaType}\r\n\r\n`);
-  const suffix = enc.encode(`\r\n--${boundary}--`);
-  const body = new Uint8Array(prefix.length + bytes.length + suffix.length);
-  body.set(prefix, 0);
-  body.set(bytes, prefix.length);
-  body.set(suffix, prefix.length + bytes.length);
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}&uploadType=multipart`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-      body,
-    }
-  );
-  if (!res.ok) {
-    const errText = await res.text();
-    if (res.status === 429) {
-      const retryMatch = errText.match(/"retryDelay":\s*"([\d.]+)s"/);
-      const secs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
-      return { error: `Upload rate limit hit. Retry in ${secs}s.` };
-    }
-    return { error: `Upload failed (${res.status}): ${errText.slice(0, 120)}` };
-  }
-  const data = await res.json();
-  const uri = data?.file?.uri;
-  const name = data?.file?.name;
-  if (!uri) return { error: 'Files API returned no URI.' };
-  return { uri, name };
-}
-
 export async function callGeminiVision(imageBase64: string, mediaType: string, prompt: string): Promise<{ ok: boolean; text: string }> {
-  const apiKey = sessionStorage.getItem(KEYS.geminiApiKey) || '';
-  if (!apiKey) return { ok: false, text: 'No Gemini API key set. Add one in Settings.' };
-
   const { count, limit } = getGeminiDailyUsage();
   if (count >= limit) {
     return { ok: false, text: `Gemini daily limit reached (${limit} requests). Resets at midnight PT, or switch to Claude.` };
   }
 
   try {
-    // Upload image via Files API, then reference by URI
-    const file = await uploadGeminiFile(imageBase64, mediaType, apiKey);
-    if ('error' in file) return { ok: false, text: file.error };
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [
-            { file_data: { file_uri: file.uri, mime_type: mediaType } },
-            { text: prompt },
-          ]}],
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.1 },
-        }),
-      }
-    );
+    // Server-side proxy: the Gemini key (household BYO or shared) never reaches the browser.
+    const token = await getAccessToken();
+    const res = await fetch(apiUrl('/api/vision'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ imageBase64, mediaType, prompt, provider: 'gemini' }),
+    });
     incrementGeminiCount();
-
-    // Delete file after use (fire and forget)
-    if (!('error' in file) && file.name) {
-      fetch(`https://generativelanguage.googleapis.com/v1beta/${file.name}?key=${apiKey}`, { method: 'DELETE' }).catch(() => {});
-    }
-
     if (!res.ok) {
-      const errText = await res.text();
-      if (res.status === 429) {
-        const retryMatch = errText.match(/"retryDelay":\s*"([\d.]+)s"/);
-        const secs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
-        return { ok: false, text: `Rate limit hit. Retry in ${secs}s (or switch to Claude).` };
-      }
-      return { ok: false, text: `Gemini ${res.status}: ${errText}` };
+      const errData = await res.json().catch(() => ({ error: res.statusText }));
+      if (res.status === 429) return { ok: false, text: `Rate limit hit. ${errData.error || 'Retry shortly'} (or switch to Claude).` };
+      return { ok: false, text: `Gemini ${res.status}: ${errData.error || res.statusText}` };
     }
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return { ok: true, text };
+    return { ok: true, text: data?.text || '' };
   } catch (e: any) {
     return { ok: false, text: e?.message || 'Network error' };
   }

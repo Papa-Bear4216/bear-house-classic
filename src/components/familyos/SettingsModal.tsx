@@ -319,9 +319,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
     initialTab === 'integrations' && isAdmin ? 'integrations' : 'general'
   );
   const [apiKey, setApiKey] = useState('');
-  const [geminiKey, setGeminiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [zones, setZones] = useState<any[]>(DEFAULT_PRESENCE_ZONES);
   const [newZone, setNewZone] = useState({ name: '', startHour: 18, endHour: 21, days: '1,2,3,4,5' });
@@ -341,7 +339,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
   useEffect(() => {
     if (open) {
       setApiKey(sessionStorage.getItem(KEYS.apiKey) || '');
-      setGeminiKey(sessionStorage.getItem(KEYS.geminiApiKey) || '');
       setSettings(loadJSON(KEYS.settings, DEFAULT_SETTINGS));
       setZones(loadJSON(KEYS.presenceZones, DEFAULT_PRESENCE_ZONES));
       setHomeLat(localStorage.getItem('home_lat') || '30.45');
@@ -353,7 +350,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
   const saveAll = () => {
     if (isAdmin) {
       sessionStorage.setItem(KEYS.apiKey, apiKey);
-      sessionStorage.setItem(KEYS.geminiApiKey, geminiKey);
       localStorage.setItem('home_lat', homeLat);
       localStorage.setItem('home_lon', homeLon);
       window.dispatchEvent(new Event(HOME_LOCATION_CHANGED_EVENT));
@@ -475,7 +471,6 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
                   </div>
                   <div className="divide-y divide-slate-700/50">
                     <KeyRow label="Claude" placeholder="sk-ant-..." value={apiKey} onChange={setApiKey} show={showKey} onToggleShow={() => setShowKey(!showKey)} accentClass="focus:border-amber-500" />
-                    <KeyRow label="Gemini" placeholder="AIza..." value={geminiKey} onChange={setGeminiKey} show={showGeminiKey} onToggleShow={() => setShowGeminiKey(!showGeminiKey)} accentClass="focus:border-emerald-500" note="camera scanner" />
                   </div>
                 </div>
               )}

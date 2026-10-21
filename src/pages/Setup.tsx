@@ -52,7 +52,10 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
 
       // Google Play policy: no in-app digital-subscription checkout in the native app.
       if (Capacitor.isNativePlatform()) {
-        window.location.href = '/';
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: 'https://www.hotmessexpress.lol/' });
+        setSubmitting(false);
+        setError('Household created. Sign in on the website that just opened and start your 7-day free trial, then come back to the app.');
         return;
       }
 

@@ -68,10 +68,11 @@ export default async function handler(req: Request): Promise<Response> {
   const rawBody = await req.json().catch(() => ({}));
   const parsed = parseBody(VisionBodySchema, rawBody);
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { imageBase64, mediaType, prompt } = parsed.data;
+  const { imageBase64, mediaType, prompt, provider } = parsed.data;
+  const preferGemini = provider === 'gemini' && !!geminiKey;
 
   // Primary: Claude Sonnet
-  if (anthropicKey) {
+  if (anthropicKey && !preferGemini) {
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
