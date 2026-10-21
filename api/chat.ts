@@ -1,5 +1,6 @@
 export const config = { runtime: 'edge' };
 
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { resolveHouseholdId, resolveCallerMember, dbGetHermesModelTier, dbLogHermesRepair } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -113,14 +114,11 @@ async function callClaude(
   truncated: boolean;
   droppedActions: number;
 }> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const target = anthropicTarget(apiKey, model);
+  const res = await fetch(target.url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify(buildClaudeRequestBody(model, system, messages, maxTokens, jsonMode, tools)),
+    headers: target.headers,
+    body: JSON.stringify(buildClaudeRequestBody(target.model, system, messages, maxTokens, jsonMode, tools)),
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (!res.ok) {

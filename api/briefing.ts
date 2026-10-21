@@ -9,6 +9,7 @@ export const config = { runtime: 'edge' };
  * POST /api/briefing  { token, person }
  */
 
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { parseBody, BriefingParamsSchema, BriefingJsonInputSchema } from './_schemas.js';
@@ -43,10 +44,11 @@ function isTomorrow(ts: number | null | undefined): boolean {
 }
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const res = await fetch(t.url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+    headers: t.headers,
+    body: JSON.stringify({ model: t.model, max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `Claude API ${res.status}`);

@@ -1,5 +1,6 @@
 export const config = { runtime: 'edge' };
 
+import { anthropicTarget } from './_anthropicEndpoint.js';
 import { resolveHouseholdId } from './_db.js';
 import { resolveAiKeys } from './_aiKeys.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -74,11 +75,12 @@ export default async function handler(req: Request): Promise<Response> {
   // Primary: Claude Sonnet
   if (anthropicKey && !preferGemini) {
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const t = anthropicTarget(anthropicKey, 'claude-sonnet-4-6');
+      const response = await fetch(t.url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+        headers: t.headers,
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: t.model,
           max_tokens: 1024,
           messages: [{
             role: 'user',
