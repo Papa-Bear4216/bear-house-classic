@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAccessToken, signOut } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
+import { Capacitor } from '@capacitor/core';
 
 interface SetupProps {
   onHouseholdCreated: () => void;
@@ -46,6 +47,12 @@ export default function Setup({ onHouseholdCreated }: SetupProps) {
       if (!res.ok) {
         setError(data.error || 'Something went wrong. Please try again.');
         setSubmitting(false);
+        return;
+      }
+
+      // Google Play policy: no in-app digital-subscription checkout in the native app.
+      if (Capacitor.isNativePlatform()) {
+        window.location.href = '/';
         return;
       }
 

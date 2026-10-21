@@ -5,8 +5,11 @@ vi.mock('./_db.js', () => ({
   dbGetHouseholdMembersByHouseholdId: vi.fn(),
 }));
 
+vi.mock('./_gmailAccess.js', () => ({ gmailConnectAllowed: vi.fn() }));
+
 import handler from './gmail-oauth-start';
 import { resolveCallerMember, dbGetHouseholdMembersByHouseholdId } from './_db.js';
+import { gmailConnectAllowed } from './_gmailAccess.js';
 
 function req(params: Record<string, string> = {}) {
   const url = new URL('https://example.com/api/gmail-oauth-start');
@@ -18,6 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   process.env.GOOGLE_OAUTH_CLIENT_ID = 'test-client-id';
   process.env.GMAIL_STATE_SECRET = 'test-gmail-state-secret-do-not-use-in-prod';
+  vi.mocked(gmailConnectAllowed).mockResolvedValue(true);
 });
 
 describe('GET /api/gmail-oauth-start', () => {
@@ -101,5 +105,15 @@ describe('GET /api/gmail-oauth-start', () => {
 
     const res = await handler(req({ token: 'valid' }));
     expect(res.status).toBe(500);
+  });
+});
+
+describe('GET /api/gmail-oauth-start — restricted-scope gate', () => {
+  it('rejects with 403 for households that are not approved testers', async () => {
+    vi.mocked(resolveCallerMember).mockResolvedValue({ memberId: 'm1', householdId: 'h1', role: 'admin' } as any);
+    vi.mocked(dbGetHouseholdMembersByHouseholdId).mockResolvedValue([{ id: 'm1', role: 'admin' }] as any);
+    vi.mocked(gmailConnectAllowed).mockResolvedValue(false);
+    const res = await handler(req({ token: 't' }));
+    expect(res.status).toBe(403);
   });
 });

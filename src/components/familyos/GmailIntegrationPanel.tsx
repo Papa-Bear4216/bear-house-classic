@@ -12,12 +12,13 @@ export function GmailIntegrationPanel() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [available, setAvailable] = useState(true);
 
   const refresh = async () => {
     setLoading(true);
     try {
       const res = await authedFetch('/api/gmail-status', { method: 'GET' });
-      if (res.ok) setStatuses((await res.json()).members || []);
+      if (res.ok) { const d = await res.json(); setStatuses(d.members || []); setAvailable(d.available !== false); }
     } catch {
       // leave statuses as-is
     } finally {
@@ -107,12 +108,16 @@ export function GmailIntegrationPanel() {
                       <Link2Off className="w-3.5 h-3.5" /> Disconnect
                     </button>
                   ) : (
+                    available ? (
                     <button
                       onClick={() => connect(m.id)}
                       className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition"
                     >
                       Connect
                     </button>
+                    ) : (
+                      <span className="text-xs text-slate-400">Approved testers only</span>
+                    )
                   )}
                 </div>
               );
