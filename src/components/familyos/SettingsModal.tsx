@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Key, Bell, Clock, Users, Trash2, Plus, Download, Eye, EyeOff,
   Plug, Copy, Check, MapPin, CreditCard, Webhook, Tag, Home,
@@ -78,6 +78,7 @@ function EnvRow({ name, value, placeholder }: { name: string; value?: string; pl
   );
 }
 
+export const COPPA_PENDING_KEY = 'coppa_pending_invite';
 export const COPPA_NOTICE_VERSION = '2026-10-v1';
 
 export interface CoppaConsentRecord {
@@ -95,14 +96,52 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'child'>('child');
   const [coppaConfirmed, setCoppaConfirmed] = useState(false);
+  const [consentSessionId, setConsentSessionId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   // Reset confirmation if any field changes to prevent stale consent binding
+  const restoredRef = useRef(false);
   useEffect(() => {
+    if (restoredRef.current) { restoredRef.current = false; return; }
     setCoppaConfirmed(false);
+    setConsentSessionId(null);
   }, [role, name, email]);
+
+  // Returning from the Stripe card verification: restore the pending invite + verified session.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(COPPA_PENDING_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(COPPA_PENDING_KEY);
+      const p = JSON.parse(raw) as { name: string; email: string; sessionId: string };
+      if (!p.sessionId) return;
+      restoredRef.current = true; // skip the field-change reset for this restore
+      setRole('child'); setName(p.name); setEmail(p.email);
+      setCoppaConfirmed(true); setConsentSessionId(p.sessionId);
+    } catch { /* ignore */ }
+  }, []);
+
+  const startVerification = async () => {
+    setError('');
+    if (!name.trim() || !email.trim()) { setError('Enter the child name and email first.'); return; }
+    setSubmitting(true);
+    try {
+      const res = await authedFetch('/api/setup', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'startChildConsent', memberName: name.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) { setError(data.error || 'Could not start card verification.'); return; }
+      try { sessionStorage.setItem(COPPA_PENDING_KEY, JSON.stringify({ name: name.trim(), email: email.trim(), sessionId: '' })); } catch { /* ignore */ }
+      window.location.href = data.url;
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const invite = async () => {
     setError(''); setNotice('');
@@ -112,8 +151,8 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
         setError('You must be signed in as an authenticated parent or admin to grant parental consent.');
         return;
       }
-      if (!coppaConfirmed) {
-        setError('You must confirm parental consent under COPPA before inviting a child account.');
+      if (!coppaConfirmed || !consentSessionId) {
+        setError('Confirm consent and verify with your card before inviting a child account.');
         return;
       }
     }
@@ -122,7 +161,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
     try {
       const res = await authedFetch('/api/setup', {
         method: 'POST',
-        body: JSON.stringify({ action: 'inviteMember', memberName: name.trim(), email: email.trim(), role }),
+        body: JSON.stringify({ action: 'inviteMember', memberName: name.trim(), email: email.trim(), role, ...(role === 'child' ? { consentSessionId } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to invite.'); return; }
@@ -142,7 +181,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       }
 
       setNotice(data.note || 'Invite sent.');
-      setName(''); setEmail(''); setRole('child'); setCoppaConfirmed(false);
+      setName(''); setEmail(''); setRole('child'); setCoppaConfirmed(false); setConsentSessionId(null);
       onInvited();
     } catch {
       setError('Network error. Please try again.');
@@ -200,13 +239,25 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
               I affirm that I am the parent or legal guardian of this child ({name.trim() || 'child'}) and consent to their account creation under the COPPA Child Privacy Policy.
             </span>
           </label>
+          {consentSessionId ? (
+            <p className="text-emerald-400 text-xs mt-2">Card verified. You can send the invite.</p>
+          ) : (
+            <button
+              type="button"
+              onClick={startVerification}
+              disabled={submitting || !coppaConfirmed}
+              className="mt-2 text-xs bg-amber-600/80 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg px-3 py-2 transition"
+            >
+              Verify with your card (temporary $0.50 hold, never charged)
+            </button>
+          )}
         </div>
       )}
       {error && <p className="text-rose-400 text-xs">{error}</p>}
       {notice && <p className="text-emerald-400 text-xs">{notice}</p>}
       <button
         onClick={invite}
-        disabled={submitting || (role === 'child' && !coppaConfirmed)}
+        disabled={submitting || (role === 'child' && (!coppaConfirmed || !consentSessionId))}
         className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition"
       >
         {submitting ? 'Sending…' : 'Send invite'}

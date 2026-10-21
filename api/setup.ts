@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' };
 
 import { parseBody, SetupBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { startConsent, consumeConsent } from './_coppaConsent.js';
 
 import { handleCorsPreflight } from './_cors.js';
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
@@ -41,7 +42,7 @@ export default async function handler(req: Request): Promise<Response> {
   const body = parsed.data;
   const { action } = body;
 
-  if (action === 'createHousehold' || action === 'inviteMember') {
+  if (action === 'createHousehold' || action === 'inviteMember' || action === 'startChildConsent') {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
     let rateLimitRes: Response;
     try {
@@ -138,8 +139,30 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true, householdId: household.id });
   }
 
+  if (action === 'startChildConsent') {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
+    const callerRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/household_members?auth_user_id=eq.${authUser.id}&select=household_id,role`,
+      { headers }
+    );
+    const caller = (callerRes.ok ? await callerRes.json() as any[] : [])[0];
+    if (!caller || (caller.role !== 'superadmin' && caller.role !== 'admin')) {
+      return j({ error: 'Only superadmin/admin can grant parental consent' }, 403);
+    }
+    try {
+      const url = await startConsent({
+        authUserId: authUser.id, householdId: caller.household_id,
+        childName: body.memberName, origin: new URL(req.url).origin,
+      });
+      return j({ url });
+    } catch (err: any) {
+      return serverError(err?.message || 'Failed to start consent verification', 'setup:coppa-start', err);
+    }
+  }
+
   if (action === 'inviteMember') {
-    const { memberName, email, role, color } = body;
+    const { memberName, email, role, color, consentSessionId } = body;
 
     const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
     const headers = {
@@ -166,6 +189,16 @@ export default async function handler(req: Request): Promise<Response> {
     );
     const existing = existingRes.ok ? await existingRes.json() as any[] : [];
     if (existing.length > 0) return j({ error: 'That email is already a member of this household' }, 409);
+
+    // Under-13 accounts need verified parental consent (single-use card verification).
+    if (role === 'child') {
+      if (!consentSessionId) return j({ error: 'Parental consent verification is required to add a child.' }, 403);
+      const consent = await consumeConsent({
+        sessionId: consentSessionId, authUserId: authUser.id,
+        householdId: caller.household_id, childName: memberName,
+      });
+      if (!consent.ok) return j({ error: consent.error }, 403);
+    }
 
     // Pending row: no auth_user_id yet — claimed on the invitee's first sign-in.
     const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/household_members`, {

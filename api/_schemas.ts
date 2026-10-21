@@ -265,7 +265,9 @@ export const SetupBodySchema = z.discriminatedUnion('action', [
     action: z.literal('inviteMember'), memberName: z.string().trim().min(1),
     email: z.string().trim().toLowerCase().min(1), role: z.enum(['admin', 'child']).default('child'),
     color: z.string().trim().default('slate'),
+    consentSessionId: z.string().trim().min(1).max(200).optional(),
   }),
+  z.object({ action: z.literal('startChildConsent'), memberName: z.string().trim().min(1).max(100) }),
   z.object({ action: z.literal('claimInvite') }),
   z.object({ action: z.literal('removeMember'), memberId: z.string().uuid() }),
   z.object({
