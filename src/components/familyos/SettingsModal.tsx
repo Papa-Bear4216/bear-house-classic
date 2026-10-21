@@ -14,6 +14,7 @@ import { CoParentingPanel } from './CoParentingPanel';
 import { HouseholdAiKeysPanel } from './HouseholdAiKeysPanel';
 import { HouseholdHAPanel } from './HouseholdHAPanel';
 import { HermesModelPanel } from './HermesModelPanel';
+import { MemoryReviewList } from './MemoryReviewList';
 import { GmailIntegrationPanel } from './GmailIntegrationPanel';
 import { ClassroomPanel } from './ClassroomPanel';
 import { GoogleHomeCard } from './GoogleHomeCard';
@@ -432,6 +433,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
                   route (chat, secretary, briefing, gmail-suggestions,
                   walmart, vision) for the whole family, not just this device. */}
               {isAdmin && <HermesModelPanel />}
+              {isAdmin && <MemoryReviewList />}
 
               {isAdmin && <HouseholdAiKeysPanel />}
 

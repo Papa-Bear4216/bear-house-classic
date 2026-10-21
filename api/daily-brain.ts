@@ -185,7 +185,7 @@ async function checkEmotionPatterns(householdId: string): Promise<string[]> {
   for (const [person, count] of byPerson) {
     if (count < 3) continue;
     const note = `[${new Date().toLocaleDateString()}] ${person} logged ${count} negative emotions this week — worth checking in gently, don't just push tasks at them.`;
-    await dbAddHouseholdMemory(householdId, note, 'auto');
+    await dbAddHouseholdMemory(householdId, note, { source: 'auto', kind: 'pattern', status: 'pending_review' });
     flagged.push(person);
   }
   return flagged;

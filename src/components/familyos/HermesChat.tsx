@@ -13,7 +13,7 @@ import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { loadPantry, decrementPantry, savePantry } from '@/lib/familyos';
 import { apiUrl } from '@/lib/api';
 import { getVoiceProvider } from '@/lib/voice';
-import { loadHermesMemory, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
+import { loadHermesMemory, ensureHermesMemoryLoaded, cachedHermesMemory, addHermesMemory, clearHermesMemory } from '@/lib/hermesMemory';
 import { loadHermesWeather } from '@/lib/hermesWeather';
 import { buildMorningBrief } from '@/lib/morningBrief';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -206,9 +206,10 @@ const HermesChat: React.FC = () => {
       const legacy = localStorage.getItem('hermes_memory');
       const notes = await loadHermesMemory();
       if (legacy && notes.length === 0) {
-        for (const line of legacy.split('\n').filter(Boolean)) addHermesMemory(line);
-        localStorage.removeItem('hermes_memory');
-        setMemoryCount(legacy.split('\n').filter(Boolean).length);
+        const lines = legacy.split('\n').filter(Boolean);
+        const writes = await Promise.all(lines.map((line) => addHermesMemory(line)));
+        if (writes.every(Boolean)) localStorage.removeItem('hermes_memory');
+        setMemoryCount(cachedHermesMemory().length);
       } else {
         setMemoryCount(notes.length);
       }
@@ -243,6 +244,10 @@ const HermesChat: React.FC = () => {
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setLoading(true);
+
+    // The prompt reads the memory cache synchronously, so guarantee the cold
+    // load (and any outbox retries) finish before creating a request.
+    await ensureHermesMemoryLoaded();
 
     // Build history for API (last 12 turns, user/assistant only, stripping any UI warning banners)
     const history = nextMessages.slice(-12).map(m => ({
