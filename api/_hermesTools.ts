@@ -40,7 +40,7 @@ export const HERMES_TOOLS: ToolDefinition[] = [
           enum: ['Today', 'This Week', 'This Month', 'No Deadline'],
           description: 'Rough deadline estimation',
         },
-        dueDate: { type: 'string', description: 'Optional explicit date or ISO string' },
+        dueDate: { type: 'string', description: "Exact due day as YYYY-MM-DD. Use this for 'tomorrow', a weekday, or any specific date (work it out from today's date) and leave dueEstimate out." },
       },
       required: ['text'],
     },

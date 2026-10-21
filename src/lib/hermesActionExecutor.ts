@@ -5,6 +5,17 @@ import { runGenericAction, setMealPlanAction } from '@/lib/hermesActions';
 import { getAccessToken } from '@/lib/householdAuth';
 import { apiUrl } from '@/lib/api';
 import { addHermesMemory, supersedeClosestMemory } from '@/lib/hermesMemory';
+import { parseDateInput } from '@/lib/familyos';
+
+/** Tasks store dueDate as an end-of-day timestamp; the model sends YYYY-MM-DD or an ISO string. */
+export function toDueTimestamp(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const day = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
+  if (day) return parseDateInput(day[1]);
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? ts : null;
+}
 
 export type ActionType = 'addTask'|'completeTask'|'uncompleteTask'|'deleteTask'|'addShopping'|'completeShoppingItem'|'addBill'|'markBillPaid'|'addAppointment'|'addPromise'|'completePromise'|'logEmotion'|'updateMemory'|'clearWeekMeals'|'setMealPlan'|'genericAction'|'markMealCooked'|'addCarMaintenanceEntry'|'controlDevice'|'discoverSmartHome'|'notifyPerson'|'manageMember'|'queryTriad';
 export interface ActionParams extends Record<string, any> {}
@@ -28,7 +39,7 @@ export async function executeAction(
         priority: p.priority || 'Medium',
         category: p.category || 'General',
         dueEstimate: p.dueEstimate || 'No Deadline',
-        dueDate: p.dueDate || null,
+        dueDate: toDueTimestamp(p.dueDate),
       };
       saveJSON(KEYS.tasks, [task, ...tasks]);
       return { result: `Added task: "${task.text}" for ${task.person}`, ok: true };
