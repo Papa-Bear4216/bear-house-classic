@@ -293,7 +293,7 @@
         <li><strong>No advertising.</strong> We never use Google user data to serve ads.</li>
         <li><strong>No selling.</strong> We never sell Google user data.</li>
         <li><strong>No model training.</strong> We do not use Google user data to train general AI or machine-learning models.</li>
-        <li><strong>Sending to our AI provider.</strong> To turn Gmail messages into suggestions, the sender, subject, date and preview snippet are sent to Anthropic (Claude), through OpenRouter, as our service providers, solely to produce the suggestion for you.</li>
+        <li><strong>Sending to our AI provider.</strong> To turn Gmail messages into suggestions, the sender, subject, date and preview snippet are sent to Anthropic (Claude), through the Vercel AI Gateway or OpenRouter, as our service providers, solely to produce the suggestion for you.</li>
         <li><strong>No human reading.</strong> No person reads your Google data unless you ask us to for support, it is needed for security or to investigate abuse, or the law requires it.</li>
       </ul>
     </section>
@@ -305,7 +305,7 @@
 
     <section>
       <h2>6. AI features</h2>
-      <p>The assistant, daily briefings and image reading send your prompt and the household context needed to answer to AI providers acting as our service providers: <strong>OpenRouter</strong> (which routes requests to <strong>Anthropic</strong>’s Claude) and <strong>Google</strong> (Gemini and text-to-speech). A household administrator may instead supply their own AI keys. AI output can be wrong; it is not medical, legal, financial or custody advice.</p>
+      <p>The assistant, daily briefings and image reading send your prompt and the household context needed to answer to AI providers acting as our service providers: <strong>Vercel AI Gateway</strong> or <strong>OpenRouter</strong> (which route requests to <strong>Anthropic</strong>’s Claude) and <strong>Google</strong> (Gemini and text-to-speech). A household administrator may instead supply their own AI keys. AI output can be wrong; it is not medical, legal, financial or custody advice.</p>
     </section>
 
     <section>
@@ -317,7 +317,7 @@
           <tr><td>Supabase</td><td>Database and sign-in</td></tr>
           <tr><td>Vercel</td><td>Hosting and server functions</td></tr>
           <tr><td>Stripe</td><td>Subscription billing and payments</td></tr>
-          <tr><td>OpenRouter (routing to Anthropic); Google (Gemini, text-to-speech)</td><td>AI features</td></tr>
+          <tr><td>Vercel AI Gateway or OpenRouter (routing to Anthropic); Google (Gemini, text-to-speech)</td><td>AI features</td></tr>
           <tr><td>SimpleFIN Bridge</td><td>Read-only bank connection, if you connect one</td></tr>
           <tr><td>Google (Gmail, Calendar, Classroom, Google Home)</td><td>Only if you connect those features</td></tr>
           <tr><td>Firebase Cloud Messaging</td><td>Push notifications on Android</td></tr>
@@ -338,7 +338,7 @@
       <h2>9. Children&rsquo;s privacy</h2>
       <p>HotMessExpress is set up and controlled by parents. A child gets a profile that a parent creates, and can sign in with their own account only when a parent invites them. Before a child under 13 gets an account, the parent must confirm in the app that they are the child&rsquo;s parent or legal guardian, consent to the collection described here, and verify with a payment card through Stripe (a temporary $0.50 authorization hold that is canceled and never charged). We record the confirmation with the date and notice version; we do not store the card number. We do not show advertising to anyone, and we do not sell or share children&rsquo;s information for advertising.</p>
       <p><strong>What we collect from a child.</strong> The profile details a parent enters; chores, routines and points; arcade scores and display name; pet logs; voice input through the device&rsquo;s speech recognition (audio is not stored by us); and photos only if a parent or child uses the room scanner (not stored by us after the result is returned). The private journal stays on the child&rsquo;s device and is not sent to us.</p>
-      <p><strong>Who processes it.</strong> Supabase and Vercel (storage and hosting), and, when AI features are used, OpenRouter (routing to Anthropic) and Google (Gemini, text-to-speech). We send these providers only what is needed to answer the request.</p>
+      <p><strong>Who processes it.</strong> Supabase and Vercel (storage and hosting), and, when AI features are used, Vercel AI Gateway or OpenRouter (routing to Anthropic) and Google (Gemini, text-to-speech). We send these providers only what is needed to answer the request.</p>
       <p><strong>Retention.</strong> Children&rsquo;s information is kept only while the household account is active and is deleted within 30 days of an account or child-profile deletion request, except where the law requires us to keep a record.</p>
       <p><strong>Parent rights.</strong> A parent can review, correct or delete a child&rsquo;s information, or refuse further collection, in the app (Settings), at <a href="/delete-account">hotmessexpress.lol/delete-account</a>, or by emailing <a href="mailto:michael@hotmessexpress.lol">michael@hotmessexpress.lol</a>.</p>
     </section>

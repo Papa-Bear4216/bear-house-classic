@@ -18,6 +18,13 @@ describe('anthropicTarget', () => {
     expect(t.model).toBe('anthropic/claude-haiku-4.5');
   });
 
+  it('routes vck_ keys to the Vercel AI Gateway with x-api-key', () => {
+    const t = anthropicTarget('vck_abc', 'claude-sonnet-4-6');
+    expect(t.url).toBe('https://ai-gateway.vercel.sh/v1/messages');
+    expect(t.headers['x-api-key']).toBe('vck_abc');
+    expect(t.model).toBe('anthropic/claude-sonnet-4.6');
+  });
+
   it('prefixes unknown models and leaves slugs alone', () => {
     expect(anthropicTarget('sk-or-x', 'claude-opus-9').model).toBe('anthropic/claude-opus-9');
     expect(anthropicTarget('sk-or-x', 'openai/gpt-5').model).toBe('openai/gpt-5');
