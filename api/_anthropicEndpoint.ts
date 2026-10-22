@@ -15,6 +15,8 @@ const GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1/messages';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/messages';
 
 const OPENROUTER_MODELS: Record<string, string> = {
+  'claude-haiku-5-5': 'anthropic/claude-haiku-5.5',
+  'claude-sonnet-5-5': 'anthropic/claude-sonnet-5.5',
   'claude-haiku-4-5-20251001': 'anthropic/claude-haiku-4.5',
   'claude-sonnet-4-6': 'anthropic/claude-sonnet-4.6',
 };

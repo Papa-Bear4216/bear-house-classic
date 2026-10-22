@@ -61,7 +61,7 @@ Return ONLY a JSON array of items to consider restocking (things commonly reorde
 Max 6 items. Skip electronics, one-time purchases, clothing. Focus on consumables.
 Return [] if nothing relevant.`;
 
-  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const t = anthropicTarget(apiKey, 'claude-haiku-5-5');
   const res = await fetch(t.url, {
     method: 'POST',
     headers: t.headers,

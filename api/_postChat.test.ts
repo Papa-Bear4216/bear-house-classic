@@ -23,7 +23,7 @@ vi.mock('./_rateLimit.js', () => ({
 
 vi.mock('./_aiModels.js', () => ({
   HERMES_SYSTEM_PROMPT: 'You are Hermes, the Bear House family assistant. Hard rules apply.',
-  CLAUDE_MODELS: { haiku: 'claude-haiku-4-5-20251001', sonnet: 'claude-sonnet-4-6' },
+  CLAUDE_MODELS: { haiku: 'claude-haiku-5-5', sonnet: 'claude-sonnet-5-5' },
 }));
 
 import { resolveChatInput } from './_postChat.js';
@@ -98,7 +98,7 @@ describe('server/postChat.resolveChatInput', () => {
         householdId: 'household-1',
         messages: [{ role: 'user', content: 'hello' }],
         tokens: 512,
-        chosenModel: 'claude-haiku-4-5-20251001',
+        chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
         isTriadDirect: false,
@@ -113,7 +113,7 @@ describe('server/postChat.resolveChatInput', () => {
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('sonnet');
 
     const res = await resolveChatInput(req({ prompt: 'hi' }));
-    expect((res as any).input.chosenModel).toBe('claude-sonnet-4-6');
+    expect((res as any).input.chosenModel).toBe('claude-sonnet-5-5');
   });
 
   it('defaults to haiku when the tier lookup fails', async () => {
@@ -122,7 +122,7 @@ describe('server/postChat.resolveChatInput', () => {
     vi.mocked(dbGetHermesModelTier).mockRejectedValue(new Error('db down'));
 
     const res = await resolveChatInput(req({ prompt: 'hi' }));
-    expect((res as any).input.chosenModel).toBe('claude-haiku-4-5-20251001');
+    expect((res as any).input.chosenModel).toBe('claude-haiku-5-5');
   });
 
   it('lets an explicit model param override the household tier', async () => {
@@ -130,8 +130,8 @@ describe('server/postChat.resolveChatInput', () => {
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 
-    const res = await resolveChatInput(req({ prompt: 'hi', model: 'claude-sonnet-4-6' }));
-    expect((res as any).input.chosenModel).toBe('claude-sonnet-4-6');
+    const res = await resolveChatInput(req({ prompt: 'hi', model: 'claude-sonnet-5-5' }));
+    expect((res as any).input.chosenModel).toBe('claude-sonnet-5-5');
   });
 
   it('promotes an explicit Haiku identity question to Sonnet', async () => {
@@ -139,8 +139,8 @@ describe('server/postChat.resolveChatInput', () => {
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
 
-    const res = await resolveChatInput(req({ prompt: 'Who is Lucy?', model: 'claude-haiku-4-5-20251001' }));
-    expect((res as any).input.chosenModel).toBe('claude-sonnet-4-6');
+    const res = await resolveChatInput(req({ prompt: 'Who is Lucy?', model: 'claude-haiku-5-5' }));
+    expect((res as any).input.chosenModel).toBe('claude-sonnet-5-5');
   });
 
   it('returns kind: "triad" when the prompt is a triad query', async () => {

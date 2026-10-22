@@ -17,7 +17,7 @@ import { handleCorsPreflight } from './_cors.js';
 const CATEGORIES = ['Shopping', 'Maintenance', 'Scheduling', 'Pet', 'Important Dates', 'General'];
 
 async function callHaiku(prompt: string, apiKey: string): Promise<string> {
-  const t = anthropicTarget(apiKey, 'claude-haiku-4-5-20251001');
+  const t = anthropicTarget(apiKey, 'claude-haiku-5-5');
   const res = await fetch(t.url, {
     method: 'POST',
     headers: t.headers,

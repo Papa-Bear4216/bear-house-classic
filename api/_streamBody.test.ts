@@ -62,7 +62,7 @@ describe('server/streamBody.fetchAi (non-streaming)', () => {
       }),
     } as Response);
 
-    const result = await fetchAi('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined);
+    const result = await fetchAi('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined);
 
     expect(result.text).toBe('hello from claude');
     expect(result.stopReason).toBe('end_turn');
@@ -71,7 +71,7 @@ describe('server/streamBody.fetchAi (non-streaming)', () => {
     const url = (fetchMock.mock.calls[0][0] as string);
     expect(url).toContain('api.anthropic.com/v1/messages');
     const sentBody = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
-    expect(sentBody.model).toBe('claude-sonnet-4-6');
+    expect(sentBody.model).toBe('claude-sonnet-5-5');
     expect(sentBody.system).toEqual([
       { type: 'text', text: 'sys', cache_control: { type: 'ephemeral' } },
     ]);
@@ -86,7 +86,7 @@ describe('server/streamBody.fetchAi (non-streaming)', () => {
         json: async () => ({ candidates: [{ content: { parts: [{ text: 'hello from gemini' }] } }] }),
       } as Response);
 
-    const result = await fetchAi('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', 'gemini-key');
+    const result = await fetchAi('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', 'gemini-key');
 
     expect(result.text).toBe('hello from gemini');
     const geminiUrl = (fetchMock.mock.calls[1][0] as string);
@@ -96,14 +96,14 @@ describe('server/streamBody.fetchAi (non-streaming)', () => {
 
   it('throws when no key is configured', async () => {
     await expect(
-      fetchAi('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, undefined, undefined),
+      fetchAi('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, undefined, undefined),
     ).rejects.toThrow('No AI key configured');
   });
 
   it('throws the Claude error when Claude fails and no Gemini fallback exists', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'rate limited' } as Response);
     await expect(
-      fetchAi('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined),
+      fetchAi('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined),
     ).rejects.toThrow('Claude 429');
   });
 });
@@ -114,7 +114,7 @@ describe('server/streamBody.fetchAiStream (streaming)', () => {
     fetchMock.mockResolvedValueOnce(makeStream(claudeStreamChunks(['hel', 'lo', ' from ', 'claude'])));
 
     const chunks: string[] = [];
-    for await (const d of fetchAiStream('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined)) {
+    for await (const d of fetchAiStream('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined)) {
       chunks.push(d);
     }
     expect(chunks).toEqual(['hel', 'lo', ' from ', 'claude']);
@@ -127,7 +127,7 @@ describe('server/streamBody.fetchAiStream (streaming)', () => {
       .mockResolvedValueOnce(makeStream(geminiStreamChunks(['hello ', 'from gemini'])));
 
     const chunks: string[] = [];
-    for await (const d of fetchAiStream('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', 'gemini-key')) {
+    for await (const d of fetchAiStream('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', 'gemini-key')) {
       chunks.push(d);
     }
     expect(chunks).toEqual(['hello ', 'from gemini']);
@@ -137,13 +137,13 @@ describe('server/streamBody.fetchAiStream (streaming)', () => {
   });
 
   it('throws when no key is configured for streaming', async () => {
-    const it = fetchAiStream('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, undefined, undefined);
+    const it = fetchAiStream('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, undefined, undefined);
     await expect(it.next()).rejects.toThrow('No AI key configured');
   });
 
   it('throws the Claude stream error when no Gemini fallback exists', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'rate limited' } as Response);
-    const it = fetchAiStream('claude-sonnet-4-6', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined);
+    const it = fetchAiStream('claude-sonnet-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512, 'sk-ant-1', undefined);
     await expect(it.next()).rejects.toThrow('Claude 429');
   });
 });

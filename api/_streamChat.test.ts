@@ -98,7 +98,7 @@ describe('server/streamChat.handleStreamingChat', () => {
         messages: [{ role: 'user', content: 'hi' }],
         effectiveSystem: 'sys',
         tokens: 512,
-        chosenModel: 'claude-haiku-4-5-20251001',
+        chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
         isTriadDirect: false,
@@ -118,7 +118,7 @@ describe('server/streamChat.handleStreamingChat', () => {
     expect(body).toContain('"text":", "');
     expect(body).toContain('"text":"world"');
     expect(body).toContain('"done":true');
-    expect(body).toContain('"model":"claude-haiku-4-5-20251001"');
+    expect(body).toContain('"model":"claude-haiku-5-5"');
     expect(body).toContain('"fullText":"Hello, world"');
   });
 
@@ -130,7 +130,7 @@ describe('server/streamChat.handleStreamingChat', () => {
         messages: [{ role: 'user', content: 'hi' }],
         effectiveSystem: 'sys',
         tokens: 512,
-        chosenModel: 'claude-haiku-4-5-20251001',
+        chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
         isTriadDirect: false,

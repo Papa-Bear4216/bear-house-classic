@@ -215,7 +215,7 @@ describe('POST /api/chat', () => {
     await handler(req({ prompt: 'hi' }));
 
     const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(sentBody.model).toBe('claude-sonnet-4-6');
+    expect(sentBody.model).toBe('claude-sonnet-5-5');
   });
 
   it('defaults to haiku when the tier lookup fails', async () => {
@@ -227,17 +227,17 @@ describe('POST /api/chat', () => {
 
     expect(res.status).toBe(200);
     const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(sentBody.model).toBe('claude-haiku-4-5-20251001');
+    expect(sentBody.model).toBe('claude-haiku-5-5');
   });
 
   it('lets an explicit model param override the household tier', async () => {
     authed();
     vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
-    await handler(req({ prompt: 'hi', model: 'claude-sonnet-4-6' }));
+    await handler(req({ prompt: 'hi', model: 'claude-sonnet-5-5' }));
 
     const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(sentBody.model).toBe('claude-sonnet-4-6');
+    expect(sentBody.model).toBe('claude-sonnet-5-5');
   });
 
   it('returns 502 — not a silent 200 with empty text — when Claude returns no text', async () => {
@@ -284,9 +284,9 @@ describe('POST /api/chat', () => {
   // --- Prompt caching: system prompt served from cache on repeat turns ---
 
   it('marks the system prompt as an ephemeral-cacheable block', () => {
-    const body = buildClaudeRequestBody('claude-haiku-4-5-20251001', 'sys', [{ role: 'user', content: 'hi' }], 512);
+    const body = buildClaudeRequestBody('claude-haiku-5-5', 'sys', [{ role: 'user', content: 'hi' }], 512);
 
-    expect(body.model).toBe('claude-haiku-4-5-20251001');
+    expect(body.model).toBe('claude-haiku-5-5');
     expect(body.max_tokens).toBe(512);
     expect(body.messages).toEqual([{ role: 'user', content: 'hi' }]);
     expect(body.system).toEqual([

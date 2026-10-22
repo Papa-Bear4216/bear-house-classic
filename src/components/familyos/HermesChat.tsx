@@ -57,7 +57,7 @@ async function callHermes(history: { role: string; content: string }[], househol
         enableTools: true,
         neutralMode: neutralMode === true,
         maxTokens: 1200, // meal plans with recipes overran 600 and got cut off mid-JSON
-        model: modelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
+        model: modelTier === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-haiku-5-5',
       }),
     });
     if (!res.ok) return { text: 'Something went wrong. Try again.' };

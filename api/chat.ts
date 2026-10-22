@@ -21,8 +21,8 @@ export { HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 // NOTE: these are now also exported from _aiModels.js as the single source of
 // truth for briefing.ts/secretary.ts. Keep them in sync when deprecating models.
 // const CLAUDE_MODELS = {
-//   haiku: 'claude-haiku-4-5-20251001',
-//   sonnet: 'claude-sonnet-4-6',
+//   haiku: 'claude-haiku-5-5',
+//   sonnet: 'claude-sonnet-5-5',
 // } as const;
 const GEMINI_MODEL = DEFAULT_GEMINI_MODEL;
 const PROVIDER_TIMEOUT_MS = 30_000;

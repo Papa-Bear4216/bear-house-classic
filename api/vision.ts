@@ -75,7 +75,7 @@ export default async function handler(req: Request): Promise<Response> {
   // Primary: Claude Sonnet
   if (anthropicKey && !preferGemini) {
     try {
-      const t = anthropicTarget(anthropicKey, 'claude-sonnet-4-6');
+      const t = anthropicTarget(anthropicKey, 'claude-sonnet-5-5');
       const response = await fetch(t.url, {
         method: 'POST',
         headers: t.headers,

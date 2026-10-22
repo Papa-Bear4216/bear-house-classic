@@ -19,7 +19,7 @@ const base = {
   surface: 'floating-chat',
   enableTools: true,
   neutralMode: false,
-  modelId: 'claude-sonnet-4-6',
+  modelId: 'claude-sonnet-5-5',
 };
 
 describe('buildHermesContext', () => {

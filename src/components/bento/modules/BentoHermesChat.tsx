@@ -142,7 +142,7 @@ export const BentoHermesChatExpanded: React.FC = () => {
         clientSnapshot: extractClientSnapshot(systemPrompt),
         enableTools: true,
         maxTokens: 1200,
-        model: hermesModelTier === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
+        model: hermesModelTier === 'sonnet' ? 'claude-sonnet-5-5' : 'claude-haiku-5-5',
       };
 
       const result = await executeTriadJsonPipeline<{ text?: string; actions?: Action[] }>(
