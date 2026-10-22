@@ -8,7 +8,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { recordVisit, recordLocation, checkAutobrief } from '@/lib/presenceTracker';
 import BrainBatteryModal from '@/components/familyos/BrainBatteryModal';
 import { getBrainBattery, BATTERY_LEVELS, type BatteryLevel } from '@/lib/brainBattery';
-import { getOfflineSyncStatus, onSyncUpdate } from '@/lib/sync';
+import { getOfflineSyncSnapshot, subscribeOfflineSyncStatus, retryOfflineWrites } from '@/lib/sync';
 import { OPEN_SETTINGS_EVENT, resolveSettingsOpenRequest, type SettingsIntent } from '@/lib/connectionHealth';
 
 
@@ -44,7 +44,7 @@ const AppLayout: React.FC = () => {
   const [autobrief, setAutobrief] = useState<{ days: number; reason: 'offline' | 'location'; miles?: number } | null>(null);
   const [batteryModalOpen, setBatteryModalOpen] = useState(false);
   const [batteryLevel, setBatteryLevel] = useState<BatteryLevel>(() => getBrainBattery());
-  const [syncStatus, setSyncStatus] = useState(() => getOfflineSyncStatus());
+  const syncStatus = React.useSyncExternalStore(subscribeOfflineSyncStatus, getOfflineSyncSnapshot, getOfflineSyncSnapshot);
   const [bulletinOpen, setBulletinOpen] = useState(false);
   const [bulletinNotes, setBulletinNotes] = useState<BulletinNote[]>(() => loadBulletinNotes());
   const presenceChecked = useRef(false);
@@ -66,18 +66,6 @@ const AppLayout: React.FC = () => {
     };
     window.addEventListener('familyos:battery-changed', onBatteryChange);
     return () => window.removeEventListener('familyos:battery-changed', onBatteryChange);
-  }, []);
-
-  useEffect(() => {
-    const updateSync = () => setSyncStatus(getOfflineSyncStatus());
-    const unsub = onSyncUpdate(() => updateSync());
-    window.addEventListener('online', updateSync);
-    window.addEventListener('offline', updateSync);
-    return () => {
-      unsub();
-      window.removeEventListener('online', updateSync);
-      window.removeEventListener('offline', updateSync);
-    };
   }, []);
 
   useEffect(() => {
@@ -229,6 +217,39 @@ const AppLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+              {/* Reactive Offline & Sync Status Pill */}
+              {(!syncStatus.online || syncStatus.syncing || syncStatus.pendingWrites > 0 || syncStatus.unassignedWrites > 0) && (
+                <button
+                  onClick={() => { if (syncStatus.online && !syncStatus.syncing) void retryOfflineWrites(); }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition shadow-sm active:scale-95 ${
+                    !syncStatus.online
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                      : syncStatus.syncing
+                        ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                        : syncStatus.unassignedWrites > 0
+                          ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                          : 'bg-sky-500/10 text-sky-300 border-sky-500/30'
+                  }`}
+                  title={
+                    !syncStatus.online
+                      ? 'Offline: edits are saved locally'
+                      : syncStatus.syncing
+                        ? 'Syncing saved edits with cloud...'
+                        : 'Click to retry syncing pending edits'
+                  }
+                >
+                  <span className={syncStatus.syncing ? 'animate-spin inline-block' : ''}>
+                    {!syncStatus.online ? '⚡' : syncStatus.syncing ? '🔄' : '☁️'}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {!syncStatus.online
+                      ? 'Offline'
+                      : syncStatus.syncing
+                        ? 'Syncing…'
+                        : `${syncStatus.pendingWrites} Pending`}
+                  </span>
+                </button>
+              )}
               {/* Family Popup Bulletin Board */}
               <button
                 onClick={() => setBulletinOpen(true)}

@@ -196,6 +196,44 @@ export function isWriteQueued(key: string): boolean {
   return isQueued(key);
 }
 
+
+export interface OfflineSyncSnapshot {
+  online: boolean;
+  syncing: boolean;
+  pendingWrites: number;
+  unassignedWrites: number;
+}
+
+let cachedSnapshot: OfflineSyncSnapshot | null = null;
+
+export function getOfflineSyncSnapshot(): OfflineSyncSnapshot {
+  const current = getOfflineSyncStatus();
+  if (
+    cachedSnapshot &&
+    cachedSnapshot.online === current.online &&
+    cachedSnapshot.syncing === current.syncing &&
+    cachedSnapshot.pendingWrites === current.pendingWrites &&
+    cachedSnapshot.unassignedWrites === current.unassignedWrites
+  ) {
+    return cachedSnapshot;
+  }
+  cachedSnapshot = current;
+  return current;
+}
+
+export function subscribeOfflineSyncStatus(callback: () => void): () => void {
+  const unsub = onSyncUpdate(() => callback());
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', callback);
+    window.addEventListener('offline', callback);
+    return () => {
+      unsub();
+      window.removeEventListener('online', callback);
+      window.removeEventListener('offline', callback);
+    };
+  }
+  return unsub;
+}
 export function getOfflineSyncStatus() {
   return {
     online: typeof navigator === 'undefined' || navigator.onLine,
