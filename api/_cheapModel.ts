@@ -4,15 +4,21 @@
  * endpoint, so it works with any gateway model id. Tool-using chat and image
  * reading are NOT routed here — they stay on Claude.
  *
- * Off unless AI_GATEWAY_API_KEY is set. Returns null on any miss so callers
+ * Off unless AI_GATEWAY_API_KEY or the deployment's VERCEL_OIDC_TOKEN is present. Returns null on any miss so callers
  * fall through to their normal Claude/Gemini key path.
  */
 
 const GATEWAY_CHAT_URL = 'https://ai-gateway.vercel.sh/v1/chat/completions';
 const DEFAULT_CHEAP_MODEL = 'google/gemini-2.5-flash-lite';
 
+// An explicit gateway key wins; otherwise the deployment's own OIDC token (Vercel
+// injects VERCEL_OIDC_TOKEN, so no key has to be created or stored).
+function gatewayToken(): string | undefined {
+  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
+}
+
 export function cheapModelEnabled(): boolean {
-  return !!process.env.AI_GATEWAY_API_KEY && process.env.HERMES_CHEAP_MODEL !== 'off';
+  return !!gatewayToken() && process.env.HERMES_CHEAP_MODEL !== 'off';
 }
 
 export async function tryCheapModel(prompt: string, maxTokens = 600): Promise<string | null> {
@@ -22,7 +28,7 @@ export async function tryCheapModel(prompt: string, maxTokens = 600): Promise<st
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.AI_GATEWAY_API_KEY}`,
+        Authorization: `Bearer ${gatewayToken()}`,
       },
       body: JSON.stringify({
         model: process.env.HERMES_CHEAP_MODEL || DEFAULT_CHEAP_MODEL,

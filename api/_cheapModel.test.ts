@@ -3,6 +3,7 @@ import { tryCheapModel, cheapModelEnabled } from './_cheapModel.js';
 
 afterEach(() => {
   delete process.env.AI_GATEWAY_API_KEY;
+  delete process.env.VERCEL_OIDC_TOKEN;
   delete process.env.HERMES_CHEAP_MODEL;
   vi.unstubAllGlobals();
 });
@@ -14,6 +15,15 @@ describe('cheap model tier', () => {
     expect(cheapModelEnabled()).toBe(false);
     expect(await tryCheapModel('hi')).toBeNull();
     expect(f).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the deployment OIDC token when no key is set', async () => {
+    process.env.VERCEL_OIDC_TOKEN = 'oidc.jwt.token';
+    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] })));
+    vi.stubGlobal('fetch', f);
+    expect(cheapModelEnabled()).toBe(true);
+    expect(await tryCheapModel('hi')).toBe('ok');
+    expect(f.mock.calls[0][1].headers.Authorization).toBe('Bearer oidc.jwt.token');
   });
 
   it('can be switched off explicitly', () => {
