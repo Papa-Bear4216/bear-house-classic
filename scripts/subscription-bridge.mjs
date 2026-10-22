@@ -145,7 +145,10 @@ http.createServer(async (req, res) => {
   if (busy >= 2) return send(res, 429, { error: 'Busy' });
   busy++;
   try {
-    send(res, 200, { text: await complete(provider, prompt, typeof system === 'string' ? system : '', model) });
+    const t0 = Date.now();
+    const text = await complete(provider, prompt, typeof system === 'string' ? system : '', model);
+    console.log(`${new Date().toISOString()} /complete ${provider} ok ${Date.now() - t0}ms (${prompt.length} chars in)`);
+    send(res, 200, { text });
   } catch (e) {
     send(res, 502, { error: e instanceof Error ? e.message : 'failed' });
   } finally { busy--; }
