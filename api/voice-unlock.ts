@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' };
 
-import { resolveHouseholdId, dbSetVoiceUnlocked } from './_db.js';
+import { resolveCallerMember, dbSetVoiceUnlocked } from './_db.js';
+import { secretsEqual } from './_secureCompare.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, VoiceUnlockBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -9,7 +10,8 @@ import { handleCorsPreflight } from './_cors.js';
 // Redeems a developer-distributed 6-digit code to unlock premium voice for
 // the caller's whole household. Independent of Stripe billing — codes are a
 // flat list in VOICE_UNLOCK_CODES (comma-separated), set/rotated via Vercel
-// env vars. Any household member can redeem; the unlock applies household-wide.
+// env vars. Only admin/superadmin members can redeem; the unlock applies
+// household-wide.
 export default async function handler(req: Request): Promise<Response> {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -18,8 +20,10 @@ export default async function handler(req: Request): Promise<Response> {
 
   const authHeader = req.headers.get('authorization') || '';
   const accessToken = authHeader.replace(/^Bearer\s+/i, '');
-  const householdId = accessToken ? await resolveHouseholdId(accessToken) : null;
-  if (!householdId) return j({ error: 'Unauthorized' }, 401);
+  const caller = accessToken ? await resolveCallerMember(accessToken) : null;
+  if (!caller) return j({ error: 'Unauthorized' }, 401);
+  if (caller.role !== 'admin' && caller.role !== 'superadmin') return j({ error: 'Only an admin can unlock voice' }, 403);
+  const householdId = caller.householdId;
 
   const rl = await checkRateLimit(householdId, 'voice-unlock', 10);
   if (!rl.allowed) return j({ error: `Rate limit exceeded, try again in ${rl.retryAfterSeconds}s` }, 429);
@@ -34,7 +38,11 @@ export default async function handler(req: Request): Promise<Response> {
     .filter(Boolean);
   if (validCodes.length === 0) return serverError('Voice unlock is not configured', 'voice-unlock');
 
-  if (!validCodes.includes(parsed.data.code)) {
+  // Check every code (no early exit) with constant-time comparisons so response
+  // timing does not reveal how close a guess is.
+  const submitted = parsed.data.code.trim();
+  const matches = await Promise.all(validCodes.map((c) => secretsEqual(c, submitted)));
+  if (!matches.some(Boolean)) {
     return j({ error: 'Invalid code' }, 400);
   }
 
