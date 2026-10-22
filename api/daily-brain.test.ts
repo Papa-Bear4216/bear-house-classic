@@ -195,7 +195,7 @@ describe('api/daily-brain.ts: runDailyBrainChecks', () => {
       { id: 'mem-1', gmail_connected_email: 'alice@example.com' } as any,
     ]);
     vi.mocked(db.dbGetHouseholdMembersByHouseholdId).mockResolvedValue([
-      { id: 'mem-1', name: 'Alice', email: 'alice@example.com', role: 'adult', color: 'blue', pin_hash: null, household_id: householdId },
+      { id: 'mem-1', name: 'Alice', email: 'alice@example.com', role: 'adult', color: 'blue', household_id: householdId },
     ]);
     vi.mocked(gmailScan.scanMemberGmail).mockResolvedValue([
       { subject: 'Dental Appointment Confirmation' } as any,

@@ -18,7 +18,7 @@ beforeEach(() => {
     householdId: 'h1', memberId: 'member-1', role: 'child', canControlDevices: false,
   });
   vi.mocked(dbGetHouseholdMemberById).mockResolvedValue({
-    id: 'member-1', name: 'Avery', email: null, role: 'child', color: 'blue', pin_hash: null, household_id: 'h1',
+    id: 'member-1', name: 'Avery', email: null, role: 'child', color: 'blue', household_id: 'h1',
   });
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
 });
@@ -50,7 +50,7 @@ describe('POST /api/activity', () => {
 
   it('refuses to write if the caller member no longer belongs to the resolved household', async () => {
     vi.mocked(dbGetHouseholdMemberById).mockResolvedValue({
-      id: 'member-1', name: 'Avery', email: null, role: 'child', color: 'blue', pin_hash: null, household_id: 'other-household',
+      id: 'member-1', name: 'Avery', email: null, role: 'child', color: 'blue', household_id: 'other-household',
     });
     const req = new Request('https://example.test/api/activity', {
       method: 'POST',

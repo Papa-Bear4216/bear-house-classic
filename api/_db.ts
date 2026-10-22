@@ -190,10 +190,10 @@ export async function dbGetHouseholdMemberByEmail(email: string): Promise<{id: s
 }
 
 /** Get a household member by id (uses service role to bypass RLS) */
-export async function dbGetHouseholdMemberById(id: string): Promise<{id: string; name: string; email: string | null; role: string; color: string; pin_hash: string | null; household_id: string} | null> {
+export async function dbGetHouseholdMemberById(id: string): Promise<{id: string; name: string; email: string | null; role: string; color: string; household_id: string} | null> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(id)}&select=id,name,email,role,color,pin_hash,household_id`,
+    `${SUPABASE_URL}/rest/v1/household_members?id=eq.${encodeURIComponent(id)}&select=id,name,email,role,color,household_id`,
     { headers: headers(serviceKey) }
   );
   if (!res.ok) return null;
@@ -202,10 +202,10 @@ export async function dbGetHouseholdMemberById(id: string): Promise<{id: string;
 }
 
 /** Get all household members for a given household_id (uses service role to bypass RLS) */
-export async function dbGetHouseholdMembersByHouseholdId(householdId: string): Promise<Array<{id: string; name: string; email: string | null; role: string; color: string; pin_hash: string | null; household_id: string}> | []> {
+export async function dbGetHouseholdMembersByHouseholdId(householdId: string): Promise<Array<{id: string; name: string; email: string | null; role: string; color: string; household_id: string}> | []> {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(householdId)}&select=id,name,email,role,color,pin_hash,household_id`,
+    `${SUPABASE_URL}/rest/v1/household_members?household_id=eq.${encodeURIComponent(householdId)}&select=id,name,email,role,color,household_id`,
     { headers: headers(serviceKey) }
   );
   if (!res.ok) return [];
