@@ -7,6 +7,8 @@
  * The anon key can no longer write since RLS was locked down (see
  * docs/fix-family-data-rls.sql).
  */
+import { sha256Hex } from './_secureCompare.js';
+
 const SUPABASE_URL = 'https://zjialvdolbkccduuwsck.supabase.co';
 
 function headers(key: string) {
@@ -110,6 +112,18 @@ export async function soleHouseholdId(): Promise<string> {
 export async function resolveHouseholdIdByWebhookToken(token: string): Promise<string | null> {
   if (!token) return null;
   const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  // Hashed lookup first (tokens rotated via /api/webhook-token store only the
+  // SHA-256 hash). Legacy plaintext tokens are still honoured until that
+  // household rotates, which nulls the plaintext. Two queries, not one `or=`
+  // filter, so a token containing PostgREST filter syntax cannot alter the query.
+  const hashRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?webhook_token_hash=eq.${await sha256Hex(token)}&select=id`,
+    { headers: headers(serviceKey) }
+  );
+  if (hashRes.ok) {
+    const hashRows = await hashRes.json() as any[];
+    if (hashRows[0]?.id) return hashRows[0].id;
+  }
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/households?webhook_token=eq.${encodeURIComponent(token)}&select=id`,
     { headers: headers(serviceKey) }
@@ -117,6 +131,38 @@ export async function resolveHouseholdIdByWebhookToken(token: string): Promise<s
   if (!res.ok) return null;
   const rows = await res.json() as any[];
   return rows[0]?.id ?? null;
+}
+
+/**
+ * Store a new household webhook token as its SHA-256 hash only and clear the
+ * legacy plaintext column. The raw token is never persisted; the caller must
+ * show it to the user once.
+ */
+export async function dbSetHouseholdWebhookToken(householdId: string, rawToken: string): Promise<void> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}`,
+    {
+      method: 'PATCH', headers: headers(serviceKey),
+      body: JSON.stringify({ webhook_token_hash: await sha256Hex(rawToken), webhook_token: null }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`dbSetHouseholdWebhookToken failed: ${res.status} ${detail}`);
+  }
+}
+
+/** Whether a household has a webhook token (hashed or legacy), without exposing it. */
+export async function dbHouseholdHasWebhookToken(householdId: string): Promise<boolean> {
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=webhook_token_hash,webhook_token`,
+    { headers: headers(serviceKey) }
+  );
+  if (!res.ok) return false;
+  const rows = await res.json() as any[];
+  return !!(rows[0]?.webhook_token_hash || rows[0]?.webhook_token);
 }
 
 /** Every household id — for true crons that must process each household independently. */

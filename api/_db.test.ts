@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { resolveHouseholdId, resolveHouseholdIdByWebhookToken, soleHouseholdId, allHouseholdIds } from './_db';
+import { resolveHouseholdId, resolveHouseholdIdByWebhookToken, dbSetHouseholdWebhookToken, soleHouseholdId, allHouseholdIds } from './_db';
 
 // Every function under test calls the global fetch() directly (no SDK) —
 // mocking fetch is the whole test surface here. Each test wires up the
@@ -78,13 +78,13 @@ describe('resolveHouseholdIdByWebhookToken', () => {
   });
 
   it('returns null when no household matches the token', async () => {
-    mockFetchSequence([{ ok: true, json: [] }]);
+    mockFetchSequence([{ ok: true, json: [] }, { ok: true, json: [] }]);
     const result = await resolveHouseholdIdByWebhookToken('unknown-token');
     expect(result).toBeNull();
   });
 
   it('returns null when the Supabase lookup itself fails', async () => {
-    mockFetchSequence([{ ok: false }]);
+    mockFetchSequence([{ ok: false }, { ok: false }]);
     const result = await resolveHouseholdIdByWebhookToken('some-token');
     expect(result).toBeNull();
   });
@@ -103,6 +103,47 @@ describe('resolveHouseholdIdByWebhookToken', () => {
     const b = await resolveHouseholdIdByWebhookToken('token-for-B');
     expect(b).toBe('household-B');
     expect(b).not.toBe(a);
+  });
+});
+
+describe('webhook token hashing', () => {
+  it('looks the token up by its SHA-256 hash first (known vector for "abc")', async () => {
+    const fetchMock = mockFetchSequence([{ ok: true, json: [{ id: 'household-1' }] }]);
+    expect(await resolveHouseholdIdByWebhookToken('abc')).toBe('household-1');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      'webhook_token_hash=eq.ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+    );
+  });
+
+  it('falls back to the legacy plaintext column when no hash matches', async () => {
+    const fetchMock = mockFetchSequence([{ ok: true, json: [] }, { ok: true, json: [{ id: 'household-legacy' }] }]);
+    expect(await resolveHouseholdIdByWebhookToken('legacy-token')).toBe('household-legacy');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('webhook_token=eq.legacy-token');
+  });
+
+  it('a wrong token resolves to null (no hash match, no plaintext match)', async () => {
+    mockFetchSequence([{ ok: true, json: [] }, { ok: true, json: [] }]);
+    expect(await resolveHouseholdIdByWebhookToken('wrong')).toBeNull();
+  });
+
+  it('does not let filter syntax in a token alter the query', async () => {
+    const fetchMock = mockFetchSequence([{ ok: true, json: [] }, { ok: true, json: [] }]);
+    await resolveHouseholdIdByWebhookToken('x,webhook_token.neq.y');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('webhook_token=eq.x%2Cwebhook_token.neq.y');
+  });
+
+  it('dbSetHouseholdWebhookToken PATCHes the hash and nulls the plaintext; the raw token is never sent', async () => {
+    const fetchMock = mockFetchSequence([{ ok: true }]);
+    await dbSetHouseholdWebhookToken('household-1', 'abc');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PATCH');
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual({
+      webhook_token_hash: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+      webhook_token: null,
+    });
+    expect(init.body as string).not.toContain('"abc"');
   });
 });
 
