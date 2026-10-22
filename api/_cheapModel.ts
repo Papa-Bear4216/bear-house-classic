@@ -9,7 +9,9 @@
  */
 
 const GATEWAY_CHAT_URL = 'https://ai-gateway.vercel.sh/v1/chat/completions';
-const DEFAULT_CHEAP_MODEL = 'google/gemini-2.5-flash-lite';
+// Quality first, cost second: Haiku 5.5 costs the same as Flash-Lite ($0.10/$0.50 vs $0.10/$0.40 per M)
+// and is the safer default for JSON extraction; flash-lite stays a candidate pending an eval.
+const DEFAULT_CHEAP_MODEL = 'anthropic/claude-haiku-5.5';
 
 // An explicit gateway key wins; otherwise the deployment's own OIDC token (Vercel
 // injects VERCEL_OIDC_TOKEN, so no key has to be created or stored).

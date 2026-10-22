@@ -39,7 +39,7 @@ describe('cheap model tier', () => {
     expect(await tryCheapModel('hi', 100)).toBe('ok');
     const [url, init] = f.mock.calls[0];
     expect(url).toBe('https://ai-gateway.vercel.sh/v1/chat/completions');
-    expect(JSON.parse(init.body).model).toBe('google/gemini-2.5-flash-lite');
+    expect(JSON.parse(init.body).model).toBe('anthropic/claude-haiku-5.5');
     expect(init.headers.Authorization).toBe('Bearer vck_x');
   });
 
