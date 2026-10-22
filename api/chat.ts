@@ -561,6 +561,7 @@ The current user is a child member of the family. Keep answers age-appropriate, 
       });
     } catch (e: any) {
       const status = e instanceof ProviderError ? e.status : 0;
+      console.error('[Chat] Claude provider error:', status, e instanceof ProviderError ? e.detail : e?.message);
       if (!geminiKey) {
         // No fallback configured: surface the provider's own status when we
         // have one (old contract), else a 500. Timeouts land here as 500s.
