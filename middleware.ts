@@ -7,21 +7,23 @@
 //
 // Origins: the deployed frontend, plus Capacitor's native origin (no custom
 // server.hostname in capacitor.config.json, so it serves from https://localhost),
-// plus Vercel preview deployments (see api/_cors.ts's original comment —
-// bearhouseos.vercel.app previews call these same routes).
+// plus any extra origins listed (comma-separated, exact match) in the
+// CORS_ALLOWED_ORIGINS env var, e.g. a specific Vercel preview URL that must
+// call the production API. There is deliberately no *.vercel.app wildcard:
+// anyone can deploy to that domain.
 const ALLOWED_ORIGINS = new Set([
   'https://hotmessexpress.lol',
   'https://www.hotmessexpress.lol',
   'https://localhost',
 ]);
 
-function isAllowedOrigin(origin: string): boolean {
-  if (ALLOWED_ORIGINS.has(origin)) return true;
-  try {
-    return new URL(origin).hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
-  }
+function extraOrigins(): Set<string> {
+  const raw = process.env.CORS_ALLOWED_ORIGINS ?? '';
+  return new Set(raw.split(',').map((o) => o.trim()).filter(Boolean));
+}
+
+export function isAllowedOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.has(origin) || extraOrigins().has(origin);
 }
 
 export default async function middleware(request: Request): Promise<Response> {
