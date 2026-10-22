@@ -4,6 +4,10 @@
   display: none;
 }
 
+.fo-desktop-focus {
+  display: block;
+}
+
 .fo-prediction {
   display: none;
 }
@@ -247,6 +251,10 @@ div.fo-action-wheel-sheet {
     border-radius: 26px 26px 0 0 !important;
     transform: none !important;
     overflow-y: auto;
+  }
+
+  .fo-desktop-focus {
+    display: none;
   }
 
   .fo-daily-deck {

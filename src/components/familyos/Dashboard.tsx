@@ -18,6 +18,9 @@ import SystemHealth from './SystemHealth';
 import MemberProfileModal from './MemberProfileModal';
 import ActivityFeed from './ActivityFeed';
 import AdhdFocusHero from './AdhdFocusHero';
+import MobileDailyDeck from './MobileDailyDeck';
+import MobileActionWheel from './MobileActionWheel';
+import { getDailySuggestion } from '@/lib/dailySuggestion';
 import FocusMode from './FocusMode';
 import WeeklyRoundupModal from './sections/WeeklyRoundupModal';
 import SchoolStuffModal from './sections/SchoolStuffModal';
@@ -33,7 +36,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
   const [tab, setTab] = useState<'overview' | 'trends'>('overview');
-  const { householdMembers, currentUser } = useAppContext();
+  const { householdMembers, currentUser, currentRole } = useAppContext();
+  const isChild = currentRole === 'child';
   const streaksEnabled = useFeatureFlag('streaks_leaderboards');
   const weeklyRoundupEnabled = useFeatureFlag('weekly_roundup');
   const schoolAdderEnabled = useFeatureFlag('school_adder');
@@ -116,6 +120,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     setTasks(next);
     saveJSON(KEYS.tasks, next);
   };
+
+  const suggestion = useMemo(() => {
+    return getDailySuggestion({
+      tasks,
+      activities,
+      promises,
+      memberName: currentUser?.name,
+      isChild,
+      now: Date.now(),
+    });
+  }, [tasks, activities, promises, currentUser, currentRole]);
 
   const stats = useMemo(() => {
     const isDueToday = (t: any) => {
@@ -329,6 +344,18 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
     setModal({ open: true, title: 'Family Sync', body: formattedBody as any, loading: false });
   };
 
+  const focusHero = (
+    <AdhdFocusHero
+      tasks={tasks}
+      onComplete={handleCompleteTask}
+      onLaunchFocusMode={() => setFocusModeOpen(true)}
+      todayCompletedCount={stats.todayCompletedCount}
+      todayTotalCount={stats.todayTotalCount}
+      activeStreak={streaksEnabled ? userStreak?.currentStreak : undefined}
+      streakActiveToday={streaksEnabled ? userStreak?.activeToday : undefined}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <AlertModal {...modal} accent="indigo" onClose={() => setModal({ ...modal, open: false })} />
@@ -409,6 +436,15 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         </div>
       </div>
 
+      {/* Mobile Contextual Rotary Action Wheel */}
+      {tab === 'overview' && !focusModeOpen && (
+        <MobileActionWheel
+          suggestion={suggestion}
+          isChild={isChild}
+          onNav={onNav}
+        />
+      )}
+
       {/* Focus Mode Overlay/Card if active */}
       {focusModeOpen && (
         <div className="animate-in fade-in zoom-in-95 duration-200">
@@ -461,16 +497,20 @@ Ensure the tone is supportive, specific, and ADHD-friendly (no fluff, clear acti
         </Suspense>
       ) : (
         <>
-          {/* ADHD Focus Hero: One Thing Right Now & Chaos Meter */}
-          <AdhdFocusHero
-            tasks={tasks}
-            onComplete={handleCompleteTask}
-            onLaunchFocusMode={() => setFocusModeOpen(true)}
-            todayCompletedCount={stats.todayCompletedCount}
-            todayTotalCount={stats.todayTotalCount}
-            activeStreak={streaksEnabled ? userStreak?.currentStreak : undefined}
-            streakActiveToday={streaksEnabled ? userStreak?.activeToday : undefined}
+          {/* Mobile Daily Deck (3-moment swipe) */}
+          <MobileDailyDeck
+            focusCard={focusHero}
+            upcoming={stats.upcoming}
+            openPromises={stats.openPromises}
+            isChild={isChild}
+            onNav={onNav}
+            onQuickAdd={onQuickAdd}
           />
+
+          {/* Desktop ADHD Focus Hero: One Thing Right Now & Chaos Meter */}
+          <div className="fo-desktop-focus">
+            {focusHero}
+          </div>
 
           {/* Quick Action Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
