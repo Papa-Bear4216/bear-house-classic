@@ -37,7 +37,13 @@ const SERVER_MANAGED_KEY_PREFIXES = [
   'familyos_expenses_',
   'familyos_bills_',
   'merchant_category_cache_',
+  // Rate-limit counters (api/_rateLimit.ts): a client that can write these can
+  // reset its own limits.
+  'ratelimit_',
 ];
+
+// Exact keys written only by api/health-check.ts; the UI only reads them.
+const SERVER_MANAGED_KEYS = new Set(['system_health', 'health_alert_state']);
 
 function sameInstant(a: string, b: string): boolean {
   if (a === b) return true;
@@ -74,7 +80,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!parsed.ok) return j({ error: parsed.error }, 400);
   const { key, value, expectedUpdatedAt } = parsed.data;
 
-  if (SERVER_MANAGED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+  if (SERVER_MANAGED_KEYS.has(key) || SERVER_MANAGED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) {
     return j({ error: 'This key is server-managed and cannot be written directly' }, 403);
   }
 

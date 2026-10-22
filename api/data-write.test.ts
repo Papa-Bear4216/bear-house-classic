@@ -83,6 +83,12 @@ describe('POST /api/data-write', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
+  it.each(['ratelimit_chat', 'system_health', 'health_alert_state'])('rejects with 403 for server-managed key %s', async (key) => {
+    const res = await handler(req({ key, value: {} }));
+    expect(res.status).toBe(403);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
   it('rejects with 429 when the household is rate-limited', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ allowed: false, retryAfterSeconds: 5 });
     const res = await handler(req({ key: 'chores', value: {} }));
