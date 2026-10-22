@@ -11,6 +11,7 @@ import { handleCorsPreflight } from './_cors.js';
 import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 import { handleStreamingChat } from './_streamChat.js';
 import { isTriadHousehold } from './_triadAccess.js';
+import { guardUnbackedSuccess } from './_claimGuard.js';
 import { HERMES_TOOLS, isValidCall, sanitizeToolParams, type ToolDefinition } from './_hermesTools.js';
 import { buildHermesContext } from './_hermesContext.js';
 import { resolveHermesModel } from './_hermesRouting.js';
@@ -547,9 +548,11 @@ The current user is a child member of the family. Keep answers age-appropriate, 
           success: false,
         });
       }
+      const guardedC = guardUnbackedSuccess(text, { toolsOffered: !!(scopedTools && scopedTools.length), actionCount: actions.length, droppedActions });
+      if (guardedC.guarded) console.warn('[chat] reply claimed success with no action; replaced');
       return j({
-        text,
-        hermesMeta: { ...hermesMeta, ...(droppedActions > 0 ? { droppedActions } : {}) },
+        text: guardedC.text,
+        hermesMeta: { ...hermesMeta, ...(guardedC.guarded ? { unbackedClaim: true } : {}), ...(droppedActions > 0 ? { droppedActions } : {}) },
         ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
         model: chosenModel,
         ...(wantJson ? { format: 'json' } : {}),
@@ -607,9 +610,11 @@ The current user is a child member of the family. Keep answers age-appropriate, 
         success: usedGeminiFallback && !toolsDegraded && droppedActions === 0,
       });
     }
+    const guardedG = guardUnbackedSuccess(text, { toolsOffered: !!(scopedTools && scopedTools.length) && !toolsDegraded, actionCount: actions.length, droppedActions });
+    if (guardedG.guarded) console.warn('[chat] gemini reply claimed success with no action; replaced');
     return j({
-      text,
-      hermesMeta: { ...hermesMeta, model: GEMINI_MODEL, ...(toolsDegraded ? { toolsDegraded: true } : {}), ...(droppedActions > 0 ? { droppedActions } : {}) },
+      text: guardedG.text,
+      hermesMeta: { ...hermesMeta, ...(guardedG.guarded ? { unbackedClaim: true } : {}), model: GEMINI_MODEL, ...(toolsDegraded ? { toolsDegraded: true } : {}), ...(droppedActions > 0 ? { droppedActions } : {}) },
       ...(useTools ? { actions } : (actions.length > 0 ? { actions } : {})),
       model: GEMINI_MODEL,
       ...(wantJson ? { format: 'json' } : {}),
