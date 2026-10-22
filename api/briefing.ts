@@ -229,7 +229,7 @@ export default async function handler(req: Request): Promise<Response> {
       briefing = await generateBriefing(BRIEF_PROMPT(person, data, dayName), anthropicKey, geminiKey, householdId);
     }
 
-    return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    return new Response(briefing, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   } catch (e: any) {
     return serverError((e as any)?.message || 'Briefing generation failed', 'briefing', e);
   }
