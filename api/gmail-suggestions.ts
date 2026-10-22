@@ -6,6 +6,7 @@
  */
 export const config = { runtime: 'edge' };
 
+import { tryCheapModel } from './_cheapModel.js';
 import { tryBridge } from './_subscriptionBridge.js';
 import { anthropicTarget } from './_anthropicEndpoint.js';
 import { resolveHouseholdId } from './_db.js';
@@ -108,6 +109,8 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
 async function callAI(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
   const viaSubscription = await tryBridge(householdId, prompt);
   if (viaSubscription) return viaSubscription;
+  const viaCheapModel = await tryCheapModel(prompt, 1024);
+  if (viaCheapModel) return viaCheapModel;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);

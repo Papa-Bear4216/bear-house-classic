@@ -9,6 +9,7 @@ export const config = { runtime: 'edge' };
  * POST /api/briefing  { token, person }
  */
 
+import { tryCheapModel } from './_cheapModel.js';
 import { tryBridge } from './_subscriptionBridge.js';
 import { anthropicTarget } from './_anthropicEndpoint.js';
 import { dbGet, resolveHouseholdIdByWebhookToken } from './_db.js';
@@ -79,6 +80,8 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
 async function generateBriefing(prompt: string, anthropicKey: string | undefined, geminiKey: string | undefined, householdId?: string): Promise<string> {
   const viaSubscription = await tryBridge(householdId, prompt);
   if (viaSubscription) return viaSubscription;
+  const viaCheapModel = await tryCheapModel(prompt, 600);
+  if (viaCheapModel) return viaCheapModel;
   if (anthropicKey) {
     try {
       return await callHaiku(prompt, anthropicKey);
