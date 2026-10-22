@@ -10,6 +10,7 @@ import { syncMemberFinance } from './_financeCore.js';
 import { normalizeMerchant } from './_subscriptions.js';
 
 import { handleCorsPreflight } from './_cors.js';
+import { webhookToken } from './_webhookToken.js';
 
 // SECURITY NOTE: every action below (connect/accounts/disconnect/sync/recategorize) other
 // than the webhook branch operates on the CALLER'S OWN bank connection —
@@ -27,7 +28,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
   const rawBody = (await req.json().catch(() => ({}))) as any;
 
-  const webhookHouseholdId = rawBody.token ? await resolveHouseholdIdByWebhookToken(rawBody.token) : null;
+  const financeToken = webhookToken(req, rawBody.token, 'finance');
+  const webhookHouseholdId = financeToken ? await resolveHouseholdIdByWebhookToken(financeToken) : null;
   const isWebhookAuth = !!webhookHouseholdId;
 
   let householdId: string | null = webhookHouseholdId;

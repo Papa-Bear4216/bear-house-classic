@@ -14,6 +14,7 @@ import { notifyIFTTT, notifyPush } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
 import { json as j, serverError } from './_responseHelpers.js';
+import { secretsEqual } from './_secureCompare.js';
 
 // Which entity_id prefixes / substrings map to each logical integration id.
 // Match on entity_id substrings specific to each integration. Keep these TIGHT —
@@ -33,8 +34,8 @@ export default async function handler(req: Request): Promise<Response> {
   const CRON_SECRET = process.env.CRON_SECRET;
   const authHeader = req.headers.get('authorization') || '';
   const suppliedToken = req.headers.get('x-webhook-token') || authHeader.replace(/^Bearer\s+/i, '');
-  const isCron = !!CRON_SECRET && suppliedToken === CRON_SECRET;
-  const isWebhookCaller = !!WEBHOOK_TOKEN && suppliedToken === WEBHOOK_TOKEN;
+  const isCron = !!CRON_SECRET && await secretsEqual(suppliedToken, CRON_SECRET);
+  const isWebhookCaller = !!WEBHOOK_TOKEN && await secretsEqual(suppliedToken, WEBHOOK_TOKEN);
   if (!isCron && !isWebhookCaller) return j({ error: 'Unauthorized' }, 401);
 
   // This HA instance is one physical house — the household that owns it must

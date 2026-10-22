@@ -17,6 +17,7 @@ import { resolveAiKeys } from './_aiKeys.js';
 import { parseBody, BriefingParamsSchema, BriefingJsonInputSchema } from './_schemas.js';
 import { error as jError, serverError } from './_responseHelpers.js';
 import { GEMINI_MODEL, CLAUDE_MODELS, HERMES_PERSONA } from './_aiModels.js';
+import { webhookToken } from './_webhookToken.js';
 
 async function getKey(key: string, householdId: string) {
   return (await dbGet(key, householdId)) ?? [];
@@ -139,7 +140,7 @@ export default async function handler(req: Request): Promise<Response> {
   const isGet = req.method === 'GET';
   const bodyData = isGet ? {} : await req.json().catch(() => ({})) as any;
 
-  const token = isGet ? url.searchParams.get('token') : (req.headers.get('x-webhook-token') || bodyData?.token);
+  const token = isGet ? url.searchParams.get('token') : webhookToken(req, bodyData?.token, 'briefing');
   const householdId = await resolveHouseholdIdByWebhookToken(token || '');
   if (!householdId) return jError('Unauthorized', 401);
 

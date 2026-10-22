@@ -70,12 +70,12 @@ export default async function handler(req: Request): Promise<Response> {
   const parsed = parseBody(WeatherParamsSchema, {
     lat: url.searchParams.get('lat') ?? HOME_LAT,
     lon: url.searchParams.get('lon') ?? HOME_LON,
-    token: url.searchParams.get('token') ?? undefined,
   });
   if (!parsed.ok) return j({ error: parsed.error }, 400);
-  const { lat, lon, token: queryToken } = parsed.data;
+  const { lat, lon } = parsed.data;
 
-  const token = queryToken || (req.headers.get('x-webhook-token') ?? '');
+  // Header only: a query-string token would end up in access logs and URLs.
+  const token = req.headers.get('x-webhook-token') ?? '';
   const accessToken = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const householdId = accessToken
     ? await resolveHouseholdId(accessToken)
@@ -86,7 +86,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (cached) return j(cached);
 
   try {
-    const headers = { 'User-Agent': 'BearHouseOS/1.0 (michael711hebert@gmail.com)' };
+    const headers = { 'User-Agent': 'BearHouseOS/1.0 (https://www.hotmessexpress.lol)' };
 
     // Step 1: Get grid point
     const pointRes = await fetch(`https://api.weather.gov/points/${lat},${lon}`, { headers });

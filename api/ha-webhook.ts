@@ -10,6 +10,7 @@ import { parseBody, HaWebhookBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
 
 import { handleCorsPreflight } from './_cors.js';
+import { webhookToken } from './_webhookToken.js';
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`; }
 
 async function appendTask(householdId: string, task: object) {
@@ -33,7 +34,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
   const rawBody = await req.json().catch(() => ({})) as any;
-  const token = req.headers.get('x-webhook-token') || rawBody?.token;
+  const token = webhookToken(req, rawBody?.token, 'ha-webhook');
   const householdId = await resolveHouseholdIdByWebhookToken(token);
   if (!householdId) return j({ error: 'Unauthorized' }, 401);
 

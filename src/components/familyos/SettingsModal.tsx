@@ -678,7 +678,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab, initialInte
                 expanded={expandedIntegration === 'webhooks'}
                 onToggle={() => toggleIntegration('webhooks')}
               >
-                <p className="text-xs text-slate-400 mb-3">All endpoints require <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> header matching your <code className="bg-slate-950 px-1 rounded">WEBHOOK_TOKEN</code> Vercel env var.</p>
+                <p className="text-xs text-slate-400 mb-3">All endpoints require <code className="bg-slate-950 px-1 rounded">x-webhook-token</code> header containing your household webhook token.</p>
                 <div className="space-y-2">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Endpoint URLs</p>
                   <CodeRow label="General webhook" value={`${BASE_URL}/api/webhook`} />
