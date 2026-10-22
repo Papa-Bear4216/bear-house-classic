@@ -18,7 +18,7 @@ export function WebhookTokenControl() {
   }, []);
 
   const rotate = async () => {
-    if (hasToken && !window.confirm('Generate a new webhook token? Existing automations stop working until you update them.')) return;
+    if (hasToken !== false && !window.confirm('Generate a new webhook token? Existing automations stop working until you update them.')) return;
     setBusy(true);
     setError('');
     try {

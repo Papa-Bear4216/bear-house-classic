@@ -42,7 +42,9 @@ export default async function handler(req: Request): Promise<Response> {
     if (body.action === 'rotate') {
       const token = newToken();
       await dbSetHouseholdWebhookToken(caller.householdId, token);
-      return j({ ok: true, token });
+      const res = j({ ok: true, token });
+      res.headers.set('Cache-Control', 'no-store');
+      return res;
     }
     return j({ error: 'Unknown action' }, 400);
   } catch (e: any) {

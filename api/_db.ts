@@ -160,7 +160,7 @@ export async function dbHouseholdHasWebhookToken(householdId: string): Promise<b
     `${SUPABASE_URL}/rest/v1/households?id=eq.${encodeURIComponent(householdId)}&select=webhook_token_hash,webhook_token`,
     { headers: headers(serviceKey) }
   );
-  if (!res.ok) return false;
+  if (!res.ok) throw new Error(`dbHouseholdHasWebhookToken failed: ${res.status}`);
   const rows = await res.json() as any[];
   return !!(rows[0]?.webhook_token_hash || rows[0]?.webhook_token);
 }
