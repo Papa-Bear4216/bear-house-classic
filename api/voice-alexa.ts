@@ -19,6 +19,7 @@ export const config = { runtime: 'edge' };
 
 import { resolveCallerMember, canControlDevices } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
+import { fetchHomeAssistant } from './_urlAllowlist.js';
 import { dispatchDevice } from './_deviceDispatcher.js';
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -48,7 +49,7 @@ async function getHaStates(householdId: string): Promise<any[]> {
   const { haUrl, haToken } = await resolveHaConfig(householdId);
   if (!haUrl || !haToken) return [];
   try {
-    const res = await fetch(`${haUrl}/api/states`, {
+    const res = await fetchHomeAssistant(haUrl, '/api/states', {
       headers: { Authorization: `Bearer ${haToken}` },
     });
     if (!res.ok) return [];

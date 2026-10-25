@@ -1,6 +1,7 @@
 import { dbGetHouseholdHA } from './_db.js';
 import { decryptSecret } from './_crypto.js';
 import { logInfo } from './_log.js';
+import { DisallowedUrlError, canonicalHaBase } from './_urlAllowlist.js';
 
 /**
  * Resolves the effective Home Assistant URL/token for one household: their
@@ -27,9 +28,14 @@ export async function resolveHaConfig(householdId: string): Promise<{
 
   if (stored.ha_url && stored.ha_token_encrypted) {
     try {
+      const haUrl = canonicalHaBase(stored.ha_url);
       const haToken = await decryptSecret(stored.ha_token_encrypted);
-      return { haUrl: stored.ha_url, haToken };
+      return { haUrl, haToken };
     } catch (e) {
+      if (e instanceof DisallowedUrlError) {
+        logInfo('_haConfig', 'stored HA URL rejected by allowlist', { householdId });
+        return { haUrl: undefined, haToken: undefined };
+      }
       console.error('Failed to decrypt household HA token, falling back to shared:', e);
     }
   }

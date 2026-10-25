@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' };
 
 import { dbGet, dbSet, resolveCallerMember, resolveHouseholdIdByWebhookToken, dbGetHouseholdMembersByHouseholdId } from './_db.js';
 import { claimAccessUrl, fetchAccounts } from './_simplefin.js';
+import { DisallowedUrlError } from './_urlAllowlist.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, FinanceBodySchema } from './_schemas.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -67,8 +68,19 @@ export default async function handler(req: Request): Promise<Response> {
         institutions: [] as { id: string; name: string }[],
       }, memberId);
       return j({ ok: true, institutions: [] });
-    } catch (e: any) {
-      return serverError(e?.message || 'connect failed', 'finance:connect', e);
+    } catch (e: unknown) {
+      if (e instanceof DisallowedUrlError) {
+        return j({ error: 'That SimpleFIN setup token is not allowed.' }, 400);
+      }
+      if (e instanceof Error && (
+        e.message === 'Invalid SimpleFIN setup token'
+        || e.message.startsWith('SimpleFIN did not return')
+        || /^SimpleFIN claim failed: 4/.test(e.message)
+      )) {
+        return j({ error: e.message }, 400);
+      }
+      const message = e instanceof Error ? e.message : 'connect failed';
+      return serverError(message || 'connect failed', 'finance:connect', e);
     }
   }
 

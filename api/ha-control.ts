@@ -13,6 +13,7 @@ export const config = { runtime: 'edge' };
 
 import { resolveCallerMember, canControlDevices } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
+import { fetchHomeAssistant } from './_urlAllowlist.js';
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { parseBody, HaControlBodySchema } from './_schemas.js';
@@ -51,7 +52,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const res = await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
+    const res = await fetchHomeAssistant(HA_URL, `/api/services/${domain}/${service}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HA_TOKEN}` },
       body: JSON.stringify({ entity_id: entityId }),
