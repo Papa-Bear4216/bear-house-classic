@@ -13,6 +13,7 @@ export const config = { runtime: 'edge' };
 
 import { resolveHouseholdId } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
+import { fetchHomeAssistant } from './_urlAllowlist.js';
 import { handleCorsPreflight } from './_cors.js';
 import { checkRateLimit } from './_rateLimit.js';
 import { json as j, serverError } from './_responseHelpers.js';
@@ -48,7 +49,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!HA_URL || !HA_TOKEN) return serverError('Home Assistant is not configured', 'ha-discover');
 
   try {
-    const res = await fetch(`${HA_URL}/api/states`, {
+    const res = await fetchHomeAssistant(HA_URL, '/api/states', {
       headers: { Authorization: `Bearer ${HA_TOKEN}` },
       redirect: 'manual',
     });

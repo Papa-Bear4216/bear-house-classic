@@ -10,6 +10,7 @@ import {
   resolveHouseholdIdByWebhookToken,
 } from './_db.js';
 import { resolveHaConfig } from './_haConfig.js';
+import { fetchHomeAssistant } from './_urlAllowlist.js';
 import { notifyIFTTT, notifyPush } from './_notify.js';
 import { runFix } from './ha-fix.js';
 import { FIX_MAP, resolveFix } from './_integrationFixMap.js';
@@ -66,7 +67,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   let states: any[];
   try {
-    const res = await fetch(`${HA_URL}/api/states`, {
+    const res = await fetchHomeAssistant(HA_URL, '/api/states', {
       headers: { Authorization: `Bearer ${HA_TOKEN}` },
       redirect: 'manual',
     });

@@ -12,6 +12,7 @@
  */
 
 import { resolveHaConfig } from './_haConfig.js';
+import { fetchHomeAssistant } from './_urlAllowlist.js';
 import { resolveHouseholdId } from './_db.js';
 import { serverError } from './_responseHelpers.js';
 
@@ -107,7 +108,7 @@ export async function dispatchDevice(
   }
 
   try {
-    const res = await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
+    const res = await fetchHomeAssistant(HA_URL, `/api/services/${domain}/${service}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HA_TOKEN}` },
       body: JSON.stringify(body),
