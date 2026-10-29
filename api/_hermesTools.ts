@@ -368,21 +368,6 @@ export const HERMES_TOOLS: ToolDefinition[] = [
       required: ['op', 'person'],
     },
   },
-  {
-    name: 'queryTriad',
-    description: 'Query the Autonomous Multi-Agent Triad daemon for coding audits, health checks, or code reviews.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          enum: ['doctor', 'gate', 'status', 'review diff'],
-          description: 'Triad query (doctor, gate, status, or review diff)',
-        },
-      },
-      required: ['query'],
-    },
-  },
 ];
 
 export const REQUIRED_TOOL_FIELDS = new Map<string, string[]>(
@@ -742,13 +727,6 @@ function isValidCallInner(
       return false;
     }
     if (!ENTITY_ID_REGEX.test(entityId)) {
-      return false;
-    }
-  }
-
-  if (name === 'queryTriad') {
-    const q = String(i.query || '');
-    if (!['doctor', 'gate', 'status', 'review diff'].includes(q)) {
       return false;
     }
   }

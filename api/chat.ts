@@ -10,7 +10,6 @@ import { json as j, serverError } from './_responseHelpers.js';
 import { handleCorsPreflight } from './_cors.js';
 import { CLAUDE_MODELS, GEMINI_MODEL as DEFAULT_GEMINI_MODEL, HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 import { handleStreamingChat } from './_streamChat.js';
-import { isTriadHousehold } from './_triadAccess.js';
 import { guardUnbackedSuccess } from './_claimGuard.js';
 import { HERMES_TOOLS, isValidCall, sanitizeToolParams, type ToolDefinition } from './_hermesTools.js';
 import { buildHermesContext } from './_hermesContext.js';
@@ -375,13 +374,11 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ error: 'No non-empty messages provided.' }, 400);
   }
 
-  const isTriad = isTriadHousehold(householdId);
   const isChild = callerRole === 'child' || requestedRole === 'child';
   const effectiveIsAdmin = isAdmin && !isChild;
   const effectiveCanControl = canControlDevices && !isChild;
 
   let scopedTools = tools?.filter((t) => {
-    if (t.name === 'queryTriad') return isTriad && effectiveIsAdmin;
     if (t.name === 'controlDevice' || t.name === 'discoverSmartHome') return effectiveCanControl;
     if (!effectiveIsAdmin) return NON_ADMIN_ALLOWED_TOOLS.has(t.name);
     return true;
@@ -447,67 +444,6 @@ The current user is a child member of the family. Keep answers age-appropriate, 
     memoryFacts: memoryFactsCount,
     toolsCount: scopedTools?.length || 0,
   };
-
-  // Intercept Triad queries and route to ambient Triad daemon on port 8789 ($0 token cost)
-  const cleanQuery = lastUserMsg.trim();
-  // Triad is scoped to the owner's household only; everyone else's "triad ..."
-  // is just a normal chat message. Children are strictly blocked from triad execution.
-  const isTriadDirect = !isChild && isTriadHousehold(householdId) && (/^(triad|\/triad)\b/i.test(cleanQuery) ||
-    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery));
-
-  if (isTriadDirect) {
-    const TRIAD_URL = process.env.TRIAD_URL || 'http://127.0.0.1:8789';
-    try {
-      const strippedPrompt = cleanQuery.replace(/^(\/)?triad\s*:?\s*/i, '').trim() || 'doctor';
-      const triadRes = await fetch(`${TRIAD_URL}/auto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: strippedPrompt }),
-        signal: AbortSignal.timeout(10000),
-      });
-
-      if (triadRes.ok) {
-        const triadData = await triadRes.json();
-        let formatted = '';
-        if (triadData.result?.response) {
-          formatted = triadData.result.response;
-        } else if (triadData.result?.synthesis) {
-          formatted = triadData.result.synthesis;
-        } else if (triadData.intent === 'DOCTOR') {
-  // The daemon returns advisors as a list of {name, ...} dicts; be liberal
-  // and also accept the older name->config map shape. Object.keys() on a
-  // list returns indices ("0, 1"), which is the bug this replaces.
-  const advisorNames = (advisors: unknown): string => {
-    if (Array.isArray(advisors)) {
-      return advisors
-        .map((a: any) => (a && typeof a === 'object' ? a.name : a) || '')
-        .filter(Boolean)
-        .join(', ');
-    }
-    if (advisors && typeof advisors === 'object') return Object.keys(advisors).join(', ');
-    return '';
-  };
-          const subs = triadData.result || {};
-          formatted = `Triad Health Report (Intent: DOCTOR):\n` +
-            `• Pieces OS: ${subs.pieces_os ? '🟢 Online (39300)' : '🔴 Offline'}\n` +
-            `• Hermes Relay: ${subs.hermes_relay ? '🟢 Online (8766)' : '🔴 Standby'}\n` +
-            `• Pieces Proxy: ${subs.pieces_proxy ? '🟢 Online (8787)' : '🔴 Offline'}\n` +
-            `• Ollama: ${subs.ollama ? '🟢 Online (11434)' : '🔴 Standby'}\n` +
-            `• Active Advisors: ${advisorNames(subs.advisors) || 'Claude, Codex'}`;
-        } else {
-          formatted = JSON.stringify(triadData.result || triadData, null, 2);
-        }
-
-        const reply = JSON.stringify({
-          text: `[Triad Engine: ${triadData.intent || 'AUTO'}]\n${formatted}`,
-          actions: []
-        });
-        return j({ text: reply, hermesMeta });
-      }
-    } catch (e: any) {
-      console.warn('[Chat] Triad ambient bridge unavailable, falling back to LLM:', e?.message);
-    }
-  }
 
   const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
   if (!anthropicKey && !geminiKey) return serverError('API key not configured.', 'chat');

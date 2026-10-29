@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { HERMES_TOOLS, ONE_OF_TOOL_FIELDS, isValidCall, sanitizeToolParams } from './_hermesTools';
 
 describe('HERMES_TOOLS catalog', () => {
-  it('contains all 23 expected Hermes tools', () => {
-    expect(HERMES_TOOLS.length).toBe(23);
+  it('contains all 22 expected Hermes tools', () => {
+    expect(HERMES_TOOLS.length).toBe(22);
   });
 
   it('ensures all tool names follow Anthropic naming rules', () => {
@@ -25,7 +25,6 @@ describe('HERMES_TOOLS catalog', () => {
     expect(names).toContain('markMealCooked');
     expect(names).toContain('controlDevice');
     expect(names).toContain('discoverSmartHome');
-    expect(names).toContain('queryTriad');
     expect(names).toContain('updateMemory');
   });
 
@@ -216,18 +215,6 @@ describe('HERMES_TOOLS catalog', () => {
       service: 'turn_on',
       entityId: 'light.',
     }, allowed)).toBe(false);
-  });
-
-  it('validates queryTriad query against allowed commands', () => {
-    const allowed = new Set(['queryTriad']);
-    expect(isValidCall('queryTriad', { query: 'doctor' }, allowed)).toBe(true);
-    expect(isValidCall('queryTriad', { query: 'gate' }, allowed)).toBe(true);
-    expect(isValidCall('queryTriad', { query: 'status' }, allowed)).toBe(true);
-    expect(isValidCall('queryTriad', { query: 'review diff' }, allowed)).toBe(true);
-
-    // Disallowed / command injection attempts
-    expect(isValidCall('queryTriad', { query: 'rm -rf /' }, allowed)).toBe(false);
-    expect(isValidCall('queryTriad', { query: 'cat /etc/passwd' }, allowed)).toBe(false);
   });
 
   it('enforces strict role requirements on manageMember', () => {

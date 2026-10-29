@@ -74,22 +74,6 @@ describe('server/streamChat.handleStreamingChat', () => {
     expect(await res.json()).toMatchObject({ error: 'Rate limit exceeded' });
   });
 
-  it('returns 400 for triad queries — streaming not supported', async () => {
-    vi.mocked(resolveChatInput).mockResolvedValue({
-      kind: 'triad',
-      prompt: 'doctor',
-    });
-
-    const res = await handleStreamingChat(makeRequest({ prompt: 'triad doctor' }));
-    expect(res.status).toBe(400);
-    expect(res.headers.get('content-type')).toContain('application/json');
-    const body = await res.json();
-    expect(body).toMatchObject({
-      error: expect.stringContaining('streaming'),
-    });
-    expect(vi.mocked(fetchAiStream)).not.toHaveBeenCalled();
-  });
-
   it('streams deltas + final metadata from fetchAiStream as SSE', async () => {
     vi.mocked(resolveChatInput).mockResolvedValue({
       kind: 'ai',
@@ -101,8 +85,6 @@ describe('server/streamChat.handleStreamingChat', () => {
         chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
-        isTriadDirect: false,
-        triadPrompt: '',
       },
     });
 
@@ -133,8 +115,6 @@ describe('server/streamChat.handleStreamingChat', () => {
         chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
-        isTriadDirect: false,
-        triadPrompt: '',
       },
     });
 

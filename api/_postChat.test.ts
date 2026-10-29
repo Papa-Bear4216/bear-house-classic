@@ -101,8 +101,6 @@ describe('server/postChat.resolveChatInput', () => {
         chosenModel: 'claude-haiku-5-5',
         anthropicKey: 'sk-ant-1',
         geminiKey: undefined,
-        isTriadDirect: false,
-        triadPrompt: '',
       },
     });
   });
@@ -143,26 +141,7 @@ describe('server/postChat.resolveChatInput', () => {
     expect((res as any).input.chosenModel).toBe('claude-sonnet-5-5');
   });
 
-  it('returns kind: "triad" when the prompt is a triad query', async () => {
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
-    vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
-
-    const res = await resolveChatInput(req({ prompt: 'triad doctor' }));
-    expect(res).toMatchObject({ kind: 'triad', prompt: 'doctor' });
-  });
-
-  it('returns kind: "triad" when the prompt is /triad', async () => {
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
-    vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
-
-    const res = await resolveChatInput(req({ prompt: '/triad gate' }));
-    expect(res).toMatchObject({ kind: 'triad', prompt: 'gate' });
-  });
-
-  it('treats "triad ..." as a normal chat message for a household that is not the Triad household', async () => {
-    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
+  it('treats "triad ..." as a normal chat message', async () => {
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
     vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');

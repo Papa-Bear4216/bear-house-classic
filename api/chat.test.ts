@@ -57,7 +57,6 @@ beforeEach(() => {
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(dbGetHermesModelTier).mockResolvedValue('haiku');
   vi.mocked(resolveCallerMember).mockResolvedValue(null);
-  delete process.env.TRIAD_HOUSEHOLD_ID;
 });
 
 describe('POST /api/chat', () => {
@@ -137,7 +136,6 @@ describe('POST /api/chat', () => {
   });
 
   it('does not route "triad" to the daemon for a household that is not the Triad household', async () => {
-    process.env.TRIAD_HOUSEHOLD_ID = 'someone-else';
     vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
     vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
     const fetchMock = vi.mocked(fetch);
@@ -147,61 +145,6 @@ describe('POST /api/chat', () => {
     const body = await res.json();
     expect(body.text).toBe('normal llm answer');
     expect(fetchMock.mock.calls.every((c) => !String(c[0]).includes('8789'))).toBe(true);
-  });
-
-  it('routes Triad queries directly to ambient Triad daemon on port 8789', async () => {
-    authed();
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
-    // Notice resolveAiKeys is NOT called or required for Triad queries!
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        status: 'success',
-        intent: 'DOCTOR',
-        result: { pieces_os: true, hermes_relay: true, pieces_proxy: true, ollama: false, advisors: { claude: true } },
-      }),
-    } as Response);
-
-    const res = await handler(req({ prompt: 'triad doctor' }));
-
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    const parsed = JSON.parse(body.text);
-    expect(parsed.text).toContain('Triad Health Report (Intent: DOCTOR)');
-    expect(parsed.text).toContain('Pieces OS: 🟢 Online (39300)');
-  });
-
-  it('blocks Triad queries when child role is active even in triad household', async () => {
-    authed();
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
-    vi.mocked(fetch).mockResolvedValueOnce(claudeOk('Normal child response'));
-
-    const res = await handler(req({ prompt: 'triad doctor', role: 'child' }));
-    expect(res.status).toBe(200);
-    // Should NOT have called triad port 8789; should have reached Claude directly with child safety persona
-    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(sentBody.system[0].text).toContain('[Child Safety Persona Active]');
-  });
-
-  it('gracefully falls back to LLM when Triad daemon is offline during a triad query', async () => {
-    authed();
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
-    vi.mocked(resolveHouseholdId).mockResolvedValue('household-1');
-    vi.mocked(resolveAiKeys).mockResolvedValue({ anthropicKey: 'sk-ant-1', geminiKey: undefined });
-
-    const fetchMock = vi.mocked(fetch);
-    // 1st fetch: Triad daemon connection refused
-    // 2nd fetch: Anthropic call succeeds
-    fetchMock
-      .mockRejectedValueOnce(new Error('connect ECONNREFUSED 127.0.0.1:8789'))
-      .mockResolvedValueOnce(claudeOk('fallback response from claude'));
-
-    const res = await handler(req({ prompt: 'triad doctor' }));
-
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.text).toBe('fallback response from claude');
   });
 
   // --- Hermes overhaul: tier toggle, current models, empty-response handling ---
@@ -336,8 +279,7 @@ describe('POST /api/chat', () => {
 
   // --- Hermes Action Reliability: Native Anthropic Tool Calling ---
 
-  it('attaches HERMES_TOOLS when enableTools is true with cache control on the last tool for triad households', async () => {
-    process.env.TRIAD_HOUSEHOLD_ID = 'household-1';
+  it('attaches HERMES_TOOLS when enableTools is true with cache control on the last tool', async () => {
     authed();
     vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
 
@@ -345,24 +287,10 @@ describe('POST /api/chat', () => {
 
     const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
     expect(Array.isArray(sentBody.tools)).toBe(true);
-    expect(sentBody.tools.length).toBe(23);
+    expect(sentBody.tools.length).toBe(22);
     const lastTool = sentBody.tools[sentBody.tools.length - 1];
     expect(lastTool.cache_control).toEqual({ type: 'ephemeral' });
     expect(sentBody.max_tokens).toBe(1024);
-  });
-
-  it('attaches 22 tools omitting queryTriad for non-triad households with cache on new last tool', async () => {
-    authed(); // household-1 is non-triad
-    vi.mocked(fetch).mockResolvedValueOnce(claudeOk());
-
-    await handler(req({ prompt: 'add milk to shopping', enableTools: true }));
-
-    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(Array.isArray(sentBody.tools)).toBe(true);
-    expect(sentBody.tools.length).toBe(22);
-    expect(sentBody.tools.some((t: any) => t.name === 'queryTriad')).toBe(false);
-    const lastTool = sentBody.tools[sentBody.tools.length - 1];
-    expect(lastTool.cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('omits tools by default when enableTools is not specified', async () => {
@@ -635,8 +563,8 @@ describe('POST /api/chat', () => {
     expect(sentBody.messages[0].content).toBe('valid user prompt');
   });
 
-  it('excludes queryTriad for non-triad households and drops hallucinated queryTriad tool call', async () => {
-    authed(); // household-1 is non-triad
+  it('drops hallucinated queryTriad tool call as unallowed action', async () => {
+    authed();
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({

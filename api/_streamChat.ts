@@ -24,15 +24,6 @@ export async function handleStreamingChat(req: Request): Promise<Response> {
     });
   }
 
-  if (resolution.kind === 'triad') {
-    // Triad queries are diagnostics, not chat — they do not support streaming.
-    // Use the non-streaming /api/chat endpoint instead.
-    return new Response(
-      JSON.stringify({ error: 'Triad queries do not support streaming. Use the non-streaming /api/chat endpoint.' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' } },
-    );
-  }
-
   const { input } = resolution;
   const { messages, effectiveSystem, tokens, chosenModel, anthropicKey, geminiKey, hermesMeta } = input;
   let fullText = '';

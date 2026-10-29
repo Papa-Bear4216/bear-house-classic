@@ -1,7 +1,6 @@
 import { dbGet, dbGetHouseholdMembersByHouseholdId, dbGetHouseholdMemory } from './_db.js';
 import { HERMES_SYSTEM_PROMPT } from './_aiModels.js';
 import { HERMES_TOOLS, type ToolDefinition } from './_hermesTools.js';
-import { isTriadHousehold } from './_triadAccess.js';
 import { APP_MAP_DIGEST, MOUNTED_SURFACES } from './_appMap.js';
 import { HERMES_SNAPSHOT_KEYS } from './_familyKeys.js';
 
@@ -91,7 +90,6 @@ export async function buildHermesContext(input: HermesContextInput): Promise<Her
   const isAdmin = (input.callerRole === 'admin' || input.callerRole === 'superadmin') && !isChild;
   const tools = input.enableTools
     ? HERMES_TOOLS.filter((tool) => {
-      if (tool.name === 'queryTriad') return isTriadHousehold(input.householdId) && isAdmin;
       if (tool.name === 'controlDevice' || tool.name === 'discoverSmartHome') return input.canControlDevices && !isChild;
       return isAdmin || NON_ADMIN_ALLOWED_TOOLS.has(tool.name);
     })

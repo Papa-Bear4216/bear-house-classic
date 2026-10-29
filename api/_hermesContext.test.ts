@@ -8,7 +8,6 @@ vi.mock('./_db.js', () => ({
   dbGetHouseholdMembersByHouseholdId: (...args: unknown[]) => dbGetHouseholdMembersByHouseholdId(...args),
   dbGetHouseholdMemory: (...args: unknown[]) => dbGetHouseholdMemory(...args),
 }));
-vi.mock('./_triadAccess.js', () => ({ isTriadHousehold: () => false }));
 
 import { buildHermesContext, formatHermesSnapshot, normalizeSurfaceLine } from './_hermesContext.js';
 

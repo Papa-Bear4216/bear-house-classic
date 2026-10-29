@@ -17,7 +17,7 @@ export function toDueTimestamp(value: unknown): number | null {
   return Number.isFinite(ts) ? ts : null;
 }
 
-export type ActionType = 'addTask'|'completeTask'|'uncompleteTask'|'deleteTask'|'addShopping'|'completeShoppingItem'|'addBill'|'markBillPaid'|'addAppointment'|'addPromise'|'completePromise'|'logEmotion'|'updateMemory'|'clearWeekMeals'|'setMealPlan'|'genericAction'|'markMealCooked'|'addCarMaintenanceEntry'|'controlDevice'|'discoverSmartHome'|'notifyPerson'|'manageMember'|'queryTriad';
+export type ActionType = 'addTask'|'completeTask'|'uncompleteTask'|'deleteTask'|'addShopping'|'completeShoppingItem'|'addBill'|'markBillPaid'|'addAppointment'|'addPromise'|'completePromise'|'logEmotion'|'updateMemory'|'clearWeekMeals'|'setMealPlan'|'genericAction'|'markMealCooked'|'addCarMaintenanceEntry'|'controlDevice'|'discoverSmartHome'|'notifyPerson'|'manageMember';
 export interface ActionParams extends Record<string, any> {}
 export interface Action { type: ActionType; params: ActionParams }
 export async function executeAction(
@@ -316,32 +316,6 @@ export async function executeAction(
         return { result: `Updated ${target.name}'s role to ${p.role}`, ok: true };
       }
       return { result: `Unknown member management operation: "${p.op}"`, ok: false };
-    }
-
-    // ── Triad Engine query ──────────────────────────────────────────────────
-    if (action.type === 'queryTriad') {
-      const token = await getAccessToken();
-      const queryStr = p.query || p.prompt || 'doctor';
-      const res = await fetch(apiUrl('/api/chat'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ prompt: `triad ${queryStr}` }),
-      });
-      if (!res.ok) {
-        return { result: `Couldn't reach Triad engine`, ok: false };
-      }
-      const data = await res.json();
-      let text = data.text || '';
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed.text) text = parsed.text;
-      } catch {
-        // use raw
-      }
-      return { result: text || 'Triad query executed', ok: true };
     }
 
     // ── Memory ─────────────────────────────────────────────────────────────

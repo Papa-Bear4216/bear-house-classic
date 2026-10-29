@@ -22,7 +22,6 @@
  * Tests mock all of these. See _postChat.test.ts.
  */
 
-import { isTriadHousehold } from './_triadAccess.js';
 import { parseBody, ChatBodySchema } from './_schemas.js';
 import { json } from './_responseHelpers.js';
 import { checkRateLimit } from './_rateLimit.js';
@@ -63,8 +62,6 @@ export type ChatInput = Readonly<{
   chosenModel: string;
   anthropicKey: string | undefined;
   geminiKey: string | undefined;
-  isTriadDirect: boolean;
-  triadPrompt: string;
   // Pre-counted delta estimate for the SSE Content-Length / progress heuristic.
   // Approximate — real deltas come from the provider. Used only when the caller
   // wants a rough size hint before streaming starts.
@@ -74,7 +71,6 @@ export type ChatInput = Readonly<{
 
 export type ChatResolution =
   | { kind: 'ai'; input: ChatInput }
-  | { kind: 'triad'; prompt: string }
   | { kind: 'error'; status: number; body: unknown };
 
 export async function resolveChatInput(req: Request): Promise<ChatResolution> {
@@ -134,15 +130,6 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
     memoryFacts = context.memoryCount;
     toolsCount = context.tools.length;
   }
-  const cleanQuery = lastUserMsg.trim();
-  const isTriadDirect = isTriadHousehold(householdId) && (
-    /^(triad|\/triad)\b/i.test(cleanQuery) ||
-    /\b(triad doctor|triad gate|triad health|review diff)\b/i.test(cleanQuery));
-
-  if (isTriadDirect) {
-    const strippedPrompt = cleanQuery.replace(/^(\/)?triad\s*:?\s*/i, '').trim() || 'doctor';
-    return { kind: 'triad', prompt: strippedPrompt };
-  }
 
   const { anthropicKey, geminiKey } = await resolveAiKeys(householdId);
   if (!anthropicKey && !geminiKey) {
@@ -161,8 +148,6 @@ export async function resolveChatInput(req: Request): Promise<ChatResolution> {
       chosenModel,
       anthropicKey,
       geminiKey,
-      isTriadDirect: false,
-      triadPrompt: '',
       estimatedTokenDelta,
       hermesMeta: { surface: surface || 'api', model: chosenModel, memoryFacts, toolsCount },
     },
