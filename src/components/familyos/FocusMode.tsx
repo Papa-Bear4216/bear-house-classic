@@ -23,7 +23,7 @@ const FocusMode: React.FC<FocusModeProps> = ({ tasks, onComplete, onToggleStep, 
   const [justFinished, setJustFinished] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  const total = useMemo(() => queue.length, []); // fixed at mount for a stable "X of N" denominator
+  const [total] = useState(() => queue.length); // fixed at mount for a stable "X of N" denominator
   const current = queue[0];
 
   const currentIdRef = useRef<string | undefined>(current?.id);

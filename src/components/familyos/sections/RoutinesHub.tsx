@@ -127,9 +127,8 @@ export const RoutinesHub: React.FC = () => {
     );
   }, [householdMembers, selectedMemberId, defaultMember]);
 
-  const memberStreak: MemberStreak = useMemo(() => {
-    return getMemberStreak(selectedMember.id, selectedMember.name);
-  }, [selectedMember, runs]);
+  void runs;
+  const memberStreak: MemberStreak = getMemberStreak(selectedMember.id, selectedMember.name);
 
   // Active routine runner state
   const [activeRunId, setActiveRunId] = useState<string | null>(null);

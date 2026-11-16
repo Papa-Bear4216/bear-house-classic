@@ -1,5 +1,5 @@
 // src/components/familyos/CoParentingPanel.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, Users, AlertTriangle, Check, Loader } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { authedFetch, getAccessToken, getHouseholdRoster } from '@/lib/householdAuth';
@@ -36,7 +36,7 @@ export function CoParentingPanel() {
 
   const isAdmin = currentRole === 'admin' || currentRole === 'superadmin';
 
-  const refreshStatus = async () => {
+  const refreshStatus = useCallback(async () => {
     if (!householdId) return;
     const token = await getAccessToken();
     if (!token) return;
@@ -52,15 +52,15 @@ export function CoParentingPanel() {
     } catch {
       // ignore
     }
-  };
+  }, [householdId]);
 
   // Same RLS-scoped roster read AppContext uses. (This used to POST to
   // /api/members, a route that was never written — so the list stayed empty.)
-  const refreshMembers = async () => {
+  const refreshMembers = useCallback(async () => {
     if (!householdId) return;
     const roster = await getHouseholdRoster(householdId);
     setMembers(roster.map((m) => ({ id: m.id, name: m.name, role: m.role, household_id: m.householdId })));
-  };
+  }, [householdId]);
 
   const toggleCoparenting = async (isCurrentlyCoparent: boolean) => {
     if (!isAdmin) return;
@@ -196,7 +196,7 @@ export function CoParentingPanel() {
       refreshStatus();
       refreshMembers();
     }
-  }, [householdId]);
+  }, [householdId, refreshStatus, refreshMembers]);
 
   if (!isAdmin) return null;
 

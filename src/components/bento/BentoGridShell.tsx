@@ -101,7 +101,7 @@ export const BentoGridShell: React.FC = () => {
       todayCount: today.length,
       topTasks: uncompleted.slice(0, 3),
     };
-  }, [tasks, tick]);
+  }, [tasks]);
 
   const scheduleStats = useMemo(() => {
     const now = Date.now();
@@ -112,7 +112,7 @@ export const BentoGridShell: React.FC = () => {
       nextItem: upcoming[0] || null,
       count: upcoming.length,
     };
-  }, [activities, tick]);
+  }, [activities]);
 
   const shoppingStats = useMemo(() => {
     const needed = shoppingItems.filter((item) => !item.bought);
@@ -120,7 +120,7 @@ export const BentoGridShell: React.FC = () => {
       neededCount: needed.length,
       previewList: needed.slice(0, 3).map((i) => i.name || i.text),
     };
-  }, [shoppingItems, tick]);
+  }, [shoppingItems]);
 
   const billStats = useMemo(() => {
     const unpaid = bills.filter((b) => !b.paid);
@@ -130,7 +130,7 @@ export const BentoGridShell: React.FC = () => {
       totalAmount,
       nextDue: unpaid[0]?.dueDate || null,
     };
-  }, [bills, tick]);
+  }, [bills]);
 
 
   return (

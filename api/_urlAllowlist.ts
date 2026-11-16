@@ -67,10 +67,11 @@ const HA_FETCH_TIMEOUT_MS = 8_000;
 export function fetchHomeAssistant(haUrl: string | undefined, path: string, init: RequestInit = {}): Promise<Response> {
   const { signal, ...rest } = init;
   const base = (haUrl ?? '').replace(/\/$/, '');
+  const timeoutSignal = AbortSignal.timeout(HA_FETCH_TIMEOUT_MS);
   return fetch(`${base}${path}`, {
     ...rest,
     redirect: 'error',
-    signal: signal ?? AbortSignal.timeout(HA_FETCH_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
   });
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, Bot, Home, MapPin } from 'lucide-react';
 import { KEYS, loadJSON } from '@/lib/familyos';
 import { markBriefed } from '@/lib/presenceTracker';
@@ -43,11 +43,7 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
   const [brief, setBrief] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    generateBrief();
-  }, []);
-
-  const generateBrief = async () => {
+  const generateBrief = useCallback(async () => {
     setLoading(true);
     try {
       const context = buildReturnContext(days);
@@ -71,7 +67,11 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
       setBrief('Welcome back. Check your tasks and bills to get caught up.');
     }
     setLoading(false);
-  };
+  }, [days]);
+
+  useEffect(() => {
+    generateBrief();
+  }, [generateBrief]);
 
   const handleClose = () => {
     markBriefed();

@@ -32,7 +32,8 @@ const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
   const [rangeId, setRangeId] = useState('30');
   const [reload, setReload] = useState(0);
 
-  const items = useMemo<HistoryItem[]>(() => {
+  void reload;
+  const items: HistoryItem[] = (() => {
     if (!open) return [];
     const tasks = loadJSON<any[]>(KEYS.tasks, []);
     const promises = loadJSON<any[]>(KEYS.promises, []);
@@ -59,7 +60,7 @@ const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
         createdAt: p.createdAt,
       }));
     return [...taskItems, ...promiseItems].sort((a, b) => b.completedAt - a.completedAt);
-  }, [open, reload]);
+  })();
 
   const range = RANGES.find((r) => r.id === rangeId)!;
   const cutoff = range.days === Infinity ? 0 : Date.now() - range.days * 86400000;

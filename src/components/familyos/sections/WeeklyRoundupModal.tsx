@@ -43,9 +43,8 @@ export const WeeklyRoundupModal: React.FC<WeeklyRoundupModalProps> = ({
   const { householdMembers } = useAppContext();
   const [copied, setCopied] = useState(false);
 
-  const roundupData: WeeklyRoundupData = useMemo(() => {
-    return generateWeeklyRoundup(householdMembers);
-  }, [householdMembers, open]);
+  void open;
+  const roundupData: WeeklyRoundupData = generateWeeklyRoundup(householdMembers);
 
   const handleCopy = async () => {
     const text = formatWeeklyRoundupText(roundupData);

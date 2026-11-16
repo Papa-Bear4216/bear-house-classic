@@ -174,7 +174,7 @@ const ChoreScanner: React.FC<Props> = ({ onClose, onSave }) => {
     } catch {
       setStatus('Scanning…');
     }
-  }, [analyzing, captureFrame, callVision, mode]);
+  }, [analyzing, captureFrame, callVision, mode, provider]);
 
   const toggleLiveScan = () => {
     if (scanning) {

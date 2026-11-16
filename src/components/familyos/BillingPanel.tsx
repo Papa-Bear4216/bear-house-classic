@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CreditCard } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAccessToken } from '@/lib/householdAuth';
@@ -11,7 +11,7 @@ export function BillingPanel() {
   const [extraSeats, setExtraSeats] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const refreshSeats = async () => {
+  const refreshSeats = useCallback(async () => {
     if (!householdId) return;
     const token = await getAccessToken();
     if (!token) return;
@@ -25,9 +25,9 @@ export function BillingPanel() {
       setSeats(data.seats);
       setExtraSeats(data.extraSeats);
     }
-  };
+  }, [householdId]);
 
-  useEffect(() => { refreshSeats(); }, [householdId]);
+  useEffect(() => { refreshSeats(); }, [refreshSeats]);
 
   if (currentRole !== 'superadmin' && currentRole !== 'admin') return null;
   if (bypassBilling) return null;

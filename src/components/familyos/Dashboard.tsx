@@ -64,7 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
         refresh();
       }
     });
-  }, [currentUser?.id, currentUser?.name]);
+  }, [currentUser]);
 
   const [, forceWeatherRefresh] = useState(0);
   useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);
@@ -130,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
       isChild,
       now: Date.now(),
     });
-  }, [tasks, activities, promises, currentUser, currentRole]);
+  }, [tasks, activities, promises, currentUser, isChild]);
 
   const stats = useMemo(() => {
     const isDueToday = (t: any) => {

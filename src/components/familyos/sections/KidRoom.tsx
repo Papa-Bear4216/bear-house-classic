@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { KEYS, loadPointsBalance, loadRedemptions, saveJSON, type User } from '@/lib/familyos';
 import { onSyncUpdate } from '@/lib/sync';
 import { useAppContext } from '@/contexts/AppContext';
@@ -36,11 +36,17 @@ const KidRoom: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const kids: User[] = householdMembers.filter((m) => m.role === 'child');
+  const kids: User[] = useMemo(
+    () => householdMembers.filter((m) => m.role === 'child'),
+    [householdMembers],
+  );
   const viewerIsChild = currentRole === 'child' && !!currentUser;
-  const roster = viewerIsChild && currentUser && !kids.some((m) => m.id === currentUser.id)
-    ? [currentUser, ...kids]
-    : kids;
+  const roster = useMemo(
+    () => (viewerIsChild && currentUser && !kids.some((m) => m.id === currentUser.id)
+      ? [currentUser, ...kids]
+      : kids),
+    [viewerIsChild, currentUser, kids],
+  );
   const [selectedId, setSelectedId] = useState(() => (
     currentRole === 'child' && currentUser ? currentUser.id : kids[0]?.id ?? ''
   ));

@@ -51,7 +51,7 @@ export const LeaderboardWidget: React.FC<{ compact?: boolean }> = ({ compact = f
 
   const leaderboard = useMemo(() => {
     return computeFamilyLeaderboard(householdMembers, balance);
-  }, [householdMembers, balance, streaks]);
+  }, [householdMembers, balance]);
 
   const sendCheer = (targetName: string) => {
     const randomEmoji = CHEER_EMOJIS[Math.floor(Math.random() * CHEER_EMOJIS.length)];

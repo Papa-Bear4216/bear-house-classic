@@ -79,7 +79,7 @@ const AppLayout: React.FC = () => {
     };
     window.addEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
     return () => window.removeEventListener(OPEN_SETTINGS_EVENT, handleOpenSettings);
-  }, []);
+  }, [currentRole]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -112,13 +112,15 @@ const AppLayout: React.FC = () => {
     }
   }, []);
 
-  const totals = useMemo(() => {
-    const tasks = loadJSON<any[]>(KEYS.tasks, []);
-    const promises = loadJSON<any[]>(KEYS.promises, []);
-    const overdueTasks = tasks.filter((t) => !t.completed && isOverdue(t)).length;
-    const overduePromises = promises.filter((p) => !p.completed && isOverdue(p)).length;
-    return { overdue: overdueTasks + overduePromises };
-  }, [tick]);
+  // 	ick triggers a re-render on sync updates so localStorage reads stay fresh.
+  void tick;
+  const tasksForTotals = loadJSON<any[]>(KEYS.tasks, []);
+  const promisesForTotals = loadJSON<any[]>(KEYS.promises, []);
+  const totals = {
+    overdue:
+      tasksForTotals.filter((t) => !t.completed && isOverdue(t)).length +
+      promisesForTotals.filter((p) => !p.completed && isOverdue(p)).length,
+  };
 
   const inZone = useMemo(() => {
     const zones = loadJSON<any[]>(KEYS.presenceZones, []);
@@ -127,13 +129,13 @@ const AppLayout: React.FC = () => {
     return zones.some((z) => z.days?.includes(day) && hour >= z.startHour && hour < z.endHour);
   }, [now]);
 
-  const searchResults = useMemo(() => {
+  const searchResults = (() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
     const tasks = loadJSON<any[]>(KEYS.tasks, []).filter((t) => !t.completed && t.text?.toLowerCase().includes(q));
     const promises = loadJSON<any[]>(KEYS.promises, []).filter((p) => !p.completed && p.text?.toLowerCase().includes(q));
     return { tasks, promises };
-  }, [search, tick]);
+  })();
 
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
 
