@@ -27,14 +27,16 @@ const RANGES = [
 
 const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
   const { householdMembers } = useAppContext();
-  const PERSONS = ['All', ...householdPersons(householdMembers)];
+  const PERSONS = useMemo(
+    () => ['All', ...householdPersons(householdMembers)],
+    [householdMembers],
+  );
   const [personFilter, setPersonFilter] = useState('All');
   const [rangeId, setRangeId] = useState('30');
   const [reload, setReload] = useState(0);
 
-  void reload;
-  const items: HistoryItem[] = (() => {
-    if (!open) return [];
+  const items = useMemo<HistoryItem[]>(() => {
+    if (!open || reload < 0) return [];
     const tasks = loadJSON<any[]>(KEYS.tasks, []);
     const promises = loadJSON<any[]>(KEYS.promises, []);
     const taskItems: HistoryItem[] = tasks
@@ -60,7 +62,7 @@ const HistoryModal: React.FC<Props> = ({ open, onClose }) => {
         createdAt: p.createdAt,
       }));
     return [...taskItems, ...promiseItems].sort((a, b) => b.completedAt - a.completedAt);
-  })();
+  }, [open, reload, PERSONS]);
 
   const range = RANGES.find((r) => r.id === rangeId)!;
   const cutoff = range.days === Infinity ? 0 : Date.now() - range.days * 86400000;

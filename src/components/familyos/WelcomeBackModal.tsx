@@ -43,12 +43,13 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
   const [brief, setBrief] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const generateBrief = useCallback(async () => {
+  const generateBrief = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const context = buildReturnContext(days);
 
       const token = await getAccessToken();
+      if (signal?.aborted) return;
       const res = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: {
@@ -56,21 +57,28 @@ const WelcomeBackModal: React.FC<Props> = ({ days, reason, miles, onClose }) => 
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ prompt: context, maxTokens: 200 }),
+        signal,
       });
+      if (signal?.aborted) return;
       if (res.ok) {
         const data = await res.json();
-        setBrief(data.text || 'Welcome back. Check your tasks and bills to get caught up.');
+        if (!signal?.aborted) {
+          setBrief(data.text || 'Welcome back. Check your tasks and bills to get caught up.');
+        }
       } else {
         setBrief('Welcome back. Check your tasks and bills to get caught up.');
       }
     } catch {
+      if (signal?.aborted) return;
       setBrief('Welcome back. Check your tasks and bills to get caught up.');
     }
-    setLoading(false);
+    if (!signal?.aborted) setLoading(false);
   }, [days]);
 
   useEffect(() => {
-    generateBrief();
+    const controller = new AbortController();
+    generateBrief(controller.signal);
+    return () => controller.abort();
   }, [generateBrief]);
 
   const handleClose = () => {

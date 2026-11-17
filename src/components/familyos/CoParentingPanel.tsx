@@ -36,10 +36,10 @@ export function CoParentingPanel() {
 
   const isAdmin = currentRole === 'admin' || currentRole === 'superadmin';
 
-  const refreshStatus = useCallback(async () => {
+  const refreshStatus = useCallback(async (isActive: () => boolean = () => true) => {
     if (!householdId) return;
     const token = await getAccessToken();
-    if (!token) return;
+    if (!token || !isActive()) return;
     try {
       const res = await authedFetch(apiUrl('/api/coparent-merge-consent'), {
         method: 'POST',
@@ -47,7 +47,7 @@ export function CoParentingPanel() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.ok) setStatus(data);
+        if (data.ok && isActive()) setStatus(data);
       }
     } catch {
       // ignore
@@ -56,10 +56,16 @@ export function CoParentingPanel() {
 
   // Same RLS-scoped roster read AppContext uses. (This used to POST to
   // /api/members, a route that was never written — so the list stayed empty.)
-  const refreshMembers = useCallback(async () => {
+  const refreshMembers = useCallback(async (isActive: () => boolean = () => true) => {
     if (!householdId) return;
-    const roster = await getHouseholdRoster(householdId);
-    setMembers(roster.map((m) => ({ id: m.id, name: m.name, role: m.role, household_id: m.householdId })));
+    try {
+      const roster = await getHouseholdRoster(householdId);
+      if (isActive()) {
+        setMembers(roster.map((m) => ({ id: m.id, name: m.name, role: m.role, household_id: m.householdId })));
+      }
+    } catch (e: any) {
+      if (isActive()) setError(e?.message || 'Failed to load household members');
+    }
   }, [householdId]);
 
   const toggleCoparenting = async (isCurrentlyCoparent: boolean) => {
@@ -192,10 +198,13 @@ export function CoParentingPanel() {
 
   // Load status + members on mount and when household changes.
   useEffect(() => {
+    let active = true;
+    const isActive = () => active;
     if (householdId) {
-      refreshStatus();
-      refreshMembers();
+      refreshStatus(isActive);
+      refreshMembers(isActive);
     }
+    return () => { active = false; };
   }, [householdId, refreshStatus, refreshMembers]);
 
   if (!isAdmin) return null;

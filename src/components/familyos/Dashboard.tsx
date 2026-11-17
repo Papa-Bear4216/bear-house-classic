@@ -52,9 +52,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
     currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null
   );
 
+  const userId = currentUser?.id;
+  const userName = currentUser?.name;
+
   useEffect(() => {
     const refresh = () =>
-      setUserStreak(currentUser ? getMemberStreak(currentUser.id, currentUser.name) : null);
+      setUserStreak(userId && userName ? getMemberStreak(userId, userName) : null);
     refresh();
     return onSyncUpdate((key) => {
       if (key === KEYS.tasks || key === '*') {
@@ -64,7 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNav, onQuickAdd }) => {
         refresh();
       }
     });
-  }, [currentUser]);
+  }, [userId, userName]);
 
   const [, forceWeatherRefresh] = useState(0);
   useEffect(() => { loadHermesWeather().then(() => forceWeatherRefresh(n => n + 1)); }, []);

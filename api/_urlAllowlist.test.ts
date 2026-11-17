@@ -164,19 +164,22 @@ describe('assertAllowedUrl — Home Assistant URLs', () => {
     const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValueOnce(timeoutCtrl.signal);
     const fetchMock = vi.fn().mockResolvedValue(new Response('ok'));
     vi.stubGlobal('fetch', fetchMock);
-    await fetchHomeAssistant('https://ha.example.com/', '/api/states', {
-      signal: caller.signal,
-    });
-    expect(timeoutSpy).toHaveBeenCalledWith(8_000);
-    const passedInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(passedInit.signal).toBeInstanceOf(AbortSignal);
-    expect(passedInit.signal).not.toBe(caller.signal);
-    expect(passedInit.signal?.aborted).toBe(false);
-    timeoutCtrl.abort(new DOMException('Timed out', 'TimeoutError'));
-    expect(passedInit.signal?.aborted).toBe(true);
-    expect(caller.signal.aborted).toBe(false);
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+    try {
+      await fetchHomeAssistant('https://ha.example.com/', '/api/states', {
+        signal: caller.signal,
+      });
+      expect(timeoutSpy).toHaveBeenCalledWith(8_000);
+      const passedInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      expect(passedInit.signal).toBeInstanceOf(AbortSignal);
+      expect(passedInit.signal).not.toBe(caller.signal);
+      expect(passedInit.signal?.aborted).toBe(false);
+      timeoutCtrl.abort(new DOMException('Timed out', 'TimeoutError'));
+      expect(passedInit.signal?.aborted).toBe(true);
+      expect(caller.signal.aborted).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

@@ -112,15 +112,16 @@ const AppLayout: React.FC = () => {
     }
   }, []);
 
-  // 	ick triggers a re-render on sync updates so localStorage reads stay fresh.
-  void tick;
-  const tasksForTotals = loadJSON<any[]>(KEYS.tasks, []);
-  const promisesForTotals = loadJSON<any[]>(KEYS.promises, []);
-  const totals = {
-    overdue:
-      tasksForTotals.filter((t) => !t.completed && isOverdue(t)).length +
-      promisesForTotals.filter((p) => !p.completed && isOverdue(p)).length,
-  };
+  const totals = useMemo(() => {
+    if (tick < 0) return { overdue: 0 };
+    const tasks = loadJSON<any[]>(KEYS.tasks, []);
+    const promises = loadJSON<any[]>(KEYS.promises, []);
+    return {
+      overdue:
+        tasks.filter((t) => !t.completed && isOverdue(t)).length +
+        promises.filter((p) => !p.completed && isOverdue(p)).length,
+    };
+  }, [tick]);
 
   const inZone = useMemo(() => {
     const zones = loadJSON<any[]>(KEYS.presenceZones, []);
@@ -129,13 +130,13 @@ const AppLayout: React.FC = () => {
     return zones.some((z) => z.days?.includes(day) && hour >= z.startHour && hour < z.endHour);
   }, [now]);
 
-  const searchResults = (() => {
-    if (!search.trim()) return null;
+  const searchResults = useMemo(() => {
+    if (!search.trim() || tick < 0) return null;
     const q = search.toLowerCase();
     const tasks = loadJSON<any[]>(KEYS.tasks, []).filter((t) => !t.completed && t.text?.toLowerCase().includes(q));
     const promises = loadJSON<any[]>(KEYS.promises, []).filter((p) => !p.completed && p.text?.toLowerCase().includes(q));
     return { tasks, promises };
-  })();
+  }, [search, tick]);
 
   const dotColor = currentUser ? (COLOR_DOT[currentUser.color] || 'bg-slate-400') : 'bg-slate-400';
 
