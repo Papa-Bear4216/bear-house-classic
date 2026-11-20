@@ -64,25 +64,9 @@ const FEATURES = [
     icon: PawPrint,
     title: '“Who Fed the Dog?” Pet Feeding Station',
     description:
-      'Stop morning double-feeding and forgotten dinners across Mom’s and Dad’s houses. Real-time family pet feeding and walk station with 2-hour duplicate warnings, feeding history, and multi-pet tracking. Pets never count toward your subscription seat limits.',
+      'Stop morning double-feeding and forgotten dinners. Real-time family pet feeding and walk station with 2-hour duplicate warnings, feeding history, and multi-pet tracking. Pets never count toward your subscription seat limits.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10 border-emerald-500/20',
-  },
-  {
-    icon: HeartHandshake,
-    title: 'Hermes BIFF tone check',
-    description:
-      'Communication with a co-parent or ex is fraught with landmines. Type what you feel; Hermes analyzes it for snark, sarcasm, passive-aggressive jabs, or blame before you send, transforming it into Brief, Informative, Friendly, and Firm communication. Helps you keep your cool in writing.',
-    color: 'text-rose-400',
-    bg: 'bg-rose-500/10 border-rose-500/20',
-  },
-  {
-    icon: CalendarDays,
-    title: 'Custody & calm swaps',
-    description:
-      'Visual 2-2-3, 2-2-5, alternating schedules, or custom split routines (where the primary parent covers bedtime and wake-ups while the co-parent takes after-school blocks, with configurable Right of First Refusal rules). Request day swaps without triggering arguments or phone tag traps, and export a clean weekly logistics digest via SMS or email with one tap.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10 border-cyan-500/20',
   },
   {
     icon: Pin,
@@ -96,7 +80,7 @@ const FEATURES = [
     icon: Pill,
     title: 'Medication & dosing safety',
     description:
-      'Did they take their morning ADHD med or antibiotic at Mom’s or Dad’s? Real-time dose logging with exact timestamps, dose counts, caregiver handoffs, and cross-home allergy warnings ensure nobody double-doses or skips.',
+      'Did they take their morning ADHD med or antibiotic? Real-time dose logging with exact timestamps, dose counts, caregiver handoffs, and allergy warnings ensure nobody double-doses or skips.',
     color: 'text-sky-400',
     bg: 'bg-sky-500/10 border-sky-500/20',
   },
@@ -109,18 +93,10 @@ const FEATURES = [
     bg: 'bg-teal-500/10 border-teal-500/20',
   },
   {
-    icon: Lock,
-    title: 'Triad Fusion Architecture',
-    description:
-      'Household data isolation designed for complex family dynamics. Child accounts cannot see financial or legal modules, database access rules keep each household data separate, and private journal entries stay on the child device.',
-    color: 'text-cyan-300',
-    bg: 'bg-cyan-500/10 border-cyan-500/20',
-  },
-  {
     icon: Utensils,
     title: 'Receipts & pantry vision',
     description:
-      'Snap a photo of the paper grocery receipt or an open fridge shelf. FamilyOS updates kitchen stock and syncs shopping lists across households so neither parent buys a duplicate carton of milk or a fourth jar of mayo.',
+      'Snap a photo of the paper grocery receipt or an open fridge shelf. FamilyOS updates kitchen stock and syncs shopping lists so nobody buys a duplicate carton of milk or a fourth jar of mayo.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10 border-emerald-500/20',
   },
@@ -128,7 +104,7 @@ const FEATURES = [
     icon: Landmark,
     title: 'Read-only bank sync',
     description:
-      'Connect your accounts with secure, read-only SimpleFIN sync—the app can never move money or pay bills. Shared child expenses wait in a 1-tap review inbox, and your categorization decisions train the system permanently.',
+      'Connect your accounts with secure, read-only SimpleFIN sync—the app can never move money or pay bills. Uncertain household expenses wait in a 1-tap review inbox, and your categorization decisions train the system permanently.',
     color: 'text-indigo-400',
     bg: 'bg-indigo-500/10 border-indigo-500/20',
   },
@@ -164,6 +140,32 @@ const FEATURES = [
     color: 'text-teal-300',
     bg: 'bg-teal-500/10 border-teal-500/20',
   },
+  {
+    icon: Lock,
+    title: 'Privacy-first household isolation',
+    description:
+      'Role-based boundaries built into the database. Child accounts cannot see financial or admin modules, household data stays strictly isolated, and private journal entries stay on the child device.',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
+  },
+  {
+    icon: CalendarDays,
+    title: 'Custody & calm swaps',
+    description:
+      'Off by default — toggle on anytime in Settings. Visual 2-2-3, 2-2-5, alternating schedules, or custom split routines with configurable Right of First Refusal rules, calm day swaps, and 1-tap weekly logistics digests.',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10 border-cyan-500/20',
+    optional: true,
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Hermes BIFF tone check',
+    description:
+      'Optional mediation helper you can toggle on anytime. Type what you feel during a stressful exchange; Hermes checks it for snark, sarcasm, or blame and helps rewrite it into Brief, Informative, Friendly, and Firm language.',
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/10 border-rose-500/20',
+    optional: true,
+  },
 ];
 
 export function FeatureGrid() {
@@ -174,7 +176,7 @@ export function FeatureGrid() {
           Everything shipped in FamilyOS
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          Real tools built for the real chaos of shared family life. Bank, calendar, Gmail, and Home Assistant stay completely disconnected until an admin turns them on.
+          Real tools built for everyday household calm. Co-Parenting Mode, bank sync, calendar, Gmail, and Home Assistant stay off until an admin turns them on.
         </p>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -183,8 +185,15 @@ export function FeatureGrid() {
             key={f.title}
             className="bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 rounded-3xl p-6 flex flex-col gap-3.5 backdrop-blur-xl shadow-xl transition-all duration-300"
           >
-            <div className={`w-12 h-12 rounded-2xl ${f.bg} border flex items-center justify-center flex-shrink-0`}>
-              <f.icon className={`w-6 h-6 ${f.color}`} />
+            <div className="flex items-start justify-between gap-2">
+              <div className={`w-12 h-12 rounded-2xl ${f.bg} border flex items-center justify-center flex-shrink-0`}>
+                <f.icon className={`w-6 h-6 ${f.color}`} />
+              </div>
+              {'optional' in f && f.optional && (
+                <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                  Optional Toggle
+                </span>
+              )}
             </div>
             <h3 className="text-white font-bold text-lg font-display">{f.title}</h3>
             <p className="text-sm text-slate-300 leading-relaxed">{f.description}</p>

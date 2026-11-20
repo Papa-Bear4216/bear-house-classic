@@ -26,30 +26,16 @@ export interface FeatureFlagMeta {
 
 export const FEATURE_FLAG_METAS: FeatureFlagMeta[] = [
   {
-    key: 'custody_calendar',
-    label: 'Custody Calendar & Swaps',
-    description: 'Two-household custody schedules, overnight tracking, and parent swap requests.',
-    category: 'Co-Parenting',
+    key: 'shared_routines',
+    label: 'Shared Routines & Rewards',
+    description: 'Bedtime and school-prep routines with Home Assistant scene triggers.',
+    category: 'Daily Rhythm',
     defaultValue: true,
   },
   {
     key: 'med_tracker',
     label: 'Medication Tracker & Dosing Log',
-    description: 'Dose logging, refills, and caregiver handoff notes.',
-    category: 'Co-Parenting',
-    defaultValue: true,
-  },
-  {
-    key: 'hermes_neutral',
-    label: 'Hermes Neutral Mode',
-    description: 'Unbiased co-parent mediation tone and conflict-deescalating communications.',
-    category: 'Co-Parenting',
-    defaultValue: false,
-  },
-  {
-    key: 'shared_routines',
-    label: 'Shared Routines & Rewards',
-    description: 'Bedtime and school-prep routines with Home Assistant scene triggers.',
+    description: 'Dose logging, refills, and caregiver handoff notes for the whole household.',
     category: 'Daily Rhythm',
     defaultValue: true,
   },
@@ -95,6 +81,20 @@ export const FEATURE_FLAG_METAS: FeatureFlagMeta[] = [
     description: 'Review uncertain transactions, 1-tap confirm or recategorize, compounding accuracy over time.',
     category: 'Smart Tools',
     defaultValue: true,
+  },
+  {
+    key: 'custody_calendar',
+    label: 'Custody Calendar & Swaps',
+    description: 'Optional two-household custody schedules, overnight tracking, and calm swap requests.',
+    category: 'Co-Parenting',
+    defaultValue: false,
+  },
+  {
+    key: 'hermes_neutral',
+    label: 'Hermes Neutral Mode (BIFF)',
+    description: 'Optional unbiased co-parent mediation tone and conflict-deescalating communications.',
+    category: 'Co-Parenting',
+    defaultValue: false,
   },
 ];
 

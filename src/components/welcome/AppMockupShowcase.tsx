@@ -555,15 +555,15 @@ function DashboardMockupContent({ completedCount }: { completedCount: number }) 
           </div>
         </div>
 
-        {/* Split Custody & ROFR Tile */}
+        {/* Pet Feeding Station Tile */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-          <div className="flex items-center justify-between text-cyan-400 text-xs font-semibold">
-            <CalendarDays className="w-4 h-4" />
-            <span className="text-[10px] text-cyan-300">ROFR 4h+</span>
+          <div className="flex items-center justify-between text-emerald-400 text-xs font-semibold">
+            <PawPrint className="w-4 h-4" />
+            <span className="text-[10px] text-emerald-300">Fed 8:15 AM</span>
           </div>
           <div className="mt-2">
-            <div className="text-xs font-bold text-white truncate">Dad: Bedtime &amp; Wake-up</div>
-            <div className="text-[10px] text-slate-400">Mom after school till 7:30</div>
+            <div className="text-xs font-bold text-white truncate">Who Fed Bruno?</div>
+            <div className="text-[10px] text-slate-400">Leo fed breakfast · Dinner 5:30</div>
           </div>
         </div>
 
@@ -1052,7 +1052,7 @@ function KidRoomMockupContent({
           </span>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-white/5 italic">
-          "Today was transition day to Dad's house. I was sad leaving Bruno the dog, but Dad helped me unpack my toy brick space shuttle..."
+          "Scored a goal at recess today! Finished my math homework early so I can unlock the Orbit room theme tonight..."
         </p>
         <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
           <span className="text-emerald-400 flex items-center gap-1">

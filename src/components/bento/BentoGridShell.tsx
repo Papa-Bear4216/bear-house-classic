@@ -8,6 +8,7 @@ import type { LucideIcon } from 'lucide-react';
 
 
 import { KEYS, loadJSON, saveJSON, isOverdue, daysUntilDue, relativeDate } from '@/lib/familyos';
+import { useFeatureFlag } from '@/lib/featureFlags';
 import { useAppContext } from '@/contexts/AppContext';
 import { useBentoGrid } from './BentoGridContext';
 import { APP_MAP, type DirectoryActionId, type AppGroup } from '@/lib/appMap';
@@ -61,7 +62,14 @@ const DIRECTORY_GROUPS: { name: AppGroup; HeaderIcon: LucideIcon }[] = [
 
 export const BentoGridShell: React.FC = () => {
   const { currentUser, currentRole, householdMembers } = useAppContext();
-  const { expandedModule, expandModule, scope } = useBentoGrid();
+  const { expandedModule, expandModule, collapseModule, scope } = useBentoGrid();
+  const custodyEnabled = useFeatureFlag('custody_calendar');
+
+  useEffect(() => {
+    if (expandedModule === 'custody' && !custodyEnabled) {
+      collapseModule();
+    }
+  }, [expandedModule, custodyEnabled, collapseModule]);
 
   // Live state tracking for glanceable card previews
   const [tasks, setTasks] = useState<any[]>(() => loadJSON(KEYS.tasks, []));
@@ -133,63 +141,23 @@ export const BentoGridShell: React.FC = () => {
   }, [bills]);
 
 
+  const visibleDirectoryModules = useMemo(
+    () =>
+      APP_MAP.filter(
+        (module) =>
+          module.directoryActionId &&
+          (!module.adultsOnly || scope.role !== 'child') &&
+          (module.id !== 'custody' || custodyEnabled)
+      ),
+    [scope.role, custodyEnabled]
+  );
+
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-6">
       {/* 12-Column Responsive Bento Grid Container */}
       <div className="@container/bento-grid grid grid-cols-12 gap-4 sm:gap-5">
 
-        {/* 1. Custody & Co-Parenting Bento Card (7 Cols) - Top Anchor */}
-        <BentoCard
-          id="custody"
-          title="Custody & Co-Parenting"
-          subtitle="Predictable schedules, handoffs & calm swaps"
-          icon={CalendarDays}
-          accentColor="titanium"
-          colSpan={7}
-          badge={
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
-              Co-Parent Logistics
-            </span>
-          }
-        >
-          <BentoCustodyPreview />
-        </BentoCard>
-
-        {/* 2. Schedule & Run of Show Bento Card (5 Cols) */}
-        <BentoCard
-          id="quality"
-          title="Schedule & Run of Show"
-          subtitle="Family timeline & logistics"
-          icon={CalendarDays}
-          accentColor="titanium"
-          colSpan={5}
-          badge={
-            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
-              {scheduleStats.count} upcoming
-            </span>
-          }
-        >
-          <div className="space-y-2.5">
-            <div className="text-xs text-slate-400">Next Scheduled Milestone:</div>
-            {scheduleStats.nextItem ? (
-              <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
-                <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{scheduleStats.nextItem.name}</span>
-                </div>
-                <div className="text-xs text-cyan-300">
-                  {new Date(scheduleStats.nextItem.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} &bull; {scheduleStats.nextItem.person || 'Family'}
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 text-xs text-slate-400 text-center">
-                Open schedule &bull; No conflicts right now
-              </div>
-            )}
-          </div>
-        </BentoCard>
-
-        {/* 3. Chores & Household Focus (7 Cols) */}
+        {/* 1. Chores & Household Focus (7 Cols) - Top Anchor */}
         <BentoCard
           id="household"
           title="Chores & Household Focus"
@@ -239,32 +207,66 @@ export const BentoGridShell: React.FC = () => {
           </div>
         </BentoCard>
 
-        {/* 4. Hermes Copilot AI Stream Card (5 Cols) */}
+        {/* 2. Schedule & Run of Show Bento Card (5 Cols) */}
+        <BentoCard
+          id="quality"
+          title="Schedule & Run of Show"
+          subtitle="Family timeline & logistics"
+          icon={CalendarDays}
+          accentColor="titanium"
+          colSpan={5}
+          badge={
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
+              {scheduleStats.count} upcoming
+            </span>
+          }
+        >
+          <div className="space-y-2.5">
+            <div className="text-xs text-slate-400">Next Scheduled Milestone:</div>
+            {scheduleStats.nextItem ? (
+              <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
+                <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{scheduleStats.nextItem.name}</span>
+                </div>
+                <div className="text-xs text-cyan-300">
+                  {new Date(scheduleStats.nextItem.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} &bull; {scheduleStats.nextItem.person || 'Family'}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 text-xs text-slate-400 text-center">
+                Open schedule &bull; No conflicts right now
+              </div>
+            )}
+          </div>
+        </BentoCard>
+
+        {/* 3. Hermes Copilot AI Stream Card (5 Cols) */}
         <BentoCard
           id="hermes-chat"
           title="Hermes Copilot AI"
-          subtitle="Triad Fusion household intelligence"
+          subtitle="Intelligent household assistant"
           icon={Sparkles}
           accentColor="titanium"
           colSpan={5}
           badge={
             <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-              Triad Stream
+              Live Assistant
             </span>
           }
         >
           <BentoHermesChatPreview />
         </BentoCard>
 
-        {/* 5. Kitchen, Meals & Groceries (6 or 12 Cols) */}
+        {/* 4. Kitchen, Meals & Groceries (7 Cols) */}
         <BentoCard
           id="pantry-shopping"
           title="Kitchen & Groceries"
           subtitle="Dinner menu, pantry & shopping list"
           icon={Utensils}
           accentColor="titanium"
-          colSpan={scope.role === 'child' ? 12 : 6}
+          colSpan={7}
           badge={
             <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
               {shoppingStats.neededCount} to buy
@@ -288,7 +290,36 @@ export const BentoGridShell: React.FC = () => {
           </div>
         </BentoCard>
 
-        {/* 6. Finance & Bills Stream (6 Cols, Role-gated by Triad scope) */}
+        {/* 5. Kids Corner, Routines & Family Hub (6 or 12 Cols) */}
+        <BentoCard
+          id="kids"
+          title="Kids Corner & Routines"
+          subtitle="Monster Den, daily routines, streaks & rewards"
+          icon={Trophy}
+          accentColor="titanium"
+          colSpan={scope.role === 'child' ? 12 : 6}
+          badge={
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+              {householdMembers.length} {householdMembers.length === 1 ? 'member' : 'members'}
+            </span>
+          }
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-cyan-400">Daily Routines</div>
+              <div className="text-xs font-bold text-white truncate">Morning &amp; Bedtime</div>
+              <div className="text-[10px] text-slate-400">Streaks &amp; chore points</div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-cyan-400">Promises</div>
+              <div className="text-slate-200 truncate">
+                {promises.filter((p) => !p.completed).length} active commitments
+              </div>
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* 6. Finance & Bills Stream (6 Cols, Role-gated) */}
         {scope.role !== 'child' && (
           <BentoCard
             id="finance"
@@ -321,6 +352,25 @@ export const BentoGridShell: React.FC = () => {
           </BentoCard>
         )}
 
+        {/* Optional: Custody & Co-Parenting Bento Card (Only shown when toggled ON in Feature Switchboard) */}
+        {custodyEnabled && scope.role !== 'child' && (
+          <BentoCard
+            id="custody"
+            title="Custody & Co-Parenting"
+            subtitle="Predictable schedules, handoffs & calm swaps"
+            icon={CalendarDays}
+            accentColor="titanium"
+            colSpan={12}
+            badge={
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+                Co-Parent Mode
+              </span>
+            }
+          >
+            <BentoCustodyPreview />
+          </BentoCard>
+        )}
+
       </div>
 
       {/* Comprehensive Site Map Directory */}
@@ -336,7 +386,7 @@ export const BentoGridShell: React.FC = () => {
             </p>
           </div>
           <span className="text-[11px] font-mono text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-full border border-cyan-500/20 self-start sm:self-auto">
-            {APP_MAP.length} Modules &bull; Triad Fusion
+            {visibleDirectoryModules.length} Modules &bull; FamilyOS
           </span>
         </div>
 
@@ -348,7 +398,7 @@ export const BentoGridShell: React.FC = () => {
                 <span>{name}</span>
               </div>
               <ul className="space-y-1.5 text-xs">
-                {APP_MAP.filter((module) => module.group === name && module.directoryActionId && (!module.adultsOnly || scope.role !== 'child')).map((module) => {
+                {visibleDirectoryModules.filter((module) => module.group === name).map((module) => {
                   const Icon = DIRECTORY_ICONS[module.directoryActionId!];
                   return (
                     <li key={module.id}>
@@ -524,7 +574,7 @@ export const BentoGridShell: React.FC = () => {
             </BentoExpandedModal>
           )}
 
-          {expandedModule === 'custody' && (
+          {expandedModule === 'custody' && custodyEnabled && (
             <BentoExpandedModal
               title="Custody Calendar & Co-Parent Deck"
               subtitle="Predictable schedules, handoffs & calm swap agreements"

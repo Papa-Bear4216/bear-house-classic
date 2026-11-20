@@ -3,10 +3,10 @@ import { ToggleLeft, ToggleRight, RotateCcw, Sliders, Sparkles } from 'lucide-re
 import { useFeatureFlags, FEATURE_FLAG_METAS, type FeatureCategory, type FeatureFlagKey } from '@/lib/featureFlags';
 
 const CATEGORIES: FeatureCategory[] = [
-  'Co-Parenting',
   'Daily Rhythm',
   'Household Engagement',
   'Smart Tools',
+  'Co-Parenting',
 ];
 
 export function FeatureSwitchboardPanel() {
@@ -56,7 +56,14 @@ export function FeatureSwitchboardPanel() {
           return (
             <div key={cat} className="rounded-xl border border-slate-700 overflow-hidden bg-slate-900/60">
               <div className="px-4 py-2.5 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{cat}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{cat}</span>
+                  {cat === 'Co-Parenting' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 font-medium">
+                      Optional Add-On
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-slate-500">
                   {categoryMetas.filter((m) => flags[m.key]).length}/{categoryMetas.length} active
                 </span>

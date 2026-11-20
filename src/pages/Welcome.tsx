@@ -16,12 +16,12 @@ const STEPS = [
   {
     step: '2',
     title: 'Get the basics rolling',
-    body: 'Chores, the AI room scanner, Kids World monster companion den, pet feeding logs, kid rooms with sealed private journals, morning routines, custody calendar, medication safety logs, and school notes work right away with zero complex setup.',
+    body: 'Chores, the AI room scanner, Kids World monster companion den, pet feeding logs, kid rooms with sealed private journals, morning routines, medication safety logs, and school notes work right away with zero complex setup.',
   },
   {
     step: '3',
-    title: 'Connect only what you want',
-    body: 'Optional: Link read-only bank sync with SimpleFIN, your Google Calendar, or Home Assistant scenes. Everything stays off until you turn it on.',
+    title: 'Toggle & connect only what you want',
+    body: 'Optional: Flip on Co-Parenting Mode for two-home schedules & BIFF tone checks, or link read-only bank sync with SimpleFIN, Google Calendar, and Home Assistant scenes. Everything stays off until you turn it on.',
   },
   {
     step: '4',
@@ -89,12 +89,12 @@ export default function Welcome() {
             <span className="text-4xl font-extrabold text-white">$9.99</span>
             <span className="text-slate-400 font-medium">/month after your 7-day trial</span>
           </div>
-          <p className="text-sm text-slate-300 mt-3 font-semibold">Includes up to 3 household members across both homes.</p>
+          <p className="text-sm text-slate-300 mt-3 font-semibold">Includes up to 3 household members. Works for one home — or flip on Co-Parenting Mode for two.</p>
           <p className="text-sm text-slate-400 mt-1">Each additional member is $2.99/month. Pets are always 100% free.</p>
           <div className="my-6 border-t border-slate-800 pt-6">
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Bento Grid ADHD Dashboard: 6 zero-friction priority focus cards with deep expanded views
+                <span className="text-cyan-400 font-bold">✓</span> Bento Grid ADHD Dashboard: zero-friction priority focus cards with deep expanded views
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> AI Room Chore Scanner: photo any room to convert clutter into quick wins
@@ -118,19 +118,10 @@ export default function Welcome() {
                 <span className="text-cyan-400 font-bold">✓</span> Bedtime wind-down: calming generative soundscape chimes & creature sleep routines
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Hermes BIFF tone check to stop tense texts before they send
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Two-household custody calendar, calm swaps & weekly digests
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Non-traditional split custody: bedtime/wake-ups vs after-school handoffs & ROFR rules
-              </li>
-              <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> Popup Family Bulletin Board for floating notes & urgent announcements
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400 font-bold">✓</span> Cross-home medication dosing log & allergy alerts
+                <span className="text-cyan-400 font-bold">✓</span> Medication dosing log & allergy safety alerts
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> Backpack & School Stuff Adder for flyers & teacher emails
@@ -143,6 +134,9 @@ export default function Welcome() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> Home Assistant allowlist & parent-controlled child accounts
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-cyan-400 font-bold">✓</span> Optional Co-Parenting Mode (toggle on anytime): custody calendar, calm swaps, ROFR rules & BIFF tone check
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-cyan-400 font-bold">✓</span> Household data isolation enforced by database access rules
@@ -188,7 +182,7 @@ export default function Welcome() {
           <span>HotMessExpress is operated by <strong className="text-cyan-400">Dysfunction Junction</strong>.</span>
         </p>
         <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-          FamilyOS for one household or two. One kid, two houses, one life. You confirm all scans, drafts, and device actions before they happen.
+          ADHD-friendly FamilyOS for everyday household calm — with optional Co-Parenting Mode whenever you need it. You confirm all scans, drafts, and device actions before they happen.
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2">
           <Link to="/privacy" className="hover:text-cyan-400 transition underline underline-offset-2">

@@ -45,7 +45,8 @@ describe('Landing Page (Welcome & Welcome Components)', () => {
 
     expect(html).toContain('HotMessExpress');
     expect(html).toContain('Dysfunction Junction');
-    expect(html).toContain('Divorce is a mess');
+    expect(html).toContain('Family life is a mess');
+    expect(html).toContain('Optional Co-Parenting toggle');
     expect(html).toContain('Kids monster den &amp; voice translator');
     expect(html).toContain('“Who Fed the Dog?” pet logs');
     expect(html).toContain('Sign in with Google');

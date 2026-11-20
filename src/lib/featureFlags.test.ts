@@ -55,28 +55,28 @@ describe('Feature Switchboard (featureFlags)', () => {
   it('defaults planned features according to their metadata', () => {
     const flags = getFeatureFlags();
     expect(flags).toEqual(DEFAULT_FEATURE_FLAGS);
-    expect(isFeatureEnabled('custody_calendar')).toBe(true);
+    expect(isFeatureEnabled('custody_calendar')).toBe(false);
     expect(isFeatureEnabled('med_tracker')).toBe(true);
     expect(isFeatureEnabled('hermes_neutral')).toBe(false);
   });
 
-  it('allows disabling and enabling individual features', () => {
-    setFeatureFlag('custody_calendar', false);
-    expect(isFeatureEnabled('custody_calendar')).toBe(false);
+  it('allows enabling and disabling individual features', () => {
+    setFeatureFlag('custody_calendar', true);
+    expect(isFeatureEnabled('custody_calendar')).toBe(true);
     expect(isFeatureEnabled('med_tracker')).toBe(true); // other flags untouched
 
     expect(dispatchFn).toHaveBeenCalled();
     const event = dispatchFn.mock.calls.find((c: any) => c[0]?.type === 'familyos:feature_flags_changed')?.[0] as CustomEvent;
     expect(event).toBeDefined();
-    expect(event.detail).toEqual({ key: 'custody_calendar', enabled: false });
+    expect(event.detail).toEqual({ key: 'custody_calendar', enabled: true });
 
     // Stored in localStorage under KEYS.featureFlags as sparse override
     const stored = JSON.parse(store.get(KEYS.featureFlags) || '{}');
-    expect(stored).toEqual({ custody_calendar: false });
+    expect(stored).toEqual({ custody_calendar: true });
 
-    // Re-enable
-    setFeatureFlag('custody_calendar', true);
-    expect(isFeatureEnabled('custody_calendar')).toBe(true);
+    // Disable again
+    setFeatureFlag('custody_calendar', false);
+    expect(isFeatureEnabled('custody_calendar')).toBe(false);
   });
 
   it('resets all feature flags back to defaults', () => {

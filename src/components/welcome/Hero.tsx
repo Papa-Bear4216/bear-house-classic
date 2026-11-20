@@ -38,14 +38,14 @@ export function Hero() {
       </div>
 
       <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[1.1] tracking-tight font-display relative z-10">
-        Divorce is a mess.{' '}
+        Family life is a mess.{' '}
         <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400 bg-clip-text text-transparent">
-          The logistics don't have to be.
+          Running the house doesn't have to be.
         </span>
       </h1>
 
       <p className="text-base sm:text-lg text-slate-300 max-w-xl relative z-10 leading-relaxed">
-        One kid, two houses, one life. HotMessExpress brings calm to everyday chaos: a 6-card Bento Grid ADHD dashboard, an AI room chore scanner that turns disaster zones into quick wins, custom split-routine custody schedules (bedtime & wake-up vs after-school handoffs with ROFR rules), floating popup Bulletin Board, safe medication handoffs, Kids World monster companions with voice translators, real-time pet feeding logs, customizable kid rooms with sealed private journals, and read-only bank sync. All guarded by a built-in BIFF tone check and Triad Fusion isolation so nobody sends a text they'll regret.
+        An ADHD-friendly Family OS built to bring calm to everyday household chaos: a Bento Grid focus dashboard, an AI room chore scanner that turns disaster zones into quick wins, Kids World monster companions with voice translators, real-time pet feeding logs, customizable kid rooms with sealed private journals, medication safety logs, popup Bulletin Board, and read-only bank sync. Need two-home coordination? Flip on optional Co-Parenting Mode anytime for custody schedules, calm swaps, and BIFF tone checks.
       </p>
 
       {/* Micro-feature highlights */}
@@ -69,12 +69,6 @@ export function Hero() {
           <Zap className="w-3.5 h-3.5 text-cyan-400 fill-current" /> One next chore (ADHD focus)
         </span>
         <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
-          <HeartHandshake className="w-3.5 h-3.5 text-rose-400" /> BIFF tone check
-        </span>
-        <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
-          <CalendarDays className="w-3.5 h-3.5 text-cyan-400" /> Custody & calm swaps
-        </span>
-        <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
           <Pin className="w-3.5 h-3.5 text-amber-400" /> Popup bulletin board
         </span>
         <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
@@ -84,7 +78,13 @@ export function Hero() {
           <GraduationCap className="w-3.5 h-3.5 text-teal-400" /> School flyer triage
         </span>
         <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Triad Fusion quarantine
+          <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Privacy-first household isolation
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
+          <CalendarDays className="w-3.5 h-3.5 text-cyan-400" /> Optional Co-Parenting toggle
+        </span>
+        <span className="px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 flex items-center gap-1.5">
+          <HeartHandshake className="w-3.5 h-3.5 text-rose-400" /> Optional BIFF tone check
         </span>
       </div>
 
