@@ -163,7 +163,7 @@ export const BentoGridShell: React.FC = () => {
           title="Chores & Household Focus"
           subtitle="Priority chores & recurring home routines"
           icon={ListChecks}
-          accentColor="titanium"
+          accentColor="amber"
           colSpan={7}
           badge={
             taskStats.overdueCount > 0 ? (
@@ -171,7 +171,7 @@ export const BentoGridShell: React.FC = () => {
                 <AlertTriangle className="w-3 h-3" /> {taskStats.overdueCount} Overdue
               </span>
             ) : (
-              <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[11px] font-bold">
                 {taskStats.uncompletedCount} Active
               </span>
             )
@@ -180,27 +180,27 @@ export const BentoGridShell: React.FC = () => {
           <div className="space-y-2.5">
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span>{taskStats.todayCount} due today</span>
-              <span>Top Focus Chores</span>
+              <span className="text-amber-300/90 font-semibold">⚡ Quick Wins</span>
             </div>
             <div className="space-y-1.5">
               {taskStats.topTasks.length > 0 ? (
                 taskStats.topTasks.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-slate-200"
+                    className="flex items-center justify-between p-2 rounded-xl bg-amber-500/[0.04] border border-amber-500/15 text-xs text-slate-200"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
                       <span className="truncate font-medium">{t.text}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 px-2 py-0.5 rounded-md bg-white/5 flex-shrink-0">
+                    <span className="text-[10px] text-amber-200/80 px-2 py-0.5 rounded-md bg-amber-500/10 flex-shrink-0">
                       {t.person || 'Anyone'}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="p-3 text-center rounded-xl bg-white/[0.02] text-xs text-slate-400">
-                  All chores complete! Enjoy your day.
+                <div className="p-3 text-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium">
+                  🎉 All chores complete! Enjoy your day.
                 </div>
               )}
             </div>
@@ -213,10 +213,10 @@ export const BentoGridShell: React.FC = () => {
           title="Schedule & Run of Show"
           subtitle="Family timeline & logistics"
           icon={CalendarDays}
-          accentColor="titanium"
+          accentColor="sky"
           colSpan={5}
           badge={
-            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold">
+            <span className="px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30 text-[11px] font-bold">
               {scheduleStats.count} upcoming
             </span>
           }
@@ -224,12 +224,12 @@ export const BentoGridShell: React.FC = () => {
           <div className="space-y-2.5">
             <div className="text-xs text-slate-400">Next Scheduled Milestone:</div>
             {scheduleStats.nextItem ? (
-              <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
+              <div className="p-3 rounded-2xl bg-sky-950/30 border border-sky-500/25 space-y-1">
                 <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  <Clock className="w-3.5 h-3.5 text-sky-400" />
                   <span>{scheduleStats.nextItem.name}</span>
                 </div>
-                <div className="text-xs text-cyan-300">
+                <div className="text-xs text-sky-300">
                   {new Date(scheduleStats.nextItem.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} &bull; {scheduleStats.nextItem.person || 'Family'}
                 </div>
               </div>
@@ -247,11 +247,11 @@ export const BentoGridShell: React.FC = () => {
           title="Hermes Copilot AI"
           subtitle="Intelligent household assistant"
           icon={Sparkles}
-          accentColor="titanium"
+          accentColor="violet"
           colSpan={5}
           badge={
-            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="px-2.5 py-1 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30 text-[11px] font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping" />
               Live Assistant
             </span>
           }
@@ -265,22 +265,22 @@ export const BentoGridShell: React.FC = () => {
           title="Kitchen & Groceries"
           subtitle="Dinner menu, pantry & shopping list"
           icon={Utensils}
-          accentColor="titanium"
+          accentColor="emerald"
           colSpan={7}
           badge={
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
               {shoppingStats.neededCount} to buy
             </span>
           }
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-cyan-400">Tonight&apos;s Dinner</div>
+            <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/20 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-emerald-400">Tonight&apos;s Dinner</div>
               <div className="text-xs font-bold text-white truncate">Home Cooked Dinner</div>
               <div className="text-[10px] text-slate-400">Recipes synced</div>
             </div>
             <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-cyan-400">Shopping List</div>
+              <div className="text-[10px] uppercase font-bold text-emerald-400">Shopping List</div>
               {shoppingStats.previewList.length > 0 ? (
                 <div className="text-slate-200 truncate">{shoppingStats.previewList.join(', ')}</div>
               ) : (
@@ -290,29 +290,32 @@ export const BentoGridShell: React.FC = () => {
           </div>
         </BentoCard>
 
-        {/* 5. Kids Corner, Routines & Family Hub (6 or 12 Cols) */}
+        {/* 5. Kids Zone, Monster Den & Routines (6 or 12 Cols) */}
         <BentoCard
           id="kids"
-          title="Kids Corner & Routines"
-          subtitle="Monster Den, daily routines, streaks & rewards"
+          title="Kids Zone & Monster Den"
+          subtitle="Clubhouse, 120Hz arcade, daily routines & rewards"
           icon={Trophy}
-          accentColor="titanium"
+          accentColor="rose"
           colSpan={scope.role === 'child' ? 12 : 6}
           badge={
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
-              {householdMembers.length} {householdMembers.length === 1 ? 'member' : 'members'}
+            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-pink-500/20 to-amber-500/20 text-pink-200 border border-pink-400/35 text-[10px] font-extrabold">
+              👹 Monster Den + 🕹️ Arcade
             </span>
           }
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="p-2.5 rounded-xl bg-cyan-950/25 border border-cyan-500/20 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-cyan-400">Daily Routines</div>
-              <div className="text-xs font-bold text-white truncate">Morning &amp; Bedtime</div>
-              <div className="text-[10px] text-slate-400">Streaks &amp; chore points</div>
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-950/40 via-purple-950/30 to-amber-950/20 border border-pink-500/25 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-pink-300">🏰 Clubhouse &amp; Arcade</div>
+              <div className="text-xs font-bold text-white truncate">Monster Den &amp; Kid Rooms</div>
+              <div className="text-[10px] text-pink-200/75">Gacha wheel, streaks &amp; Bear Bucks</div>
             </div>
-            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-cyan-400">Promises</div>
-              <div className="text-slate-200 truncate">
+            <div className="p-2.5 rounded-xl bg-amber-950/20 border border-amber-500/20 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-amber-300">⭐ Routines &amp; Promises</div>
+              <div className="text-xs font-bold text-white truncate">
+                {householdMembers.length} {householdMembers.length === 1 ? 'member' : 'members'} in squad
+              </div>
+              <div className="text-[10px] text-slate-300 truncate">
                 {promises.filter((p) => !p.completed).length} active commitments
               </div>
             </div>
@@ -326,11 +329,11 @@ export const BentoGridShell: React.FC = () => {
             title="Finance & Bill Tracker"
             subtitle="Household bills & upcoming expenses"
             icon={DollarSign}
-            accentColor="titanium"
+            accentColor="indigo"
             colSpan={6}
             badge={
               billStats.unpaidCount > 0 ? (
-                <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
                   {billStats.unpaidCount} due
                 </span>
               ) : (
@@ -340,9 +343,9 @@ export const BentoGridShell: React.FC = () => {
               )
             }
           >
-            <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/20 flex items-center justify-between">
+            <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/25 flex items-center justify-between">
               <div>
-                <div className="text-[10px] text-cyan-400 font-semibold uppercase">Unpaid Total:</div>
+                <div className="text-[10px] text-indigo-300 font-semibold uppercase">Unpaid Total:</div>
                 <div className="text-xl font-extrabold text-white font-mono">${billStats.totalAmount.toFixed(2)}</div>
               </div>
               <div className="text-right text-[11px] text-slate-400">
@@ -359,7 +362,7 @@ export const BentoGridShell: React.FC = () => {
             title="Custody & Co-Parenting"
             subtitle="Predictable schedules, handoffs & calm swaps"
             icon={CalendarDays}
-            accentColor="titanium"
+            accentColor="cyan"
             colSpan={12}
             badge={
               <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold">

@@ -78,30 +78,91 @@ const KidsHub: React.FC = () => {
   ];
 
   const [inMonsterDen, setInMonsterDen] = useState(false);
+  const activeHomeworkCount = loadJSON<HWItem[]>('familyos_homework', []).filter(
+    (h) => !h.deletedAt && h.status !== 'Done'
+  ).length;
+
+  const TAB_STYLES: Record<
+    typeof TABS[number]['id'],
+    { emoji: string; active: string; badge?: number }
+  > = {
+    room: { emoji: '🏰', active: 'from-fuchsia-500 to-purple-600 text-white shadow-fuchsia-500/25' },
+    routines: { emoji: '☀️', active: 'from-amber-400 to-orange-500 text-slate-950 shadow-amber-500/25' },
+    homework: { emoji: '📚', active: 'from-sky-500 to-blue-600 text-white shadow-sky-500/25', badge: activeHomeworkCount },
+    grades: { emoji: '⭐', active: 'from-yellow-400 to-amber-500 text-slate-950 shadow-yellow-500/25' },
+    activities: { emoji: '⚽', active: 'from-emerald-500 to-teal-600 text-white shadow-emerald-500/25' },
+    allowance: { emoji: '🪙', active: 'from-amber-500 to-yellow-500 text-slate-950 shadow-amber-500/25' },
+    arcade: { emoji: '🕹️', active: 'from-pink-500 to-rose-600 text-white shadow-pink-500/25' },
+  };
 
   if (inMonsterDen) {
     return <KidsWorldShell onExitKidMode={() => setInMonsterDen(false)} />;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Kids Hub</h2>
-        <button
-          onClick={() => setInMonsterDen(true)}
-          className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition"
-        >
-          <span className="text-base">👹</span> ENTER MONSTER DEN 🚀
-        </button>
+    <div className="space-y-5">
+      {/* Playful Kids Zone Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl border border-pink-500/30 bg-gradient-to-r from-[#1f1137] via-[#2b124c] to-[#1a1f3d] p-4 sm:p-5 shadow-xl">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-pink-500/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-1/3 w-36 h-36 rounded-full bg-amber-400/15 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 flex items-center justify-center text-2xl shadow-lg shadow-pink-500/30 ring-2 ring-white/20 flex-shrink-0">
+              👹
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Kids Zone</h2>
+                <span className="px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-200 text-[10px] font-extrabold uppercase tracking-wider">
+                  Clubhouse &amp; Arcade
+                </span>
+              </div>
+              <p className="text-xs text-purple-200/80 mt-0.5">
+                Customize your room, crush routines for Bear Bucks, unlock monsters &amp; play 120Hz arcade games.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setInMonsterDen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-400 via-pink-500 to-purple-600 hover:from-amber-300 hover:to-purple-500 text-white font-black rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-pink-500/30 active:scale-95 transition"
+            >
+              <span className="text-base">👹</span> ENTER MONSTER DEN 🚀
+            </button>
+            <button
+              onClick={() => setTab('arcade')}
+              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/15 text-pink-100 font-bold rounded-2xl text-xs flex items-center gap-1.5 active:scale-95 transition"
+            >
+              <span>🕹️</span> Arcade
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      {/* Tactile Kid-Friendly Tab Bar */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {TABS.map(t => {
-          const Icon = t.icon;
+          const style = TAB_STYLES[t.id];
+          const isActive = activeTab === t.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition focus-ring ${activeTab === t.id ? 'bg-berry-600 text-white' : 'bg-bark-700 text-cream-400/60 hover:text-white'}`}>
-              <Icon className="w-3.5 h-3.5" /> {t.label}
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition active:scale-95 focus-ring ${
+                isActive
+                  ? `bg-gradient-to-r ${style.active} shadow-lg`
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+              }`}
+            >
+              <span>{style.emoji}</span>
+              <span>{t.label}</span>
+              {style.badge && style.badge > 0 ? (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-black/25 text-[10px] font-black">
+                  {style.badge}
+                </span>
+              ) : null}
             </button>
           );
         })}

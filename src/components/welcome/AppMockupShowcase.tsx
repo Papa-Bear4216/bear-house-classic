@@ -107,7 +107,7 @@ export function AppMockupShowcase() {
   };
 
   return (
-    <section className="relative px-4 py-16 max-w-6xl mx-auto z-10">
+    <section id="demo" className="relative px-4 py-16 max-w-6xl mx-auto z-10">
       {/* Section Header */}
       <div className="text-center max-w-2xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-300 mb-3">

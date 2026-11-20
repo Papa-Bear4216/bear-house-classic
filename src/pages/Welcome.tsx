@@ -34,9 +34,9 @@ export default function Welcome() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 relative overflow-x-hidden selection:bg-cyan-500 selection:text-slate-950">
       {/* Ambient background glows */}
-      <div className="fixed -top-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/[0.05] blur-[140px] pointer-events-none" />
-      <div className="fixed top-1/2 -left-40 w-96 h-96 rounded-full bg-blue-600/[0.05] blur-[140px] pointer-events-none" />
-      <div className="fixed -bottom-40 right-1/4 w-96 h-96 rounded-full bg-slate-700/[0.05] blur-[140px] pointer-events-none" />
+      <div className="fixed -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-amber-500/[0.08] blur-[140px] pointer-events-none" />
+      <div className="fixed top-1/2 -left-40 w-[28rem] h-[28rem] rounded-full bg-fuchsia-600/[0.07] blur-[140px] pointer-events-none" />
+      <div className="fixed -bottom-40 right-1/4 w-[28rem] h-[28rem] rounded-full bg-cyan-500/[0.07] blur-[140px] pointer-events-none" />
 
       {/* Top Banner: HotMessExpress — A Product of Dysfunction Junction */}
       <aside aria-label="Product attribution" className="w-full bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-blue-950/40 border-b border-cyan-500/20 backdrop-blur-xl px-4 py-2.5 text-center relative z-20">
@@ -73,6 +73,56 @@ export default function Welcome() {
       </section>
 
       <AppMockupShowcase />
+
+      {/* Kids Zone Spotlight */}
+      <section className="px-4 py-12 max-w-5xl mx-auto relative z-10">
+        <div className="rounded-3xl border border-pink-500/30 bg-gradient-to-br from-[#1f1137]/90 via-[#2a124a]/80 to-[#111936]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-pink-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-amber-400/15 blur-3xl pointer-events-none" />
+          <div className="relative z-10 text-center max-w-2xl mx-auto mb-8">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/35 text-xs font-extrabold text-pink-200 mb-3">
+              <span>👹</span> Built So Kids Actually WANT to Use It
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white font-display tracking-tight">
+              A full clubhouse, not a boring chore chart
+            </h2>
+            <p className="text-sm sm:text-base text-purple-100/80 mt-2">
+              When kids sign in, they land straight in their own colorful Kids World — with monsters to raise, Bear Bucks to spend, and zero adult clutter.
+            </p>
+          </div>
+          <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl bg-slate-950/60 border border-pink-400/25 p-4 space-y-2">
+              <div className="text-2xl">👹</div>
+              <h3 className="text-white font-extrabold text-sm">Monster Den Clubhouse</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Hatch creatures, spin the Gacha Prize Wheel, decorate a drag-and-drop room, and go on habit-fueled adventures.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-950/60 border border-amber-400/25 p-4 space-y-2">
+              <div className="text-2xl">🕹️</div>
+              <h3 className="text-white font-extrabold text-sm">120Hz Retro Arcade</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Finished routines unlock tokens for Sock Python, Pantry Chomper, and Cosmic Clutter with family leaderboards.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-950/60 border border-purple-400/25 p-4 space-y-2">
+              <div className="text-2xl">🔒</div>
+              <h3 className="text-white font-extrabold text-sm">Kid Rooms &amp; Sealed Journal</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Unlockable room themes, mood tags, and a device-only private journal parents can never peek into.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-950/60 border border-emerald-400/25 p-4 space-y-2">
+              <div className="text-2xl">🐾</div>
+              <h3 className="text-white font-extrabold text-sm">“Who Fed the Dog?”</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Kids log pet meals for bonus Bear Bucks and adventure fuel — with 2-hour double-feeding protection.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <FeatureGrid />
       <FamilyRoles />
 

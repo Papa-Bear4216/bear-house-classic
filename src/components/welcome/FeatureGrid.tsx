@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Camera,
   Zap,
@@ -168,22 +169,78 @@ const FEATURES = [
   },
 ];
 
+type FeatureFilter = 'all' | 'calm' | 'kids' | 'home' | 'coparent';
+
+const FEATURE_TABS: { id: FeatureFilter; label: string }[] = [
+  { id: 'all', label: '✨ Everything' },
+  { id: 'calm', label: '⚡ Everyday Calm' },
+  { id: 'kids', label: '👹 Kids Zone & Fun' },
+  { id: 'home', label: '🏠 Home & Money' },
+  { id: 'coparent', label: '🤝 Optional Co-Parenting' },
+];
+
+const FEATURE_GROUPS: Record<string, FeatureFilter> = {
+  'Bento Grid ADHD Dashboard': 'calm',
+  'AI Room Chore Scanner': 'calm',
+  'One next chore (ADHD focus)': 'calm',
+  'Popup Family Bulletin Board': 'calm',
+  'Kids World Monster Den & Voice Translator': 'kids',
+  'Kid Rooms & Sealed Private Journal': 'kids',
+  'Routines, streaks & 120Hz retro arcade': 'kids',
+  'Bedtime wind-down & calming soundscapes': 'kids',
+  'Built with child privacy in mind': 'kids',
+  '“Who Fed the Dog?” Pet Feeding Station': 'home',
+  'Medication & dosing safety': 'home',
+  'Backpack & school stuff adder': 'home',
+  'Receipts & pantry vision': 'home',
+  'Read-only bank sync': 'home',
+  'Smart home & allowlist controls': 'home',
+  'Privacy-first household isolation': 'home',
+  'Custody & calm swaps': 'coparent',
+  'Hermes BIFF tone check': 'coparent',
+};
+
 export function FeatureGrid() {
+  const [filter, setFilter] = useState<FeatureFilter>('all');
+  const visibleFeatures =
+    filter === 'all'
+      ? FEATURES
+      : FEATURES.filter((f) => (FEATURE_GROUPS[f.title] ?? 'home') === filter);
+
   return (
-    <section id="features" className="px-4 py-16 max-w-5xl mx-auto">
-      <div className="text-center max-w-2xl mx-auto mb-10">
+    <section id="features" className="px-4 py-16 max-w-5xl mx-auto relative z-10">
+      <div className="text-center max-w-2xl mx-auto mb-8">
         <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-display">
           Everything shipped in FamilyOS
         </h2>
         <p className="text-sm sm:text-base text-slate-300 mt-3 leading-relaxed">
-          Real tools built for everyday household calm. Co-Parenting Mode, bank sync, calendar, Gmail, and Home Assistant stay off until an admin turns them on.
+          Browse by what matters to your family right now. Co-Parenting Mode, bank sync, calendar, Gmail, and Home Assistant stay off until an admin turns them on.
         </p>
       </div>
+
+      {/* Category Filter Pills */}
+      <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+        {FEATURE_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setFilter(t.id)}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition active:scale-95 ${
+              filter === t.id
+                ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-violet-600 text-white shadow-lg shadow-pink-500/20'
+                : 'bg-slate-900/70 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {FEATURES.map((f) => (
+        {visibleFeatures.map((f) => (
           <div
             key={f.title}
-            className="bg-slate-900/60 border border-slate-800 hover:border-cyan-500/30 rounded-3xl p-6 flex flex-col gap-3.5 backdrop-blur-xl shadow-xl transition-all duration-300"
+            className="bg-slate-900/65 border border-slate-800 hover:border-pink-400/35 hover:-translate-y-0.5 rounded-3xl p-6 flex flex-col gap-3.5 backdrop-blur-xl shadow-xl transition-all duration-300"
           >
             <div className="flex items-start justify-between gap-2">
               <div className={`w-12 h-12 rounded-2xl ${f.bg} border flex items-center justify-center flex-shrink-0`}>

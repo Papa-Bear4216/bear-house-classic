@@ -32,6 +32,7 @@ import { BedtimeModal } from './BedtimeModal';
 import { PetFeedingModal } from './PetFeedingModal';
 import ArcadeHub from '@/components/familyos/arcade/ArcadeHub';
 import RoutinesHub from '@/components/familyos/sections/RoutinesHub';
+import KidRoom from '@/components/familyos/sections/KidRoom';
 import { HomeworkTab } from '@/components/familyos/sections/KidsHub';
 import { loadPointsBalance, loadRedemptions } from '@/lib/familyos';
 import { monsterAudio } from '@/lib/monsterDenAudio';
@@ -63,6 +64,7 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
   const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [bedtimeOpen, setBedtimeOpen] = useState(false);
   const [petFeedingOpen, setPetFeedingOpen] = useState(false);
+  const [kidRoomOpen, setKidRoomOpen] = useState(false);
   const [parentExitConfirm, setParentExitConfirm] = useState(false);
   const [mathAnswer, setMathAnswer] = useState('');
 
@@ -107,123 +109,146 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-cream-100 flex flex-col font-sans select-none overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[#130b29] via-[#1a1033] to-[#0c1324] text-cream-100 flex flex-col font-sans select-none overflow-x-hidden relative">
+      {/* Playful ambient clubhouse glows */}
+      <div className="fixed -top-32 -left-32 w-96 h-96 rounded-full bg-fuchsia-600/15 blur-[130px] pointer-events-none" />
+      <div className="fixed top-1/3 -right-32 w-96 h-96 rounded-full bg-amber-500/15 blur-[130px] pointer-events-none" />
+
       {/* ---------------- TOP GAME BAR ---------------- */}
-      <header className="bg-stone-900/90 border-b-4 border-amber-600/40 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3 shadow-lg z-30">
+      <header className="bg-[#160d2e]/90 backdrop-blur-xl border-b-2 border-pink-500/30 px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg z-30">
         {/* Left: Clubhouse Title & Active Creature */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-pink-500 p-0.5 shadow-md flex items-center justify-center">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 p-0.5 shadow-lg shadow-pink-500/30 flex items-center justify-center ring-2 ring-white/20">
             <span className="text-2xl">👹</span>
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm sm:text-base font-black tracking-wider text-amber-400 uppercase">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-black tracking-wider bg-gradient-to-r from-amber-300 via-pink-300 to-purple-300 bg-clip-text text-transparent uppercase">
                 MONSTER DEN
               </h1>
-              <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 font-extrabold rounded">
+              <span className="text-[10px] px-2 py-0.5 bg-pink-500/25 border border-pink-400/40 text-pink-200 font-extrabold rounded-full">
                 Kids World
               </span>
             </div>
-            <div className="text-[11px] text-stone-300 flex items-center gap-2">
-              <span>Pet: <strong>{currentCreature.name}</strong></span>
-              <span className="text-stone-500">•</span>
-              <span className="text-pink-400 font-bold">❤️ Happy: {profile.happiness ?? 100}%</span>
+            <div className="text-xs text-purple-200/90 flex items-center gap-2 mt-0.5">
+              <span>Buddy: <strong className="text-white">{currentCreature.name}</strong></span>
+              <span className="text-purple-400">•</span>
+              <span className="text-pink-300 font-bold">❤️ {profile.happiness ?? 100}% Happy</span>
             </div>
           </div>
         </div>
 
-        {/* Center: Kid Room Switcher ("Knock & Visit" Sibling Rooms) */}
+        {/* Center: Kid Room Switcher ("Knock & Visit" Sibling Rooms — works on mobile too!) */}
         {childMembers.length > 1 && (
-          <div className="hidden md:flex items-center gap-1 bg-stone-850 p-1 rounded-2xl border border-stone-750">
+          <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-2xl border border-purple-500/30 overflow-x-auto max-w-full">
             {childMembers.map((kid) => {
               const isSelected = selectedKidId === kid.id;
               return (
                 <button
                   key={kid.id}
                   onClick={() => setSelectedKidId(kid.id)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95 ${
                     isSelected
-                      ? 'bg-amber-500 text-stone-950 shadow'
-                      : 'text-stone-400 hover:text-white'
+                      ? 'bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 shadow-md'
+                      : 'text-purple-200 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <span>{(kid as { avatar?: string }).avatar || '🐻'}</span>
-                  <span>{kid.name}'s Den</span>
+                  <span>{kid.name}&apos;s Den</span>
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* Right: Bear Bucks & Action Badges */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Bear Bucks Counter */}
-          <div className="px-3 py-1.5 bg-yellow-500/15 border border-yellow-500/40 rounded-2xl flex items-center gap-1.5 text-xs font-black text-yellow-400 shadow-inner">
+        {/* Right: Bear Bucks & Exit */}
+        <div className="flex items-center gap-2 ml-auto sm:ml-0">
+          <div className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500/25 to-yellow-500/20 border border-amber-400/50 rounded-2xl flex items-center gap-1.5 text-xs sm:text-sm font-black text-amber-300 shadow-inner">
             <span className="text-base">🪙</span>
             <span>{spendable} Bear Bucks</span>
           </div>
 
-          {/* Quick Launcher Icons */}
-          <button
-            onClick={() => setRoutinesOpen(true)}
-            className="p-2 rounded-xl bg-amber-600/20 border border-amber-500/40 text-amber-400 hover:bg-amber-600/40 transition"
-            title="My Daily Routines"
-          >
-            <Sun className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setHomeworkOpen(true)}
-            className="p-2 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-400 hover:bg-blue-600/40 transition"
-            title="My Homework"
-          >
-            <BookOpen className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setHermesOpen(true)}
-            className="p-2 rounded-xl bg-cyan-600/20 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-600/40 transition"
-            title="Hermes Monster Translator"
-          >
-            <Bot className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setPetFeedingOpen(true)}
-            className="p-2 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/40 transition"
-            title="Pet Feeding Station"
-          >
-            <Utensils className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setBedtimeOpen(true)}
-            className="p-2 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 hover:bg-indigo-600/40 transition"
-            title="Bedtime Wind-Down"
-          >
-            <Moon className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setArcadeOpen(true)}
-            className="p-2 rounded-xl bg-pink-600/20 border border-pink-500/40 text-pink-400 hover:bg-pink-600/40 transition"
-            title="Arcade Minigames"
-          >
-            <Gamepad2 className="w-4 h-4" />
-          </button>
-
-          {/* Parent Exit Button */}
           {onExitKidMode && (
             <button
               onClick={() => setParentExitConfirm(true)}
-              className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-400 hover:text-white border border-stone-700"
-              title="Parent Exit to Adult Dashboard"
+              className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+              title="Exit Kids World"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Exit</span>
             </button>
           )}
         </div>
       </header>
+
+      {/* ---------------- LABELED KID NAVIGATION DOCK ---------------- */}
+      <nav
+        aria-label="Kids World activities"
+        className="bg-[#120a24]/80 border-b border-purple-500/20 px-3 sm:px-6 py-2.5 z-20"
+      >
+        <div className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+          <button
+            onClick={() => setGachaOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-500/25 to-pink-500/25 hover:from-amber-500/40 hover:to-pink-500/40 border border-amber-400/40 text-amber-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🎡</span> Prize Wheel
+          </button>
+          <button
+            onClick={() => setWardrobeOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-fuchsia-400/35 text-fuchsia-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>👕</span> Dress Up
+          </button>
+          <button
+            onClick={() => setExpeditionOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/35 text-emerald-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🗺️</span> Adventure
+          </button>
+          <button
+            onClick={() => setKidRoomOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/35 text-purple-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🏰</span> My Room &amp; Journal
+          </button>
+          <button
+            onClick={() => setArcadeOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-pink-500/25 hover:bg-pink-500/40 border border-pink-400/40 text-pink-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🕹️</span> Arcade
+          </button>
+          <button
+            onClick={() => setRoutinesOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/35 text-amber-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>☀️</span> Routines
+          </button>
+          <button
+            onClick={() => setHomeworkOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/35 text-sky-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>📚</span> Homework
+          </button>
+          <button
+            onClick={() => setPetFeedingOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-teal-500/20 hover:bg-teal-500/35 border border-teal-400/35 text-teal-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🐾</span> Feed Pets
+          </button>
+          <button
+            onClick={() => setHermesOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/35 text-cyan-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🤖</span> Ask Hermes
+          </button>
+          <button
+            onClick={() => setBedtimeOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-indigo-500/20 hover:bg-indigo-500/35 border border-indigo-400/35 text-indigo-200 text-xs font-extrabold whitespace-nowrap transition active:scale-95"
+          >
+            <span>🌙</span> Bedtime
+          </button>
+        </div>
+      </nav>
 
       {/* ---------------- MAIN CANVAS CONTENT ---------------- */}
       <main className="flex-1 p-2 sm:p-4 max-w-6xl w-full mx-auto flex flex-col justify-center">
@@ -329,6 +354,26 @@ export const KidsWorldShell: React.FC<KidsWorldShellProps> = ({ onExitKidMode })
               </button>
             </div>
             <HomeworkTab isAdm={false} kids={childMembers.map((m) => m.name)} />
+          </div>
+        </div>
+      )}
+
+      {/* Kid Room & Sealed Private Journal Modal */}
+      {kidRoomOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-4xl bg-slate-900 border-4 border-purple-500 rounded-3xl p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h2 className="text-xl font-black text-purple-300 flex items-center gap-2">
+                <DoorOpen className="w-6 h-6" /> MY ROOM &amp; SEALED JOURNAL
+              </h2>
+              <button
+                onClick={() => setKidRoomOpen(false)}
+                className="p-1.5 rounded-full bg-slate-800 text-slate-300 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <KidRoom />
           </div>
         </div>
       )}
